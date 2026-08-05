@@ -1,0 +1,13 @@
+| File                      | Nhiệm vụ chính                                         | Nội dung cần có                                                                                                 |
+| ------------------------- | ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------- |
+| `01-project-overview.md`  | Giới thiệu tổng quan về project                        | Vấn đề cần giải quyết, mục tiêu, đối tượng người dùng, phạm vi tổng quát, công nghệ chính                       |
+| `02-requirements.md`      | Xác định project **phải làm những gì**                 | Danh sách chức năng, yêu cầu nghiệp vụ, yêu cầu phi chức năng, điều kiện và kết quả mong đợi                    |
+| `03-user-flow.md`         | Mô tả người dùng **sử dụng hệ thống như thế nào**      | Các bước thao tác, luồng chính, luồng lỗi/ngoại lệ, sơ đồ User Flow hoặc Use Case                               |
+| `04-architecture.md`      | Mô tả hệ thống **được tổ chức như thế nào**            | Frontend, backend, database, cache, AI/service bên ngoài và cách các thành phần giao tiếp                       |
+| `05-database.md`          | Thiết kế cách lưu trữ dữ liệu                          | ERD, bảng, cột, kiểu dữ liệu, khóa chính/khóa ngoại, quan hệ, index, ràng buộc                                  |
+| `06-api-contract.md`      | Thống nhất cách frontend và backend giao tiếp          | Endpoint, method, request, response, status code, authentication, lỗi API                                       |
+| `07-module-design.md`     | Chia hệ thống thành các module và xác định trách nhiệm | Danh sách module, chức năng từng module, quan hệ giữa các module, trách nhiệm của controller/service/repository |
+| `08-coding-convention.md` | Thống nhất cách viết code                              | Quy tắc đặt tên, cấu trúc thư mục, format code, import, xử lý lỗi, logging, quy tắc code chung                  |
+| `09-git-workflow.md`      | Thống nhất cách làm việc với Git                       | Quy tắc branch, đặt tên branch, commit message, Pull Request, review, merge                                     |
+| `10-testing-plan.md`      | Xác định cách kiểm tra chất lượng project              | Unit test, integration test, E2E test, test case, tiêu chí pass/fail                                            |
+| `11-deployment.md`        | Hướng dẫn đưa project lên môi trường chạy thật         | Môi trường development/staging/production, Docker, biến môi trường, CI/CD, quy trình deploy và rollback         |
