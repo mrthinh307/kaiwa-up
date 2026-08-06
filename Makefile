@@ -24,8 +24,7 @@ install:
 	cd apps/api && uv sync
 
 dev:
-	pnpm dev:web &
-	cd apps/api && uv run uvicorn app.main:app --reload
+	$(MAKE) --jobs=2 dev-web dev-api
 
 lint:
 	pnpm lint:web
