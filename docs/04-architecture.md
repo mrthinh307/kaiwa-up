@@ -328,74 +328,108 @@ ReviewRepository
 
 # 6. Kiến trúc Frontend
 
-Frontend sử dụng Next.js và được tổ chức theo từng chức năng.
+Frontend sử dụng Next.js App Router và được tổ chức theo hướng **route-first colocation**:
+
+- Route, layout và code chỉ phục vụ một feature được đặt gần nhau trong `src/app`.
+- Route group tổ chức các khu vực giao diện mà không làm thay đổi URL.
+- Private folder bắt đầu bằng `_` chứa implementation riêng của route và không tạo URL segment.
+- Thư mục cấp `src` chỉ chứa code thực sự dùng chung giữa nhiều route/feature.
 
 Cấu trúc dự kiến:
 
 ```text
-frontend/
+apps/web/src/
 ├── app/
+│   ├── layout.tsx                    # Root layout
+│   ├── globals.css
+│   ├── (public)/
+│   │   └── page.tsx                  # /
 │   ├── (auth)/
-│   │   ├── login/
-│   │   └── register/
-│   │
-│   ├── dashboard/
-│   │
-│   ├── shadowing/
-│   │   ├── page.tsx
-│   │   └── [lessonId]/
-│   │
-│   ├── dictation/
-│   │   ├── page.tsx
-│   │   └── [lessonId]/
-│   │
-│   ├── reflex/
-│   │   ├── page.tsx
-│   │   └── [lessonId]/
-│   │
-│   ├── listening-translation/
-│   │
-│   ├── leaderboard/
-│   │
-│   ├── profile/
-│   │
-│   ├── layout.tsx
-│   └── page.tsx
-│
+│   │   ├── layout.tsx
+│   │   ├── login/page.tsx
+│   │   └── register/page.tsx
+│   └── (protected)/
+│       ├── layout.tsx
+│       ├── dashboard/
+│       │   ├── _components/
+│       │   ├── _hooks/
+│       │   ├── _types/
+│       │   ├── _utils/
+│       │   ├── loading.tsx
+│       │   ├── error.tsx
+│       │   └── page.tsx
+│       ├── shadowing/
+│       │   ├── _components/
+│       │   ├── _hooks/
+│       │   ├── [lessonId]/page.tsx
+│       │   └── page.tsx
+│       ├── dictation/
+│       │   ├── _components/
+│       │   ├── [lessonId]/page.tsx
+│       │   └── page.tsx
+│       ├── reflex/
+│       │   ├── _components/
+│       │   ├── _hooks/
+│       │   ├── [lessonId]/page.tsx
+│       │   └── page.tsx
+│       ├── review/page.tsx
+│       ├── listening-translation/    # P2
+│       │   ├── [lessonId]/page.tsx
+│       │   └── page.tsx
+│       ├── ai-tutor/                 # P2
+│       │   ├── _components/
+│       │   ├── _hooks/
+│       │   ├── [conversationId]/page.tsx
+│       │   └── page.tsx
+│       ├── leaderboard/page.tsx
+│       └── profile/page.tsx
 ├── components/
-│   ├── common/
-│   ├── audio/
-│   ├── recording/
-│   ├── gamification/
-│   └── learning/
-│
-├── features/
-│   ├── auth/
-│   ├── shadowing/
-│   ├── dictation/
-│   ├── reflex/
-│   ├── progress/
-│   └── leaderboard/
-│
-├── services/
-│   └── api/
-│
-├── hooks/
-│
-├── types/
-│
-└── utils/
+│   ├── ui/                           # Primitive từ thư viện UI
+│   ├── common/                       # Component dùng chung do dự án xây dựng
+│   └── layouts/                      # Application shell và navigation
+├── hooks/                            # Hook thực sự dùng chung
+├── lib/                              # Adapter/helper dùng chung, không phụ thuộc UI
+└── types/                            # Type nội bộ thực sự dùng chung
 ```
 
-Nguyên tắc:
+## 6.1. Route group và private folder
 
-* `app/` chứa route và page.
-* `features/` chứa logic theo chức năng.
-* `components/` chứa các component có thể tái sử dụng.
-* `services/api/` chứa các hàm gọi FastAPI.
-* `hooks/` chứa custom hooks.
-* `types/` chứa kiểu dữ liệu TypeScript.
-* `utils/` chứa các hàm dùng chung.
+- `(public)`, `(auth)` và `(protected)` là route group; tên trong dấu ngoặc không xuất hiện trong URL.
+- Route group dùng để chia sẻ layout hoặc phân khu giao diện, không thay thế kiểm tra authorization ở
+  FastAPI.
+- `_components`, `_hooks`, `_types` và `_utils` là private folder của route. Chúng không tạo URL và
+  không được import tùy tiện từ feature không liên quan.
+- Dynamic segment như `[lessonId]` và `[conversationId]` biểu diễn resource cụ thể trên URL.
+- Chỉ `page.tsx` hoặc `route.ts` làm một route có thể truy cập; file colocate khác không tự trở thành
+  route.
+
+## 6.2. Code dùng riêng và code dùng chung
+
+- Component, hook, type và utility chỉ phục vụ một route phải được colocate trong route đó.
+- Code dùng chung cho một nhánh route được đặt ở route cha gần nhất.
+- Chỉ chuyển code lên `src/components`, `src/hooks`, `src/lib` hoặc `src/types` khi nó được dùng bởi
+  nhiều route/feature và không còn phụ thuộc context riêng.
+- `components/ui` chứa UI primitive từ thư viện như shadcn/ui.
+- `components/common` chứa component dùng chung do dự án tự xây dựng.
+- `components/layouts` chứa application shell, header, sidebar và navigation dùng lại.
+- Không tạo thêm `src/features/` để sao chép logic đã colocate trong route.
+- Không tạo `services/api/` chỉ để bọc lại API client mà không bổ sung trách nhiệm rõ ràng.
+
+## 6.3. Rendering và giao tiếp backend
+
+- Dùng Server Component mặc định. Chỉ thêm `"use client"` khi cần React client hook, event handler,
+  microphone hoặc browser API.
+- Tải dữ liệu ban đầu trong Server Component, Server Action hoặc Route Handler phù hợp; không dùng
+  `useEffect` chỉ để tải dữ liệu ban đầu.
+- Client Component được giữ nhỏ và đặt sâu nhất có thể trong component tree.
+- Dùng `loading.tsx`, `error.tsx` và `not-found.tsx` tại route boundary cần các trạng thái tương ứng.
+- FastAPI/OpenAPI là nguồn chuẩn của API contract.
+- Frontend sử dụng type và client function từ `@kaiwa-app/api-client`; không sao chép request/response
+  type hoặc tạo một API service layer song song.
+- Frontend vẫn phải xử lý đầy đủ pending, empty, error và success state.
+
+Thiết kế module frontend chi tiết được mô tả trong `07-module-design.md`; quy tắc đặt tên và vị trí file
+được mô tả trong `08-coding-convention.md`.
 
 ---
 
@@ -891,6 +925,7 @@ Tính năng này cần bổ sung:
 | Nội dung           | Quyết định                                             |
 | ------------------ | ------------------------------------------------------ |
 | Frontend           | Next.js                                                |
+| Tổ chức frontend   | App Router, route-first colocation và private folder   |
 | Backend            | FastAPI                                                |
 | Database           | PostgreSQL trên Neon                                   |
 | Audio bài học      | Cloudinary                                             |
@@ -922,4 +957,3 @@ Các nội dung sau sẽ được làm rõ trong các tài liệu tiếp theo:
 * Nhà cung cấp hoặc mô hình AI.
 * Nền tảng triển khai frontend và backend.
 * Quy tắc xử lý lỗi và retry khi dịch vụ AI không phản hồi.
-* Cấu trúc thư mục chính thức của frontend và backend.
