@@ -1,6 +1,6 @@
-# KaiwaUp
+# Kaiwa App
 
-KaiwaUp is a monorepo for a Japanese listening and speaking practice platform. It combines a Next.js frontend with a FastAPI backend and is designed to support interactive exercises such as shadowing, dictation, quick-response practice, gamification, and AI-assisted conversation.
+Kaiwa App is a monorepo for a Japanese listening and speaking practice platform. It combines a Next.js frontend with a FastAPI backend and is designed to support interactive exercises such as shadowing, dictation, quick-response practice, gamification, and AI-assisted conversation.
 
 ## Tech stack
 
