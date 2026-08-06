@@ -1,18 +1,43 @@
-.PHONY: help install dev-web build-web lint-web dev-api lint-api typecheck-api test-api generate-api-client
+.PHONY: help install dev lint typecheck install-web dev-web build-web lint-web typecheck-web install-api dev-api lint-api typecheck-api test-api generate-api-client
 
 help:
 	@echo "Available commands:"
-	@echo "  make install              Install JavaScript dependencies"
+	@echo "  make install              Install JavaScript and Python dependencies"
+	@echo "  make dev                  Start the web and API development servers"
+	@echo "  make lint                 Lint the web and API applications"
+	@echo "  make typecheck            Type-check the web and API applications"
+	@echo "  make install-web          Install JavaScript dependencies"
 	@echo "  make dev-web              Start the Next.js development server"
 	@echo "  make build-web            Build the Next.js application"
 	@echo "  make lint-web             Lint the Next.js application"
+	@echo "  make typecheck-web        Type-check the Next.js application"
+	@echo "  make install-api          Install Python dependencies"
 	@echo "  make dev-api              Start the FastAPI development server"
 	@echo "  make lint-api             Lint the FastAPI application"
 	@echo "  make typecheck-api        Type-check the FastAPI application"
 	@echo "  make test-api             Run the FastAPI test suite"
 	@echo "  make generate-api-client  Generate the TypeScript API client"
 
+# Install dependencies for both web and API
 install:
+	pnpm install
+	cd apps/api && uv sync
+
+dev:
+	pnpm dev:web &
+	cd apps/api && uv run uvicorn app.main:app --reload
+
+lint:
+	pnpm lint:web
+	cd apps/api && uv run ruff check .
+
+typecheck:
+	pnpm --filter web typecheck
+	cd apps/api && uv run mypy
+
+# Separate commands for web and API
+# Web commands
+install-web:
 	pnpm install
 
 dev-web:
@@ -23,6 +48,13 @@ build-web:
 
 lint-web:
 	pnpm lint:web
+
+typecheck-web:
+	pnpm --filter web typecheck
+
+# API commands
+install-api:
+	cd apps/api && uv sync
 
 dev-api:
 	cd apps/api && uv run uvicorn app.main:app --reload
