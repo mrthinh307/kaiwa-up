@@ -1,0 +1,26 @@
+{
+  "name": "kaiwa-app",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev:web": "pnpm --filter web dev",
+    "build:web": "pnpm --filter web build",
+    "lint:web": "pnpm --filter web lint",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "generate:api-client": "pnpm --filter @kaiwa-app/api-client generate",
+    "prepare": "husky"
+  },
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=10"
+  },
+  "packageManager": "pnpm@10.32.1",
+  "devDependencies": {
+    "@commitlint/cli": "^19.8.1",
+    "@commitlint/config-conventional": "^19.8.1",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.5.2",
+    "prettier": "^3.9.6"
+  }
+}

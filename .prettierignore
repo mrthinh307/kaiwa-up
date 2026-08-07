@@ -1,0 +1,12 @@
+node_modules/
+.next/
+out/
+build/
+dist/
+coverage/
+*.tsbuildinfo
+pnpm-lock.yaml
+uv.lock
+next-env.d.ts
+AGENTS.md
+docs/

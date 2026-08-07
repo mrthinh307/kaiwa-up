@@ -1,0 +1,4 @@
+name: kaiwa-app
+
+# Application services will be added after apps/web and apps/api are initialized.
+services: {}

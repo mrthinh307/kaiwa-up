@@ -1,0 +1,10 @@
+packages:
+  - "apps/web"
+  - "packages/*"
+
+ignoredBuiltDependencies:
+  - sharp
+  - unrs-resolver
+
+allowedDeprecatedVersions:
+  git-raw-commits: "4"

@@ -1,0 +1,28 @@
+{
+  "json.schemaDownload.trustedDomains": {
+    "https://json.schemastore.org/": true
+  },
+  "js/ts.tsdk.path": "apps/web/node_modules/typescript/lib",
+  "files.associations": {
+    "*.css": "tailwindcss"
+  },
+  "tailwindCSS.lint.suggestCanonicalClasses": "ignore",
+  "files.trimTrailingWhitespace": true,
+  "editor.formatOnPaste": true,
+  "editor.formatOnSave": true,
+  "editor.formatOnSaveMode": "file",
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  },
+  "chat.useAgentsMdFile": true,
+  "chat.useNestedAgentsMdFiles": true,
+  "python-envs.defaultEnvManager": "ms-python.python:venv",
+  "python-envs.workspaceSearchPaths": ["./**/.venv"],
+  "[javascript][javascriptreact][typescript][typescriptreact][json][jsonc][css][yaml]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[markdown]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "files.trimTrailingWhitespace": false
+  }
+}
