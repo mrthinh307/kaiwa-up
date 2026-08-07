@@ -1,26 +1,236 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: oklch(93.46% 0.0305 255.11);
+  --secondary-background: oklch(100% 0 0);
+  --foreground: oklch(0% 0 0);
+  --main-foreground: oklch(0% 0 0);
+  --main: oklch(67.47% 0.1726 259.49);
+  --border: oklch(0% 0 0);
+  --ring: oklch(0% 0 0);
+  --overlay: oklch(0% 0 0 / 0.8);
+  --shadow: 4px 4px 0px 0px var(--border);
+  --chart-1: #5294ff;
+  --chart-2: #ff4d50;
+  --chart-3: #facc00;
+  --chart-4: #05e17a;
+  --chart-5: #7a83ff;
+  --chart-active-dot: #000;
+}
+
+.dark {
+  --background: oklch(29.23% 0.0626 270.49);
+  --secondary-background: oklch(23.93% 0 0);
+  --foreground: oklch(92.49% 0 0);
+  --main-foreground: oklch(0% 0 0);
+  --main: oklch(67.47% 0.1726 259.49);
+  --border: oklch(0% 0 0);
+  --ring: oklch(100% 0 0);
+  --shadow: 4px 4px 0px 0px var(--border);
+  --chart-1: #5294ff;
+  --chart-2: #ff6669;
+  --chart-3: #e0b700;
+  --chart-4: #04c86d;
+  --chart-5: #7a83ff;
+  --chart-active-dot: #fff;
 }
 
 @theme inline {
+  --color-main: var(--main);
   --color-background: var(--background);
+  --color-secondary-background: var(--secondary-background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-main-foreground: var(--main-foreground);
+  --color-border: var(--border);
+  --color-overlay: var(--overlay);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  --spacing-boxShadowX: 4px;
+  --spacing-boxShadowY: 4px;
+  --spacing-reverseBoxShadowX: -4px;
+  --spacing-reverseBoxShadowY: -4px;
+  --radius-base: 5px;
+  --shadow-shadow: var(--shadow);
+  --font-sans: var(--font-dm-sans), var(--font-noto-sans-jp), sans-serif;
+  --font-weight-base: 500;
+  --font-weight-heading: 700;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html,
+  body {
+    cursor: auto;
+  }
+
+  body {
+    @apply bg-background font-sans font-base text-foreground;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-heading;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@media (hover: hover) and (pointer: fine) {
+  html,
+  body {
+    cursor:
+      url("/cursors/cursor.svg") 0 0,
+      auto;
+  }
+
+  a:hover,
+  button:not(:disabled):hover,
+  select:not(:disabled):hover,
+  input[type="button"]:not(:disabled):hover,
+  input[type="submit"]:not(:disabled):hover,
+  [role="button"]:not([aria-disabled="true"]):hover,
+  .cursor-custom-pointer:hover {
+    cursor:
+      url("/cursors/pointer.png") 6 2,
+      pointer;
+  }
+}
+
+body,
+.scrollbar {
+  --scrollbar-track: #fff;
+  --scrollbar-thumb: #000;
+}
+
+.dark body,
+.dark .scrollbar {
+  --scrollbar-track: #1f1f1f;
+  --scrollbar-thumb: #e6e6e6;
+}
+
+body::-webkit-scrollbar {
+  width: 20px;
+}
+
+.scrollbar::-webkit-scrollbar {
+  width: 16px;
+}
+
+body::-webkit-scrollbar-track,
+.scrollbar::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+
+body::-webkit-scrollbar-track {
+  border-left: 4px solid #000;
+}
+
+body::-webkit-scrollbar-thumb,
+.scrollbar::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+}
+
+.dark body::-webkit-scrollbar-thumb {
+  border-left: 4px solid #000;
+}
+
+@supports not selector(::-webkit-scrollbar) {
+  body,
+  .scrollbar {
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+  }
+}
+
+@keyframes marquee-horizontal {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes marquee-horizontal-reverse {
+  from {
+    transform: translateX(-50%);
+  }
+
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes marquee-vertical {
+  from {
+    transform: translateY(0);
+  }
+
+  to {
+    transform: translateY(-50%);
+  }
+}
+
+@keyframes marquee-vertical-reverse {
+  from {
+    transform: translateY(-50%);
+  }
+
+  to {
+    transform: translateY(0);
+  }
+}
+
+@layer utilities {
+  .landing-grid {
+    background-image:
+      linear-gradient(to right, rgb(128 128 128 / 20%) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(128 128 128 / 20%) 1px, transparent 1px);
+    background-size: 70px 70px;
+  }
+
+  .landing-grid-dark {
+    background-image:
+      linear-gradient(to right, rgb(0 0 0 / 20%) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(0 0 0 / 20%) 1px, transparent 1px);
+    background-size: 70px 70px;
+  }
+
+  .animate-marquee {
+    animation: marquee-horizontal 45s linear infinite;
+  }
+
+  .animate-marquee-reverse {
+    animation: marquee-horizontal-reverse 45s linear infinite;
+  }
+
+  .animate-marquee-up {
+    animation: marquee-vertical 90s linear infinite;
+  }
+
+  .animate-marquee-up-reverse {
+    animation: marquee-vertical-reverse 90s linear infinite;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-marquee,
+  .animate-marquee-reverse,
+  .animate-marquee-up,
+  .animate-marquee-up-reverse {
+    animation-play-state: paused;
+  }
 }
