@@ -1,7 +1,7 @@
 ---
 name: Feature
 about: Create a new feature
-title: "[FEATURE]"
+title: "DAY ? - [FEATURE]"
 labels: ["type: feature"]
 ---
 

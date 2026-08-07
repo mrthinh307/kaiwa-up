@@ -1,7 +1,7 @@
 ---
 name: Improvement
 about: Refactor, cleanup, or infra work
-title: "[IMPROVEMENT]"
+title: "DAY ? - [IMPROVEMENT]"
 labels: ["type: improvement"]
 ---
 

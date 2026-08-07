@@ -1,7 +1,7 @@
 ---
 name: Bug
 about: Report a bug
-title: "[BUG]"
+title: "DAY ? - [BUG]"
 labels: ["type: bug"]
 ---
 
