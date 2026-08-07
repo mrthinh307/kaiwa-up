@@ -302,7 +302,7 @@ Backend:
 
 - Quản lý cấu trúc lesson/exercise, loại bài, độ khó, chủ đề và trạng thái publish.
 - Cung cấp danh sách và chi tiết nội dung mà người học được phép truy cập.
-- Lưu prompt, transcript, blank, đáp án và explanation theo đúng loại bài.
+- Lưu prompt, transcript, blank, đáp án theo đúng loại bài.
 - Chỉ trả đáp án khi use case cho phép; endpoint lấy đề không được vô tình làm lộ đáp án Dictation.
 - Không chấm bài, ghi tiến độ hoặc cộng EXP.
 
@@ -330,15 +330,6 @@ Backend — audio bài học:
 - PostgreSQL lưu `audio_url` cùng nội dung bài học; không lưu binary audio.
 - Seed script chịu trách nhiệm liên kết `audio_url` với lesson/exercise và tránh tạo dữ liệu trùng.
 - Backend trả URL cho frontend; không cần proxy file trong luồng phát audio thông thường.
-
-Backend — audio người dùng:
-
-- Nhận file tạm từ frontend, validate loại file, kích thước và thời lượng.
-- Chỉ giữ file trong thời gian gửi Speech-to-Text/AI evaluation.
-- Xóa file tạm cả khi xử lý thành công lẫn khi phát sinh lỗi, bằng `try/finally` hoặc abstraction có
-  cleanup tương đương.
-- Không upload audio người dùng lên Cloudinary, không lưu lâu dài và không ghi URL audio người dùng
-  vào PostgreSQL trong phạm vi hiện tại.
 
 Frontend:
 
@@ -374,7 +365,7 @@ Frontend:
 
 - Sở hữu route danh sách và chi tiết bài Shadowing.
 - Điều phối audio gốc, ẩn/hiện transcript, microphone, ghi âm và phát lại.
-- Giữ state phát/ghi âm cục bộ trong feature; chỉ gửi dữ liệu cần lưu lên backend.
+- Giữ state phát/ghi âm cục bộ trong feature.
 - Hiển thị fallback tự so sánh khi AI không khả dụng.
 
 Sở hữu: rule hoàn thành và kết quả chuyên biệt của Shadowing. Attempt chung thuộc Progress; audio
@@ -391,7 +382,7 @@ Backend:
 - Lấy đề Dictation đã publish nhưng không trả đáp án trước khi nộp.
 - Chuẩn hóa câu trả lời theo rule được thống nhất và so sánh với đáp án.
 - Tính số câu đúng, kết quả từng blank và trạng thái hoàn thành.
-- Trả đáp án/explanation sau khi người dùng nộp bài.
+- Trả đáp án sau khi người dùng nộp bài.
 - Gửi kết quả sang Progress/Attempt.
 
 Frontend:
@@ -611,10 +602,9 @@ nghĩa tương đương.
 Backend:
 
 - Lấy bài đã publish và URL audio từ Learning Content/Media.
-- Hỗ trợ dạng chọn đáp án và dạng nhập ý chính theo contract được chốt cho từng exercise.
-- Chấm dạng lựa chọn ở backend; với câu trả lời tự do, dùng rule/reference hoặc AI Gateway chỉ khi cơ
-  chế đánh giá đã được xác định rõ.
-- Trả đáp án tham khảo, explanation và gửi completion sang Progress/Attempt.
+- Hỗ trợ dạng nhập ý chính theo contract được chốt cho từng exercise.
+- Chấm dạng câu trả lời tự do, dùng AI Gateway để đánh giá.
+- Trả nhận xét, gửi completion sang Progress/Attempt.
 
 Frontend:
 
