@@ -1,0 +1,10 @@
+export { CoreMethodsGrid } from "./core-methods-grid";
+export { DecorativeStar } from "./decorative-star";
+export { FaqSection } from "./faq-section";
+export { FeatureGrid } from "./feature-grid";
+export { FinalCta } from "./final-cta";
+export { HeroComponentWall } from "./hero-component-wall";
+export { InteractivePracticePreview } from "./interactive-practice-preview";
+export { LandingMarquee } from "./landing-marquee";
+export { ProblemSection } from "./problem-section";
+export { ProgressMotivationSection } from "./progress-motivation-section";
