@@ -65,6 +65,12 @@ Extends the rules in the root `AGENTS.md`.
 
 ## Styling and assets
 
+- Before creating or modifying frontend UI, read the repository-root
+  [`DESIGN.md`](../../DESIGN.md).
+- Treat `DESIGN.md` as the usage contract for the KaiwaUp visual system. Treat
+  `src/app/globals.css` and `src/components/ui/` as the implementation source of truth.
+- When shared design tokens or component behavior intentionally change, update `DESIGN.md` in the
+  same change.
 - Prefer Tailwind CSS utilities. Keep shared theme tokens and global base styles in `src/app/globals.css`.
 - Avoid inline styles and arbitrary hardcoded colors when a Tailwind token or CSS custom property can represent the value.
 - Build mobile-first responsive layouts and prefer semantic HTML over generic containers.
