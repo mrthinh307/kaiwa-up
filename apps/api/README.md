@@ -11,7 +11,8 @@ uv run uvicorn app.main:app --reload
 
 The API is available at `http://localhost:8000`, with OpenAPI documentation at
 `http://localhost:8000/docs` and the health check at
-`http://localhost:8000/api/v1/health`.
+`http://localhost:8000/api/v1/health`. The readiness check, including database
+connectivity, is available at `http://localhost:8000/api/v1/ready`.
 
 ## Quality checks
 

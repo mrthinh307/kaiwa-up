@@ -39,10 +39,10 @@ Mọi response phản hồi lỗi hoặc dữ liệu phân trang đều tuân th
 ```json
 {
   "items": [],
-  "total": 100,
+  "total_items": 100,
   "page": 1,
   "page_size": 20,
-  "pages": 5
+  "total_pages": 5
 }
 ```
 
@@ -131,12 +131,35 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
   {
     "status": "ok",
     "timestamp": "2026-08-06T14:30:00.000Z",
-    "version": "1.0.0"
+    "app_name": "Kaiwa App API"
   }
-  ```
+```
 * **Status Codes & Error Responses**:
   * `200 OK`: Dịch vụ hoạt động bình thường.
   * `503 Service Unavailable`: Dịch vụ gặp sự cố nghiêm trọng.
+
+---
+
+#### `GET /api/v1/ready`
+* **Mục đích**: Kiểm tra ứng dụng đã sẵn sàng phục vụ và database có thể kết nối.
+* **Yêu cầu xác thực**: Public
+* **Request Headers**: Không
+* **Path Parameters**: Không
+* **Query Parameters**: Không
+* **Request Body**: Không
+* **Response Schema (200 OK)**:
+  ```json
+  {
+    "status": "ready",
+    "timestamp": "2026-08-06T14:30:00.000Z",
+    "app_name": "Kaiwa App API",
+    "database": "ok"
+  }
+  ```
+* **Status Codes & Error Responses**:
+  * `200 OK`: Ứng dụng và database sẵn sàng.
+  * `503 Service Unavailable`: Không thể kết nối database. Response dùng error envelope chuẩn với
+    `code: "service_unavailable"`.
 
 ---
 
@@ -325,10 +348,10 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
         "is_completed": true
       }
     ],
-    "total": 1,
+    "total_items": 1,
     "page": 1,
     "page_size": 20,
-    "pages": 1
+    "total_pages": 1
   }
   ```
 * **Status Codes & Error Responses**:
@@ -389,10 +412,10 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
         "is_completed": false
       }
     ],
-    "total": 1,
+    "total_items": 1,
     "page": 1,
     "page_size": 20,
-    "pages": 1
+    "total_pages": 1
   }
   ```
 * **Status Codes & Error Responses**:
@@ -486,10 +509,10 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
         "is_completed": false
       }
     ],
-    "total": 1,
+    "total_items": 1,
     "page": 1,
     "page_size": 20,
-    "pages": 1
+    "total_pages": 1
   }
   ```
 * **Status Codes & Error Responses**:
@@ -624,10 +647,10 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
         "completed_at": "2026-08-06T14:42:00.000Z"
       }
     ],
-    "total": 1,
+    "total_items": 1,
     "page": 1,
     "page_size": 20,
-    "pages": 1
+    "total_pages": 1
   }
   ```
 * **Status Codes & Error Responses**:
@@ -847,10 +870,10 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
         "is_completed": false
       }
     ],
-    "total": 1,
+    "total_items": 1,
     "page": 1,
     "page_size": 20,
-    "pages": 1
+    "total_pages": 1
   }
   ```
 * **Status Codes & Error Responses**:
@@ -996,10 +1019,10 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
         "is_completed": false
       }
     ],
-    "total": 1,
+    "total_items": 1,
     "page": 1,
     "page_size": 20,
-    "pages": 1
+    "total_pages": 1
   }
   ```
 * **Status Codes & Error Responses**:
@@ -1119,10 +1142,10 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
         "updated_at": "2026-08-06T14:52:00.000Z"
       }
     ],
-    "total": 1,
+    "total_items": 1,
     "page": 1,
     "page_size": 20,
-    "pages": 1
+    "total_pages": 1
   }
   ```
 * **Status Codes & Error Responses**:
