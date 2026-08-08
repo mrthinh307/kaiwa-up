@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     environment: str = "development"
     debug: bool = False
     api_v1_prefix: str = "/api/v1"
+    cors_origins: list[str] = ["http://localhost:3000"]
     database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/app"
 
     model_config = SettingsConfigDict(
@@ -23,4 +24,3 @@ def get_settings() -> Settings:
 
 
 settings = get_settings()
-
