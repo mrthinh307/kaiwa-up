@@ -22,6 +22,7 @@ HTTP_ERROR_CODES = {
     status.HTTP_409_CONFLICT: "conflict",
     status.HTTP_415_UNSUPPORTED_MEDIA_TYPE: "unsupported_media_type",
     status.HTTP_429_TOO_MANY_REQUESTS: "too_many_requests",
+    status.HTTP_503_SERVICE_UNAVAILABLE: "service_unavailable",
 }
 
 
