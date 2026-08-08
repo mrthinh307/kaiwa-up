@@ -10,11 +10,14 @@ colors:
   foreground: "oklch(0% 0 0)"
   border: "oklch(0% 0 0)"
   ring: "oklch(0% 0 0)"
+  destructive: "oklch(59.2% 0.249 27.5)"
+  destructive-foreground: "oklch(0% 0 0)"
   overlay: "oklch(0% 0 0 / 0.8)"
   dark-background: "oklch(29.23% 0.0626 270.49)"
   dark-surface: "oklch(23.93% 0 0)"
   dark-foreground: "oklch(92.49% 0 0)"
   dark-ring: "oklch(100% 0 0)"
+  dark-destructive: "oklch(70.4% 0.191 22.216)"
   chart-1: "#5294ff"
   chart-2: "#ff4d50"
   chart-3: "#facc00"
@@ -235,16 +238,18 @@ only in `globals.css`.
 
 ### Light theme
 
-| Role            | CSS token                | Tailwind utility          | Value                         | Usage                                                        |
-| --------------- | ------------------------ | ------------------------- | ----------------------------- | ------------------------------------------------------------ |
-| Primary         | `--main`                 | `bg-main`                 | `oklch(67.47% 0.1726 259.49)` | Primary actions, selected states, branded sections, progress |
-| On primary      | `--main-foreground`      | `text-main-foreground`    | `oklch(0% 0 0)`               | Text and icons on primary blue                               |
-| Page background | `--background`           | `bg-background`           | `oklch(93.46% 0.0305 255.11)` | Default page and pale-blue content surfaces                  |
-| Raised surface  | `--secondary-background` | `bg-secondary-background` | `oklch(100% 0 0)`             | Inputs, neutral controls, cards, navbar                      |
-| Foreground      | `--foreground`           | `text-foreground`         | `oklch(0% 0 0)`               | Primary text, inverse sections, icons                        |
-| Border          | `--border`               | `border-border`           | `oklch(0% 0 0)`               | Component outlines, dividers, hard shadows                   |
-| Focus ring      | `--ring`                 | `ring-ring`               | `oklch(0% 0 0)`               | Keyboard focus                                               |
-| Overlay         | `--overlay`              | `bg-overlay`              | `oklch(0% 0 0 / 0.8)`         | Modal and drawer backdrops                                   |
+| Role            | CSS token                  | Tailwind utility              | Value                                                              | Usage                                                        |
+| --------------- | -------------------------- | ----------------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------ |
+| Primary         | `--main`                   | `bg-main`                     | `oklch(67.47% 0.1726 259.49)`                                      | Primary actions, selected states, branded sections, progress |
+| On primary      | `--main-foreground`        | `text-main-foreground`        | `oklch(0% 0 0)`                                                    | Text and icons on primary blue                               |
+| Page background | `--background`             | `bg-background`               | `oklch(93.46% 0.0305 255.11)`                                      | Default page and pale-blue content surfaces                  |
+| Raised surface  | `--secondary-background`   | `bg-secondary-background`     | `oklch(100% 0 0)`                                                  | Inputs, neutral controls, cards, navbar                      |
+| Foreground      | `--foreground`             | `text-foreground`             | `oklch(0% 0 0)`                                                    | Primary text, inverse sections, icons                        |
+| Border          | `--border`                 | `border-border`               | `oklch(0% 0 0)`                                                    | Component outlines, dividers, hard shadows                   |
+| Focus ring      | `--ring`                   | `ring-ring`                   | `oklch(0% 0 0)`                                                    | Keyboard focus                                               |
+| Overlay         | `--overlay`                | `bg-overlay`                  | `oklch(0% 0 0 / 0.8)`                                              | Modal and drawer backdrops                                   |
+| Destructive     | `--destructive`            | `text-destructive`            | light `oklch(59.2% 0.249 27.5)` / dark `oklch(70.4% 0.191 22.216)` | Validation and destructive error text                        |
+| Destructive fg  | `--destructive-foreground` | `text-destructive-foreground` | `oklch(0% 0 0)`                                                    | Text and icons placed on destructive surfaces                |
 
 The primary color is intentionally reused across actions, large section fills, selected tabs,
 progress bars, score badges, and small decorative accents. Do not introduce a second CTA color to
@@ -413,12 +418,16 @@ Badge, surrounding status treatment, or a documented product-specific component.
 - Fields use the raised white surface, 2px border, 5px radius, 14px text, and visible focus ring.
 - Labels precede their controls. Helper text and validation messages follow the relevant field.
 - Validation must include text; do not communicate error state through color alone.
+- Use `text-destructive` for field-level validation errors and other clearly destructive error copy;
+  keep the message adjacent to the affected control.
 - Keep native semantics, names, autocomplete behavior, and keyboard operation.
 
 ### Feedback and disclosure
 
 - Use `Alert` for persistent status, `Dialog` for blocking decisions, and `Accordion` or
   `Collapsible` for progressive disclosure.
+- Use `Sonner` toasts for transient mutation outcomes and temporarily unavailable integrations.
+  Keep field-level validation next to its control; do not move actionable form errors into a toast.
 - Titles explain the outcome; descriptions explain what the learner should do next.
 - Default feedback uses primary blue. Destructive treatment is reserved for actual errors or
   irreversible actions.
