@@ -99,7 +99,9 @@ The health endpoint should return:
 
 ```json
 {
-  "status": "ok"
+  "status": "ok",
+  "timestamp": "2026-08-06T14:30:00.000Z",
+  "app_name": "Kaiwa App API"
 }
 ```
 
