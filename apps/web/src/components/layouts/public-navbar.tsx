@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { ThemeSwitcher } from "@/components/common/theme-switcher";
+import { ThemeSwitcher } from "@/components/common/theme/theme-switcher";
 import { Button } from "@/components/ui/button";
 
 const navigationLinks = [

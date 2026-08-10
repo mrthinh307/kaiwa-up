@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 import { DM_Sans, Noto_Sans_JP } from "next/font/google";
 
-import { ThemeProvider } from "@/components/common/theme-provider";
+import { ThemeProvider } from "@/components/common/theme/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 
 import "./globals.css";

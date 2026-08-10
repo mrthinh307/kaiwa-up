@@ -10,6 +10,11 @@ const nextConfig: NextConfig = {
         hostname: "raw.githubusercontent.com",
         pathname: "/ekmas/neobrutalism-components/refs/heads/main/public/pfps/**",
       },
+      {
+        protocol: "https",
+        hostname: "lh3.googleusercontent.com",
+        pathname: "/**",
+      },
     ],
   },
   output: "standalone",
