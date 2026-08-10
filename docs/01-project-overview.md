@@ -170,7 +170,6 @@ Người dùng có thể:
 
 * Nghe đoạn hội thoại tiếng Nhật.
 * Dịch ý chính sang tiếng Việt.
-* Hoặc lựa chọn câu tiếng Việt có ý nghĩa tương đương.
 * Kiểm tra đáp án và xem lời giải thích.
 
 ---
