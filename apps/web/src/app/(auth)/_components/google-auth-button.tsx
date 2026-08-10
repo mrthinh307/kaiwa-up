@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button";
 
 export function GoogleAuthButton() {
   const handleClick = () => {
-    toast.info("Google sign-in is not available yet", {
-      description: "Google OAuth will be connected after the authentication backend is ready.",
+    toast.info("Coming soon", {
+      description: "Google sign-in is not available yet",
     });
   };
 
