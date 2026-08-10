@@ -2,4 +2,3 @@
 
 Keep HTTP dependencies and authentication workflows out of this module.
 """
-

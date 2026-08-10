@@ -11,9 +11,7 @@ from app.main import app
 DATABASE_URL_TEST = os.environ["DATABASE_URL_TEST"]
 
 engine_test = create_async_engine(DATABASE_URL_TEST, pool_pre_ping=True)
-TestSessionLocal = async_sessionmaker(
-    bind=engine_test, expire_on_commit=False, class_=AsyncSession
-)
+TestSessionLocal = async_sessionmaker(bind=engine_test, expire_on_commit=False, class_=AsyncSession)
 
 
 @pytest_asyncio.fixture
@@ -27,7 +25,7 @@ async def db_session():
             yield session
         finally:
             await session.close()
-            await trans.rollback()  #cơ chế rollback/cleanup theo yêu cầu
+            await trans.rollback()  # cơ chế rollback/cleanup theo yêu cầu
 
 
 @pytest_asyncio.fixture
