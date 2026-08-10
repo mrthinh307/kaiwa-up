@@ -1,12 +1,12 @@
 # apps/api/tests/conftest.py
 import os
-import pytest
-import pytest_asyncio
-from httpx import AsyncClient, ASGITransport
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 
+import pytest_asyncio
+from httpx import ASGITransport, AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
+from app.api.dependencies.database import get_db_session
 from app.main import app
-from app.api.dependencies.database import get_db_session  
 
 DATABASE_URL_TEST = os.environ["DATABASE_URL_TEST"]
 
