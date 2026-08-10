@@ -1,4 +1,7 @@
-.PHONY: help install dev lint typecheck install-web dev-web build-web lint-web typecheck-web install-api dev-api lint-api typecheck-api test-api generate-api-client
+-include .env
+export
+
+.PHONY: help install dev lint typecheck install-web dev-web build-web lint-web typecheck-web install-api dev-api lint-api typecheck-api test-api generate-api-client migrate-api migrate-api-test
 
 help:
 	@echo "Available commands:"
@@ -15,7 +18,9 @@ help:
 	@echo "  make dev-api              Start the FastAPI development server"
 	@echo "  make lint-api             Lint the FastAPI application"
 	@echo "  make typecheck-api        Type-check the FastAPI application"
-	@echo "  make test-api             Run the FastAPI test suite"
+	@echo "  make test-api             Run the FastAPI test suite (Neon test branch)"
+	@echo "  make migrate-api          Run Alembic migration for development DB"
+	@echo "  make migrate-api-test     Run Alembic migration for Neon test DB"
 	@echo "  make generate-api-client  Generate the TypeScript API client"
 
 # Install dependencies for both web and API
@@ -65,7 +70,13 @@ typecheck-api:
 	cd apps/api && uv run mypy
 
 test-api:
-	cd apps/api && uv run pytest
+	cd apps/api && DATABASE_URL_TEST=$(DATABASE_URL_TEST) uv run pytest
+
+migrate-api:
+	cd apps/api && uv run alembic upgrade head
+
+migrate-api-test:
+	cd apps/api && DATABASE_URL=$(DATABASE_URL_TEST) uv run alembic upgrade head
 
 generate-api-client:
 	pnpm generate:api-client
