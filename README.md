@@ -179,7 +179,7 @@ Pull requests automatically run the repository CI pipeline. The backend job runs
 - `uv run ruff format --check .`
 - `uv run mypy`
 - `uv run alembic upgrade head` against `DATABASE_URL_TEST`
-- `uv run pytest`
+- `uv run --env-file .env pytest`
 
 The frontend job runs:
 
