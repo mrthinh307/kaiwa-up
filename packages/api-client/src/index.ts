@@ -1,1 +1,3 @@
-// Public exports from the generated API client will be added here.
+export * from "./generated/sdk.gen";
+export * from "./generated/types.gen";
+export { client } from "./generated/client.gen";
