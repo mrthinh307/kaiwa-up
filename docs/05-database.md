@@ -445,3 +445,55 @@ Các quy tắc bắt buộc khi tích hợp FastAPI:
 ## 8. Phạm vi MVP và mở rộng
 
 P0 dùng `users`, `learning_contents`, Shadowing/Dictation, `exercise_attempts`, `recordings`, `xp_transactions`, cấp độ và leaderboard. P1 bật `reflex_exercises`, `review_schedules`, `ai_evaluations`. P2 bật Translation và AI Tutor mà không cần thay đổi mô hình lõi.
+
+## 9. Alembic migration và deploy lên Neon
+
+Schema thực tế được quản lý bằng Alembic. Models SQLAlchemy trong `apps/api/app/models/` là nguồn chuẩn; migration được sinh autogenerate rồi review thủ công trước khi áp dụng.
+
+### 9.1. Cấu hình
+
+- `DATABASE_URL` đặt trong `apps/api/.env` (đã gitignore), scheme `postgresql+asyncpg://...` — chỉ riêng async SQLAlchemy/Alembic dùng được.
+- Với Neon: `postgresql+asyncpg://<user>:<pass>@<host>/<db>?ssl=require`. Không dùng tham số kiểu psycopg (`sslmode=...`, `channel_binding=...`) vì asyncpg không hiểu.
+- Migration nằm tại `apps/api/alembic/versions/`.
+
+### 9.2. Các lệnh (chạy từ `apps/api`)
+
+Sinh migration mới từ models:
+
+```bash
+uv run alembic revision --autogenerate -m "<mô tả>"
+```
+
+Áp dụng migration lên DB trong `apps/api/.env` (chính là "đẩy lên Neon"):
+
+```bash
+uv run alembic upgrade head
+```
+
+Kiểm tra phiên bản hiện tại của DB:
+
+```bash
+uv run alembic current
+```
+
+Kiểm tra drift giữa models và DB (chạy sau mỗi lần đổi model):
+
+```bash
+uv run alembic check
+```
+
+### 9.3. Quy trình chuẩn khi thay đổi schema
+
+1. Sửa model trong `apps/api/app/models/`.
+2. Chạy `uv run ruff check .`, `uv run mypy`, `uv run pytest`.
+3. `uv run alembic revision --autogenerate -m "<mô tả>"`.
+4. **Review migration đã sinh**: kiểm tra cột, constraint, index (kể cả `postgresql_where`/`postgresql_include`), và bổ sung thao tác đặc biệt (ví dụ `CREATE EXTENSION`).
+5. `uv run alembic upgrade head` để áp dụng lên Neon.
+6. `uv run alembic check` → cần ra `No new upgrade operations detected.`.
+
+### 9.4. Lệnh hỗ trợ
+
+- Xem lịch sử migration đã chạy: `uv run alembic history`.
+- Xem SQL sẽ chạy mà không thực thi: `uv run alembic upgrade head --sql`.
+- Làm lại từ đầu (trong migration phát triển, khi chưa có dữ liệu thật): `uv run alembic downgrade base` rồi `uv run alembic upgrade head`.
+- Chạy lên một nhánh Neon khác: sửa `DATABASE_URL` trong `apps/api/.env` rồi lặp lại `uv run alembic upgrade head`.
