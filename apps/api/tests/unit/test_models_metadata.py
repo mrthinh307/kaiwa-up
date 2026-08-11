@@ -1,0 +1,118 @@
+from app.models import Base
+
+
+def test_all_expected_tables_registered() -> None:
+    tables = set(Base.metadata.tables)
+    expected = {
+        "users",
+        "user_progress",
+        "auth_refresh_tokens",
+        "level_definitions",
+        "achievements",
+        "user_achievements",
+        "xp_transactions",
+        "weekly_leaderboard_entries",
+        "learning_contents",
+        "shadowing_exercises",
+        "dictation_exercises",
+        "reflex_exercises",
+        "translation_exercises",
+        "exercise_attempts",
+        "recordings",
+        "ai_evaluations",
+        "review_schedules",
+        "tutor_sessions",
+        "tutor_messages",
+    }
+    assert tables == expected
+
+
+def test_unique_constraints_defined() -> None:
+    constraints: dict[str, set[str]] = {}
+    for name, table in Base.metadata.tables.items():
+        constraints[name] = {
+            tuple(sorted(c.columns.keys()))
+            for c in table.constraints
+            if c.__class__.__name__ == "UniqueConstraint"
+        }
+
+    assert ("email",) in constraints["users"]
+    assert ("token_hash",) in constraints["auth_refresh_tokens"]
+    assert ("slug",) in constraints["learning_contents"]
+    assert ("required_total_exp",) in constraints["level_definitions"]
+    assert ("code",) in constraints["achievements"]
+    assert ("storage_key",) in constraints["recordings"]
+    assert ("attempt_id",) in constraints["xp_transactions"]
+    assert ("attempt_number", "content_id", "user_id") in constraints["exercise_attempts"]
+    assert ("sequence_number", "session_id") in constraints["tutor_messages"]
+    assert ("rank", "week_start") in constraints["weekly_leaderboard_entries"]
+
+
+def test_composite_primary_keys() -> None:
+    pks: dict[str, set[str]] = {}
+    for name, table in Base.metadata.tables.items():
+        pks[name] = {col.name for col in table.primary_key.columns}
+
+    assert pks["user_progress"] == {"user_id"}
+    assert pks["user_achievements"] == {"user_id", "achievement_id"}
+    assert pks["review_schedules"] == {"user_id", "content_id"}
+    assert pks["weekly_leaderboard_entries"] == {"week_start", "user_id"}
+    assert pks["shadowing_exercises"] == {"content_id"}
+    assert pks["dictation_exercises"] == {"content_id"}
+    assert pks["reflex_exercises"] == {"content_id"}
+    assert pks["translation_exercises"] == {"content_id"}
+
+
+def test_required_indexes_present() -> None:
+    indexes: dict[str, set[str]] = {}
+    for name, table in Base.metadata.tables.items():
+        indexes[name] = {idx.name for idx in table.indexes}
+
+    assert "ix_auth_refresh_tokens_user_id_expires_at_active" in indexes["auth_refresh_tokens"]
+    assert "ix_exercise_attempts_user_id_completed_at" in indexes["exercise_attempts"]
+    assert "ix_exercise_attempts_content_id_completed_at" in indexes["exercise_attempts"]
+    assert "ix_recordings_user_id_created_at" in indexes["recordings"]
+    assert "ix_ai_evaluations_attempt_id_created_at" in indexes["ai_evaluations"]
+    assert "ix_review_schedules_user_id_due_at" in indexes["review_schedules"]
+    assert "ix_xp_transactions_created_at_user_id" in indexes["xp_transactions"]
+    assert "ix_tutor_sessions_user_id_started_at" in indexes["tutor_sessions"]
+    assert "ix_learning_contents_published_catalog" in indexes["learning_contents"]
+
+
+def _index_by_name(table_name: str, index_name: str):
+    return next(idx for idx in Base.metadata.tables[table_name].indexes if idx.name == index_name)
+
+
+def test_covering_index_include_columns() -> None:
+    covering = _index_by_name("exercise_attempts", "ix_exercise_attempts_user_id_completed_at")
+    include = covering.dialect_options["postgresql"].get("include")
+    assert include == ("content_id", "status", "score")
+
+
+def test_partial_index_conditions() -> None:
+    refresh_idx = _index_by_name(
+        "auth_refresh_tokens", "ix_auth_refresh_tokens_user_id_expires_at_active"
+    )
+    assert "revoked_at IS NULL" in str(refresh_idx.dialect_options["postgresql"].get("where"))
+
+    catalog_idx = _index_by_name("learning_contents", "ix_learning_contents_published_catalog")
+    assert "status = 'published'" in str(catalog_idx.dialect_options["postgresql"].get("where"))
+
+
+def test_columns_use_timezone_aware_datetime() -> None:
+    for name, table in Base.metadata.tables.items():
+        for column in table.columns:
+            if column.type.__class__.__name__ == "DateTime":
+                assert column.type.timezone, f"{name}.{column.name} lacks timezone=True"
+
+
+def test_audio_stored_as_reference_only() -> None:
+    users = Base.metadata.tables["users"]
+    assert "audio_url" not in users.columns
+
+    learning = Base.metadata.tables["learning_contents"]
+    assert learning.columns["audio_url"].type.__class__.__name__ == "Text"
+
+    recordings = Base.metadata.tables["recordings"]
+    assert "storage_key" in recordings.columns
+    assert "storage_key" in {c.name for c in recordings.columns if c.unique}

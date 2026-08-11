@@ -10,11 +10,20 @@ colors:
   foreground: "oklch(0% 0 0)"
   border: "oklch(0% 0 0)"
   ring: "oklch(0% 0 0)"
+  destructive: "oklch(59.2% 0.249 27.5)"
+  destructive-foreground: "oklch(0% 0 0)"
+  rank-gold: "#facc00"
+  rank-silver: "#c7cdd4"
+  rank-bronze: "#cd7f32"
   overlay: "oklch(0% 0 0 / 0.8)"
   dark-background: "oklch(29.23% 0.0626 270.49)"
   dark-surface: "oklch(23.93% 0 0)"
   dark-foreground: "oklch(92.49% 0 0)"
   dark-ring: "oklch(100% 0 0)"
+  dark-destructive: "oklch(70.4% 0.191 22.216)"
+  dark-rank-gold: "#e0b700"
+  dark-rank-silver: "#aeb7c2"
+  dark-rank-bronze: "#b96a32"
   chart-1: "#5294ff"
   chart-2: "#ff4d50"
   chart-3: "#facc00"
@@ -210,12 +219,19 @@ Before implementing or modifying frontend UI:
 1. Read this file and the nearest `AGENTS.md`.
 2. Inspect `globals.css` instead of inventing theme variables.
 3. Search `apps/web/src/components/ui` and existing feature components before creating a component.
-4. Reuse an installed component and its documented variants whenever it satisfies the behavior.
-5. Compose layout with Tailwind utilities and semantic color classes; do not copy raw hex or OKLCH
+4. Reuse an installed Neobrutalism primitive and its documented variants whenever it satisfies the
+   behavior.
+5. If the primitive is not installed, search the official
+   [Neobrutalism component documentation](https://www.neobrutalism.dev/docs) and install its
+   upstream registry component when available.
+6. Create a custom primitive only when neither `apps/web/src/components/ui` nor the official
+   Neobrutalism library provides an appropriate component. Compose product-specific behavior around
+   primitives instead of duplicating their implementation.
+7. Compose layout with Tailwind utilities and semantic color classes; do not copy raw hex or OKLCH
    values into JSX.
-6. Keep Server Components by default. Add `"use client"` only for interaction, hooks, or browser
+8. Keep Server Components by default. Add `"use client"` only for interaction, hooks, or browser
    APIs.
-7. Verify at a compact mobile viewport and a desktop viewport, then run lint, typecheck, and a
+9. Verify at a compact mobile viewport and a desktop viewport, then run lint, typecheck, and a
    production build for rendering-impacting changes.
 
 ### Product character
@@ -235,16 +251,18 @@ only in `globals.css`.
 
 ### Light theme
 
-| Role            | CSS token                | Tailwind utility          | Value                         | Usage                                                        |
-| --------------- | ------------------------ | ------------------------- | ----------------------------- | ------------------------------------------------------------ |
-| Primary         | `--main`                 | `bg-main`                 | `oklch(67.47% 0.1726 259.49)` | Primary actions, selected states, branded sections, progress |
-| On primary      | `--main-foreground`      | `text-main-foreground`    | `oklch(0% 0 0)`               | Text and icons on primary blue                               |
-| Page background | `--background`           | `bg-background`           | `oklch(93.46% 0.0305 255.11)` | Default page and pale-blue content surfaces                  |
-| Raised surface  | `--secondary-background` | `bg-secondary-background` | `oklch(100% 0 0)`             | Inputs, neutral controls, cards, navbar                      |
-| Foreground      | `--foreground`           | `text-foreground`         | `oklch(0% 0 0)`               | Primary text, inverse sections, icons                        |
-| Border          | `--border`               | `border-border`           | `oklch(0% 0 0)`               | Component outlines, dividers, hard shadows                   |
-| Focus ring      | `--ring`                 | `ring-ring`               | `oklch(0% 0 0)`               | Keyboard focus                                               |
-| Overlay         | `--overlay`              | `bg-overlay`              | `oklch(0% 0 0 / 0.8)`         | Modal and drawer backdrops                                   |
+| Role            | CSS token                  | Tailwind utility              | Value                                                              | Usage                                                        |
+| --------------- | -------------------------- | ----------------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------ |
+| Primary         | `--main`                   | `bg-main`                     | `oklch(67.47% 0.1726 259.49)`                                      | Primary actions, selected states, branded sections, progress |
+| On primary      | `--main-foreground`        | `text-main-foreground`        | `oklch(0% 0 0)`                                                    | Text and icons on primary blue                               |
+| Page background | `--background`             | `bg-background`               | `oklch(93.46% 0.0305 255.11)`                                      | Default page and pale-blue content surfaces                  |
+| Raised surface  | `--secondary-background`   | `bg-secondary-background`     | `oklch(100% 0 0)`                                                  | Inputs, neutral controls, cards, navbar                      |
+| Foreground      | `--foreground`             | `text-foreground`             | `oklch(0% 0 0)`                                                    | Primary text, inverse sections, icons                        |
+| Border          | `--border`                 | `border-border`               | `oklch(0% 0 0)`                                                    | Component outlines, dividers, hard shadows                   |
+| Focus ring      | `--ring`                   | `ring-ring`                   | `oklch(0% 0 0)`                                                    | Keyboard focus                                               |
+| Overlay         | `--overlay`                | `bg-overlay`                  | `oklch(0% 0 0 / 0.8)`                                              | Modal and drawer backdrops                                   |
+| Destructive     | `--destructive`            | `text-destructive`            | light `oklch(59.2% 0.249 27.5)` / dark `oklch(70.4% 0.191 22.216)` | Validation and destructive error text                        |
+| Destructive fg  | `--destructive-foreground` | `text-destructive-foreground` | `oklch(0% 0 0)`                                                    | Text and icons placed on destructive surfaces                |
 
 The primary color is intentionally reused across actions, large section fills, selected tabs,
 progress bars, score badges, and small decorative accents. Do not introduce a second CTA color to
@@ -272,6 +290,11 @@ semantic token use does not guarantee that every custom composition has sufficie
 `chart-1` through `chart-5` are reserved for charts, progress comparisons, and categorical data.
 They are not an alternate UI accent palette. Pair color with text, icons, labels, or patterns so
 meaning never depends on color alone.
+
+Leaderboard podium surfaces use the dedicated `rank-gold`, `rank-silver`, and `rank-bronze` tokens.
+These colors communicate first, second, and third place only; do not reuse them as general accents or
+button colors. Pair every podium color with its numeric rank and medal icon, and use
+`text-main-foreground` for content placed on these surfaces in both themes.
 
 ## Typography
 
@@ -382,7 +405,10 @@ shadow.
 
 The installed components in `apps/web/src/components/ui` are the default building blocks. Reuse
 their props, states, data attributes, accessibility behavior, and variants. Feature components may
-compose these primitives but should not duplicate their implementation.
+compose these primitives but should not duplicate their implementation. When a required primitive
+is missing locally, use the official [Neobrutalism component catalog](https://www.neobrutalism.dev/docs)
+as the second source of truth and install the upstream component. Custom primitives are permitted
+only when both sources lack a suitable component.
 
 ### Buttons and actions
 
@@ -413,12 +439,16 @@ Badge, surrounding status treatment, or a documented product-specific component.
 - Fields use the raised white surface, 2px border, 5px radius, 14px text, and visible focus ring.
 - Labels precede their controls. Helper text and validation messages follow the relevant field.
 - Validation must include text; do not communicate error state through color alone.
+- Use `text-destructive` for field-level validation errors and other clearly destructive error copy;
+  keep the message adjacent to the affected control.
 - Keep native semantics, names, autocomplete behavior, and keyboard operation.
 
 ### Feedback and disclosure
 
 - Use `Alert` for persistent status, `Dialog` for blocking decisions, and `Accordion` or
   `Collapsible` for progressive disclosure.
+- Use `Sonner` toasts for transient mutation outcomes and temporarily unavailable integrations.
+  Keep field-level validation next to its control; do not move actionable form errors into a toast.
 - Titles explain the outcome; descriptions explain what the learner should do next.
 - Default feedback uses primary blue. Destructive treatment is reserved for actual errors or
   irreversible actions.

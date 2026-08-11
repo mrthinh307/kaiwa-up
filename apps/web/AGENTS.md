@@ -69,6 +69,12 @@ Extends the rules in the root `AGENTS.md`.
   [`DESIGN.md`](../../DESIGN.md).
 - Treat `DESIGN.md` as the usage contract for the KaiwaUp visual system. Treat
   `src/app/globals.css` and `src/components/ui/` as the implementation source of truth.
+- Always check `src/components/ui/` first for an existing Neobrutalism primitive. If it is missing,
+  check the official [Neobrutalism component documentation](https://www.neobrutalism.dev/docs) and
+  install the upstream registry component when available.
+- Create a custom primitive only when no suitable component exists in either `src/components/ui/`
+  or the official Neobrutalism component library. Product-specific compositions should wrap or
+  style primitives instead of duplicating their implementation.
 - When shared design tokens or component behavior intentionally change, update `DESIGN.md` in the
   same change.
 - Prefer Tailwind CSS utilities. Keep shared theme tokens and global base styles in `src/app/globals.css`.
