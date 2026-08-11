@@ -10,4 +10,3 @@ from app.core.database import engine
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     yield
     await engine.dispose()
-
