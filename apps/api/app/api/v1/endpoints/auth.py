@@ -1,6 +1,6 @@
 """Authentication API endpoints."""
 
-from typing import Annotated, Literal, cast
+from typing import Annotated
 
 from fastapi import (
     APIRouter,
@@ -41,10 +41,7 @@ def set_refresh_cookie(
         value=refresh_token,
         httponly=True,
         secure=settings.REFRESH_COOKIE_SECURE,
-        samesite=cast(
-            Literal["lax", "strict", "none"],
-            settings.REFRESH_COOKIE_SAMESITE,
-        ),
+        samesite=settings.REFRESH_COOKIE_SAMESITE,
         max_age=max_age,
         path="/api/v1/auth",
     )
@@ -59,10 +56,7 @@ def delete_refresh_cookie(
         path="/api/v1/auth",
         secure=settings.REFRESH_COOKIE_SECURE,
         httponly=True,
-        samesite=cast(
-            Literal["lax", "strict", "none"],
-            settings.REFRESH_COOKIE_SAMESITE,
-        ),
+        samesite=settings.REFRESH_COOKIE_SAMESITE,
     )
 
 

@@ -2,6 +2,7 @@
 
 import uuid
 from datetime import UTC, datetime
+from typing import cast
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -43,7 +44,7 @@ class RefreshTokenRepository:
         if for_update:
             statement = statement.with_for_update()
 
-        return await db.scalar(statement)
+        return cast(AuthRefreshToken | None, await db.scalar(statement))
 
     async def revoke(
         self,

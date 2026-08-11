@@ -1,6 +1,7 @@
 """Database access for users."""
 
 import uuid
+from typing import cast
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,7 +19,7 @@ class UserRepository:
     ) -> User | None:
         statement = select(User).where(User.id == user_id)
 
-        return await db.scalar(statement)
+        return cast(User | None, await db.scalar(statement))
 
     async def get_by_email(
         self,
@@ -27,7 +28,7 @@ class UserRepository:
     ) -> User | None:
         statement = select(User).where(User.email == email)
 
-        return await db.scalar(statement)
+        return cast(User | None, await db.scalar(statement))
 
     async def create(
         self,
