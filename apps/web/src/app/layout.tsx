@@ -26,7 +26,11 @@ export const metadata: Metadata = {
     "Practice Japanese listening, pronunciation, and natural responses with Dual Shadowing, Dictation, 3-Second Reflex, and AI-guided conversations.",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
   return (
     <html
       lang="en"

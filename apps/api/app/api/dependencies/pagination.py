@@ -18,4 +18,3 @@ class PaginationParams:
 
 
 Pagination = Annotated[PaginationParams, Depends()]
-
