@@ -142,6 +142,53 @@ Check formatting without modifying files:
 pnpm format:check
 ```
 
+## Backend workflow
+
+For API development and testing, the repository exposes commands that keep the backend migration and test flow separate from development and production data.
+
+1. Install API dependencies:
+
+```bash
+make install-api
+```
+
+2. Set up the test database branch:
+
+- Copy `apps/api/.env.example` to `apps/api/.env`
+- Add `DATABASE_URL_TEST` pointing to a Neon test branch
+
+3. Apply migrations to the Neon test database branch:
+
+```bash
+make migrate-api-test
+```
+
+4. Run the API backend test suite:
+
+```bash
+make test-api
+```
+
+The API tests use `DATABASE_URL_TEST` and are intended to run against an isolated Neon test branch. Each test runs in its own transaction and rolls back after completion, so test data is not persisted and multiple developers or CI runners can execute tests safely in parallel.
+
+## CI
+
+Pull requests automatically run the repository CI pipeline. The backend job runs:
+
+- `uv run ruff check .`
+- `uv run ruff format --check .`
+- `uv run mypy`
+- `uv run alembic upgrade head` against `DATABASE_URL_TEST`
+- `uv run pytest`
+
+The frontend job runs:
+
+- `pnpm lint:web`
+- `pnpm --filter web typecheck`
+- `pnpm format:check`
+
+See `.github/workflows/ci.yml` for the exact CI configuration.
+
 ## API client generation
 
 The `packages/api-client` workspace is reserved for types and client functions generated from the FastAPI OpenAPI schema. The generator is currently a placeholder, so the following command will exit with an explanatory error until an OpenAPI generator is configured:

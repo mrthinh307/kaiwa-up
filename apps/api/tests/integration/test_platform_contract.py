@@ -1,6 +1,7 @@
 from datetime import datetime
 
-from fastapi.testclient import TestClient
+import httpx
+import pytest
 from sqlalchemy.exc import SQLAlchemyError
 
 import app.api.v1.endpoints.readiness as readiness_endpoint
@@ -8,8 +9,9 @@ from app.core import settings
 from app.schemas import PaginatedResponse
 
 
-def test_health_endpoint_matches_platform_contract(client: TestClient) -> None:
-    response = client.get("/api/v1/health")
+@pytest.mark.asyncio
+async def test_health_endpoint_matches_platform_contract(client: httpx.AsyncClient) -> None:
+    response = await client.get("/api/v1/health")
 
     assert response.status_code == 200
     payload = response.json()
@@ -22,9 +24,10 @@ def test_health_endpoint_matches_platform_contract(client: TestClient) -> None:
     assert timestamp.utcoffset().total_seconds() == 0  # type: ignore
 
 
-def test_cors_allows_configured_frontend_origin(client: TestClient) -> None:
+@pytest.mark.asyncio
+async def test_cors_allows_configured_frontend_origin(client: httpx.AsyncClient) -> None:
     origin = settings.cors_origins[0]
-    response = client.options(
+    response = await client.options(
         "/api/v1/health",
         headers={
             "Origin": origin,
@@ -37,8 +40,9 @@ def test_cors_allows_configured_frontend_origin(client: TestClient) -> None:
     assert response.headers["access-control-allow-credentials"] == "true"
 
 
-def test_cors_does_not_allow_unconfigured_origin(client: TestClient) -> None:
-    response = client.get(
+@pytest.mark.asyncio
+async def test_cors_does_not_allow_unconfigured_origin(client: httpx.AsyncClient) -> None:
+    response = await client.get(
         "/api/v1/health",
         headers={"Origin": "https://untrusted.example"},
     )
@@ -47,8 +51,9 @@ def test_cors_does_not_allow_unconfigured_origin(client: TestClient) -> None:
     assert "access-control-allow-origin" not in response.headers
 
 
-def test_readiness_endpoint_reports_database_ready(
-    client: TestClient,
+@pytest.mark.asyncio
+async def test_readiness_endpoint_reports_database_ready(
+    client: httpx.AsyncClient,
     monkeypatch,
 ) -> None:
     async def database_is_ready() -> None:
@@ -56,15 +61,16 @@ def test_readiness_endpoint_reports_database_ready(
 
     monkeypatch.setattr(readiness_endpoint, "check_database_connection", database_is_ready)
 
-    response = client.get("/api/v1/ready")
+    response = await client.get("/api/v1/ready")
 
     assert response.status_code == 200
     assert response.json()["status"] == "ready"
     assert response.json()["database"] == "ok"
 
 
-def test_readiness_endpoint_returns_service_unavailable_when_database_is_down(
-    client: TestClient,
+@pytest.mark.asyncio
+async def test_readiness_endpoint_returns_service_unavailable_when_database_is_down(
+    client: httpx.AsyncClient,
     monkeypatch,
 ) -> None:
     async def database_is_unavailable() -> None:
@@ -72,7 +78,7 @@ def test_readiness_endpoint_returns_service_unavailable_when_database_is_down(
 
     monkeypatch.setattr(readiness_endpoint, "check_database_connection", database_is_unavailable)
 
-    response = client.get("/api/v1/ready")
+    response = await client.get("/api/v1/ready")
 
     assert response.status_code == 503
     assert response.json() == {
