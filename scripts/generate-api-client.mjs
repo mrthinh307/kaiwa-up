@@ -12,6 +12,10 @@ const generatedDir = path.resolve(apiClientDir, "src/generated");
 
 const isCheck = process.argv.includes("--check");
 
+function normalize(str) {
+  return str ? str.replace(/\r\n/g, "\n").trim() : "";
+}
+
 function getFastApiOpenApiSchema() {
   const output = execSync(
     'uv --directory apps/api run python -c "import json; from app.main import app; print(json.dumps(app.openapi(), indent=2))"',
@@ -20,12 +24,21 @@ function getFastApiOpenApiSchema() {
   return output.trim();
 }
 
+function formatApiClientDir() {
+  execSync("pnpm exec prettier --write .", {
+    cwd: apiClientDir,
+    encoding: "utf-8",
+    stdio: "ignore",
+  });
+}
+
 function runOpenApiTs() {
   execSync("pnpm exec openapi-ts", {
     cwd: apiClientDir,
     encoding: "utf-8",
     stdio: "inherit",
   });
+  formatApiClientDir();
 }
 
 function readAllFiles(dir) {
@@ -51,23 +64,24 @@ function readAllFiles(dir) {
 async function main() {
   try {
     console.log("Extracting OpenAPI 3.1.0 schema from FastAPI...");
-    const newOpenApiSchema = getFastApiOpenApiSchema();
+    const rawSchema = getFastApiOpenApiSchema();
 
     if (isCheck) {
       // Snapshot existing files
       const existingOpenApi = fs.existsSync(openapiPath)
-        ? fs.readFileSync(openapiPath, "utf-8").trim()
+        ? fs.readFileSync(openapiPath, "utf-8")
         : null;
       const existingGenerated = readAllFiles(generatedDir);
 
-      // Perform generation
-      fs.writeFileSync(openapiPath, `${newOpenApiSchema}\n`, "utf-8");
+      // Perform generation and formatting
+      fs.writeFileSync(openapiPath, `${rawSchema}\n`, "utf-8");
       runOpenApiTs();
 
+      const newOpenApi = fs.readFileSync(openapiPath, "utf-8");
       const newGenerated = readAllFiles(generatedDir);
 
       let outOfSync = false;
-      if (existingOpenApi !== newOpenApiSchema) {
+      if (normalize(existingOpenApi) !== normalize(newOpenApi)) {
         console.error("❌ openapi.json is out of sync.");
         outOfSync = true;
       }
@@ -77,7 +91,7 @@ async function main() {
         outOfSync = true;
       } else {
         for (const [file, content] of newGenerated.entries()) {
-          if (existingGenerated.get(file) !== content) {
+          if (normalize(existingGenerated.get(file)) !== normalize(content)) {
             console.error(`❌ Generated file ${file} is out of sync.`);
             outOfSync = true;
           }
@@ -93,7 +107,7 @@ async function main() {
 
       console.log("✅ API client artifacts are synchronized and up to date.");
     } else {
-      fs.writeFileSync(openapiPath, `${newOpenApiSchema}\n`, "utf-8");
+      fs.writeFileSync(openapiPath, `${rawSchema}\n`, "utf-8");
       console.log("Generating TypeScript API client with @hey-api/openapi-ts...");
       runOpenApiTs();
       console.log("✅ API client generation completed successfully.");
