@@ -71,7 +71,7 @@ class ProgressService:
             content_type=row.content_type,
             attempt_number=attempt.attempt_number,
             status=attempt.status,
-            score=attempt.score,
+            score=float(attempt.score) if attempt.score is not None else None,
             answer_payload=attempt.answer_payload,
             completed_at=attempt.completed_at,
         )
@@ -85,6 +85,6 @@ class ProgressService:
             content_type=attempt.content_type,
             attempt_number=attempt.attempt_number,
             status=attempt.status,
-            score=attempt.score,
+            score=float(attempt.score) if attempt.score is not None else None,
             completed_at=attempt.completed_at,
         )
