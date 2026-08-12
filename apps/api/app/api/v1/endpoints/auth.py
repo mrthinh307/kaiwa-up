@@ -26,7 +26,7 @@ from app.services.auth import (
     auth_service,
 )
 
-router = APIRouter()
+router = APIRouter(tags=["Auth"])
 
 
 def set_refresh_cookie(
