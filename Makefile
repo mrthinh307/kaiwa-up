@@ -80,3 +80,9 @@ migrate-api-test:
 
 generate-api-client:
 	pnpm generate:api-client
+
+seed:
+	cd apps/api && python -m scripts.seed_data
+
+seed-clean:
+	cd apps/api && python -m scripts.seed_data --clean
