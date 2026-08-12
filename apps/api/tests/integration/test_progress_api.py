@@ -9,7 +9,7 @@ from app.api.dependencies.auth import get_current_user
 from app.main import app
 from app.models.attempt import ExerciseAttempt
 from app.models.content import LearningContent
-from app.models.enums import AttemptStatus, ContentStatus, ContentType
+from app.models.enums import AttemptStatus, ContentStatus, ContentType, JlptLevel
 from app.models.user import User
 
 SUMMARY_PATH = "/api/v1/progress/summary"
@@ -35,7 +35,7 @@ async def create_content(
         status=ContentStatus.PUBLISHED,
         slug=slug,
         title=title,
-        difficulty=1,
+        difficulty=JlptLevel.N5,
         base_exp=50,
     )
     session.add(content)

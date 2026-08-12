@@ -16,7 +16,7 @@ from app.models.content import (
     ReflexExercise,
     TranslationExercise,
 )
-from app.models.enums import AttemptStatus, ContentStatus, ContentType, UserRole
+from app.models.enums import AttemptStatus, ContentStatus, ContentType, JlptLevel, UserRole
 from app.models.gamification import (
     Achievement,
     LevelDefinition,
@@ -212,7 +212,7 @@ async def seed_data(clean: bool = False) -> dict[str, int]:
             {
                 "slug": "listening-n5-jidoshoukai",
                 "title": "N5: Tự giới thiệu bản thân (自己紹介)",
-                "difficulty": 1,  # N5
+                "difficulty": JlptLevel.N5,
                 "audio_url": "https://res.cloudinary.com/kaiwaup/video/upload/v1/audio/shadowing_n5.mp3",
                 "audio_duration_ms": 15000,
                 "transcript_ja": [
@@ -231,7 +231,7 @@ async def seed_data(clean: bool = False) -> dict[str, int]:
             {
                 "slug": "listening-n3-office",
                 "title": "N3: Trao đổi công việc văn phòng",
-                "difficulty": 3,  # N3
+                "difficulty": JlptLevel.N3,
                 "audio_url": "https://res.cloudinary.com/kaiwaup/video/upload/v1/audio/shadowing_n3.mp3",
                 "audio_duration_ms": 25000,
                 "transcript_ja": [
@@ -250,7 +250,7 @@ async def seed_data(clean: bool = False) -> dict[str, int]:
             {
                 "slug": "listening-n1-news",
                 "title": "N1: Tin tức kinh tế nhật bản",
-                "difficulty": 5,  # N1
+                "difficulty": JlptLevel.N1,
                 "audio_url": "https://res.cloudinary.com/kaiwaup/video/upload/v1/audio/shadowing_n1.mp3",
                 "audio_duration_ms": 40000,
                 "transcript_ja": [
@@ -297,14 +297,14 @@ async def seed_data(clean: bool = False) -> dict[str, int]:
             {
                 "slug": "reflex-n5-greeting",
                 "title": "N5: Đáp lại lời chào hỏi",
-                "difficulty": 1,
+                "difficulty": JlptLevel.N5,
                 "prompt_ja": "おはようございます！",
                 "scenario": "Gặp đồng nghiệp vào buổi sáng tại công ty",
             },
             {
                 "slug": "reflex-n3-invitation",
                 "title": "N3: Từ chối lời mời lịch sự",
-                "difficulty": 3,
+                "difficulty": JlptLevel.N3,
                 "prompt_ja": "今晩、一緒に飲みに行きませんか。",
                 "scenario": "Được sếp rủ đi uống rượu nhưng bạn có hẹn trước",
             },
@@ -341,14 +341,14 @@ async def seed_data(clean: bool = False) -> dict[str, int]:
             {
                 "slug": "translation-n4-restaurant",
                 "title": "N4: Gọi món tại nhà hàng",
-                "difficulty": 2,
+                "difficulty": JlptLevel.N4,
                 "audio_url": "https://res.cloudinary.com/kaiwaup/video/upload/v1/audio/trans_n4.mp3",
                 "ref_vi": "Xin lỗi, cho tôi xem thực đơn.",
             },
             {
                 "slug": "translation-n2-business",
                 "title": "N2: Đàm phán hợp đồng",
-                "difficulty": 4,
+                "difficulty": JlptLevel.N2,
                 "audio_url": "https://res.cloudinary.com/kaiwaup/video/upload/v1/audio/trans_n2.mp3",
                 "ref_vi": "Chúng tôi mong muốn điều chỉnh lại điều khoản thanh toán.",
             },

@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.exceptions import ForbiddenError, NotFoundError
 from app.models.attempt import ExerciseAttempt
 from app.models.content import LearningContent
-from app.models.enums import AttemptStatus, ContentStatus, ContentType
+from app.models.enums import AttemptStatus, ContentStatus, ContentType, JlptLevel
 from app.models.gamification import XpTransaction
 from app.models.user import User
 from app.repositories.gamification import GamificationRepository
@@ -35,7 +35,7 @@ async def create_content(
         status=ContentStatus.PUBLISHED,
         slug=slug,
         title=title,
-        difficulty=1,
+        difficulty=JlptLevel.N5,
         base_exp=base_exp,
     )
     session.add(content)
