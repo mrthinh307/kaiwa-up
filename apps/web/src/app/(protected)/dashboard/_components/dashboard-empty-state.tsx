@@ -48,17 +48,14 @@ export function DashboardEmptyState({
             </Button>
             {practiceMetadata ? (
               <Button asChild>
-                <Link href={practiceMetadata.listHref}>Start {practiceMetadata.label}</Link>
+                <Link href={practiceMetadata.listHref}>Browse lessons</Link>
               </Button>
             ) : null}
           </>
         ) : (
           <>
             <Button asChild>
-              <Link href="/shadowing">Start Shadowing</Link>
-            </Button>
-            <Button asChild variant="neutral">
-              <Link href="/dictation">Try Dictation</Link>
+              <Link href="/lessons">Browse lessons</Link>
             </Button>
           </>
         )}

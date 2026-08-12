@@ -39,13 +39,13 @@ const DASHBOARD_PRACTICE_MODE_METADATA: Record<
     badgeClassName: "bg-chart-5 text-main-foreground",
     icon: BookOpenCheck,
     label: "Dictation",
-    listHref: "/dictation",
+    listHref: "/lessons",
   },
   shadowing: {
     badgeClassName: "bg-chart-1 text-main-foreground",
     icon: Mic2,
     label: "Shadowing",
-    listHref: "/shadowing",
+    listHref: "/lessons",
   },
 };
 
