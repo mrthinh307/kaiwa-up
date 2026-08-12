@@ -21,6 +21,7 @@ async def check_database_connection() -> None:
 
 @router.get(
     "",
+    operation_id="readinessCheck",
     response_model=ReadinessResponse,
     summary="Check application and database readiness",
     responses={status.HTTP_503_SERVICE_UNAVAILABLE: {"description": "Database is not ready"}},
