@@ -1,4 +1,5 @@
 from functools import lru_cache
+from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -10,6 +11,16 @@ class Settings(BaseSettings):
     api_v1_prefix: str = "/api/v1"
     cors_origins: list[str] = ["http://localhost:3000"]
     database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/app"
+
+    JWT_SECRET_KEY: str = "secret"
+    JWT_ALGORITHM: str = "HS256"
+
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 30
+
+    REFRESH_COOKIE_NAME: str = "refresh_token"
+    REFRESH_COOKIE_SECURE: bool = False
+    REFRESH_COOKIE_SAMESITE: Literal["lax", "strict", "none"] = "lax"
 
     model_config = SettingsConfigDict(
         env_file=".env",
