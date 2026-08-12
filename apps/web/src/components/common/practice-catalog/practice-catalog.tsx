@@ -1,95 +1,101 @@
-import type { LucideIcon } from "lucide-react";
-import type { ReactNode } from "react";
-
+import { LibraryBig } from "lucide-react";
 import Link from "next/link";
 
-import type { PracticeCatalogViewModel } from "@/lib/practice-catalog-mock";
+import type { JlptDifficulty } from "@/types/practice-catalog";
 
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import {
-  JLPT_DIFFICULTIES,
-  type JlptDifficulty,
-  type PracticeCatalogOption,
-} from "@/types/practice-catalog";
+  PRACTICE_MODES,
+  type PracticeLearningStatus,
+  type PracticeCatalogViewModel,
+  type PracticeMode,
+} from "@/lib/practice-catalog-mock";
+import { cn } from "@/lib/utils";
 
-import { PracticeCatalogComboboxFilter } from "./practice-catalog-combobox-filter";
+import { PracticeCatalogFilterSheet } from "./practice-catalog-filter-sheet";
 import { PracticeCatalogPagination } from "./practice-catalog-pagination";
 import { PracticeCatalogSearch } from "./practice-catalog-search";
 import { PracticeLessonCard } from "./practice-lesson-card";
 
-const JLPT_DIFFICULTY_OPTIONS = JLPT_DIFFICULTIES.map((difficulty) => ({
-  label: difficulty,
-  value: difficulty,
-})) satisfies PracticeCatalogOption[];
-
 type PracticeCatalogProps = {
-  basePath: string;
   catalog: PracticeCatalogViewModel;
-  emptyIcon: LucideIcon;
-  featureLabel: string;
-  getLessonHref: (lessonId: string) => string;
-  idPrefix: string;
-  methodGuide: ReactNode;
   searchQuery?: string;
   selectedDifficulty?: JlptDifficulty;
+  selectedLearningStatus?: PracticeLearningStatus;
+  selectedModes: readonly PracticeMode[];
+  selectedTopic?: string;
+  topics: readonly string[];
 };
 
 export function PracticeCatalog({
-  basePath,
   catalog,
-  emptyIcon: EmptyIcon,
-  featureLabel,
-  getLessonHref,
-  idPrefix,
-  methodGuide,
   searchQuery,
   selectedDifficulty,
+  selectedLearningStatus,
+  selectedModes,
+  selectedTopic,
+  topics,
 }: PracticeCatalogProps) {
   const hasLessons = catalog.items.length > 0;
-  const hasActiveFilters = Boolean(searchQuery || selectedDifficulty);
+  const hasActiveFilters = Boolean(
+    searchQuery ||
+    selectedDifficulty ||
+    selectedLearningStatus ||
+    selectedTopic ||
+    selectedModes.length !== PRACTICE_MODES.length,
+  );
   const resultLabel = catalog.total === 1 ? "1 lesson" : `${catalog.total} lessons`;
-  const headingId = `${idPrefix}-catalog-heading`;
+  const modeLabel =
+    selectedModes.length === 1
+      ? ` for ${selectedModes[0] === "shadowing" ? "Shadowing" : "Dictation"}`
+      : "";
+  const learningStatusLabel = selectedLearningStatus
+    ? ` · ${selectedLearningStatus === "learned" ? "Learned" : "Not learned"}`
+    : "";
 
   return (
-    <section aria-labelledby={headingId}>
-      <div className="grid gap-5 rounded-base border-4 border-border bg-background p-5 shadow-shadow sm:p-7 lg:grid-cols-[minmax(220px,1fr)_minmax(0,700px)] lg:items-end">
+    <section aria-labelledby="lessons-catalog-heading">
+      <div className="grid gap-5 rounded-base border-4 border-border bg-background p-5 shadow-shadow sm:p-7 lg:grid-cols-[minmax(180px,0.7fr)_minmax(0,1.6fr)] lg:items-end">
         <div>
-          <h2 className="text-2xl sm:text-3xl" id={headingId}>
-            Choose a lesson
+          <h2 className="text-2xl sm:text-3xl" id="lessons-catalog-heading">
+            Browse lessons
           </h2>
           <p aria-live="polite" className="mt-2 text-sm text-foreground/70 sm:text-base">
             {resultLabel}
             {selectedDifficulty ? ` at ${selectedDifficulty}` : " across all levels"}
+            {selectedTopic ? ` in ${selectedTopic}` : ""}
             {searchQuery ? ` matching “${searchQuery}”` : ""}
+            {modeLabel}
+            {learningStatusLabel}
           </p>
         </div>
-        <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_12rem] sm:items-end">
+        <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
           <PracticeCatalogSearch
-            basePath={basePath}
-            id={`${idPrefix}-lesson-search`}
+            basePath="/lessons"
+            id="lessons-search"
             initialQuery={searchQuery}
             key={searchQuery}
             placeholder="Search by title, topic, or description..."
-            preservedParams={{ difficulty: selectedDifficulty }}
+            preservedParams={{
+              difficulty: selectedDifficulty,
+              learning_status: selectedLearningStatus,
+              modes:
+                selectedModes.length === PRACTICE_MODES.length
+                  ? undefined
+                  : selectedModes.join(","),
+              topic: selectedTopic,
+            }}
           />
-          <PracticeCatalogComboboxFilter
-            allLabel="All levels"
-            basePath={basePath}
-            emptyMessage="No level found."
-            id={`${idPrefix}-difficulty`}
-            label="JLPT level"
-            options={JLPT_DIFFICULTY_OPTIONS}
-            preservedParams={{ q: searchQuery }}
-            queryKey="difficulty"
-            searchLabel="Search JLPT levels"
-            searchPlaceholder="Search levels..."
-            value={selectedDifficulty}
+          <PracticeCatalogFilterSheet
+            searchQuery={searchQuery}
+            selectedDifficulty={selectedDifficulty}
+            selectedLearningStatus={selectedLearningStatus}
+            selectedModes={selectedModes}
+            selectedTopic={selectedTopic}
+            topics={topics}
           />
         </div>
       </div>
-
-      {methodGuide}
 
       {hasLessons ? (
         <>
@@ -102,34 +108,43 @@ export function PracticeCatalog({
           >
             {catalog.items.map((lesson) => (
               <li className="flex border-b-2 border-r-2 border-border" key={lesson.id}>
-                <PracticeLessonCard href={getLessonHref(lesson.id)} lesson={lesson} />
+                <PracticeLessonCard lesson={lesson} />
               </li>
             ))}
           </ul>
           <PracticeCatalogPagination
-            ariaLabel={`${featureLabel} lesson pages`}
-            basePath={basePath}
+            ariaLabel="Lesson catalog pages"
+            basePath="/lessons"
             page={catalog.page}
             pages={catalog.pages}
-            params={{ difficulty: selectedDifficulty, q: searchQuery }}
+            params={{
+              difficulty: selectedDifficulty,
+              learning_status: selectedLearningStatus,
+              modes:
+                selectedModes.length === PRACTICE_MODES.length
+                  ? undefined
+                  : selectedModes.join(","),
+              q: searchQuery,
+              topic: selectedTopic,
+            }}
           />
         </>
       ) : (
         <div className="mt-8 flex min-h-72 flex-col items-center justify-center rounded-base border-4 border-border bg-secondary-background px-6 py-12 text-center shadow-shadow">
           <span className="flex size-16 items-center justify-center rounded-full border-4 border-border bg-main text-main-foreground shadow-shadow">
-            <EmptyIcon aria-hidden="true" className="size-8" />
+            <LibraryBig aria-hidden="true" className="size-8" />
           </span>
           <h3 className="mt-7 text-2xl">
             {hasActiveFilters ? "No matching lessons" : "Lessons are on the way"}
           </h3>
           <p className="mt-3 max-w-[540px] leading-relaxed text-foreground/70">
             {hasActiveFilters
-              ? `Try another title, topic, description, or JLPT level to find a ${featureLabel} lesson.`
-              : `New ${featureLabel} lessons are being prepared. Check back soon to start practicing.`}
+              ? "Try another title, topic, description, JLPT level, or learning status to find a lesson."
+              : "New lessons are being prepared. Check back soon to start practicing."}
           </p>
           {hasActiveFilters && (
             <Button asChild className="mt-7" variant="neutral">
-              <Link href={basePath}>Clear filters</Link>
+              <Link href="/lessons">Clear filters</Link>
             </Button>
           )}
         </div>

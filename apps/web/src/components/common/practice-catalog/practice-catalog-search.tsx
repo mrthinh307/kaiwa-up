@@ -77,7 +77,7 @@ export function PracticeCatalogSearch({
             value={query}
           />
         </div>
-        <Button disabled={isPending} type="submit" variant="noShadow">
+        <Button disabled={isPending} type="submit">
           Search
         </Button>
       </div>

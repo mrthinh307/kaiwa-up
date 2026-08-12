@@ -488,7 +488,7 @@ export function getDictationPracticeLesson(lessonId: string): DictationPracticeL
   const content = getLearningContent(lessonId);
   const script = DICTATION_PRACTICE_SCRIPTS[lessonId];
 
-  if (!content || content.contentType !== "dictation" || !script) {
+  if (!content || !content.availableModes.includes("dictation") || !script) {
     return undefined;
   }
 
