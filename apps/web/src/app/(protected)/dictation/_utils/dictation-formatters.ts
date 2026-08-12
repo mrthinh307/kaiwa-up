@@ -23,7 +23,3 @@ export function formatDictationAnswerCount({
 
   return totalBlanks === 1 ? "1 blank" : `${totalBlanks} blanks`;
 }
-
-export function getDictationLessonHref(lessonId: string): string {
-  return `/dictation/${encodeURIComponent(lessonId)}`;
-}
