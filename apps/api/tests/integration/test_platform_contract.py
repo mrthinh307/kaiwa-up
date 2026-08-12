@@ -1,3 +1,4 @@
+import re
 from datetime import datetime
 
 import httpx
@@ -6,7 +7,26 @@ from sqlalchemy.exc import SQLAlchemyError
 
 import app.api.v1.endpoints.readiness as readiness_endpoint
 from app.core import settings
+from app.main import app
 from app.schemas import PaginatedResponse
+
+
+def test_all_api_operations_have_unique_lower_camel_case_ids() -> None:
+    http_methods = {"delete", "get", "head", "options", "patch", "post", "put", "trace"}
+    operation_ids = [
+        operation["operationId"]
+        for path_item in app.openapi()["paths"].values()
+        for method, operation in path_item.items()
+        if method in http_methods
+    ]
+
+    assert all(operation_ids)
+    assert len(operation_ids) == len(set(operation_ids))
+    assert all(
+        re.fullmatch(r"[a-z][A-Za-z0-9]*", operation_id)
+        for operation_id in operation_ids
+        if operation_id is not None
+    )
 
 
 @pytest.mark.asyncio

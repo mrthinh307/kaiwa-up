@@ -15,6 +15,7 @@ router = APIRouter(tags=["Users"])
 
 @router.get(
     "/me",
+    operation_id="getMe",
     response_model=UserResponse,
 )
 async def get_me(
@@ -26,6 +27,7 @@ async def get_me(
 
 @router.patch(
     "/me",
+    operation_id="updateMe",
     response_model=UserResponse,
 )
 async def update_me(

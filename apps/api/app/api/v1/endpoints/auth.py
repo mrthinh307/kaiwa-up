@@ -62,6 +62,7 @@ def delete_refresh_cookie(
 
 @router.post(
     "/register",
+    operation_id="register",
     response_model=UserResponse,
     status_code=status.HTTP_201_CREATED,
 )
@@ -83,6 +84,7 @@ async def register(
 
 @router.post(
     "/login",
+    operation_id="login",
     response_model=AccessTokenResponse,
 )
 async def login(
@@ -115,6 +117,7 @@ async def login(
 
 @router.post(
     "/refresh",
+    operation_id="refresh",
     response_model=AccessTokenResponse,
 )
 async def refresh(
@@ -153,6 +156,7 @@ async def refresh(
 
 @router.post(
     "/logout",
+    operation_id="logout",
     status_code=status.HTTP_204_NO_CONTENT,
 )
 async def logout(
