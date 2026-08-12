@@ -62,7 +62,7 @@ export function LeaderboardUserStanding({ userRank }: LeaderboardUserStandingPro
             </p>
           </div>
           <Button asChild className="h-11">
-            <Link href="/shadowing">
+            <Link href="/lessons">
               {userRank ? "Practice now" : "Start practicing"}
               <ArrowRight aria-hidden="true" />
             </Link>

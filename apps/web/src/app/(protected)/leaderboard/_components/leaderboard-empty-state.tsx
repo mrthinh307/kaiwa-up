@@ -19,7 +19,7 @@ export function LeaderboardEmptyState() {
         Complete a lesson and become the first learner on this week&apos;s board.
       </p>
       <Button asChild className="mt-7 h-11">
-        <Link href="/shadowing">
+        <Link href="/lessons">
           Start practicing
           <ArrowRight aria-hidden="true" />
         </Link>
