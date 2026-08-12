@@ -1,16 +1,31 @@
 # apps/api/tests/conftest.py
-import os
+from pathlib import Path
 
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.pool import NullPool
 
 from app.api.dependencies.database import get_db_session
 from app.main import app
 
-DATABASE_URL_TEST = os.environ["DATABASE_URL_TEST"]
+TEST_ENV_FILE = Path(__file__).resolve().parents[1] / ".env"
 
-engine_test = create_async_engine(DATABASE_URL_TEST, pool_pre_ping=True)
+
+class DatabaseTestSettings(BaseSettings):
+    database_url_test: str
+
+    model_config = SettingsConfigDict(
+        env_file=TEST_ENV_FILE,
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+
+DATABASE_URL_TEST = DatabaseTestSettings().database_url_test
+
+engine_test = create_async_engine(DATABASE_URL_TEST, poolclass=NullPool)
 TestSessionLocal = async_sessionmaker(bind=engine_test, expire_on_commit=False, class_=AsyncSession)
 
 
