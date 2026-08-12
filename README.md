@@ -191,10 +191,32 @@ See `.github/workflows/ci.yml` for the exact CI configuration.
 
 ## API client generation
 
-The `packages/api-client` workspace is reserved for types and client functions generated from the FastAPI OpenAPI schema. The generator is currently a placeholder, so the following command will exit with an explanatory error until an OpenAPI generator is configured:
+The `@kaiwa-app/api-client` workspace package hosts auto-generated TypeScript models and client functions created directly from the FastAPI OpenAPI 3.1.0 schema using `@hey-api/openapi-ts`.
+
+To generate or update the API client:
 
 ```bash
 make generate-api-client
+# or
+pnpm generate:api-client
+```
+
+This extracts the deterministic OpenAPI schema from FastAPI (`apps/api`), saves `packages/api-client/openapi.json`, and updates `@kaiwa-app/api-client` with typed SDK functions.
+
+To check if generated artifacts are synchronized with the FastAPI backend:
+
+```bash
+pnpm check:api-client
+```
+
+Frontend applications configure the API base URL via `NEXT_PUBLIC_API_BASE_URL` in `apps/web/.env`:
+
+```ts
+import { client, healthCheckApiV1HealthGet } from "@kaiwa-app/api-client";
+
+client.setConfig({
+  baseUrl: process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000",
+});
 ```
 
 ## Project structure

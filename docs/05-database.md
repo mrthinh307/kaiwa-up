@@ -2,7 +2,7 @@
 
 ## 1. Phạm vi và quyết định thiết kế
 
-Database dùng **PostgreSQL 15+**. Schema khởi tạo nằm tại [`database/001_initial_schema.sql`](../database/001_initial_schema.sql).
+Database dùng **PostgreSQL 15+**. Schema được quản lý bằng Alembic trong `apps/api/alembic/versions/`; các diagram là tài liệu tham chiếu chứ không phải nguồn chuẩn.
 
 Các quyết định chính:
 
@@ -30,11 +30,7 @@ erDiagram
     LEARNING_CONTENTS ||--o| DICTATION_EXERCISES : extends
     LEARNING_CONTENTS ||--o| REFLEX_EXERCISES : extends
     LEARNING_CONTENTS ||--o| TRANSLATION_EXERCISES : extends
-    DICTATION_EXERCISES ||--o{ DICTATION_BLANKS : contains
-    TRANSLATION_EXERCISES ||--o{ TRANSLATION_CHOICES : offers
     LEARNING_CONTENTS ||--o{ EXERCISE_ATTEMPTS : attempted_as
-    EXERCISE_ATTEMPTS ||--o{ ATTEMPT_DICTATION_ANSWERS : answers
-    DICTATION_BLANKS ||--o{ ATTEMPT_DICTATION_ANSWERS : answered_by
     EXERCISE_ATTEMPTS ||--o{ RECORDINGS : includes
     EXERCISE_ATTEMPTS ||--o{ AI_EVALUATIONS : evaluated_by
     RECORDINGS o|--o{ AI_EVALUATIONS : evaluates
@@ -50,7 +46,7 @@ erDiagram
 
 ### 2.1. Chi tiết bảng theo nhóm
 
-Các sơ đồ dưới đây thể hiện khóa chính (`PK`), khóa ngoại (`FK`) và các cột nghiệp vụ quan trọng. DDL đầy đủ, gồm constraint, default và index, vẫn là nguồn chuẩn tại [`database/001_initial_schema.sql`](../database/001_initial_schema.sql).
+Các sơ đồ dưới đây thể hiện khóa chính (`PK`), khóa ngoại (`FK`) và các cột nghiệp vụ quan trọng. DDL đầy đủ, gồm constraint, default và index, vẫn là nguồn chuẩn do Alembic sinh từ models trong `apps/api/app/models/`.
 
 #### Tài khoản và gamification
 
@@ -157,46 +153,26 @@ erDiagram
     }
     DICTATION_EXERCISES {
         UUID content_id PK, FK
-        TEXT prompt_template
+        TEXT script
         TIMESTAMPTZ created_at
-    }
-    DICTATION_BLANKS {
-        UUID id PK
-        UUID content_id FK
-        SMALLINT position
-        JSONB accepted_answers
-        TEXT hint
     }
     REFLEX_EXERCISES {
         UUID content_id PK, FK
         TEXT prompt_ja
-        TEXT prompt_audio_url
         TEXT scenario_ja
         SMALLINT response_start_limit_seconds
-        JSONB evaluation_rubric
         TIMESTAMPTZ created_at
     }
     TRANSLATION_EXERCISES {
         UUID content_id PK, FK
-        translation_mode mode
         TEXT reference_translation_vi
-        TEXT explanation
         TIMESTAMPTZ created_at
-    }
-    TRANSLATION_CHOICES {
-        UUID id PK
-        UUID content_id FK
-        SMALLINT position
-        TEXT choice_text_vi
-        BOOLEAN is_correct
     }
 
     LEARNING_CONTENTS ||--o| SHADOWING_EXERCISES : extends
     LEARNING_CONTENTS ||--o| DICTATION_EXERCISES : extends
     LEARNING_CONTENTS ||--o| REFLEX_EXERCISES : extends
     LEARNING_CONTENTS ||--o| TRANSLATION_EXERCISES : extends
-    DICTATION_EXERCISES ||--o{ DICTATION_BLANKS : has
-    TRANSLATION_EXERCISES ||--o{ TRANSLATION_CHOICES : has
 ```
 
 #### Lượt học, ghi âm và đánh giá AI
@@ -207,9 +183,6 @@ erDiagram
         UUID id PK
     }
     LEARNING_CONTENTS {
-        UUID id PK
-    }
-    DICTATION_BLANKS {
         UUID id PK
     }
     REFLEX_EXERCISES {
@@ -231,12 +204,6 @@ erDiagram
         BOOLEAN response_started_on_time
         JSONB answer_payload
     }
-    ATTEMPT_DICTATION_ANSWERS {
-        UUID attempt_id PK, FK
-        UUID blank_id PK, FK
-        TEXT answer_text
-        BOOLEAN is_correct
-    }
     RECORDINGS {
         UUID id PK
         UUID user_id FK
@@ -246,6 +213,7 @@ erDiagram
         INTEGER duration_ms
         VARCHAR mime_type
         TEXT transcription_ja
+        TIMESTAMPTZ expired_at
         TIMESTAMPTZ created_at
     }
     AI_EVALUATIONS {
@@ -279,8 +247,6 @@ erDiagram
 
     USERS ||--o{ EXERCISE_ATTEMPTS : makes
     LEARNING_CONTENTS ||--o{ EXERCISE_ATTEMPTS : attempted_as
-    EXERCISE_ATTEMPTS ||--o{ ATTEMPT_DICTATION_ANSWERS : contains
-    DICTATION_BLANKS ||--o{ ATTEMPT_DICTATION_ANSWERS : answered_by
     USERS ||--o{ RECORDINGS : owns
     EXERCISE_ATTEMPTS ||--o{ RECORDINGS : includes
     EXERCISE_ATTEMPTS ||--o{ AI_EVALUATIONS : has
@@ -333,8 +299,8 @@ erDiagram
 | --------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------- |
 | Tài khoản       | `users`, `user_progress`, `auth_refresh_tokens`                                                                                      | Xác thực, hồ sơ, phiên refresh token và số liệu Dashboard.              |
 | Nội dung        | `learning_contents`                                                                                                                  | Metadata chung: tiêu đề, chủ đề, độ khó, audio, transcript, EXP cơ bản. |
-| Bài chuyên biệt | `shadowing_exercises`, `dictation_exercises`, `dictation_blanks`, `reflex_exercises`, `translation_exercises`, `translation_choices` | Prompt, đáp án và cấu hình riêng cho từng hình thức học.                |
-| Học tập         | `exercise_attempts`, `attempt_dictation_answers`, `recordings`, `ai_evaluations`, `review_schedules`                                 | Lượt làm bài, đáp án, bản ghi, nhận xét AI và lặp lại ngắt quãng.       |
+| Bài chuyên biệt | `shadowing_exercises`, `dictation_exercises`, `reflex_exercises`, `translation_exercises` | Prompt, đáp án và cấu hình riêng cho từng hình thức học.                |
+| Học tập         | `exercise_attempts`, `recordings`, `ai_evaluations`, `review_schedules`                     | Lượt làm bài, đáp án, bản ghi, nhận xét AI và lặp lại ngắt quãng.       |
 | Gamification    | `level_definitions`, `xp_transactions`, `achievements`, `user_achievements`, `weekly_leaderboard_entries`                            | Cấp độ, lịch sử EXP, thành tích và bảng xếp hạng tuần.                  |
 | AI Tutor        | `tutor_sessions`, `tutor_messages`                                                                                                   | Lưu phiên hội thoại và từng lượt trao đổi theo thứ tự.                  |
 
@@ -358,8 +324,8 @@ Danh sách bài đề xuất trên Dashboard được tính khi đọc catalog (
 | Bảng                  | Quan hệ                           | Cột nghiệp vụ đáng chú ý                                                                 |
 | --------------------- | --------------------------------- | ---------------------------------------------------------------------------------------- |
 | `learning_contents`   | Cha của mọi bài                   | `content_type`, `status`, `slug`, `difficulty`, `audio_url`, `transcript_ja`, `base_exp` |
-| `dictation_blanks`    | N–1 `dictation_exercises`         | `position`, `accepted_answers` JSON array, `hint`                                        |
-| `translation_choices` | N–1 `translation_exercises`       | `position`, `choice_text_vi`, `is_correct`                                               |
+| `dictation_exercises` | 1–1 `learning_contents`           | `script` toàn bộ văn bản; blank được đánh dấu trong script                            |
+| `translation_exercises` | 1–1 `learning_contents`         | `reference_translation_vi` bản dịch tham chiếu                                          |
 | `exercise_attempts`   | N–1 user, N–1 content             | `status`, `score`, số đáp án đúng, mốc bắt đầu phản hồi, `answer_payload`                |
 | `recordings`          | N–1 user, N–1 attempt             | `storage_key`, `mime_type`, `duration_ms`, transcript từ STT nếu có                      |
 | `ai_evaluations`      | N–1 attempt                       | trạng thái xử lý, model/provider, điểm fluency/tương đồng, feedback và JSON chi tiết     |
@@ -367,14 +333,15 @@ Danh sách bài đề xuất trên Dashboard được tính khi đọc catalog (
 
 Cấp độ "1 từ / nhiều từ / cả câu" của Dictation (FR-DICT-01) được quy ước qua `learning_contents.difficulty` (1–5); không lưu cột riêng.
 
-Translation dạng `free_text` không có đáp án cố định; kết quả được chấm qua `ai_evaluations` với `recording_id` NULL và lưu `answer_payload`, không dùng `translation_choices`.
+Đáp án Dictation do người dùng nộp được lưu trong `exercise_attempts.answer_payload` (JSONB) cùng `score`, `correct_count`, `total_count`; không có bảng đáp án riêng theo từng blank.
+
+Translation dạng `free_text` không có đáp án cố định; kết quả được chấm qua `ai_evaluations` với `recording_id` NULL và lưu `answer_payload`.
 
 ## 5. Quan hệ và quy tắc toàn vẹn
 
 - Một `users` luôn có đúng một `user_progress`; trigger tạo khi đăng ký.
 - Một `learning_contents` có tối đa một bản ghi bảng mở rộng phù hợp. Xóa nội dung cascade sang cấu hình bài; nội dung đã có attempt bị `RESTRICT` để không làm mất lịch sử.
 - Một user có thể làm cùng bài nhiều lần. `UNIQUE (user_id, content_id, attempt_number)` bảo đảm thứ tự attempt không bị trùng.
-- Mỗi blank Dictation chỉ có một câu trả lời trong một attempt qua PK `(attempt_id, blank_id)`.
 - Bản ghi thuộc user; recording Shadowing/Reflex bắt buộc phải gắn attempt. `tutor_voice` có thể gắn với `tutor_messages` thay vì attempt.
 - `review_schedules` chỉ áp dụng cho `reflex_exercises`, đáp ứng danh sách ôn riêng theo user.
 - `user_achievements` có khóa ghép nên một thành tích chỉ được cấp một lần cho mỗi user.
@@ -385,9 +352,8 @@ Translation dạng `free_text` không có đáp án cố định; kết quả đ
 ```mermaid
 flowchart LR
     A[Người dùng nộp bài] --> B[exercise_attempts]
-    B --> C{Loại bài}
-    C -->|Dictation| D[attempt_dictation_answers]
-    C -->|Có ghi âm| E[recordings]
+    B --> C{Có ghi âm}
+    C -->|Có| E[recordings]
     E --> F[ai_evaluations]
     B --> G{Hoàn thành và đủ điều kiện EXP}
     G -->|Có| H[xp_transactions]
@@ -401,7 +367,7 @@ Việc ghi `xp_transactions`, cập nhật `user_progress`, kiểm tra achieveme
 
 ## 7. Index, bảo mật và vận hành
 
-PostgreSQL tự tạo B-tree index cho mọi `PRIMARY KEY` và `UNIQUE`, nên không cần tạo lại index cho `users.id`, `users.email`, `learning_contents.slug`, `xp_transactions.attempt_id`, các khóa ghép của `user_achievements`, `attempt_dictation_answers`, `review_schedules`, `tutor_messages(session_id, sequence_number)`, hay `weekly_leaderboard_entries(week_start, rank)`. Nguyên tắc chung: chỉ thêm index cho truy vấn thực tế; mỗi index thêm vào là chi phí ghi tăng lên, nên giữ tối thiểu.
+PostgreSQL tự tạo B-tree index cho mọi `PRIMARY KEY` và `UNIQUE`, nên không cần tạo lại index cho `users.id`, `users.email`, `learning_contents.slug`, `xp_transactions.attempt_id`, các khóa ghép của `user_achievements`, `review_schedules`, `tutor_messages(session_id, sequence_number)`, hay `weekly_leaderboard_entries(week_start, rank)`. Nguyên tắc chung: chỉ thêm index cho truy vấn thực tế; mỗi index thêm vào là chi phí ghi tăng lên, nên giữ tối thiểu.
 
 ### 7.1. Index cần cho các truy vấn hiện tại
 
@@ -429,7 +395,6 @@ Dòng `exercise_attempts` có `INCLUDE (content_id, status, score)` là covering
 | `learning_contents`         | GIN `pg_trgm` trên `(title, topic)`                          | Có tính năng tìm kiếm bài học theo từ khóa                                  | `tsvector` mặc định tách từ theo khoảng trắng nên kém hiệu quả với tiếng Nhật; `pg_trgm` (có sẵn, `CREATE EXTENSION pg_trgm`) hỗ trợ `ILIKE '%...%'` và CJK tốt hơn. Không gồm `transcript_ja` vì text dài sẽ phình index GIN rất lớn. |
 | `recordings`                | `(attempt_id, created_at DESC) WHERE attempt_id IS NOT NULL` | Trang chi tiết attempt luôn tải recording                                   | FK không tự tạo index trong PostgreSQL; index này tránh quét `recordings` theo `attempt_id`.                                                                                                                                |
 | `tutor_messages`            | `(recording_id) WHERE recording_id IS NOT NULL`              | Cần tìm message từ một recording, hoặc xóa/kiểm tra recording có tham chiếu | FK nullable không tự có index. Không cần nếu chỉ đọc message theo `session_id` vì unique `(session_id, sequence_number)` đã đáp ứng.                                                                                          |
-| `attempt_dictation_answers` | `(blank_id)`                                                 | Báo cáo chất lượng từng blank trên nhiều attempt                            | PK hiện tại `(attempt_id, blank_id)` chỉ tối ưu khi biết `attempt_id`.                                                                                                                                                                 |
 
 Không thêm index cho `JSONB` (`criteria`, `answer_payload`, `details`, `feedback`) trước khi có điều kiện lọc thực tế. Nếu sau này cần truy vấn containment như `answer_payload @> ...`, dùng GIN trên đúng cột JSONB đó và đo bằng `EXPLAIN (ANALYZE, BUFFERS)` trước/sau khi thêm. Tương tự với GIN `pg_trgm` ở bảng trên: tạo index sau, đo hiệu năng rồi mới giữ lại.
 

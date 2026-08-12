@@ -2,7 +2,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Query
 
-from app.api.dependencies.current_user import CurrentUser
+from app.api.dependencies.auth import CurrentUser
 from app.api.dependencies.database import DatabaseSession
 from app.repositories.gamification import GamificationRepository
 from app.schemas.gamification import GamificationProfileResponse

@@ -3,7 +3,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Path, Query, status
 
-from app.api.dependencies.current_user import CurrentUser
+from app.api.dependencies.auth import CurrentUser
 from app.api.dependencies.database import DatabaseSession
 from app.api.dependencies.pagination import Pagination
 from app.models.enums import ContentType

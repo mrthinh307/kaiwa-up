@@ -9,6 +9,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "generate:api-client": "pnpm --filter @kaiwa-app/api-client generate",
+    "check:api-client": "node scripts/generate-api-client.mjs --check",
     "prepare": "husky"
   },
   "engines": {

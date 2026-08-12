@@ -4,7 +4,7 @@ import httpx
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.dependencies.current_user import get_current_user
+from app.api.dependencies.auth import get_current_user
 from app.main import app
 from app.models.attempt import ExerciseAttempt
 from app.models.content import LearningContent
