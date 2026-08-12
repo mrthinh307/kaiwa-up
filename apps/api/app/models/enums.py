@@ -9,8 +9,7 @@ class UserRole(enum.StrEnum):
 
 
 class ContentType(enum.StrEnum):
-    SHADOWING = "shadowing"
-    DICTATION = "dictation"
+    SHADOWING_DICTATION = "shadowing_dictation"
     REFLEX = "reflex"
     LISTENING_TRANSLATION = "listening_translation"
 
