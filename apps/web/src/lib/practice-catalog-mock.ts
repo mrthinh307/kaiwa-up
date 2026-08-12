@@ -7,7 +7,6 @@ export type PracticeLearningStatus = "learned" | "not_learned";
 
 export type LearningContentFixture = {
   audioDurationMs: number;
-  availableModes: PracticeMode[];
   difficulty: JlptDifficulty;
   id: string;
   shortDescription: string;
@@ -35,7 +34,6 @@ export type PracticeCatalogViewModel = {
 const LEARNING_CONTENT_FIXTURES = [
   {
     audioDurationMs: 32_000,
-    availableModes: ["shadowing"],
     difficulty: "N5",
     id: "987e6543-e89b-12d3-a456-426614174999",
     shortDescription: "Practice the phrases you need for a quick everyday shopping trip.",
@@ -44,7 +42,6 @@ const LEARNING_CONTENT_FIXTURES = [
   },
   {
     audioDurationMs: 45_000,
-    availableModes: ["shadowing"],
     difficulty: "N5",
     id: "987e6543-e89b-12d3-a456-426614174001",
     shortDescription: "Build confidence introducing yourself in a friendly school setting.",
@@ -53,7 +50,6 @@ const LEARNING_CONTENT_FIXTURES = [
   },
   {
     audioDurationMs: 58_000,
-    availableModes: ["shadowing"],
     difficulty: "N4",
     id: "987e6543-e89b-12d3-a456-426614174004",
     shortDescription: "Catch the polite questions and answers used at a busy station.",
@@ -62,7 +58,6 @@ const LEARNING_CONTENT_FIXTURES = [
   },
   {
     audioDurationMs: 72_000,
-    availableModes: ["shadowing"],
     difficulty: "N4",
     id: "987e6543-e89b-12d3-a456-426614174005",
     shortDescription: "Talk about the weather with natural everyday expressions.",
@@ -71,7 +66,6 @@ const LEARNING_CONTENT_FIXTURES = [
   },
   {
     audioDurationMs: 91_000,
-    availableModes: ["shadowing"],
     difficulty: "N3",
     id: "987e6543-e89b-12d3-a456-426614174008",
     shortDescription: "Retell a recent trip with clear timing and useful detail.",
@@ -80,7 +74,6 @@ const LEARNING_CONTENT_FIXTURES = [
   },
   {
     audioDurationMs: 98_000,
-    availableModes: ["shadowing"],
     difficulty: "N2",
     id: "987e6543-e89b-12d3-a456-426614174009",
     shortDescription: "Discuss a policy change and respond with professional language.",
@@ -89,7 +82,6 @@ const LEARNING_CONTENT_FIXTURES = [
   },
   {
     audioDurationMs: 134_000,
-    availableModes: ["shadowing"],
     difficulty: "N1",
     id: "987e6543-e89b-12d3-a456-426614174014",
     shortDescription: "Present a nuanced academic position with clear supporting ideas.",
@@ -98,7 +90,6 @@ const LEARNING_CONTENT_FIXTURES = [
   },
   {
     audioDurationMs: 18_000,
-    availableModes: ["shadowing", "dictation"],
     difficulty: "N5",
     id: "770e8400-e29b-41d4-a716-446655440111",
     shortDescription: "Catch weather phrases in a short convenience-store exchange.",
@@ -107,7 +98,6 @@ const LEARNING_CONTENT_FIXTURES = [
   },
   {
     audioDurationMs: 16_000,
-    availableModes: ["dictation"],
     difficulty: "N5",
     id: "770e8400-e29b-41d4-a716-446655440112",
     shortDescription: "Write the key details from a classroom self-introduction.",
@@ -116,7 +106,6 @@ const LEARNING_CONTENT_FIXTURES = [
   },
   {
     audioDurationMs: 22_000,
-    availableModes: ["shadowing", "dictation"],
     difficulty: "N5",
     id: "770e8400-e29b-41d4-a716-446655440113",
     shortDescription: "Reconstruct a natural café order one phrase at a time.",
@@ -125,7 +114,6 @@ const LEARNING_CONTENT_FIXTURES = [
   },
   {
     audioDurationMs: 20_000,
-    availableModes: ["dictation"],
     difficulty: "N4",
     id: "770e8400-e29b-41d4-a716-446655440114",
     shortDescription: "Fill in the phrases used to find the correct train platform.",
@@ -134,7 +122,6 @@ const LEARNING_CONTENT_FIXTURES = [
   },
   {
     audioDurationMs: 27_000,
-    availableModes: ["shadowing", "dictation"],
     difficulty: "N4",
     id: "770e8400-e29b-41d4-a716-446655440115",
     shortDescription: "Listen for the expressions used to make and confirm weekend plans.",
@@ -143,7 +130,6 @@ const LEARNING_CONTENT_FIXTURES = [
   },
   {
     audioDurationMs: 24_000,
-    availableModes: ["dictation"],
     difficulty: "N4",
     id: "770e8400-e29b-41d4-a716-446655440116",
     shortDescription: "Complete a polite exchange about finding your way downtown.",
@@ -152,7 +138,6 @@ const LEARNING_CONTENT_FIXTURES = [
   },
   {
     audioDurationMs: 35_000,
-    availableModes: ["shadowing", "dictation"],
     difficulty: "N3",
     id: "770e8400-e29b-41d4-a716-446655440117",
     shortDescription: "Rebuild a workplace conversation about solving an unexpected problem.",
@@ -161,7 +146,6 @@ const LEARNING_CONTENT_FIXTURES = [
   },
   {
     audioDurationMs: 31_000,
-    availableModes: ["dictation"],
     difficulty: "N3",
     id: "770e8400-e29b-41d4-a716-446655440118",
     shortDescription: "Capture the details in a story about a recent travel experience.",
@@ -170,7 +154,6 @@ const LEARNING_CONTENT_FIXTURES = [
   },
   {
     audioDurationMs: 30_000,
-    availableModes: ["shadowing", "dictation"],
     difficulty: "N3",
     id: "770e8400-e29b-41d4-a716-446655440119",
     shortDescription: "Compare two neighborhoods through a clear everyday conversation.",
@@ -179,7 +162,6 @@ const LEARNING_CONTENT_FIXTURES = [
   },
   {
     audioDurationMs: 39_000,
-    availableModes: ["shadowing", "dictation"],
     difficulty: "N2",
     id: "770e8400-e29b-41d4-a716-446655440120",
     shortDescription: "Follow a professional response to a dissatisfied customer.",
@@ -188,7 +170,6 @@ const LEARNING_CONTENT_FIXTURES = [
   },
   {
     audioDurationMs: 38_000,
-    availableModes: ["shadowing", "dictation"],
     difficulty: "N2",
     id: "770e8400-e29b-41d4-a716-446655440121",
     shortDescription: "Reconstruct the main points of a business meeting summary.",
@@ -197,7 +178,6 @@ const LEARNING_CONTENT_FIXTURES = [
   },
   {
     audioDurationMs: 33_000,
-    availableModes: ["dictation"],
     difficulty: "N2",
     id: "770e8400-e29b-41d4-a716-446655440122",
     shortDescription: "Catch the details in a public service announcement.",
@@ -206,7 +186,6 @@ const LEARNING_CONTENT_FIXTURES = [
   },
   {
     audioDurationMs: 52_000,
-    availableModes: ["shadowing", "dictation"],
     difficulty: "N1",
     id: "770e8400-e29b-41d4-a716-446655440123",
     shortDescription: "Write the key ideas from a discussion about remote work.",
@@ -215,7 +194,6 @@ const LEARNING_CONTENT_FIXTURES = [
   },
   {
     audioDurationMs: 56_000,
-    availableModes: ["shadowing", "dictation"],
     difficulty: "N1",
     id: "770e8400-e29b-41d4-a716-446655440124",
     shortDescription: "Follow a detailed news commentary and recover its missing phrases.",
@@ -224,7 +202,6 @@ const LEARNING_CONTENT_FIXTURES = [
   },
   {
     audioDurationMs: 61_000,
-    availableModes: ["dictation"],
     difficulty: "N1",
     id: "770e8400-e29b-41d4-a716-446655440125",
     shortDescription: "Rebuild the logic of a nuanced academic argument.",
@@ -262,10 +239,8 @@ export function getLearningContent(contentId: string): LearningContentFixture | 
   return LEARNING_CONTENT_FIXTURES.find((content) => content.id === contentId);
 }
 
-export function getLearningContentIds(mode: PracticeMode): string[] {
-  return LEARNING_CONTENT_FIXTURES.filter((content) =>
-    content.availableModes.some((availableMode) => availableMode === mode),
-  ).map((content) => content.id);
+export function getLearningContentIds(): string[] {
+  return LEARNING_CONTENT_FIXTURES.map((content) => content.id);
 }
 
 export function getModeAttemptCount(contentId: string, mode: PracticeMode): number {
@@ -281,14 +256,12 @@ export function getPracticeTopics(): string[] {
 export function getPracticeCatalog({
   difficulty,
   learningStatus,
-  modes,
   page,
   searchQuery,
   topic,
 }: {
   difficulty?: JlptDifficulty;
   learningStatus?: PracticeLearningStatus;
-  modes?: readonly PracticeMode[];
   page: number;
   searchQuery?: string;
   topic?: string;
@@ -298,7 +271,6 @@ export function getPracticeCatalog({
   const filteredLessons = LEARNING_CONTENT_FIXTURES.filter(
     (content) =>
       (!difficulty || content.difficulty === difficulty) &&
-      (!modes?.length || content.availableModes.some((mode) => modes.includes(mode))) &&
       (!normalizedTopic || content.topic.toLocaleLowerCase("en") === normalizedTopic) &&
       (!normalizedSearchQuery ||
         content.title.toLocaleLowerCase("en").includes(normalizedSearchQuery) ||
@@ -307,9 +279,10 @@ export function getPracticeCatalog({
   )
     .map((content) => ({
       ...content,
-      modes: PRACTICE_MODES.filter((mode) =>
-        content.availableModes.some((availableMode) => availableMode === mode),
-      ).map((mode) => ({ attemptCount: getModeAttemptCount(content.id, mode), mode })),
+      modes: PRACTICE_MODES.map((mode) => ({
+        attemptCount: getModeAttemptCount(content.id, mode),
+        mode,
+      })),
     }))
     .filter((lesson) => {
       if (!learningStatus) {

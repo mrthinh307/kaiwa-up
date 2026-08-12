@@ -10,12 +10,11 @@ import {
   parseCatalogSearchQuery,
   parseJlptDifficulty,
   parsePracticeLearningStatus,
-  parsePracticeModes,
 } from "@/lib/practice-catalog-query";
 
 export const metadata: Metadata = {
   description:
-    "Browse Japanese listening lessons and choose any available practice mode, including Shadowing and Dictation.",
+    "Browse Japanese listening lessons and practice every lesson with Shadowing or Dictation.",
   title: "Lessons | KaiwaUp",
 };
 
@@ -34,7 +33,6 @@ export default async function LessonsPage({ searchParams }: LessonsPageProps) {
   const page = parseCatalogPage(firstQueryValue(resolvedSearchParams.page));
   const searchQuery = parseCatalogSearchQuery(firstQueryValue(resolvedSearchParams.q));
   const topicParam = parseCatalogSearchQuery(firstQueryValue(resolvedSearchParams.topic));
-  const selectedModes = parsePracticeModes(firstQueryValue(resolvedSearchParams.modes));
   const selectedLearningStatus = parsePracticeLearningStatus(
     firstQueryValue(resolvedSearchParams.learning_status),
   );
@@ -44,7 +42,6 @@ export default async function LessonsPage({ searchParams }: LessonsPageProps) {
   const catalog = getPracticeCatalog({
     difficulty,
     learningStatus: selectedLearningStatus,
-    modes: selectedModes,
     page,
     searchQuery,
     topic: selectedTopic,
@@ -54,7 +51,7 @@ export default async function LessonsPage({ searchParams }: LessonsPageProps) {
     <main className="px-5 py-10 sm:px-8 sm:py-12 lg:py-14">
       <div className="mx-auto w-full max-w-[1300px]">
         <ProtectedPageHeader
-          description="Explore Japanese listening content and start any practice mode available for each lesson."
+          description="Explore Japanese listening content and practice every lesson with Shadowing or Dictation."
           eyebrow="Lesson Library"
           icon={LibraryBig}
           title="Choose a lesson. Practice it your way."
@@ -66,7 +63,6 @@ export default async function LessonsPage({ searchParams }: LessonsPageProps) {
             searchQuery={searchQuery}
             selectedDifficulty={difficulty}
             selectedLearningStatus={selectedLearningStatus}
-            selectedModes={selectedModes}
             selectedTopic={selectedTopic}
             topics={topics}
           />

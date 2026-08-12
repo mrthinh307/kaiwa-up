@@ -5,10 +5,8 @@ import type { JlptDifficulty } from "@/types/practice-catalog";
 
 import { Button } from "@/components/ui/button";
 import {
-  PRACTICE_MODES,
-  type PracticeLearningStatus,
   type PracticeCatalogViewModel,
-  type PracticeMode,
+  type PracticeLearningStatus,
 } from "@/lib/practice-catalog-mock";
 import { cn } from "@/lib/utils";
 
@@ -22,7 +20,6 @@ type PracticeCatalogProps = {
   searchQuery?: string;
   selectedDifficulty?: JlptDifficulty;
   selectedLearningStatus?: PracticeLearningStatus;
-  selectedModes: readonly PracticeMode[];
   selectedTopic?: string;
   topics: readonly string[];
 };
@@ -32,23 +29,14 @@ export function PracticeCatalog({
   searchQuery,
   selectedDifficulty,
   selectedLearningStatus,
-  selectedModes,
   selectedTopic,
   topics,
 }: PracticeCatalogProps) {
   const hasLessons = catalog.items.length > 0;
   const hasActiveFilters = Boolean(
-    searchQuery ||
-    selectedDifficulty ||
-    selectedLearningStatus ||
-    selectedTopic ||
-    selectedModes.length !== PRACTICE_MODES.length,
+    searchQuery || selectedDifficulty || selectedLearningStatus || selectedTopic,
   );
   const resultLabel = catalog.total === 1 ? "1 lesson" : `${catalog.total} lessons`;
-  const modeLabel =
-    selectedModes.length === 1
-      ? ` for ${selectedModes[0] === "shadowing" ? "Shadowing" : "Dictation"}`
-      : "";
   const learningStatusLabel = selectedLearningStatus
     ? ` · ${selectedLearningStatus === "learned" ? "Learned" : "Not learned"}`
     : "";
@@ -65,7 +53,6 @@ export function PracticeCatalog({
             {selectedDifficulty ? ` at ${selectedDifficulty}` : " across all levels"}
             {selectedTopic ? ` in ${selectedTopic}` : ""}
             {searchQuery ? ` matching “${searchQuery}”` : ""}
-            {modeLabel}
             {learningStatusLabel}
           </p>
         </div>
@@ -79,10 +66,6 @@ export function PracticeCatalog({
             preservedParams={{
               difficulty: selectedDifficulty,
               learning_status: selectedLearningStatus,
-              modes:
-                selectedModes.length === PRACTICE_MODES.length
-                  ? undefined
-                  : selectedModes.join(","),
               topic: selectedTopic,
             }}
           />
@@ -90,7 +73,6 @@ export function PracticeCatalog({
             searchQuery={searchQuery}
             selectedDifficulty={selectedDifficulty}
             selectedLearningStatus={selectedLearningStatus}
-            selectedModes={selectedModes}
             selectedTopic={selectedTopic}
             topics={topics}
           />
@@ -120,10 +102,6 @@ export function PracticeCatalog({
             params={{
               difficulty: selectedDifficulty,
               learning_status: selectedLearningStatus,
-              modes:
-                selectedModes.length === PRACTICE_MODES.length
-                  ? undefined
-                  : selectedModes.join(","),
               q: searchQuery,
               topic: selectedTopic,
             }}

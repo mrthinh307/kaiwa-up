@@ -488,11 +488,13 @@ export function getDictationPracticeLesson(lessonId: string): DictationPracticeL
   const content = getLearningContent(lessonId);
   const script = DICTATION_PRACTICE_SCRIPTS[lessonId];
 
-  if (!content || !content.availableModes.includes("dictation") || !script) {
+  if (!content || !script) {
     return undefined;
   }
 
-  const lessonIds = getLearningContentIds("dictation");
+  const lessonIds = getLearningContentIds().filter((contentId) =>
+    Object.hasOwn(DICTATION_PRACTICE_SCRIPTS, contentId),
+  );
   const lessonIndex = lessonIds.indexOf(lessonId);
   const nextLessonId = lessonIndex >= 0 ? lessonIds.at(lessonIndex + 1) : undefined;
 

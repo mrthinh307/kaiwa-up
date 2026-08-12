@@ -1,10 +1,6 @@
 import { JLPT_DIFFICULTIES, type JlptDifficulty } from "@/types/practice-catalog";
 
-import {
-  PRACTICE_MODES,
-  type PracticeLearningStatus,
-  type PracticeMode,
-} from "./practice-catalog-mock";
+import type { PracticeLearningStatus } from "./practice-catalog-mock";
 
 export type PracticeCatalogQueryParams = Readonly<Record<string, number | string | undefined>>;
 
@@ -50,29 +46,8 @@ export function parseJlptDifficulty(value: string | undefined): JlptDifficulty |
   return JLPT_DIFFICULTIES.find((difficulty) => difficulty === value);
 }
 
-export function parsePracticeModes(value: string | undefined): PracticeMode[] {
-  if (!value) {
-    return [...PRACTICE_MODES];
-  }
-
-  const requestedModes = new Set(value.split(","));
-  const selectedModes = PRACTICE_MODES.filter((mode) => requestedModes.has(mode));
-
-  return selectedModes.length > 0 ? [...selectedModes] : [...PRACTICE_MODES];
-}
-
 export function parsePracticeLearningStatus(
   value: string | undefined,
 ): PracticeLearningStatus | undefined {
   return value === "learned" || value === "not_learned" ? value : undefined;
-}
-
-export function serializePracticeModes(modes: readonly PracticeMode[]): string | undefined {
-  const selectedModes = PRACTICE_MODES.filter((mode) => modes.includes(mode));
-
-  return selectedModes.length === PRACTICE_MODES.length
-    ? undefined
-    : selectedModes.length > 0
-      ? selectedModes.join(",")
-      : undefined;
 }

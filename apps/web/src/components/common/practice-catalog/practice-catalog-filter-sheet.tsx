@@ -1,13 +1,12 @@
 "use client";
 
-import { BookOpenCheck, Check, Filter, Mic2, RotateCcw } from "lucide-react";
+import { Filter, RotateCcw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
-import type { PracticeLearningStatus, PracticeMode } from "@/lib/practice-catalog-mock";
+import type { PracticeLearningStatus } from "@/lib/practice-catalog-mock";
 
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Sheet,
   SheetContent,
@@ -16,8 +15,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { PRACTICE_MODES } from "@/lib/practice-catalog-mock";
-import { buildPracticeCatalogHref, serializePracticeModes } from "@/lib/practice-catalog-query";
+import { buildPracticeCatalogHref } from "@/lib/practice-catalog-query";
 import {
   JLPT_DIFFICULTIES,
   type JlptDifficulty,
@@ -40,32 +38,14 @@ type PracticeCatalogFilterSheetProps = {
   searchQuery?: string;
   selectedDifficulty?: JlptDifficulty;
   selectedLearningStatus?: PracticeLearningStatus;
-  selectedModes: readonly PracticeMode[];
   selectedTopic?: string;
   topics: readonly string[];
-};
-
-const MODE_DETAILS: Record<
-  PracticeMode,
-  { description: string; icon: typeof Mic2; label: string }
-> = {
-  shadowing: {
-    description: "Speak along with the audio to build fluency....",
-    icon: Mic2,
-    label: "Shadowing",
-  },
-  dictation: {
-    description: "Listen closely and write everything what you hear.",
-    icon: BookOpenCheck,
-    label: "Dictation",
-  },
 };
 
 export function PracticeCatalogFilterSheet({
   searchQuery,
   selectedDifficulty,
   selectedLearningStatus,
-  selectedModes,
   selectedTopic,
   topics,
 }: PracticeCatalogFilterSheetProps) {
@@ -78,19 +58,16 @@ export function PracticeCatalogFilterSheet({
   const [draftLearningStatus, setDraftLearningStatus] = useState<
     PracticeLearningStatus | undefined
   >(selectedLearningStatus);
-  const [draftModes, setDraftModes] = useState<PracticeMode[]>([...selectedModes]);
   const [draftTopic, setDraftTopic] = useState<string | undefined>(selectedTopic);
   const topicOptions = topics.map((topic) => ({ label: topic, value: topic }));
   const activeFilterCount =
     Number(Boolean(selectedDifficulty)) +
     Number(Boolean(selectedLearningStatus)) +
-    Number(Boolean(selectedTopic)) +
-    Number(selectedModes.length !== PRACTICE_MODES.length);
+    Number(Boolean(selectedTopic));
 
   const resetDraft = () => {
     setDraftDifficulty(selectedDifficulty);
     setDraftLearningStatus(selectedLearningStatus);
-    setDraftModes([...selectedModes]);
     setDraftTopic(selectedTopic);
   };
 
@@ -102,20 +79,6 @@ export function PracticeCatalogFilterSheet({
     setIsOpen(nextOpen);
   };
 
-  const handleModeChange = (mode: PracticeMode, checked: boolean) => {
-    setDraftModes((currentModes) => {
-      if (checked) {
-        return currentModes.includes(mode) ? currentModes : [...currentModes, mode];
-      }
-
-      if (currentModes.length === 1) {
-        return currentModes;
-      }
-
-      return currentModes.filter((currentMode) => currentMode !== mode);
-    });
-  };
-
   const handleApply = () => {
     startTransition(() => {
       router.push(
@@ -124,7 +87,6 @@ export function PracticeCatalogFilterSheet({
           params: {
             difficulty: draftDifficulty,
             learning_status: draftLearningStatus,
-            modes: serializePracticeModes(draftModes),
             page: undefined,
             q: searchQuery,
             topic: draftTopic,
@@ -138,7 +100,6 @@ export function PracticeCatalogFilterSheet({
   const handleReset = () => {
     setDraftDifficulty(undefined);
     setDraftLearningStatus(undefined);
-    setDraftModes([...PRACTICE_MODES]);
     setDraftTopic(undefined);
   };
 
@@ -164,7 +125,7 @@ export function PracticeCatalogFilterSheet({
         <SheetHeader className="border-b-4 border-border p-5 pr-16">
           <SheetTitle>Filter lessons</SheetTitle>
           <SheetDescription>
-            Refine the lesson library by learning status, level, topic, or practice mode.
+            Refine the lesson library by learning status, level, or topic.
           </SheetDescription>
         </SheetHeader>
 
@@ -212,40 +173,6 @@ export function PracticeCatalogFilterSheet({
             searchPlaceholder="Search topics..."
             value={draftTopic}
           />
-
-          <fieldset>
-            <legend className="mb-3 text-sm font-heading">Practice mode</legend>
-            <div className="grid gap-3">
-              {PRACTICE_MODES.map((mode) => {
-                const details = MODE_DETAILS[mode];
-                const Icon = details.icon;
-                const checkboxId = `lessons-mode-${mode}`;
-
-                return (
-                  <label
-                    className="flex min-h-14 cursor-pointer items-center gap-3 rounded-base border-2 border-border bg-background px-3 py-2 transition-colors hover:bg-main/20 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring"
-                    htmlFor={checkboxId}
-                    key={mode}
-                  >
-                    <Checkbox
-                      checked={draftModes.includes(mode)}
-                      id={checkboxId}
-                      onCheckedChange={(checked) => handleModeChange(mode, checked === true)}
-                    />
-                    <Icon aria-hidden="true" className="size-5 shrink-0" />
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-sm font-heading">{details.label}</span>
-                      <span className="block text-xs text-foreground/70">
-                        {details.description}
-                      </span>
-                    </span>
-                    {draftModes.includes(mode) && <Check aria-hidden="true" className="size-4" />}
-                  </label>
-                );
-              })}
-            </div>
-            <p className="mt-2 text-xs text-foreground/70">Select at least one practice mode.</p>
-          </fieldset>
         </div>
 
         <div className="flex gap-3 border-t-4 border-border p-5">
