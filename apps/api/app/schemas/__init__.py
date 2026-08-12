@@ -1,5 +1,6 @@
 """Public Pydantic request and response schemas."""
 
+from app.schemas.gamification import ExpHistoryItem, GamificationProfileResponse
 from app.schemas.health import HealthResponse
 from app.schemas.pagination import PaginatedResponse
 from app.schemas.progress import (
@@ -10,6 +11,8 @@ from app.schemas.progress import (
 from app.schemas.readiness import ReadinessResponse
 
 __all__ = [
+    "ExpHistoryItem",
+    "GamificationProfileResponse",
     "HealthResponse",
     "PaginatedResponse",
     "ProgressAttemptDetail",

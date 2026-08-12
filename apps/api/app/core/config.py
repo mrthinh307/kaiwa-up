@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     api_v1_prefix: str = "/api/v1"
     cors_origins: list[str] = ["http://localhost:3000"]
     database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/app"
+    database_url_test: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/app_test"
 
     model_config = SettingsConfigDict(
         env_file=".env",

@@ -703,15 +703,17 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
   ```json
   {
     "level": 2,
+    "level_title": "Beginner II",
     "total_exp": 150,
     "current_level_min_exp": 100,
     "next_level_min_exp": 250,
     "exp_to_next_level": 100,
     "recent_exp_history": [
       {
-        "id": "exp_01",
+        "id": "a31f5b2c-...",
+        "attempt_id": "880e8400-e29b-41d4-a716-446655440222",
         "amount": 10,
-        "reason": "Hoàn thành bài Dictation: Thời tiết hôm nay",
+        "reason": "Hoàn thành Dictation: Thời tiết hôm nay",
         "created_at": "2026-08-06T14:42:00.000Z"
       }
     ]
@@ -719,6 +721,8 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
   ```
 * **Status Codes & Error Responses**:
   * `200 OK`: Thành công.
+  * `401 Unauthorized` (`code`: `unauthorized`): Chưa đăng nhập.
+  * `422 Unprocessable Entity` (`code`: `validation_error`): Tham số `limit` ngoài phạm vi `1..100`.
 
 ---
 

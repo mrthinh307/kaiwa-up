@@ -1,26 +1,29 @@
 # apps/api/tests/conftest.py
-import os
-
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.api.dependencies.database import get_db_session
+from app.core import settings
 from app.main import app
 
-DATABASE_URL_TEST = os.environ["DATABASE_URL_TEST"]
-
-engine_test = create_async_engine(DATABASE_URL_TEST, pool_pre_ping=True)
+engine_test = create_async_engine(settings.database_url_test, pool_pre_ping=True)
 TestSessionLocal = async_sessionmaker(bind=engine_test, expire_on_commit=False, class_=AsyncSession)
 
 
 @pytest_asyncio.fixture
 async def db_session():
     """Mỗi test chạy trong 1 transaction riêng, rollback ngay sau khi test xong.
-    => Dữ liệu test không bao giờ được commit thật, an toàn khi nhiều CI run song song."""
+    => Dữ liệu test không bao giờ được commit thật, an toàn khi nhiều CI run song song.
+    join_transaction_mode="create_savepoint" khiến session.commit() của service chỉ
+    giải phóng savepoint, transaction ngoài vẫn rollback khi test kết thúc."""
     async with engine_test.connect() as conn:
         trans = await conn.begin()
-        session = AsyncSession(bind=conn, expire_on_commit=False)
+        session = AsyncSession(
+            bind=conn,
+            expire_on_commit=False,
+            join_transaction_mode="create_savepoint",
+        )
         try:
             yield session
         finally:
