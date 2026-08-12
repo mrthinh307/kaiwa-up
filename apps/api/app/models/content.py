@@ -16,6 +16,7 @@ from sqlalchemy import (
     func,
     text,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, CreatedAtMixin, TimestampMixin
@@ -51,47 +52,14 @@ class LearningContent(TimestampMixin, Base):
     difficulty: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=1)
     audio_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     audio_duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    transcript_ja: Mapped[str | None] = mapped_column(Text, nullable=True)
+    transcript_ja: Mapped[list[dict[str, object]] | None] = mapped_column(JSONB, nullable=True)
     base_exp: Mapped[int] = mapped_column(Integer, nullable=False, default=50)
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
-    shadowing: Mapped["ShadowingExercise | None"] = relationship(
-        back_populates="content", uselist=False
-    )
-    dictation: Mapped["DictationExercise | None"] = relationship(
-        back_populates="content", uselist=False
-    )
     reflex: Mapped["ReflexExercise | None"] = relationship(back_populates="content", uselist=False)
     translation: Mapped["TranslationExercise | None"] = relationship(
         back_populates="content", uselist=False
     )
-
-
-class ShadowingExercise(CreatedAtMixin, Base):
-    __tablename__ = "shadowing_exercises"
-
-    content_id: Mapped[uuid.UUID] = mapped_column(
-        Uuid,
-        ForeignKey("learning_contents.id", ondelete="CASCADE"),
-        primary_key=True,
-    )
-    reference_audio_url: Mapped[str | None] = mapped_column(Text, nullable=True)
-    reference_transcript_ja: Mapped[str | None] = mapped_column(Text, nullable=True)
-
-    content: Mapped[LearningContent] = relationship(back_populates="shadowing")
-
-
-class DictationExercise(CreatedAtMixin, Base):
-    __tablename__ = "dictation_exercises"
-
-    content_id: Mapped[uuid.UUID] = mapped_column(
-        Uuid,
-        ForeignKey("learning_contents.id", ondelete="CASCADE"),
-        primary_key=True,
-    )
-    script: Mapped[str] = mapped_column(Text, nullable=False)
-
-    content: Mapped[LearningContent] = relationship(back_populates="dictation")
 
 
 class ReflexExercise(CreatedAtMixin, Base):

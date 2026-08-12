@@ -12,10 +12,8 @@ from app.core.config import settings
 from app.core.security import hash_password
 from app.models.attempt import ExerciseAttempt, ReviewSchedule
 from app.models.content import (
-    DictationExercise,
     LearningContent,
     ReflexExercise,
-    ShadowingExercise,
     TranslationExercise,
 )
 from app.models.enums import AttemptStatus, ContentStatus, ContentType, UserRole
@@ -52,8 +50,6 @@ async def clean_database(session: AsyncSession) -> None:
         XpTransaction,
         ReviewSchedule,
         ExerciseAttempt,
-        ShadowingExercise,
-        DictationExercise,
         ReflexExercise,
         TranslationExercise,
         LearningContent,
@@ -75,8 +71,7 @@ async def seed_data(clean: bool = False) -> dict[str, int]:
 
         stats = {
             "users": 0,
-            "shadowing_lessons": 0,
-            "dictation_lessons": 0,
+            "shadowing_dictation_lessons": 0,
             "reflex_lessons": 0,
             "listening_translation_lessons": 0,
             "achievements": 0,
@@ -212,48 +207,78 @@ async def seed_data(clean: bool = False) -> dict[str, int]:
         # ==========================================
         # 4. SEED LEARNING CONTENTS & EXERCISES
         # ==========================================
-        # 4.1 Shadowing (3 lessons: N5, N3, N1)
-        shadowing_lessons = [
+        # 4.1 Shared Shadowing and Dictation content
+        listening_lessons = [
             {
-                "slug": "shadowing-n5-jidoshoukai",
+                "slug": "listening-n5-jidoshoukai",
                 "title": "N5: Tự giới thiệu bản thân (自己紹介)",
                 "difficulty": 1,  # N5
                 "audio_url": "https://res.cloudinary.com/kaiwaup/video/upload/v1/audio/shadowing_n5.mp3",
                 "audio_duration_ms": 15000,
-                "transcript_ja": "はじめまして、田中です。よろしくお願いします。",
-                "ref_ja": "はじめまして、田中です。よろしくお願いします。",
+                "transcript_ja": [
+                    {
+                        "start_time_ms": 0,
+                        "end_time_ms": 7000,
+                        "script": "はじめまして、田中です。",
+                    },
+                    {
+                        "start_time_ms": 7000,
+                        "end_time_ms": 15000,
+                        "script": "よろしくお願いします。",
+                    },
+                ],
             },
             {
-                "slug": "shadowing-n3-office",
+                "slug": "listening-n3-office",
                 "title": "N3: Trao đổi công việc văn phòng",
                 "difficulty": 3,  # N3
                 "audio_url": "https://res.cloudinary.com/kaiwaup/video/upload/v1/audio/shadowing_n3.mp3",
                 "audio_duration_ms": 25000,
-                "transcript_ja": "明日の会議の資料ですが、今日の夕方までに準備しておきます。",
-                "ref_ja": "明日の会議の資料ですが、今日の夕方までに準備しておきます。",
+                "transcript_ja": [
+                    {
+                        "start_time_ms": 0,
+                        "end_time_ms": 12000,
+                        "script": "明日の会議の資料ですが、",
+                    },
+                    {
+                        "start_time_ms": 12000,
+                        "end_time_ms": 25000,
+                        "script": "今日の夕方までに準備しておきます。",
+                    },
+                ],
             },
             {
-                "slug": "shadowing-n1-news",
+                "slug": "listening-n1-news",
                 "title": "N1: Tin tức kinh tế nhật bản",
                 "difficulty": 5,  # N1
                 "audio_url": "https://res.cloudinary.com/kaiwaup/video/upload/v1/audio/shadowing_n1.mp3",
                 "audio_duration_ms": 40000,
-                "transcript_ja": "世界経済の変動に伴い、国内の物価上昇傾向が続いております。",
-                "ref_ja": "世界経済の変動に伴い、国内の物価上昇傾向が続いております。",
+                "transcript_ja": [
+                    {
+                        "start_time_ms": 0,
+                        "end_time_ms": 19000,
+                        "script": "世界経済の変動に伴い、",
+                    },
+                    {
+                        "start_time_ms": 19000,
+                        "end_time_ms": 40000,
+                        "script": "国内の物価上昇傾向が続いております。",
+                    },
+                ],
             },
         ]
 
         seeded_contents: list[LearningContent] = []
-        for s in shadowing_lessons:
+        for s in listening_lessons:
             content_query = select(LearningContent).where(LearningContent.slug == s["slug"])
             content = (await session.execute(content_query)).scalar_one_or_none()
             if not content:
                 content = LearningContent(
-                    content_type=ContentType.SHADOWING,
+                    content_type=ContentType.SHADOWING_DICTATION,
                     status=ContentStatus.PUBLISHED,
                     slug=s["slug"],
                     title=s["title"],
-                    short_description=f"Luyện Shadowing cấp độ difficulty={s['difficulty']}",
+                    short_description="Luyện Shadowing hoặc Dictation theo từng đoạn audio",
                     difficulty=s["difficulty"],
                     audio_url=s["audio_url"],
                     audio_duration_ms=s["audio_duration_ms"],
@@ -264,57 +289,7 @@ async def seed_data(clean: bool = False) -> dict[str, int]:
                 session.add(content)
                 await session.flush()
 
-                shadow_ex = ShadowingExercise(
-                    content_id=content.id,
-                    reference_audio_url=s["audio_url"],
-                    reference_transcript_ja=s["ref_ja"],
-                )
-                session.add(shadow_ex)
-                stats["shadowing_lessons"] += 1
-            seeded_contents.append(content)
-
-        # 4.2 Dictation (2 lessons: N4, N2)
-        dictation_lessons = [
-            {
-                "slug": "dictation-n4-shopping",
-                "title": "N4: Mua sắm ở siêu thị",
-                "difficulty": 2,  # N4
-                "audio_url": "https://res.cloudinary.com/kaiwaup/video/upload/v1/audio/dictation_n4.mp3",
-                "script": "すみません、このりんごはいくらですか。",
-            },
-            {
-                "slug": "dictation-n2-interview",
-                "title": "N2: Phỏng vấn xin việc",
-                "difficulty": 4,  # N2
-                "audio_url": "https://res.cloudinary.com/kaiwaup/video/upload/v1/audio/dictation_n2.mp3",
-                "script": "私の強みは、どんな環境でも柔軟に対応できることです。",
-            },
-        ]
-
-        for d in dictation_lessons:
-            content_query = select(LearningContent).where(LearningContent.slug == d["slug"])
-            content = (await session.execute(content_query)).scalar_one_or_none()
-            if not content:
-                content = LearningContent(
-                    content_type=ContentType.DICTATION,
-                    status=ContentStatus.PUBLISHED,
-                    slug=d["slug"],
-                    title=d["title"],
-                    difficulty=d["difficulty"],
-                    audio_url=d["audio_url"],
-                    audio_duration_ms=20000,
-                    base_exp=60,
-                    published_at=datetime.now(UTC),
-                )
-                session.add(content)
-                await session.flush()
-
-                dict_ex = DictationExercise(
-                    content_id=content.id,
-                    script=d["script"],
-                )
-                session.add(dict_ex)
-                stats["dictation_lessons"] += 1
+                stats["shadowing_dictation_lessons"] += 1
             seeded_contents.append(content)
 
         # 4.3 Reflex (2 lessons: N5, N3)
