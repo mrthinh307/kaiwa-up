@@ -1,11 +1,11 @@
-import { client, healthCheckApiV1HealthGet } from "@kaiwa-app/api-client";
+import { client, healthCheck } from "@kaiwa-app/api-client";
 
 client.setConfig({
   baseUrl: process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000",
 });
 
 export async function checkSystemHealth() {
-  const response = await healthCheckApiV1HealthGet();
+  const response = await healthCheck();
   return response.data;
 }
 
