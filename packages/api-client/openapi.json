@@ -264,6 +264,7 @@
     },
     "/api/v1/register": {
       "post": {
+        "tags": ["Auth"],
         "summary": "Register",
         "description": "Register a new user.",
         "operationId": "register_api_v1_register_post",
@@ -303,6 +304,7 @@
     },
     "/api/v1/login": {
       "post": {
+        "tags": ["Auth"],
         "summary": "Login",
         "description": "Authenticate with email/password.",
         "operationId": "login_api_v1_login_post",
@@ -342,6 +344,7 @@
     },
     "/api/v1/refresh": {
       "post": {
+        "tags": ["Auth"],
         "summary": "Refresh",
         "description": "Rotate the refresh token and issue a new access token.",
         "operationId": "refresh_api_v1_refresh_post",
@@ -389,6 +392,7 @@
     },
     "/api/v1/logout": {
       "post": {
+        "tags": ["Auth"],
         "summary": "Logout",
         "description": "Revoke the current refresh token and clear its cookie.",
         "operationId": "logout_api_v1_logout_post",
@@ -429,6 +433,7 @@
     },
     "/api/v1/me": {
       "get": {
+        "tags": ["Users"],
         "summary": "Get Me",
         "description": "Return the authenticated user's profile.",
         "operationId": "get_me_api_v1_me_get",
@@ -451,6 +456,7 @@
         ]
       },
       "patch": {
+        "tags": ["Users"],
         "summary": "Update Me",
         "description": "Update the authenticated user's display name.",
         "operationId": "update_me_api_v1_me_patch",
