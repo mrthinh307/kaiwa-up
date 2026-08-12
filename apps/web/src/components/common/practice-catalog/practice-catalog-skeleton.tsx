@@ -16,19 +16,12 @@ export function PracticeCatalogSkeleton() {
           <Skeleton className="h-9 w-56" />
           <Skeleton className="mt-3 h-5 w-44" />
         </div>
-        <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_11rem_14rem]">
+        <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
           <div>
             <Skeleton className="h-4 w-28" />
             <Skeleton className="mt-2 h-10 w-full" />
           </div>
-          <div>
-            <Skeleton className="h-4 w-20" />
-            <Skeleton className="mt-2 h-10 w-full" />
-          </div>
-          <div>
-            <Skeleton className="h-4 w-16" />
-            <Skeleton className="mt-2 h-10 w-full" />
-          </div>
+          <Skeleton className="h-10 w-full md:w-28" />
         </div>
       </div>
 
