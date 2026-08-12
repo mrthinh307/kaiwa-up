@@ -58,7 +58,7 @@ The backend CI job executes:
 - `uv run ruff format --check .`
 - `uv run mypy`
 - `DATABASE_URL=$DATABASE_URL_TEST uv run alembic upgrade head`
-- `uv run pytest`
+- `uv run --env-file .env pytest`
 
 The frontend CI job executes:
 
