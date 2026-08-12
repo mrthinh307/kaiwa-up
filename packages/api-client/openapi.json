@@ -2,7 +2,98 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Kaiwa App API",
-    "version": "0.0.0"
+    "version": "0.1.0"
   },
-  "paths": {}
+  "paths": {
+    "/api/v1/health": {
+      "get": {
+        "tags": ["Health"],
+        "summary": "Check application health",
+        "operationId": "health_check_api_v1_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ready": {
+      "get": {
+        "tags": ["Health"],
+        "summary": "Check application and database readiness",
+        "operationId": "readiness_check_api_v1_ready_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadinessResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Database is not ready"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "HealthResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "ok",
+            "title": "Status"
+          },
+          "timestamp": {
+            "type": "string",
+            "title": "Timestamp"
+          },
+          "app_name": {
+            "type": "string",
+            "title": "App Name"
+          }
+        },
+        "type": "object",
+        "required": ["status", "timestamp", "app_name"],
+        "title": "HealthResponse"
+      },
+      "ReadinessResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "ready",
+            "title": "Status"
+          },
+          "timestamp": {
+            "type": "string",
+            "title": "Timestamp"
+          },
+          "app_name": {
+            "type": "string",
+            "title": "App Name"
+          },
+          "database": {
+            "type": "string",
+            "const": "ok",
+            "title": "Database"
+          }
+        },
+        "type": "object",
+        "required": ["status", "timestamp", "app_name", "database"],
+        "title": "ReadinessResponse"
+      }
+    }
+  }
 }
