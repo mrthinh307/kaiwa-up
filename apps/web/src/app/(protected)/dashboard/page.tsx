@@ -7,7 +7,6 @@ import { getDashboardMock } from "./_utils/dashboard-mock-adapter";
 import {
   parseDashboardAttemptStatus,
   parseDashboardPage,
-  parseDashboardPracticeMode,
   parseDashboardPreviewState,
   parseDashboardSearchQuery,
 } from "./_utils/dashboard-query";
@@ -28,9 +27,6 @@ function getFirstSearchParam(value: string | string[] | undefined): string | und
 export default async function DashboardPage({ searchParams }: DashboardPageProps) {
   const resolvedSearchParams = await searchParams;
   const page = parseDashboardPage(getFirstSearchParam(resolvedSearchParams.page));
-  const practiceMode = parseDashboardPracticeMode(
-    getFirstSearchParam(resolvedSearchParams.practice_mode),
-  );
   const searchQuery = parseDashboardSearchQuery(getFirstSearchParam(resolvedSearchParams.q));
   const status = parseDashboardAttemptStatus(getFirstSearchParam(resolvedSearchParams.status));
   const previewState = parseDashboardPreviewState(
@@ -49,7 +45,6 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
             dashboard={getDashboardMock({
               isEmpty: previewState === "empty",
               page,
-              practiceMode,
               searchQuery,
               status,
             })}

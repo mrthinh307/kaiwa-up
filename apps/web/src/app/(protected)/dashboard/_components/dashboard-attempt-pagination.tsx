@@ -9,10 +9,7 @@ import {
 } from "@/components/ui/pagination";
 import { cn } from "@/lib/utils";
 
-import type {
-  DashboardAttemptStatus,
-  DashboardPracticeMode,
-} from "../_utils/dashboard-mock-adapter";
+import type { DashboardAttemptStatus } from "../_utils/dashboard-mock-adapter";
 
 import { buildDashboardHref } from "../_utils/dashboard-query";
 
@@ -37,13 +34,11 @@ function getPaginationEntries(page: number, pages: number): PaginationEntry[] {
 export function DashboardAttemptPagination({
   page,
   pages,
-  practiceMode,
   searchQuery,
   status,
 }: {
   page: number;
   pages: number;
-  practiceMode?: DashboardPracticeMode;
   searchQuery?: string;
   status?: DashboardAttemptStatus;
 }) {
@@ -62,9 +57,7 @@ export function DashboardAttemptPagination({
               page <= 1 && "pointer-events-none opacity-50",
             )}
             href={
-              page > 1
-                ? buildDashboardHref({ page: page - 1, practiceMode, searchQuery, status })
-                : undefined
+              page > 1 ? buildDashboardHref({ page: page - 1, searchQuery, status }) : undefined
             }
             tabIndex={page <= 1 ? -1 : undefined}
           />
@@ -75,7 +68,7 @@ export function DashboardAttemptPagination({
             <PaginationItem key={entry}>
               <PaginationLink
                 aria-label={`Go to attempt page ${entry}`}
-                href={buildDashboardHref({ page: entry, practiceMode, searchQuery, status })}
+                href={buildDashboardHref({ page: entry, searchQuery, status })}
                 isActive={entry === page}
               >
                 {entry}
@@ -96,9 +89,7 @@ export function DashboardAttemptPagination({
               page >= pages && "pointer-events-none opacity-50",
             )}
             href={
-              page < pages
-                ? buildDashboardHref({ page: page + 1, practiceMode, searchQuery, status })
-                : undefined
+              page < pages ? buildDashboardHref({ page: page + 1, searchQuery, status }) : undefined
             }
             tabIndex={page >= pages ? -1 : undefined}
           />
