@@ -32,7 +32,7 @@ export type AttemptStatus = "in_progress" | "submitted" | "completed";
 /**
  * ContentType
  */
-export type ContentType = "shadowing" | "dictation" | "reflex" | "listening_translation";
+export type ContentType = "shadowing_dictation" | "reflex" | "listening_translation";
 
 /**
  * ExpHistoryItem
@@ -235,13 +235,9 @@ export type ProgressAttemptItem = {
  */
 export type ProgressSummaryResponse = {
   /**
-   * Shadowing Completed
+   * Shadowing Dictation Completed
    */
-  shadowing_completed: number;
-  /**
-   * Dictation Completed
-   */
-  dictation_completed: number;
+  shadowing_dictation_completed: number;
   /**
    * Reflex Completed
    */

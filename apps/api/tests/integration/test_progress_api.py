@@ -87,14 +87,11 @@ async def test_progress_summary_counts_completed_by_content_type(
     db_session: AsyncSession,
 ) -> None:
     user = await create_user(session=db_session, email="a@example.com", display_name="User A")
-    shadow = await create_content(
-        session=db_session, content_type=ContentType.SHADOWING, slug="shadow", title="Shadow lesson"
-    )
-    dictation = await create_content(
+    listening = await create_content(
         session=db_session,
-        content_type=ContentType.DICTATION,
-        slug="dictation",
-        title="Dictation lesson",
+        content_type=ContentType.SHADOWING_DICTATION,
+        slug="listening",
+        title="Listening lesson",
     )
     reflex = await create_content(
         session=db_session, content_type=ContentType.REFLEX, slug="reflex", title="Reflex lesson"
@@ -106,13 +103,13 @@ async def test_progress_summary_counts_completed_by_content_type(
         title="Translation lesson",
     )
     await create_attempt(
-        session=db_session, user_id=user.id, content_id=shadow.id, attempt_number=1
+        session=db_session, user_id=user.id, content_id=listening.id, attempt_number=1
     )
     await create_attempt(
-        session=db_session, user_id=user.id, content_id=shadow.id, attempt_number=2
+        session=db_session, user_id=user.id, content_id=listening.id, attempt_number=2
     )
     await create_attempt(
-        session=db_session, user_id=user.id, content_id=dictation.id, attempt_number=1
+        session=db_session, user_id=user.id, content_id=listening.id, attempt_number=3
     )
     await create_attempt(
         session=db_session, user_id=user.id, content_id=translation.id, attempt_number=1
@@ -131,8 +128,7 @@ async def test_progress_summary_counts_completed_by_content_type(
 
     assert response.status_code == 200
     assert response.json() == {
-        "shadowing_completed": 2,
-        "dictation_completed": 1,
+        "shadowing_dictation_completed": 3,
         "reflex_completed": 0,
         "listening_translation_completed": 1,
         "total_completed_attempts": 4,
@@ -148,7 +144,10 @@ async def test_progress_summary_only_uses_current_user_data(
     user_a = await create_user(session=db_session, email="a@example.com", display_name="User A")
     user_b = await create_user(session=db_session, email="b@example.com", display_name="User B")
     content = await create_content(
-        session=db_session, content_type=ContentType.DICTATION, slug="dictation", title="Dictation"
+        session=db_session,
+        content_type=ContentType.SHADOWING_DICTATION,
+        slug="listening",
+        title="Listening",
     )
     await create_attempt(
         session=db_session, user_id=user_b.id, content_id=content.id, attempt_number=1
@@ -160,8 +159,7 @@ async def test_progress_summary_only_uses_current_user_data(
 
     assert response.status_code == 200
     assert response.json() == {
-        "shadowing_completed": 0,
-        "dictation_completed": 0,
+        "shadowing_dictation_completed": 0,
         "reflex_completed": 0,
         "listening_translation_completed": 0,
         "total_completed_attempts": 0,
@@ -176,7 +174,10 @@ async def test_progress_attempts_support_pagination(
 ) -> None:
     user = await create_user(session=db_session, email="a@example.com", display_name="User A")
     content = await create_content(
-        session=db_session, content_type=ContentType.SHADOWING, slug="shadow", title="Shadow"
+        session=db_session,
+        content_type=ContentType.SHADOWING_DICTATION,
+        slug="listening",
+        title="Listening",
     )
     for index in range(25):
         await create_attempt(
@@ -207,29 +208,32 @@ async def test_progress_attempts_filter_by_content_type(
     db_session: AsyncSession,
 ) -> None:
     user = await create_user(session=db_session, email="a@example.com", display_name="User A")
-    shadow = await create_content(
-        session=db_session, content_type=ContentType.SHADOWING, slug="shadow", title="Shadow"
+    listening = await create_content(
+        session=db_session,
+        content_type=ContentType.SHADOWING_DICTATION,
+        slug="listening",
+        title="Listening",
     )
-    dictation = await create_content(
-        session=db_session, content_type=ContentType.DICTATION, slug="dictation", title="Dictation"
+    reflex = await create_content(
+        session=db_session, content_type=ContentType.REFLEX, slug="reflex", title="Reflex"
     )
     await create_attempt(
-        session=db_session, user_id=user.id, content_id=shadow.id, attempt_number=1
+        session=db_session, user_id=user.id, content_id=listening.id, attempt_number=1
     )
     await create_attempt(
-        session=db_session, user_id=user.id, content_id=dictation.id, attempt_number=1
+        session=db_session, user_id=user.id, content_id=reflex.id, attempt_number=1
     )
 
     set_current_user(user)
 
-    response = await client.get(ATTEMPTS_PATH, params={"content_type": "shadowing"})
+    response = await client.get(ATTEMPTS_PATH, params={"content_type": "shadowing_dictation"})
 
     assert response.status_code == 200
     payload = response.json()
     assert payload["total_items"] == 1
-    assert payload["items"][0]["content_id"] == str(shadow.id)
-    assert payload["items"][0]["content_type"] == "shadowing"
-    assert payload["items"][0]["content_title"] == "Shadow"
+    assert payload["items"][0]["content_id"] == str(listening.id)
+    assert payload["items"][0]["content_type"] == "shadowing_dictation"
+    assert payload["items"][0]["content_title"] == "Listening"
 
 
 @pytest.mark.asyncio
@@ -239,10 +243,10 @@ async def test_progress_attempts_filter_by_content_id(
 ) -> None:
     user = await create_user(session=db_session, email="a@example.com", display_name="User A")
     content_a = await create_content(
-        session=db_session, content_type=ContentType.SHADOWING, slug="a", title="Lesson A"
+        session=db_session, content_type=ContentType.SHADOWING_DICTATION, slug="a", title="Lesson A"
     )
     content_b = await create_content(
-        session=db_session, content_type=ContentType.DICTATION, slug="b", title="Lesson B"
+        session=db_session, content_type=ContentType.REFLEX, slug="b", title="Lesson B"
     )
     await create_attempt(
         session=db_session, user_id=user.id, content_id=content_a.id, attempt_number=1
@@ -268,7 +272,10 @@ async def test_progress_attempts_sorted_newest_first(
 ) -> None:
     user = await create_user(session=db_session, email="a@example.com", display_name="User A")
     content = await create_content(
-        session=db_session, content_type=ContentType.DICTATION, slug="dictation", title="Dictation"
+        session=db_session,
+        content_type=ContentType.SHADOWING_DICTATION,
+        slug="listening",
+        title="Listening",
     )
     completions = []
     for index in range(5):
@@ -302,7 +309,10 @@ async def test_progress_attempts_include_in_progress_items(
 ) -> None:
     user = await create_user(session=db_session, email="a@example.com", display_name="User A")
     content = await create_content(
-        session=db_session, content_type=ContentType.SHADOWING, slug="shadow", title="Shadow"
+        session=db_session,
+        content_type=ContentType.SHADOWING_DICTATION,
+        slug="listening",
+        title="Listening",
     )
     await create_attempt(
         session=db_session,
@@ -333,7 +343,10 @@ async def test_progress_attempt_detail_returns_attempt(
 ) -> None:
     user = await create_user(session=db_session, email="a@example.com", display_name="User A")
     content = await create_content(
-        session=db_session, content_type=ContentType.DICTATION, slug="dictation", title="Dictation"
+        session=db_session,
+        content_type=ContentType.SHADOWING_DICTATION,
+        slug="listening",
+        title="Listening",
     )
     completed_at = datetime(2026, 8, 10, 8, 10, tzinfo=UTC)
     attempt = await create_attempt(
@@ -354,7 +367,7 @@ async def test_progress_attempt_detail_returns_attempt(
     payload = response.json()
     assert payload["id"] == str(attempt.id)
     assert payload["content_id"] == str(content.id)
-    assert payload["content_type"] == "dictation"
+    assert payload["content_type"] == "shadowing_dictation"
     assert payload["attempt_number"] == 2
     assert payload["status"] == "completed"
     assert payload["score"] == 95.0
@@ -370,7 +383,10 @@ async def test_progress_attempt_detail_forbidden_for_other_user(
     user_a = await create_user(session=db_session, email="a@example.com", display_name="User A")
     user_b = await create_user(session=db_session, email="b@example.com", display_name="User B")
     content = await create_content(
-        session=db_session, content_type=ContentType.DICTATION, slug="dictation", title="Dictation"
+        session=db_session,
+        content_type=ContentType.SHADOWING_DICTATION,
+        slug="listening",
+        title="Listening",
     )
     attempt = await create_attempt(
         session=db_session, user_id=user_b.id, content_id=content.id, attempt_number=1

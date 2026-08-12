@@ -524,7 +524,7 @@
       },
       "ContentType": {
         "type": "string",
-        "enum": ["shadowing", "dictation", "reflex", "listening_translation"],
+        "enum": ["shadowing_dictation", "reflex", "listening_translation"],
         "title": "ContentType"
       },
       "ExpHistoryItem": {
@@ -854,15 +854,10 @@
       },
       "ProgressSummaryResponse": {
         "properties": {
-          "shadowing_completed": {
+          "shadowing_dictation_completed": {
             "type": "integer",
             "minimum": 0.0,
-            "title": "Shadowing Completed"
-          },
-          "dictation_completed": {
-            "type": "integer",
-            "minimum": 0.0,
-            "title": "Dictation Completed"
+            "title": "Shadowing Dictation Completed"
           },
           "reflex_completed": {
             "type": "integer",
@@ -887,8 +882,7 @@
         },
         "type": "object",
         "required": [
-          "shadowing_completed",
-          "dictation_completed",
+          "shadowing_dictation_completed",
           "reflex_completed",
           "listening_translation_completed",
           "total_completed_attempts",

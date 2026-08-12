@@ -7,8 +7,7 @@ from app.models.enums import AttemptStatus, ContentType
 
 
 class ProgressSummaryResponse(BaseModel):
-    shadowing_completed: int = Field(ge=0)
-    dictation_completed: int = Field(ge=0)
+    shadowing_dictation_completed: int = Field(ge=0)
     reflex_completed: int = Field(ge=0)
     listening_translation_completed: int = Field(ge=0)
     total_completed_attempts: int = Field(ge=0)

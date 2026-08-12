@@ -101,7 +101,7 @@ async def test_gamification_profile_returns_history_with_attempt_id(
     user = await create_user(session=db_session, email="a@example.com", display_name="User A")
     content = await create_content(
         session=db_session,
-        content_type=ContentType.DICTATION,
+        content_type=ContentType.SHADOWING_DICTATION,
         slug="dictation",
         title="Thời tiết hôm nay",
         base_exp=50,
@@ -127,7 +127,7 @@ async def test_gamification_profile_returns_history_with_attempt_id(
     history_item = payload["recent_exp_history"][0]
     assert history_item["attempt_id"] == str(attempt.id)
     assert history_item["amount"] == 50
-    assert history_item["reason"] == "Hoàn thành Dictation: Thời tiết hôm nay"
+    assert history_item["reason"] == "Hoàn thành Shadowing Dictation: Thời tiết hôm nay"
     created_at = datetime.fromisoformat(history_item["created_at"].replace("Z", "+00:00"))
     assert created_at.tzinfo is not None
 
@@ -142,7 +142,7 @@ async def test_gamification_profile_honors_limit_query_param(
     for index in range(5):
         content = await create_content(
             session=db_session,
-            content_type=ContentType.DICTATION,
+            content_type=ContentType.SHADOWING_DICTATION,
             slug=f"content-{index}",
             title=f"Bài {index}",
             base_exp=10,

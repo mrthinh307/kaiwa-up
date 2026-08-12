@@ -23,8 +23,7 @@ class ProgressService:
             return completed_by_type.get(content_type, 0)
 
         return ProgressSummaryResponse(
-            shadowing_completed=completed(ContentType.SHADOWING),
-            dictation_completed=completed(ContentType.DICTATION),
+            shadowing_dictation_completed=completed(ContentType.SHADOWING_DICTATION),
             reflex_completed=completed(ContentType.REFLEX),
             listening_translation_completed=completed(ContentType.LISTENING_TRANSLATION),
             total_completed_attempts=sum(completed_by_type.values()),
