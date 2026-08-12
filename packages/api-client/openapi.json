@@ -9,7 +9,7 @@
       "get": {
         "tags": ["Health"],
         "summary": "Check application health",
-        "operationId": "health_check_api_v1_health_get",
+        "operationId": "healthCheck",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -28,7 +28,7 @@
       "get": {
         "tags": ["Health"],
         "summary": "Check application and database readiness",
-        "operationId": "readiness_check_api_v1_ready_get",
+        "operationId": "readinessCheck",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -50,7 +50,7 @@
       "get": {
         "tags": ["Progress"],
         "summary": "Get progress summary for the current user",
-        "operationId": "get_progress_summary_api_v1_progress_summary_get",
+        "operationId": "getProgressSummary",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -74,7 +74,7 @@
       "get": {
         "tags": ["Progress"],
         "summary": "List attempt history for the current user",
-        "operationId": "list_progress_attempts_api_v1_progress_attempts_get",
+        "operationId": "listProgressAttempts",
         "security": [
           {
             "HTTPBearer": []
@@ -166,7 +166,7 @@
       "get": {
         "tags": ["Progress"],
         "summary": "Get a single attempt detail for the current user",
-        "operationId": "get_progress_attempt_api_v1_progress_attempts__attempt_id__get",
+        "operationId": "getProgressAttempt",
         "security": [
           {
             "HTTPBearer": []
@@ -218,7 +218,7 @@
       "get": {
         "tags": ["Gamification"],
         "summary": "Get the current user's EXP, level, and recent EXP history",
-        "operationId": "get_gamification_profile_api_v1_gamification_profile_get",
+        "operationId": "getGamificationProfile",
         "security": [
           {
             "HTTPBearer": []
@@ -264,9 +264,10 @@
     },
     "/api/v1/register": {
       "post": {
+        "tags": ["Auth"],
         "summary": "Register",
         "description": "Register a new user.",
-        "operationId": "register_api_v1_register_post",
+        "operationId": "register",
         "requestBody": {
           "content": {
             "application/json": {
@@ -303,9 +304,10 @@
     },
     "/api/v1/login": {
       "post": {
+        "tags": ["Auth"],
         "summary": "Login",
         "description": "Authenticate with email/password.",
-        "operationId": "login_api_v1_login_post",
+        "operationId": "login",
         "requestBody": {
           "content": {
             "application/json": {
@@ -342,9 +344,10 @@
     },
     "/api/v1/refresh": {
       "post": {
+        "tags": ["Auth"],
         "summary": "Refresh",
         "description": "Rotate the refresh token and issue a new access token.",
-        "operationId": "refresh_api_v1_refresh_post",
+        "operationId": "refresh",
         "parameters": [
           {
             "name": "refresh_token",
@@ -389,9 +392,10 @@
     },
     "/api/v1/logout": {
       "post": {
+        "tags": ["Auth"],
         "summary": "Logout",
         "description": "Revoke the current refresh token and clear its cookie.",
-        "operationId": "logout_api_v1_logout_post",
+        "operationId": "logout",
         "parameters": [
           {
             "name": "refresh_token",
@@ -429,9 +433,10 @@
     },
     "/api/v1/me": {
       "get": {
+        "tags": ["Users"],
         "summary": "Get Me",
         "description": "Return the authenticated user's profile.",
-        "operationId": "get_me_api_v1_me_get",
+        "operationId": "getMe",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -451,9 +456,10 @@
         ]
       },
       "patch": {
+        "tags": ["Users"],
         "summary": "Update Me",
         "description": "Update the authenticated user's display name.",
-        "operationId": "update_me_api_v1_me_patch",
+        "operationId": "updateMe",
         "requestBody": {
           "content": {
             "application/json": {
@@ -524,7 +530,7 @@
       },
       "ContentType": {
         "type": "string",
-        "enum": ["shadowing", "dictation", "reflex", "listening_translation"],
+        "enum": ["shadowing_dictation", "reflex", "listening_translation"],
         "title": "ContentType"
       },
       "ExpHistoryItem": {
@@ -854,15 +860,10 @@
       },
       "ProgressSummaryResponse": {
         "properties": {
-          "shadowing_completed": {
+          "shadowing_dictation_completed": {
             "type": "integer",
             "minimum": 0.0,
-            "title": "Shadowing Completed"
-          },
-          "dictation_completed": {
-            "type": "integer",
-            "minimum": 0.0,
-            "title": "Dictation Completed"
+            "title": "Shadowing Dictation Completed"
           },
           "reflex_completed": {
             "type": "integer",
@@ -887,8 +888,7 @@
         },
         "type": "object",
         "required": [
-          "shadowing_completed",
-          "dictation_completed",
+          "shadowing_dictation_completed",
           "reflex_completed",
           "listening_translation_completed",
           "total_completed_attempts",

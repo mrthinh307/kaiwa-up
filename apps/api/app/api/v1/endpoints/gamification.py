@@ -17,6 +17,7 @@ def _gamification_service(session: DatabaseSession) -> GamificationService:
 
 @router.get(
     "/profile",
+    operation_id="getGamificationProfile",
     response_model=GamificationProfileResponse,
     summary="Get the current user's EXP, level, and recent EXP history",
 )

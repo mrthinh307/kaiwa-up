@@ -23,8 +23,7 @@ class ProgressService:
             return completed_by_type.get(content_type, 0)
 
         return ProgressSummaryResponse(
-            shadowing_completed=completed(ContentType.SHADOWING),
-            dictation_completed=completed(ContentType.DICTATION),
+            shadowing_dictation_completed=completed(ContentType.SHADOWING_DICTATION),
             reflex_completed=completed(ContentType.REFLEX),
             listening_translation_completed=completed(ContentType.LISTENING_TRANSLATION),
             total_completed_attempts=sum(completed_by_type.values()),
@@ -72,7 +71,7 @@ class ProgressService:
             content_type=row.content_type,
             attempt_number=attempt.attempt_number,
             status=attempt.status,
-            score=attempt.score,
+            score=float(attempt.score) if attempt.score is not None else None,
             answer_payload=attempt.answer_payload,
             completed_at=attempt.completed_at,
         )
@@ -86,6 +85,6 @@ class ProgressService:
             content_type=attempt.content_type,
             attempt_number=attempt.attempt_number,
             status=attempt.status,
-            score=attempt.score,
+            score=float(attempt.score) if attempt.score is not None else None,
             completed_at=attempt.completed_at,
         )

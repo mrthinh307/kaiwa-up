@@ -25,6 +25,7 @@ def _progress_service(session: DatabaseSession) -> ProgressService:
 
 @router.get(
     "/summary",
+    operation_id="getProgressSummary",
     response_model=ProgressSummaryResponse,
     summary="Get progress summary for the current user",
 )
@@ -37,6 +38,7 @@ async def get_progress_summary(
 
 @router.get(
     "/attempts",
+    operation_id="listProgressAttempts",
     response_model=PaginatedResponse[ProgressAttemptItem],
     summary="List attempt history for the current user",
 )
@@ -58,6 +60,7 @@ async def list_progress_attempts(
 
 @router.get(
     "/attempts/{attempt_id}",
+    operation_id="getProgressAttempt",
     response_model=ProgressAttemptDetail,
     summary="Get a single attempt detail for the current user",
     responses={

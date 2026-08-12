@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.exceptions import ForbiddenError, NotFoundError
 from app.models.attempt import ExerciseAttempt
 from app.models.content import LearningContent
-from app.models.enums import AttemptStatus, ContentStatus, ContentType
+from app.models.enums import AttemptStatus, ContentStatus, ContentType, JlptLevel
 from app.models.gamification import XpTransaction
 from app.models.user import User
 from app.repositories.gamification import GamificationRepository
@@ -35,7 +35,7 @@ async def create_content(
         status=ContentStatus.PUBLISHED,
         slug=slug,
         title=title,
-        difficulty=1,
+        difficulty=JlptLevel.N5,
         base_exp=base_exp,
     )
     session.add(content)
@@ -84,7 +84,7 @@ async def test_award_grants_base_exp_and_updates_total(
     user = await create_user(session=db_session, email="a@example.com")
     content = await create_content(
         session=db_session,
-        content_type=ContentType.DICTATION,
+        content_type=ContentType.SHADOWING_DICTATION,
         slug="dictation",
         title="Thời tiết hôm nay",
         base_exp=50,
@@ -107,7 +107,7 @@ async def test_award_grants_base_exp_and_updates_total(
     assert transaction is not None
     assert transaction.user_id == user.id
     assert transaction.amount == 50
-    assert transaction.reason == "Hoàn thành Dictation: Thời tiết hôm nay"
+    assert transaction.reason == "Hoàn thành Shadowing Dictation: Thời tiết hôm nay"
 
 
 @pytest.mark.asyncio
@@ -117,7 +117,7 @@ async def test_award_is_idempotent_for_same_attempt(
     user = await create_user(session=db_session, email="a@example.com")
     content = await create_content(
         session=db_session,
-        content_type=ContentType.SHADOWING,
+        content_type=ContentType.SHADOWING_DICTATION,
         slug="shadowing",
         title="Chào hỏi công sở",
         base_exp=50,
@@ -173,7 +173,7 @@ async def test_award_raises_forbidden_for_other_user(
     requester = await create_user(session=db_session, email="b@example.com")
     content = await create_content(
         session=db_session,
-        content_type=ContentType.DICTATION,
+        content_type=ContentType.SHADOWING_DICTATION,
         slug="dictation",
         title="Thời tiết hôm nay",
         base_exp=50,
@@ -207,14 +207,14 @@ async def test_award_increases_level_at_threshold(
     user = await create_user(session=db_session, email="a@example.com")
     content_a = await create_content(
         session=db_session,
-        content_type=ContentType.DICTATION,
+        content_type=ContentType.SHADOWING_DICTATION,
         slug="a",
         title="Bài A",
         base_exp=100,
     )
     content_b = await create_content(
         session=db_session,
-        content_type=ContentType.SHADOWING,
+        content_type=ContentType.SHADOWING_DICTATION,
         slug="b",
         title="Bài B",
         base_exp=150,
@@ -239,14 +239,14 @@ async def test_profile_returns_contract_fields_with_history(
     user = await create_user(session=db_session, email="a@example.com")
     content_a = await create_content(
         session=db_session,
-        content_type=ContentType.DICTATION,
+        content_type=ContentType.SHADOWING_DICTATION,
         slug="a",
         title="Thời tiết hôm nay",
         base_exp=100,
     )
     content_b = await create_content(
         session=db_session,
-        content_type=ContentType.SHADOWING,
+        content_type=ContentType.SHADOWING_DICTATION,
         slug="b",
         title="Chào hỏi",
         base_exp=50,
@@ -267,7 +267,7 @@ async def test_profile_returns_contract_fields_with_history(
     assert profile.exp_to_next_level == 100
     assert [item.amount for item in profile.recent_exp_history] == [50, 100]
     assert profile.recent_exp_history[0].attempt_id == attempt_b.id
-    assert profile.recent_exp_history[0].reason == "Hoàn thành Shadowing: Chào hỏi"
+    assert profile.recent_exp_history[0].reason == "Hoàn thành Shadowing Dictation: Chào hỏi"
 
 
 @pytest.mark.asyncio

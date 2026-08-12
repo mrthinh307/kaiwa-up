@@ -32,7 +32,7 @@ export type AttemptStatus = "in_progress" | "submitted" | "completed";
 /**
  * ContentType
  */
-export type ContentType = "shadowing" | "dictation" | "reflex" | "listening_translation";
+export type ContentType = "shadowing_dictation" | "reflex" | "listening_translation";
 
 /**
  * ExpHistoryItem
@@ -235,13 +235,9 @@ export type ProgressAttemptItem = {
  */
 export type ProgressSummaryResponse = {
   /**
-   * Shadowing Completed
+   * Shadowing Dictation Completed
    */
-  shadowing_completed: number;
-  /**
-   * Dictation Completed
-   */
-  dictation_completed: number;
+  shadowing_dictation_completed: number;
   /**
    * Reflex Completed
    */
@@ -376,65 +372,63 @@ export type ValidationError = {
   };
 };
 
-export type HealthCheckApiV1HealthGetData = {
+export type HealthCheckData = {
   body?: never;
   path?: never;
   query?: never;
   url: "/api/v1/health";
 };
 
-export type HealthCheckApiV1HealthGetResponses = {
+export type HealthCheckResponses = {
   /**
    * Successful Response
    */
   200: HealthResponse;
 };
 
-export type HealthCheckApiV1HealthGetResponse =
-  HealthCheckApiV1HealthGetResponses[keyof HealthCheckApiV1HealthGetResponses];
+export type HealthCheckResponse = HealthCheckResponses[keyof HealthCheckResponses];
 
-export type ReadinessCheckApiV1ReadyGetData = {
+export type ReadinessCheckData = {
   body?: never;
   path?: never;
   query?: never;
   url: "/api/v1/ready";
 };
 
-export type ReadinessCheckApiV1ReadyGetErrors = {
+export type ReadinessCheckErrors = {
   /**
    * Database is not ready
    */
   503: unknown;
 };
 
-export type ReadinessCheckApiV1ReadyGetResponses = {
+export type ReadinessCheckResponses = {
   /**
    * Successful Response
    */
   200: ReadinessResponse;
 };
 
-export type ReadinessCheckApiV1ReadyGetResponse =
-  ReadinessCheckApiV1ReadyGetResponses[keyof ReadinessCheckApiV1ReadyGetResponses];
+export type ReadinessCheckResponse = ReadinessCheckResponses[keyof ReadinessCheckResponses];
 
-export type GetProgressSummaryApiV1ProgressSummaryGetData = {
+export type GetProgressSummaryData = {
   body?: never;
   path?: never;
   query?: never;
   url: "/api/v1/progress/summary";
 };
 
-export type GetProgressSummaryApiV1ProgressSummaryGetResponses = {
+export type GetProgressSummaryResponses = {
   /**
    * Successful Response
    */
   200: ProgressSummaryResponse;
 };
 
-export type GetProgressSummaryApiV1ProgressSummaryGetResponse =
-  GetProgressSummaryApiV1ProgressSummaryGetResponses[keyof GetProgressSummaryApiV1ProgressSummaryGetResponses];
+export type GetProgressSummaryResponse =
+  GetProgressSummaryResponses[keyof GetProgressSummaryResponses];
 
-export type ListProgressAttemptsApiV1ProgressAttemptsGetData = {
+export type ListProgressAttemptsData = {
   body?: never;
   path?: never;
   query?: {
@@ -458,27 +452,27 @@ export type ListProgressAttemptsApiV1ProgressAttemptsGetData = {
   url: "/api/v1/progress/attempts";
 };
 
-export type ListProgressAttemptsApiV1ProgressAttemptsGetErrors = {
+export type ListProgressAttemptsErrors = {
   /**
    * Validation Error
    */
   422: HttpValidationError;
 };
 
-export type ListProgressAttemptsApiV1ProgressAttemptsGetError =
-  ListProgressAttemptsApiV1ProgressAttemptsGetErrors[keyof ListProgressAttemptsApiV1ProgressAttemptsGetErrors];
+export type ListProgressAttemptsError =
+  ListProgressAttemptsErrors[keyof ListProgressAttemptsErrors];
 
-export type ListProgressAttemptsApiV1ProgressAttemptsGetResponses = {
+export type ListProgressAttemptsResponses = {
   /**
    * Successful Response
    */
   200: PaginatedResponseProgressAttemptItem;
 };
 
-export type ListProgressAttemptsApiV1ProgressAttemptsGetResponse =
-  ListProgressAttemptsApiV1ProgressAttemptsGetResponses[keyof ListProgressAttemptsApiV1ProgressAttemptsGetResponses];
+export type ListProgressAttemptsResponse =
+  ListProgressAttemptsResponses[keyof ListProgressAttemptsResponses];
 
-export type GetProgressAttemptApiV1ProgressAttemptsAttemptIdGetData = {
+export type GetProgressAttemptData = {
   body?: never;
   path: {
     /**
@@ -490,7 +484,7 @@ export type GetProgressAttemptApiV1ProgressAttemptsAttemptIdGetData = {
   url: "/api/v1/progress/attempts/{attempt_id}";
 };
 
-export type GetProgressAttemptApiV1ProgressAttemptsAttemptIdGetErrors = {
+export type GetProgressAttemptErrors = {
   /**
    * Attempt belongs to another user
    */
@@ -505,20 +499,19 @@ export type GetProgressAttemptApiV1ProgressAttemptsAttemptIdGetErrors = {
   422: HttpValidationError;
 };
 
-export type GetProgressAttemptApiV1ProgressAttemptsAttemptIdGetError =
-  GetProgressAttemptApiV1ProgressAttemptsAttemptIdGetErrors[keyof GetProgressAttemptApiV1ProgressAttemptsAttemptIdGetErrors];
+export type GetProgressAttemptError = GetProgressAttemptErrors[keyof GetProgressAttemptErrors];
 
-export type GetProgressAttemptApiV1ProgressAttemptsAttemptIdGetResponses = {
+export type GetProgressAttemptResponses = {
   /**
    * Successful Response
    */
   200: ProgressAttemptDetail;
 };
 
-export type GetProgressAttemptApiV1ProgressAttemptsAttemptIdGetResponse =
-  GetProgressAttemptApiV1ProgressAttemptsAttemptIdGetResponses[keyof GetProgressAttemptApiV1ProgressAttemptsAttemptIdGetResponses];
+export type GetProgressAttemptResponse =
+  GetProgressAttemptResponses[keyof GetProgressAttemptResponses];
 
-export type GetGamificationProfileApiV1GamificationProfileGetData = {
+export type GetGamificationProfileData = {
   body?: never;
   path?: never;
   query?: {
@@ -530,172 +523,163 @@ export type GetGamificationProfileApiV1GamificationProfileGetData = {
   url: "/api/v1/gamification/profile";
 };
 
-export type GetGamificationProfileApiV1GamificationProfileGetErrors = {
+export type GetGamificationProfileErrors = {
   /**
    * Validation Error
    */
   422: HttpValidationError;
 };
 
-export type GetGamificationProfileApiV1GamificationProfileGetError =
-  GetGamificationProfileApiV1GamificationProfileGetErrors[keyof GetGamificationProfileApiV1GamificationProfileGetErrors];
+export type GetGamificationProfileError =
+  GetGamificationProfileErrors[keyof GetGamificationProfileErrors];
 
-export type GetGamificationProfileApiV1GamificationProfileGetResponses = {
+export type GetGamificationProfileResponses = {
   /**
    * Successful Response
    */
   200: GamificationProfileResponse;
 };
 
-export type GetGamificationProfileApiV1GamificationProfileGetResponse =
-  GetGamificationProfileApiV1GamificationProfileGetResponses[keyof GetGamificationProfileApiV1GamificationProfileGetResponses];
+export type GetGamificationProfileResponse =
+  GetGamificationProfileResponses[keyof GetGamificationProfileResponses];
 
-export type RegisterApiV1RegisterPostData = {
+export type RegisterData = {
   body: RegisterRequest;
   path?: never;
   query?: never;
   url: "/api/v1/register";
 };
 
-export type RegisterApiV1RegisterPostErrors = {
+export type RegisterErrors = {
   /**
    * Validation Error
    */
   422: HttpValidationError;
 };
 
-export type RegisterApiV1RegisterPostError =
-  RegisterApiV1RegisterPostErrors[keyof RegisterApiV1RegisterPostErrors];
+export type RegisterError = RegisterErrors[keyof RegisterErrors];
 
-export type RegisterApiV1RegisterPostResponses = {
+export type RegisterResponses = {
   /**
    * Successful Response
    */
   201: UserResponse;
 };
 
-export type RegisterApiV1RegisterPostResponse =
-  RegisterApiV1RegisterPostResponses[keyof RegisterApiV1RegisterPostResponses];
+export type RegisterResponse = RegisterResponses[keyof RegisterResponses];
 
-export type LoginApiV1LoginPostData = {
+export type LoginData = {
   body: LoginRequest;
   path?: never;
   query?: never;
   url: "/api/v1/login";
 };
 
-export type LoginApiV1LoginPostErrors = {
+export type LoginErrors = {
   /**
    * Validation Error
    */
   422: HttpValidationError;
 };
 
-export type LoginApiV1LoginPostError = LoginApiV1LoginPostErrors[keyof LoginApiV1LoginPostErrors];
+export type LoginError = LoginErrors[keyof LoginErrors];
 
-export type LoginApiV1LoginPostResponses = {
+export type LoginResponses = {
   /**
    * Successful Response
    */
   200: AccessTokenResponse;
 };
 
-export type LoginApiV1LoginPostResponse =
-  LoginApiV1LoginPostResponses[keyof LoginApiV1LoginPostResponses];
+export type LoginResponse = LoginResponses[keyof LoginResponses];
 
-export type RefreshApiV1RefreshPostData = {
+export type RefreshData = {
   body?: never;
   path?: never;
   query?: never;
   url: "/api/v1/refresh";
 };
 
-export type RefreshApiV1RefreshPostErrors = {
+export type RefreshErrors = {
   /**
    * Validation Error
    */
   422: HttpValidationError;
 };
 
-export type RefreshApiV1RefreshPostError =
-  RefreshApiV1RefreshPostErrors[keyof RefreshApiV1RefreshPostErrors];
+export type RefreshError = RefreshErrors[keyof RefreshErrors];
 
-export type RefreshApiV1RefreshPostResponses = {
+export type RefreshResponses = {
   /**
    * Successful Response
    */
   200: AccessTokenResponse;
 };
 
-export type RefreshApiV1RefreshPostResponse =
-  RefreshApiV1RefreshPostResponses[keyof RefreshApiV1RefreshPostResponses];
+export type RefreshResponse = RefreshResponses[keyof RefreshResponses];
 
-export type LogoutApiV1LogoutPostData = {
+export type LogoutData = {
   body?: never;
   path?: never;
   query?: never;
   url: "/api/v1/logout";
 };
 
-export type LogoutApiV1LogoutPostErrors = {
+export type LogoutErrors = {
   /**
    * Validation Error
    */
   422: HttpValidationError;
 };
 
-export type LogoutApiV1LogoutPostError =
-  LogoutApiV1LogoutPostErrors[keyof LogoutApiV1LogoutPostErrors];
+export type LogoutError = LogoutErrors[keyof LogoutErrors];
 
-export type LogoutApiV1LogoutPostResponses = {
+export type LogoutResponses = {
   /**
    * Successful Response
    */
   204: void;
 };
 
-export type LogoutApiV1LogoutPostResponse =
-  LogoutApiV1LogoutPostResponses[keyof LogoutApiV1LogoutPostResponses];
+export type LogoutResponse = LogoutResponses[keyof LogoutResponses];
 
-export type GetMeApiV1MeGetData = {
+export type GetMeData = {
   body?: never;
   path?: never;
   query?: never;
   url: "/api/v1/me";
 };
 
-export type GetMeApiV1MeGetResponses = {
+export type GetMeResponses = {
   /**
    * Successful Response
    */
   200: UserResponse;
 };
 
-export type GetMeApiV1MeGetResponse = GetMeApiV1MeGetResponses[keyof GetMeApiV1MeGetResponses];
+export type GetMeResponse = GetMeResponses[keyof GetMeResponses];
 
-export type UpdateMeApiV1MePatchData = {
+export type UpdateMeData = {
   body: UserUpdateRequest;
   path?: never;
   query?: never;
   url: "/api/v1/me";
 };
 
-export type UpdateMeApiV1MePatchErrors = {
+export type UpdateMeErrors = {
   /**
    * Validation Error
    */
   422: HttpValidationError;
 };
 
-export type UpdateMeApiV1MePatchError =
-  UpdateMeApiV1MePatchErrors[keyof UpdateMeApiV1MePatchErrors];
+export type UpdateMeError = UpdateMeErrors[keyof UpdateMeErrors];
 
-export type UpdateMeApiV1MePatchResponses = {
+export type UpdateMeResponses = {
   /**
    * Successful Response
    */
   200: UserResponse;
 };
 
-export type UpdateMeApiV1MePatchResponse =
-  UpdateMeApiV1MePatchResponses[keyof UpdateMeApiV1MePatchResponses];
+export type UpdateMeResponse = UpdateMeResponses[keyof UpdateMeResponses];
