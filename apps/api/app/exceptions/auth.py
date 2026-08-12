@@ -1,5 +1,7 @@
 """Authentication-related application exceptions."""
 
+from typing import Any
+
 from starlette import status
 
 from app.exceptions.base import AppError
@@ -14,7 +16,7 @@ class UnauthorizedException(AppError):
     def __init__(
         self,
         message: str = "Unauthorized",
-        details: dict | None = None,
+        details: dict[str, Any] | None = None,
     ) -> None:
         super().__init__(message=message, details=details)
 
