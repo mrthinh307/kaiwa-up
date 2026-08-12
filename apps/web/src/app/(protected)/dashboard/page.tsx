@@ -1,0 +1,61 @@
+import type { Metadata } from "next";
+
+import { DashboardPreviewError } from "./_components/dashboard-preview-error";
+import { DashboardScreen } from "./_components/dashboard-screen";
+import { DashboardSkeleton } from "./_components/dashboard-skeleton";
+import { getDashboardMock } from "./_utils/dashboard-mock-adapter";
+import {
+  parseDashboardAttemptStatus,
+  parseDashboardPage,
+  parseDashboardPracticeMode,
+  parseDashboardPreviewState,
+  parseDashboardSearchQuery,
+} from "./_utils/dashboard-query";
+
+export const metadata: Metadata = {
+  description: "Review your KaiwaUp progress, EXP, level, and recent practice attempts.",
+  title: "Dashboard | KaiwaUp",
+};
+
+type DashboardPageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+function getFirstSearchParam(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value.at(0) : value;
+}
+
+export default async function DashboardPage({ searchParams }: DashboardPageProps) {
+  const resolvedSearchParams = await searchParams;
+  const page = parseDashboardPage(getFirstSearchParam(resolvedSearchParams.page));
+  const practiceMode = parseDashboardPracticeMode(
+    getFirstSearchParam(resolvedSearchParams.practice_mode),
+  );
+  const searchQuery = parseDashboardSearchQuery(getFirstSearchParam(resolvedSearchParams.q));
+  const status = parseDashboardAttemptStatus(getFirstSearchParam(resolvedSearchParams.status));
+  const previewState = parseDashboardPreviewState(
+    getFirstSearchParam(resolvedSearchParams.preview),
+  );
+
+  return (
+    <main className="px-5 py-10 sm:px-8 sm:py-12 lg:py-14">
+      <div className="mx-auto w-full max-w-[1300px]">
+        {previewState === "loading" ? (
+          <DashboardSkeleton />
+        ) : previewState === "error" ? (
+          <DashboardPreviewError />
+        ) : (
+          <DashboardScreen
+            dashboard={getDashboardMock({
+              isEmpty: previewState === "empty",
+              page,
+              practiceMode,
+              searchQuery,
+              status,
+            })}
+          />
+        )}
+      </div>
+    </main>
+  );
+}
