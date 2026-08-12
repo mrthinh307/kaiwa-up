@@ -1,6 +1,7 @@
-from sqlalchemy import DateTime, Index, UniqueConstraint
+from sqlalchemy import CheckConstraint, DateTime, Enum, Index, UniqueConstraint
 
 from app.models import Base
+from app.models.enums import JlptLevel
 
 
 def test_all_expected_tables_registered() -> None:
@@ -115,3 +116,19 @@ def test_audio_stored_as_reference_only() -> None:
     recordings = Base.metadata.tables["recordings"]
     assert "storage_key" in recordings.columns
     assert "storage_key" in {c.name for c in recordings.columns if c.unique}
+
+
+def test_learning_content_difficulty_uses_jlpt_level() -> None:
+    learning_contents = Base.metadata.tables["learning_contents"]
+    difficulty = learning_contents.columns["difficulty"]
+    jlpt_constraint = next(
+        constraint
+        for constraint in learning_contents.constraints
+        if isinstance(constraint, CheckConstraint) and constraint.name == "jlpt_level"
+    )
+
+    assert isinstance(difficulty.type, Enum)
+    assert difficulty.type.enums == [level.value for level in JlptLevel]
+    assert difficulty.default is not None
+    assert difficulty.default.arg == JlptLevel.N5
+    assert str(jlpt_constraint.sqltext) == "difficulty IN ('N5', 'N4', 'N3', 'N2', 'N1')"

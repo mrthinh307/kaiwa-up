@@ -8,7 +8,7 @@ from app.api.dependencies.auth import get_current_user
 from app.main import app
 from app.models.attempt import ExerciseAttempt
 from app.models.content import LearningContent
-from app.models.enums import AttemptStatus, ContentStatus, ContentType
+from app.models.enums import AttemptStatus, ContentStatus, ContentType, JlptLevel
 from app.models.user import User
 from app.repositories.gamification import GamificationRepository
 from app.services.gamification import GamificationService
@@ -36,7 +36,7 @@ async def create_content(
         status=ContentStatus.PUBLISHED,
         slug=slug,
         title=title,
-        difficulty=1,
+        difficulty=JlptLevel.N5,
         base_exp=base_exp,
     )
     session.add(content)

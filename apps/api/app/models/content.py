@@ -4,6 +4,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import (
+    CheckConstraint,
     DateTime,
     Enum,
     ForeignKey,
@@ -20,12 +21,16 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, CreatedAtMixin, TimestampMixin
-from app.models.enums import ContentStatus, ContentType
+from app.models.enums import ContentStatus, ContentType, JlptLevel
 
 
 class LearningContent(TimestampMixin, Base):
     __tablename__ = "learning_contents"
     __table_args__ = (
+        CheckConstraint(
+            "difficulty IN ('N5', 'N4', 'N3', 'N2', 'N1')",
+            name="jlpt_level",
+        ),
         Index(
             "ix_learning_contents_published_catalog",
             "content_type",
@@ -49,7 +54,16 @@ class LearningContent(TimestampMixin, Base):
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     short_description: Mapped[str | None] = mapped_column(Text, nullable=True)
     topic: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    difficulty: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=1)
+    difficulty: Mapped[JlptLevel] = mapped_column(
+        Enum(
+            JlptLevel,
+            name="jlpt_level",
+            native_enum=False,
+            values_callable=lambda enum_type: [item.value for item in enum_type],
+        ),
+        nullable=False,
+        default=JlptLevel.N5,
+    )
     audio_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     audio_duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
     transcript_ja: Mapped[list[dict[str, object]] | None] = mapped_column(JSONB, nullable=True)
