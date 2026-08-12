@@ -10,7 +10,7 @@ from app.api.dependencies.database import get_db_session
 from app.schemas.user import UserResponse, UserUpdateRequest
 from app.services.user import user_service
 
-router = APIRouter()
+router = APIRouter(tags=["Users"])
 
 
 @router.get(
