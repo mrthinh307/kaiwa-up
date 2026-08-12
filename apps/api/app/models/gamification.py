@@ -17,6 +17,7 @@ from sqlalchemy import (
     UniqueConstraint,
     Uuid,
     func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -67,6 +68,11 @@ class XpTransaction(PrimaryKeyUuidMixin, Base):
     __tablename__ = "xp_transactions"
     __table_args__ = (
         Index("ix_xp_transactions_created_at_user_id", "created_at", "user_id"),
+        Index(
+            "ix_xp_transactions_user_id_created_at",
+            "user_id",
+            text("created_at DESC"),
+        ),
         UniqueConstraint("attempt_id", name="uq_xp_transactions_attempt_id"),
     )
 

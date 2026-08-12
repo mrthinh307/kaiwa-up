@@ -32,10 +32,16 @@ TestSessionLocal = async_sessionmaker(bind=engine_test, expire_on_commit=False, 
 @pytest_asyncio.fixture
 async def db_session():
     """Mỗi test chạy trong 1 transaction riêng, rollback ngay sau khi test xong.
-    => Dữ liệu test không bao giờ được commit thật, an toàn khi nhiều CI run song song."""
+    => Dữ liệu test không bao giờ được commit thật, an toàn khi nhiều CI run song song.
+    join_transaction_mode="create_savepoint" khiến session.commit() của service chỉ
+    giải phóng savepoint, transaction ngoài vẫn rollback khi test kết thúc."""
     async with engine_test.connect() as conn:
         trans = await conn.begin()
-        session = AsyncSession(bind=conn, expire_on_commit=False)
+        session = AsyncSession(
+            bind=conn,
+            expire_on_commit=False,
+            join_transaction_mode="create_savepoint",
+        )
         try:
             yield session
         finally:

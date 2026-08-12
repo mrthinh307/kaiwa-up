@@ -5,6 +5,106 @@ export type ClientOptions = {
 };
 
 /**
+ * AccessTokenResponse
+ *
+ * Access token response returned by login and refresh.
+ */
+export type AccessTokenResponse = {
+  /**
+   * Access Token
+   */
+  access_token: string;
+  /**
+   * Token Type
+   */
+  token_type?: string;
+  /**
+   * Expires In
+   */
+  expires_in: number;
+};
+
+/**
+ * AttemptStatus
+ */
+export type AttemptStatus = "in_progress" | "submitted" | "completed";
+
+/**
+ * ContentType
+ */
+export type ContentType = "shadowing" | "dictation" | "reflex" | "listening_translation";
+
+/**
+ * ExpHistoryItem
+ */
+export type ExpHistoryItem = {
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Attempt Id
+   */
+  attempt_id?: string | null;
+  /**
+   * Amount
+   */
+  amount: number;
+  /**
+   * Reason
+   */
+  reason?: string | null;
+  /**
+   * Created At
+   */
+  created_at: string;
+};
+
+/**
+ * GamificationProfileResponse
+ */
+export type GamificationProfileResponse = {
+  /**
+   * Level
+   */
+  level: number;
+  /**
+   * Level Title
+   */
+  level_title: string;
+  /**
+   * Total Exp
+   */
+  total_exp: number;
+  /**
+   * Current Level Min Exp
+   */
+  current_level_min_exp: number;
+  /**
+   * Next Level Min Exp
+   */
+  next_level_min_exp?: number | null;
+  /**
+   * Exp To Next Level
+   */
+  exp_to_next_level: number;
+  /**
+   * Recent Exp History
+   */
+  recent_exp_history?: Array<ExpHistoryItem>;
+};
+
+/**
+ * HTTPValidationError
+ */
+export type HttpValidationError = {
+  /**
+   * Detail
+   */
+  detail?: Array<ValidationError>;
+};
+
+/**
  * HealthResponse
  */
 export type HealthResponse = {
@@ -20,6 +120,144 @@ export type HealthResponse = {
    * App Name
    */
   app_name: string;
+};
+
+/**
+ * LoginRequest
+ *
+ * Payload for email/password login.
+ */
+export type LoginRequest = {
+  /**
+   * Email
+   */
+  email: string;
+  /**
+   * Password
+   */
+  password: string;
+};
+
+/**
+ * PaginatedResponse[ProgressAttemptItem]
+ */
+export type PaginatedResponseProgressAttemptItem = {
+  /**
+   * Items
+   */
+  items: Array<ProgressAttemptItem>;
+  /**
+   * Total Items
+   */
+  total_items: number;
+  /**
+   * Page
+   */
+  page: number;
+  /**
+   * Page Size
+   */
+  page_size: number;
+  /**
+   * Total Pages
+   */
+  total_pages: number;
+};
+
+/**
+ * ProgressAttemptDetail
+ */
+export type ProgressAttemptDetail = {
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Content Id
+   */
+  content_id: string;
+  content_type: ContentType;
+  /**
+   * Attempt Number
+   */
+  attempt_number: number;
+  status: AttemptStatus;
+  /**
+   * Score
+   */
+  score?: number | null;
+  /**
+   * Answer Payload
+   */
+  answer_payload?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Completed At
+   */
+  completed_at?: string | null;
+};
+
+/**
+ * ProgressAttemptItem
+ */
+export type ProgressAttemptItem = {
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Content Id
+   */
+  content_id: string;
+  /**
+   * Content Title
+   */
+  content_title: string;
+  content_type: ContentType;
+  /**
+   * Attempt Number
+   */
+  attempt_number: number;
+  status: AttemptStatus;
+  /**
+   * Score
+   */
+  score?: number | null;
+  /**
+   * Completed At
+   */
+  completed_at?: string | null;
+};
+
+/**
+ * ProgressSummaryResponse
+ */
+export type ProgressSummaryResponse = {
+  /**
+   * Shadowing Completed
+   */
+  shadowing_completed: number;
+  /**
+   * Dictation Completed
+   */
+  dictation_completed: number;
+  /**
+   * Reflex Completed
+   */
+  reflex_completed: number;
+  /**
+   * Listening Translation Completed
+   */
+  listening_translation_completed: number;
+  /**
+   * Total Completed Attempts
+   */
+  total_completed_attempts: number;
+  /**
+   * Total Attempts
+   */
+  total_attempts: number;
 };
 
 /**
@@ -42,6 +280,100 @@ export type ReadinessResponse = {
    * Database
    */
   database: "ok";
+};
+
+/**
+ * RegisterRequest
+ *
+ * Payload for registering a new user.
+ */
+export type RegisterRequest = {
+  /**
+   * Email
+   */
+  email: string;
+  /**
+   * Password
+   */
+  password: string;
+  /**
+   * Name
+   */
+  name: string;
+};
+
+/**
+ * UserResponse
+ *
+ * Public representation of a user.
+ */
+export type UserResponse = {
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Email
+   */
+  email: string;
+  /**
+   * Display Name
+   */
+  display_name: string | null;
+  /**
+   * Avatar Url
+   */
+  avatar_url: string | null;
+  role: UserRole;
+  /**
+   * Is Active
+   */
+  is_active: boolean;
+};
+
+/**
+ * UserRole
+ */
+export type UserRole = "user" | "admin";
+
+/**
+ * UserUpdateRequest
+ *
+ * Allowed fields for updating the current user's profile.
+ */
+export type UserUpdateRequest = {
+  /**
+   * Display Name
+   */
+  display_name: string;
+};
+
+/**
+ * ValidationError
+ */
+export type ValidationError = {
+  /**
+   * Location
+   */
+  loc: Array<string | number>;
+  /**
+   * Message
+   */
+  msg: string;
+  /**
+   * Error Type
+   */
+  type: string;
+  /**
+   * Input
+   */
+  input?: unknown;
+  /**
+   * Context
+   */
+  ctx?: {
+    [key: string]: unknown;
+  };
 };
 
 export type HealthCheckApiV1HealthGetData = {
@@ -84,3 +416,286 @@ export type ReadinessCheckApiV1ReadyGetResponses = {
 
 export type ReadinessCheckApiV1ReadyGetResponse =
   ReadinessCheckApiV1ReadyGetResponses[keyof ReadinessCheckApiV1ReadyGetResponses];
+
+export type GetProgressSummaryApiV1ProgressSummaryGetData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/progress/summary";
+};
+
+export type GetProgressSummaryApiV1ProgressSummaryGetResponses = {
+  /**
+   * Successful Response
+   */
+  200: ProgressSummaryResponse;
+};
+
+export type GetProgressSummaryApiV1ProgressSummaryGetResponse =
+  GetProgressSummaryApiV1ProgressSummaryGetResponses[keyof GetProgressSummaryApiV1ProgressSummaryGetResponses];
+
+export type ListProgressAttemptsApiV1ProgressAttemptsGetData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Content Type
+     */
+    content_type?: ContentType | null;
+    /**
+     * Content Id
+     */
+    content_id?: string | null;
+    /**
+     * Page
+     */
+    page?: number;
+    /**
+     * Page Size
+     */
+    page_size?: number;
+  };
+  url: "/api/v1/progress/attempts";
+};
+
+export type ListProgressAttemptsApiV1ProgressAttemptsGetErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListProgressAttemptsApiV1ProgressAttemptsGetError =
+  ListProgressAttemptsApiV1ProgressAttemptsGetErrors[keyof ListProgressAttemptsApiV1ProgressAttemptsGetErrors];
+
+export type ListProgressAttemptsApiV1ProgressAttemptsGetResponses = {
+  /**
+   * Successful Response
+   */
+  200: PaginatedResponseProgressAttemptItem;
+};
+
+export type ListProgressAttemptsApiV1ProgressAttemptsGetResponse =
+  ListProgressAttemptsApiV1ProgressAttemptsGetResponses[keyof ListProgressAttemptsApiV1ProgressAttemptsGetResponses];
+
+export type GetProgressAttemptApiV1ProgressAttemptsAttemptIdGetData = {
+  body?: never;
+  path: {
+    /**
+     * Attempt Id
+     */
+    attempt_id: string;
+  };
+  query?: never;
+  url: "/api/v1/progress/attempts/{attempt_id}";
+};
+
+export type GetProgressAttemptApiV1ProgressAttemptsAttemptIdGetErrors = {
+  /**
+   * Attempt belongs to another user
+   */
+  403: unknown;
+  /**
+   * Attempt not found
+   */
+  404: unknown;
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetProgressAttemptApiV1ProgressAttemptsAttemptIdGetError =
+  GetProgressAttemptApiV1ProgressAttemptsAttemptIdGetErrors[keyof GetProgressAttemptApiV1ProgressAttemptsAttemptIdGetErrors];
+
+export type GetProgressAttemptApiV1ProgressAttemptsAttemptIdGetResponses = {
+  /**
+   * Successful Response
+   */
+  200: ProgressAttemptDetail;
+};
+
+export type GetProgressAttemptApiV1ProgressAttemptsAttemptIdGetResponse =
+  GetProgressAttemptApiV1ProgressAttemptsAttemptIdGetResponses[keyof GetProgressAttemptApiV1ProgressAttemptsAttemptIdGetResponses];
+
+export type GetGamificationProfileApiV1GamificationProfileGetData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Limit
+     */
+    limit?: number;
+  };
+  url: "/api/v1/gamification/profile";
+};
+
+export type GetGamificationProfileApiV1GamificationProfileGetErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetGamificationProfileApiV1GamificationProfileGetError =
+  GetGamificationProfileApiV1GamificationProfileGetErrors[keyof GetGamificationProfileApiV1GamificationProfileGetErrors];
+
+export type GetGamificationProfileApiV1GamificationProfileGetResponses = {
+  /**
+   * Successful Response
+   */
+  200: GamificationProfileResponse;
+};
+
+export type GetGamificationProfileApiV1GamificationProfileGetResponse =
+  GetGamificationProfileApiV1GamificationProfileGetResponses[keyof GetGamificationProfileApiV1GamificationProfileGetResponses];
+
+export type RegisterApiV1RegisterPostData = {
+  body: RegisterRequest;
+  path?: never;
+  query?: never;
+  url: "/api/v1/register";
+};
+
+export type RegisterApiV1RegisterPostErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RegisterApiV1RegisterPostError =
+  RegisterApiV1RegisterPostErrors[keyof RegisterApiV1RegisterPostErrors];
+
+export type RegisterApiV1RegisterPostResponses = {
+  /**
+   * Successful Response
+   */
+  201: UserResponse;
+};
+
+export type RegisterApiV1RegisterPostResponse =
+  RegisterApiV1RegisterPostResponses[keyof RegisterApiV1RegisterPostResponses];
+
+export type LoginApiV1LoginPostData = {
+  body: LoginRequest;
+  path?: never;
+  query?: never;
+  url: "/api/v1/login";
+};
+
+export type LoginApiV1LoginPostErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type LoginApiV1LoginPostError = LoginApiV1LoginPostErrors[keyof LoginApiV1LoginPostErrors];
+
+export type LoginApiV1LoginPostResponses = {
+  /**
+   * Successful Response
+   */
+  200: AccessTokenResponse;
+};
+
+export type LoginApiV1LoginPostResponse =
+  LoginApiV1LoginPostResponses[keyof LoginApiV1LoginPostResponses];
+
+export type RefreshApiV1RefreshPostData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/refresh";
+};
+
+export type RefreshApiV1RefreshPostErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RefreshApiV1RefreshPostError =
+  RefreshApiV1RefreshPostErrors[keyof RefreshApiV1RefreshPostErrors];
+
+export type RefreshApiV1RefreshPostResponses = {
+  /**
+   * Successful Response
+   */
+  200: AccessTokenResponse;
+};
+
+export type RefreshApiV1RefreshPostResponse =
+  RefreshApiV1RefreshPostResponses[keyof RefreshApiV1RefreshPostResponses];
+
+export type LogoutApiV1LogoutPostData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/logout";
+};
+
+export type LogoutApiV1LogoutPostErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type LogoutApiV1LogoutPostError =
+  LogoutApiV1LogoutPostErrors[keyof LogoutApiV1LogoutPostErrors];
+
+export type LogoutApiV1LogoutPostResponses = {
+  /**
+   * Successful Response
+   */
+  204: void;
+};
+
+export type LogoutApiV1LogoutPostResponse =
+  LogoutApiV1LogoutPostResponses[keyof LogoutApiV1LogoutPostResponses];
+
+export type GetMeApiV1MeGetData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/me";
+};
+
+export type GetMeApiV1MeGetResponses = {
+  /**
+   * Successful Response
+   */
+  200: UserResponse;
+};
+
+export type GetMeApiV1MeGetResponse = GetMeApiV1MeGetResponses[keyof GetMeApiV1MeGetResponses];
+
+export type UpdateMeApiV1MePatchData = {
+  body: UserUpdateRequest;
+  path?: never;
+  query?: never;
+  url: "/api/v1/me";
+};
+
+export type UpdateMeApiV1MePatchErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpdateMeApiV1MePatchError =
+  UpdateMeApiV1MePatchErrors[keyof UpdateMeApiV1MePatchErrors];
+
+export type UpdateMeApiV1MePatchResponses = {
+  /**
+   * Successful Response
+   */
+  200: UserResponse;
+};
+
+export type UpdateMeApiV1MePatchResponse =
+  UpdateMeApiV1MePatchResponses[keyof UpdateMeApiV1MePatchResponses];
