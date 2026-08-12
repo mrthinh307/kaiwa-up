@@ -1,4 +1,19 @@
+"""Exceptions package."""
+
+from app.exceptions.auth import (
+    EmailAlreadyExistsException,
+    ForbiddenException,
+    InvalidCredentialsException,
+    UnauthorizedException,
+)
 from app.exceptions.base import AppError
 from app.exceptions.handlers import register_exception_handlers
 
-__all__ = ["AppError", "register_exception_handlers"]
+__all__ = [
+    "AppError",
+    "EmailAlreadyExistsException",
+    "ForbiddenException",
+    "InvalidCredentialsException",
+    "UnauthorizedException",
+    "register_exception_handlers",
+]
