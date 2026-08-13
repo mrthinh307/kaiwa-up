@@ -1,4 +1,5 @@
 import uuid
+from typing import NamedTuple
 
 from sqlalchemy import func, select
 
@@ -7,6 +8,11 @@ from app.models.content import LearningContent
 from app.models.enums import AttemptStatus, ContentStatus, ContentType
 from app.models.user import User
 from app.repositories.base import BaseRepository
+
+
+class DictationAttemptRow(NamedTuple):
+    attempt: ExerciseAttempt
+    content: LearningContent
 
 
 class DictationRepository(BaseRepository):
@@ -54,3 +60,27 @@ class DictationRepository(BaseRepository):
         self.session.add(attempt)
         await self.session.flush()
         return attempt
+
+    async def get_attempt_for_update(
+        self,
+        attempt_id: uuid.UUID,
+    ) -> DictationAttemptRow | None:
+        result = (
+            await self.session.execute(
+                select(ExerciseAttempt, LearningContent)
+                .join(LearningContent, LearningContent.id == ExerciseAttempt.content_id)
+                .where(ExerciseAttempt.id == attempt_id)
+                .with_for_update(of=ExerciseAttempt.__table__)
+            )
+        ).first()
+        if result is None:
+            return None
+        return DictationAttemptRow(attempt=result[0], content=result[1])
+
+    async def update_answer_payload(
+        self,
+        attempt: ExerciseAttempt,
+        answer_payload: dict[str, object],
+    ) -> None:
+        attempt.answer_payload = answer_payload
+        await self.session.flush()
