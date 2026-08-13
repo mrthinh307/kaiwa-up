@@ -88,6 +88,7 @@ export type {
   RefreshErrors,
   RefreshResponse,
   RefreshResponses,
+  RefreshSessionResponse,
   RegisterData,
   RegisterError,
   RegisterErrors,

@@ -564,7 +564,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AccessTokenResponse"
+                  "$ref": "#/components/schemas/RefreshSessionResponse"
                 }
               }
             }
@@ -1317,6 +1317,30 @@
         "type": "object",
         "required": ["status", "timestamp", "app_name", "database"],
         "title": "ReadinessResponse"
+      },
+      "RefreshSessionResponse": {
+        "properties": {
+          "access_token": {
+            "type": "string",
+            "title": "Access Token"
+          },
+          "token_type": {
+            "type": "string",
+            "title": "Token Type",
+            "default": "bearer"
+          },
+          "expires_in": {
+            "type": "integer",
+            "title": "Expires In"
+          },
+          "user": {
+            "$ref": "#/components/schemas/UserResponse"
+          }
+        },
+        "type": "object",
+        "required": ["access_token", "expires_in", "user"],
+        "title": "RefreshSessionResponse",
+        "description": "Refreshed access token and current public user profile."
       },
       "RegisterRequest": {
         "properties": {
