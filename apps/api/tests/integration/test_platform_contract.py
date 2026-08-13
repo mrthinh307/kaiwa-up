@@ -29,6 +29,26 @@ def test_all_api_operations_have_unique_lower_camel_case_ids() -> None:
     )
 
 
+def test_auth_and_profile_openapi_contract() -> None:
+    schema = app.openapi()
+    expected_paths = {
+        "/api/v1/auth/register",
+        "/api/v1/auth/login",
+        "/api/v1/auth/refresh",
+        "/api/v1/auth/logout",
+        "/api/v1/users/me",
+    }
+
+    assert expected_paths <= schema["paths"].keys()
+    assert "/api/v1/register" not in schema["paths"]
+    assert "/api/v1/me" not in schema["paths"]
+    assert "ErrorResponse" in schema["components"]["schemas"]
+    assert "created_at" in schema["components"]["schemas"]["UserResponse"]["required"]
+    assert schema["paths"]["/api/v1/auth/register"]["post"]["responses"]["409"]["content"][
+        "application/json"
+    ]["schema"]["$ref"].endswith("/ErrorResponse")
+
+
 @pytest.mark.asyncio
 async def test_health_endpoint_matches_platform_contract(client: httpx.AsyncClient) -> None:
     response = await client.get("/api/v1/health")
