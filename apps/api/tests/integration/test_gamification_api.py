@@ -122,7 +122,10 @@ async def test_gamification_profile_returns_history_with_attempt_id(
     assert response.status_code == 200
     payload = response.json()
     assert payload["total_exp"] == 50
-    assert payload["level"] == 1
+    assert payload["level"] == 2
+    assert payload["current_level_min_exp"] == 50
+    assert payload["next_level_min_exp"] == 150
+    assert payload["exp_to_next_level"] == 100
     assert len(payload["recent_exp_history"]) == 1
     history_item = payload["recent_exp_history"][0]
     assert history_item["attempt_id"] == str(attempt.id)

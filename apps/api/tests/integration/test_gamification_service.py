@@ -99,7 +99,7 @@ async def test_award_grants_base_exp_and_updates_total(
     assert result.awarded is True
     assert result.amount == 50
     assert result.total_exp == 50
-    assert result.level == 1
+    assert result.level == 2
 
     transaction = await db_session.scalar(
         select(XpTransaction).where(XpTransaction.attempt_id == attempt.id)
