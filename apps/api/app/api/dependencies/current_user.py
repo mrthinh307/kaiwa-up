@@ -3,7 +3,7 @@ from typing import Annotated
 from fastapi import Depends
 
 from app.api.dependencies.database import DatabaseSession
-from app.exceptions import UnauthorizedError
+from app.exceptions.auth import UnauthorizedException
 from app.models.user import User
 
 
@@ -14,7 +14,7 @@ async def get_current_user(_: DatabaseSession) -> User:
     established identity are rejected; integration tests override this dependency
     to inject the acting user.
     """
-    raise UnauthorizedError()
+    raise UnauthorizedException()
 
 
 CurrentUser = Annotated[User, Depends(get_current_user)]
