@@ -13,6 +13,7 @@ export {
   readinessCheck,
   refresh,
   register,
+  startDictationAttempt,
   updateMe,
 } from "./sdk.gen";
 export type {
@@ -20,6 +21,8 @@ export type {
   AttemptStatus,
   ClientOptions,
   ContentType,
+  DictationSegmentItem,
+  DictationStartResponse,
   ErrorDetail,
   ErrorResponse,
   ExpHistoryItem,
@@ -83,6 +86,11 @@ export type {
   RegisterRequest,
   RegisterResponse,
   RegisterResponses,
+  StartDictationAttemptData,
+  StartDictationAttemptError,
+  StartDictationAttemptErrors,
+  StartDictationAttemptResponse,
+  StartDictationAttemptResponses,
   UpdateMeData,
   UpdateMeError,
   UpdateMeErrors,

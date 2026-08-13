@@ -1,0 +1,33 @@
+import uuid
+from typing import Self
+
+from pydantic import BaseModel, Field, model_validator
+
+
+class DictationTranscriptSegment(BaseModel):
+    """Internal validated representation of a stored transcript segment."""
+
+    start_time_ms: int = Field(ge=0)
+    end_time_ms: int = Field(gt=0)
+    script: str = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def validate_time_range(self) -> Self:
+        if self.end_time_ms <= self.start_time_ms:
+            raise ValueError("end_time_ms must be greater than start_time_ms")
+        return self
+
+
+class DictationSegmentItem(BaseModel):
+    segment_index: int = Field(ge=0)
+    start_time_ms: int = Field(ge=0)
+    end_time_ms: int = Field(gt=0)
+
+
+class DictationStartResponse(BaseModel):
+    attempt_id: uuid.UUID
+    content_id: uuid.UUID
+    attempt_number: int = Field(ge=1)
+    audio_url: str = Field(min_length=1)
+    total_segments: int = Field(ge=1)
+    segments: list[DictationSegmentItem] = Field(min_length=1)

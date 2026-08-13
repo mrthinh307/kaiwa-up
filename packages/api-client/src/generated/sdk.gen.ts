@@ -34,6 +34,9 @@ import type {
   RegisterData,
   RegisterErrors,
   RegisterResponses,
+  StartDictationAttemptData,
+  StartDictationAttemptErrors,
+  StartDictationAttemptResponses,
   UpdateMeData,
   UpdateMeErrors,
   UpdateMeResponses,
@@ -136,6 +139,22 @@ export const getGamificationProfile = <ThrowOnError extends boolean = false>(
   >({
     security: [{ scheme: "bearer", type: "http" }],
     url: "/api/v1/gamification/profile",
+    ...options,
+  });
+
+/**
+ * Start a dictation attempt
+ */
+export const startDictationAttempt = <ThrowOnError extends boolean = false>(
+  options: Options<StartDictationAttemptData, ThrowOnError>,
+): RequestResult<StartDictationAttemptResponses, StartDictationAttemptErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    StartDictationAttemptResponses,
+    StartDictationAttemptErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/api/v1/dictation/{content_id}/start",
     ...options,
   });
 

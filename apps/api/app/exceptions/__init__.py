@@ -7,10 +7,12 @@ from app.exceptions.auth import (
     UnauthorizedException,
 )
 from app.exceptions.base import AppError, ForbiddenError, NotFoundError, UnauthorizedError
+from app.exceptions.dictation import DictationContentUnavailableError
 from app.exceptions.handlers import register_exception_handlers
 
 __all__ = [
     "AppError",
+    "DictationContentUnavailableError",
     "EmailAlreadyExistsException",
     "ForbiddenError",
     "ForbiddenException",

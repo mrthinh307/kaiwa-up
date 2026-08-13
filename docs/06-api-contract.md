@@ -585,6 +585,37 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
 
 ---
 
+#### `POST /api/v1/dictation/{content_id}/start`
+* **Mục đích**: Khởi tạo một lượt làm Dictation ở trạng thái `in_progress` và trả danh sách segment
+  cùng mốc thời gian audio. Response không chứa `script` hoặc đáp án.
+* **Yêu cầu xác thực**: Bearer Token
+* **Request Headers**: `Authorization: Bearer <jwt_access_token>`
+* **Path Parameters**:
+  * `content_id` (string, UUID): ID nội dung `shadowing_dictation` đã publish
+* **Query Parameters**: Không
+* **Request Body**: Không
+* **Response Schema (201 Created)**:
+  ```json
+  {
+    "attempt_id": "01912345-6789-7abc-def0-123456789abc",
+    "content_id": "01912345-6789-7abc-def0-987654321xyz",
+    "attempt_number": 1,
+    "audio_url": "https://res.cloudinary.com/kaiwaup/audio/dictation_01.mp3",
+    "total_segments": 2,
+    "segments": [
+      { "segment_index": 0, "start_time_ms": 0, "end_time_ms": 12000 },
+      { "segment_index": 1, "start_time_ms": 12000, "end_time_ms": 25000 }
+    ]
+  }
+  ```
+* **Status Codes & Error Responses**:
+  * `201 Created`: Attempt được tạo thành công.
+  * `401 Unauthorized` (`code`: `unauthorized`): Chưa đăng nhập.
+  * `404 Not Found` (`code`: `not_found`): Nội dung không tồn tại, chưa publish hoặc sai loại.
+  * `409 Conflict` (`code`: `dictation_content_unavailable`): Nội dung thiếu audio hoặc segment hợp lệ.
+
+---
+
 #### `POST /api/v1/dictation/lessons/{lesson_id}/submit`
 * **Mục đích**: Nộp câu trả lời Dictation theo thứ tự ô trống. Backend đối chiếu với transcript
   nguồn của `learning_contents`, lưu câu trả lời vào `exercise_attempts.answer_payload` (JSONB),
@@ -1316,7 +1347,7 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
 
 ### 4.1. Thống kê tài liệu
 * **Số lượng Module được mô tả**: 15 module (Health, Auth, User, Learning Content, Shadowing, Dictation, Progress, Gamification, Leaderboard, Dashboard, Reflex, Review, Listening & Translation, AI Tutor, Pronunciation Analysis).
-* **Tổng số API Endpoints được quy định**: 29 endpoints.
+* **Tổng số API Endpoints được quy định**: 30 endpoints.
 
 ### 4.2. Giả định (Assumptions Made)
 1. **Cloudinary Audio Delivery**: URL audio bài học được cung cấp trực tiếp từ Cloudinary trong response metadata bài học mà không qua backend proxy.
