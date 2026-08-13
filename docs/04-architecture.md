@@ -22,7 +22,7 @@ Mục tiêu:
 | Backend               | FastAPI                             |
 | Database              | PostgreSQL                          |
 | Database Cloud        | Neon                                |
-| Lưu trữ audio bài học | Cloudinary                          |
+| Nguồn audio bài học | YouTube                                |
 | Xử lý AI              | Chưa chốt nhà cung cấp hoặc mô hình |
 | Xác thực              | JWT                                 |
 | Triển khai Frontend   | Chưa chốt                           |
@@ -39,7 +39,7 @@ KaiwaUp sử dụng kiến trúc client-server.
 * **Next.js** chịu trách nhiệm xây dựng giao diện và xử lý tương tác của người dùng.
 * **FastAPI** chịu trách nhiệm xử lý nghiệp vụ, xác thực, quản lý dữ liệu và tích hợp AI.
 * **PostgreSQL trên Neon** lưu dữ liệu nghiệp vụ.
-* **Cloudinary** lưu audio của các bài học.
+* **YouTube** lưu video nguồn dùng để phát audio của các bài học.
 * Dịch vụ AI xử lý Speech-to-Text và đánh giá câu trả lời.
 
 ```mermaid
@@ -52,7 +52,7 @@ flowchart LR
 
     DB[(PostgreSQL<br/>Neon)]
 
-    CL[Cloudinary]
+    YT[YouTube]
 
     AI[AI Services]
 
@@ -62,7 +62,7 @@ flowchart LR
 
     BE -->|SQLAlchemy| DB
 
-    FE -->|Tải audio bài học| CL
+    FE -->|YouTube player| YT
 
     FE -->|Gửi audio tạm thời| BE
 
@@ -82,7 +82,7 @@ Frontend chịu trách nhiệm:
 * Quản lý trạng thái giao diện.
 * Gửi yêu cầu đến FastAPI.
 * Hiển thị dữ liệu nhận được từ backend.
-* Phát audio bài học từ Cloudinary.
+* Phát audio bài học bằng YouTube player từ URL do API trả về.
 * Xin quyền truy cập microphone.
 * Ghi âm giọng nói của người dùng.
 * Phát lại bản ghi âm tạm thời.
@@ -156,15 +156,16 @@ PostgreSQL không lưu:
 
 ---
 
-## 4.4. Cloudinary
+## 4.4. YouTube
 
-Cloudinary được sử dụng để lưu trữ audio bài học.
+YouTube được sử dụng làm nguồn media cho audio bài học. `learning_contents.audio_url` lưu URL video
+YouTube, không phải URL file `.mp3` trực tiếp.
 
-Cloudinary chịu trách nhiệm:
+YouTube chịu trách nhiệm:
 
-* Lưu file audio của các bài học.
-* Cung cấp URL để phát audio.
-* Phân phối audio cho frontend.
+* Lưu video nguồn của các bài học.
+* Cung cấp URL video để phát phần âm thanh.
+* Phân phối media cho frontend qua YouTube player.
 
 PostgreSQL chỉ lưu thông tin tham chiếu:
 
@@ -175,12 +176,13 @@ audio_url
 Ví dụ:
 
 ```text
-https://res.cloudinary.com/<cloud-name>/video/upload/lesson-01.mp3
+https://www.youtube.com/watch?v=<video_id>
 ```
 
-Frontend có thể tải và phát audio trực tiếp từ Cloudinary.
+Frontend phát nội dung qua YouTube IFrame Player hoặc thư viện player tương thích; không truyền URL
+YouTube trực tiếp cho thẻ HTML `<audio>`.
 
-Backend không cần tải lại audio từ Cloudinary trong các trường hợp phát bài học thông thường.
+Backend không proxy luồng media YouTube trong trường hợp phát bài học thông thường.
 
 ---
 
@@ -439,7 +441,7 @@ Thiết kế module frontend chi tiết được mô tả trong `07-module-desig
 sequenceDiagram
     participant U as User
     participant FE as Next.js
-    participant CL as Cloudinary
+    participant YT as YouTube
     participant BE as FastAPI
     participant AI as AI Service
     participant DB as Neon PostgreSQL
@@ -454,9 +456,9 @@ sequenceDiagram
 
     BE-->>FE: Transcript và audio_url
 
-    FE->>CL: Tải audio
+    FE->>YT: Mở video bằng YouTube player
 
-    CL-->>FE: Audio bài học
+    YT-->>FE: Media bài học
 
     U->>FE: Bắt đầu ghi âm
 
@@ -732,9 +734,9 @@ backend/
 Quy trình thêm bài học:
 
 ```text
-Thêm audio lên Cloudinary
+Đăng video nguồn lên YouTube
         ↓
-Lấy audio_url
+Lấy URL video YouTube làm audio_url
         ↓
 Thêm nội dung bài học vào file JSON
         ↓
@@ -823,9 +825,7 @@ Các thông tin sau phải lưu trong biến môi trường:
 DATABASE_URL
 JWT_SECRET_KEY
 AI_API_KEY
-CLOUDINARY_CLOUD_NAME
-CLOUDINARY_API_KEY
-CLOUDINARY_API_SECRET
+YOUTUBE_API_KEY
 ```
 
 Không được:
@@ -912,7 +912,7 @@ Tính năng này cần bổ sung:
 | Tổ chức frontend   | App Router, route-first colocation và private folder   |
 | Backend            | FastAPI                                                |
 | Database           | PostgreSQL trên Neon                                   |
-| Audio bài học      | Cloudinary                                             |
+| Audio bài học      | Video YouTube, phát qua YouTube player                 |
 | Audio người dùng   | Xử lý tạm thời và xóa sau khi xử lý                    |
 | Shadowing MVP      | Speech-to-Text → so sánh nội dung → AI nhận xét        |
 | Shadowing nâng cao | Phân tích ngữ điệu, ngữ âm và nhấn nhá trong tương lai |

@@ -149,7 +149,7 @@ Quan hệ chi tiết được trình bày theo từng luồng nghiệp vụ đ�
 | Luồng nghiệp vụ       | Các module phối hợp                                          | Cách phối hợp                                                                |
 | --------------------- | ------------------------------------------------------------ | ----------------------------------------------------------------------------- |
 | Đăng ký tài khoản     | Auth, User/Profile                                           | Auth tạo tài khoản; User/Profile tạo hồ sơ ban đầu                            |
-| Chuẩn bị bài học      | Learning Content, Media/Storage                              | Content quản lý đề/transcript; Media cung cấp URL audio Cloudinary            |
+| Chuẩn bị bài học      | Learning Content, Media/Storage                              | Content quản lý đề/transcript; Media cung cấp URL video YouTube                |
 | Luyện Shadowing       | Shadowing, Content, Media, Progress, AI Gateway              | Tải bài/audio, xử lý bản ghi tạm, đánh giá tùy chọn và ghi kết quả            |
 | Luyện Dictation       | Dictation, Content, Media, Progress                          | Tải đề/audio, chấm đáp án ở backend và ghi kết quả                            |
 | Luyện phản xạ         | Reflex, Content, Media, Progress, AI Gateway, Review         | Tải prompt, xử lý audio tạm, đánh giá phản hồi và yêu cầu cập nhật lịch ôn    |
@@ -204,7 +204,7 @@ hợp. Repository chỉ ghi dữ liệu theo yêu cầu và không tự `commit(
 | Auth                          | P0          | Đăng ký, đăng nhập, đăng xuất và xác thực JWT           | Credential và trạng thái JWT nếu cần         |
 | User / Profile                | P0          | Hồ sơ và thông tin công khai của người học              | User profile                                  |
 | Learning Content              | Hỗ trợ P0   | Nội dung, cấu trúc và đáp án bài luyện                  | Lesson, exercise, prompt, answer              |
-| Media / Storage               | Hỗ trợ P0   | Audio bài học trên Cloudinary và audio người dùng tạm   | File Cloudinary; không lưu audio người dùng   |
+| Media / Storage               | Hỗ trợ P0   | Video YouTube cho bài học và audio người dùng tạm       | URL YouTube; không lưu BLOB trong PostgreSQL  |
 | Shadowing                     | P0          | Luồng luyện nghe, ghi âm và tự so sánh                  | Kết quả riêng của Shadowing                   |
 | Dictation                     | P0          | Điền nội dung còn thiếu và chấm đáp án                  | Kết quả riêng của Dictation                   |
 | Progress / Attempt            | P0          | Lịch sử làm bài, completion và tiến độ                  | Attempt, completion, learning progress        |
@@ -321,28 +321,28 @@ Do MVP chưa có giao diện quản trị, nội dung có thể được tạo b
 
 ### 6.5. Media / Storage
 
-**Mục tiêu:** quản lý hai lifecycle khác nhau: audio bài học được lưu lâu dài trên Cloudinary và audio
-người dùng chỉ tồn tại tạm thời để xử lý.
+**Mục tiêu:** quản lý hai lifecycle khác nhau: media bài học được phát từ YouTube, còn audio người
+dùng được lưu tạm hoặc trong private object storage theo chính sách lưu trữ recording.
 
 Backend — audio bài học:
 
-- Cloudinary lưu file audio bài học và cung cấp URL phát audio.
+- YouTube lưu video nguồn và cung cấp URL dùng để phát audio bài học.
 - PostgreSQL lưu `audio_url` cùng nội dung bài học; không lưu binary audio.
 - Seed script chịu trách nhiệm liên kết `audio_url` với lesson/exercise và tránh tạo dữ liệu trùng.
 - Backend trả URL cho frontend; không cần proxy file trong luồng phát audio thông thường.
 
 Frontend:
 
-- Tải và phát audio bài học trực tiếp từ URL Cloudinary do API trả về.
+- Phát audio bài học qua YouTube player từ URL do API trả về.
 - Xin quyền microphone, hiển thị rõ trạng thái ghi âm và giữ bản ghi dưới dạng `Blob` trong phiên hiện
   tại để người dùng phát lại.
-- Gửi audio tạm tới FastAPI khi cần AI xử lý; không chứa Cloudinary/AI credential.
+- Gửi audio tạm tới FastAPI khi cần AI xử lý; không chứa YouTube/AI credential.
 
-Sở hữu: integration Cloudinary cho audio bài học và lifecycle file tạm của audio người dùng. Learning
-Content sở hữu quan hệ giữa lesson/exercise và `audio_url`; không có persistent media record cho bản
-ghi người dùng.
+Sở hữu: integration YouTube cho media bài học và lifecycle audio người dùng. Learning Content sở hữu
+quan hệ giữa lesson/exercise và `audio_url`; bảng `recordings` sở hữu metadata và `storage_key` của
+bản ghi người dùng, không lưu binary audio trong PostgreSQL.
 
-Phụ thuộc: Cloudinary cho audio bài học và filesystem/temp-file abstraction cho audio người dùng.
+Phụ thuộc: YouTube cho audio bài học và temp-file/private object-storage abstraction cho audio người dùng.
 Learning Content, Shadowing, Reflex và Listening & Translation sử dụng module này.
 
 ### 6.6. Shadowing
@@ -751,7 +751,7 @@ Model không chứa HTTP concern. Business rule liên quan nhiều aggregate ho�
 
 ### 7.7. Integration port và adapter
 
-Khi triển khai AI và Cloudinary, thêm boundary rõ ràng, ví dụ:
+Khi triển khai AI và YouTube, thêm boundary rõ ràng, ví dụ:
 
 ```text
 app/
@@ -761,13 +761,13 @@ app/
     │   └── provider.py      # SDK-specific adapter
     └── storage/
         ├── base.py
-        └── cloudinary.py    # Adapter cho audio bài học
+        └── youtube.py       # Adapter/validation cho URL media bài học
 ```
 
 - Service phụ thuộc interface/port, không phụ thuộc SDK class cụ thể.
 - Adapter chịu trách nhiệm authentication với provider, timeout, serialization và mapping lỗi.
 - Dependency/app factory chọn implementation theo cấu hình môi trường.
-- File audio người dùng tạm không đi qua Cloudinary adapter; dùng temp-file abstraction có cleanup
+- File audio người dùng tạm không đi qua YouTube adapter; dùng temp-file abstraction có cleanup
   bắt buộc sau khi AI xử lý.
 
 ## 8. Tổ chức module frontend
