@@ -1,4 +1,5 @@
 from sqlalchemy import CheckConstraint, DateTime, Enum, Index, UniqueConstraint
+from sqlalchemy.schema import ColumnDefault
 
 from app.models import Base
 from app.models.enums import JlptLevel
@@ -10,7 +11,6 @@ def test_all_expected_tables_registered() -> None:
         "users",
         "user_progress",
         "auth_refresh_tokens",
-        "level_definitions",
         "achievements",
         "user_achievements",
         "xp_transactions",
@@ -40,7 +40,6 @@ def test_unique_constraints_defined() -> None:
     assert ("email",) in constraints["users"]
     assert ("token_hash",) in constraints["auth_refresh_tokens"]
     assert ("slug",) in constraints["learning_contents"]
-    assert ("required_total_exp",) in constraints["level_definitions"]
     assert ("code",) in constraints["achievements"]
     assert ("storage_key",) in constraints["recordings"]
     assert ("attempt_id",) in constraints["xp_transactions"]
@@ -95,7 +94,60 @@ def test_partial_index_conditions() -> None:
     assert "revoked_at IS NULL" in str(refresh_idx.dialect_options["postgresql"].get("where"))
 
     catalog_idx = _index_by_name("learning_contents", "ix_learning_contents_published_catalog")
-    assert "status = 'published'" in str(catalog_idx.dialect_options["postgresql"].get("where"))
+    assert "status = 'PUBLISHED'" in str(catalog_idx.dialect_options["postgresql"].get("where"))
+
+
+def test_database_check_constraints_present() -> None:
+    expected = {
+        "users": {"user_role"},
+        "user_progress": {
+            "user_progress_total_exp_nonnegative",
+            "user_progress_current_level_positive",
+            "user_progress_completed_count_nonnegative",
+        },
+        "learning_contents": {
+            "content_type",
+            "content_status",
+            "jlpt_level",
+            "learning_contents_audio_duration_nonnegative",
+            "learning_contents_base_exp_positive",
+        },
+        "exercise_attempts": {
+            "attempt_status",
+            "exercise_attempts_number_positive",
+            "exercise_attempts_score_range",
+            "exercise_attempts_correct_count_nonnegative",
+            "exercise_attempts_total_count_nonnegative",
+            "exercise_attempts_correct_not_above_total",
+        },
+        "recordings": {"recording_kind", "recordings_duration_nonnegative"},
+        "ai_evaluations": {
+            "ai_evaluation_status",
+            "ai_evaluations_similarity_score_range",
+            "ai_evaluations_fluency_score_range",
+        },
+        "xp_transactions": {"xp_transactions_amount_positive"},
+        "weekly_leaderboard_entries": {
+            "weekly_leaderboard_exp_nonnegative",
+            "weekly_leaderboard_rank_positive",
+        },
+        "tutor_sessions": {"tutor_session_jlpt_level", "tutor_session_status"},
+        "tutor_messages": {"tutor_sender", "tutor_messages_sequence_positive"},
+    }
+    for table_name, constraint_names in expected.items():
+        actual = {
+            constraint.name
+            for constraint in Base.metadata.tables[table_name].constraints
+            if isinstance(constraint, CheckConstraint)
+        }
+        assert constraint_names <= actual
+
+
+def test_xp_attempt_foreign_key_preserves_ledger() -> None:
+    attempt_id = Base.metadata.tables["xp_transactions"].columns["attempt_id"]
+    foreign_key = next(iter(attempt_id.foreign_keys))
+
+    assert foreign_key.ondelete == "SET NULL"
 
 
 def test_columns_use_timezone_aware_datetime() -> None:
@@ -129,6 +181,13 @@ def test_learning_content_difficulty_uses_jlpt_level() -> None:
 
     assert isinstance(difficulty.type, Enum)
     assert difficulty.type.enums == [level.value for level in JlptLevel]
-    assert difficulty.default is not None
+    assert isinstance(difficulty.default, ColumnDefault)
     assert difficulty.default.arg == JlptLevel.N5
     assert str(jlpt_constraint.sqltext) == "difficulty IN ('N5', 'N4', 'N3', 'N2', 'N1')"
+
+
+def test_tutor_difficulty_uses_jlpt_level() -> None:
+    difficulty = Base.metadata.tables["tutor_sessions"].columns["difficulty"]
+
+    assert isinstance(difficulty.type, Enum)
+    assert difficulty.type.enums == [level.value for level in JlptLevel]

@@ -7,6 +7,7 @@ from app.exceptions import ForbiddenError, NotFoundError
 from app.models.enums import AttemptStatus, ContentType
 from app.repositories.gamification import GamificationRepository
 from app.schemas.gamification import ExpHistoryItem, GamificationProfileResponse
+from app.services.leveling import level_for_total_exp, minimum_exp_for_level
 
 
 class XpAwardResult(NamedTuple):
@@ -32,14 +33,15 @@ class GamificationService:
         if attempt.user_id != user_id:
             raise ForbiddenError()
 
-        progress = await self.repository.get_or_create_user_progress(user_id)
         if attempt.status != AttemptStatus.COMPLETED:
+            progress = await self.repository.get_or_create_user_progress(user_id)
             return XpAwardResult(
                 awarded=False,
                 amount=0,
                 total_exp=progress.total_exp,
                 level=progress.current_level,
             )
+        progress = await self.repository.get_or_create_user_progress_for_update(user_id)
         if await self.repository.find_transaction_by_attempt(attempt_id) is not None:
             return XpAwardResult(
                 awarded=False,
@@ -58,8 +60,7 @@ class GamificationService:
                 reason=reason,
             )
             progress.total_exp += amount
-            level = await self.repository.get_level_for_exp(progress.total_exp)
-            progress.current_level = level.level
+            progress.current_level = level_for_total_exp(progress.total_exp)
             await self.repository.session.commit()
         except IntegrityError:
             await self.repository.session.rollback()
@@ -85,19 +86,18 @@ class GamificationService:
         recent_limit: int,
     ) -> GamificationProfileResponse:
         progress = await self.repository.get_or_create_user_progress(user_id)
-        current_level = await self.repository.get_level_for_exp(progress.total_exp)
-        next_level = await self.repository.get_level(current_level.level + 1)
+        current_level = level_for_total_exp(progress.total_exp)
+        current_level_min_exp = minimum_exp_for_level(current_level)
+        next_level_min_exp = minimum_exp_for_level(current_level + 1)
         history = await self.repository.get_recent_transactions(user_id, recent_limit)
 
         return GamificationProfileResponse(
-            level=current_level.level,
-            level_title=current_level.title,
+            level=current_level,
+            level_title=f"Level {current_level}",
             total_exp=progress.total_exp,
-            current_level_min_exp=current_level.required_total_exp,
-            next_level_min_exp=next_level.required_total_exp if next_level is not None else None,
-            exp_to_next_level=(
-                next_level.required_total_exp - progress.total_exp if next_level is not None else 0
-            ),
+            current_level_min_exp=current_level_min_exp,
+            next_level_min_exp=next_level_min_exp,
+            exp_to_next_level=next_level_min_exp - progress.total_exp,
             recent_exp_history=[
                 ExpHistoryItem(
                     id=transaction.id,

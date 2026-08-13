@@ -346,7 +346,8 @@ Người dùng nhận điểm kinh nghiệm sau khi hoàn thành bài tập.
 * Có thể cộng thêm EXP dựa trên kết quả hoặc hiệu suất.
 * Hệ thống phải lưu lịch sử thay đổi EXP.
 
-Công thức tính EXP sẽ được xác định chi tiết sau khi thống nhất cơ chế gamification.
+Mỗi nội dung có `base_exp > 0`. Khi một attempt chuyển sang `COMPLETED`, backend ghi đúng một bút
+toán EXP cho attempt đó và cập nhật tổng EXP trong cùng transaction.
 
 ---
 
@@ -362,7 +363,8 @@ Cấp độ của người dùng được xác định dựa trên tổng EXP.
 * Hiển thị EXP cần thiết để đạt cấp độ tiếp theo.
 * Tự động tăng cấp khi người dùng đạt đủ EXP.
 
-Công thức tăng cấp sẽ được xác định trong giai đoạn thiết kế.
+Không có level tối đa được định nghĩa trước. Từ level `L` lên `L+1` cần thêm `50 × L` EXP; tổng
+EXP tối thiểu để đạt level `L` là `25 × L × (L-1)`.
 
 ---
 
@@ -401,7 +403,8 @@ Hệ thống hiển thị bảng xếp hạng người dùng dựa trên EXP nh�
 * Hiển thị vị trí của người dùng hiện tại.
 * Làm mới dữ liệu xếp hạng theo chu kỳ tuần.
 
-Quy tắc xử lý trường hợp bằng điểm sẽ được xác định trong giai đoạn thiết kế.
+Nếu bằng EXP tuần, hệ thống sắp theo `user_id ASC` trước khi gán `rank` để kết quả xác định và có thể
+tái tạo từ cùng một tập dữ liệu.
 
 ---
 
@@ -669,13 +672,8 @@ Phiên bản MVP được xem là hoàn thành khi:
 
 Các nội dung sau chưa được quyết định và sẽ được xác định trong các tài liệu tiếp theo:
 
-* Công nghệ cơ sở dữ liệu.
 * Dịch vụ hoặc mô hình AI.
 * Cách chuyển giọng nói thành văn bản.
 * Cách đánh giá phát âm và nội dung câu trả lời.
-* Cách lưu trữ audio.
-* Công thức tính EXP và cấp độ.
-* Quy tắc xếp hạng khi nhiều người có cùng điểm.
 * Thuật toán lặp lại ngắt quãng.
-* Hình thức triển khai hệ thống.
 * Cách quản lý nội dung bài học khi chưa có giao diện quản trị.

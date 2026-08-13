@@ -4,12 +4,12 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import (
+    CheckConstraint,
     DateTime,
     Enum,
     ForeignKey,
     Index,
     Integer,
-    SmallInteger,
     String,
     Text,
     UniqueConstraint,
@@ -21,12 +21,20 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, CreatedAtMixin, PrimaryKeyUuidMixin
-from app.models.enums import TutorSender
+from app.models.enums import JlptLevel, TutorSender
 
 
 class TutorSession(PrimaryKeyUuidMixin, Base):
     __tablename__ = "tutor_sessions"
     __table_args__ = (
+        CheckConstraint(
+            "difficulty IS NULL OR difficulty IN ('N5', 'N4', 'N3', 'N2', 'N1')",
+            name="tutor_session_jlpt_level",
+        ),
+        CheckConstraint(
+            "status IN ('active', 'completed')",
+            name="tutor_session_status",
+        ),
         Index(
             "ix_tutor_sessions_user_id_started_at",
             "user_id",
@@ -38,7 +46,15 @@ class TutorSession(PrimaryKeyUuidMixin, Base):
         Uuid, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
     topic: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    difficulty: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
+    difficulty: Mapped[JlptLevel | None] = mapped_column(
+        Enum(
+            JlptLevel,
+            name="tutor_jlpt_level",
+            native_enum=False,
+            values_callable=lambda enum_type: [item.value for item in enum_type],
+        ),
+        nullable=True,
+    )
     scenario: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="active")
     started_at: Mapped[datetime] = mapped_column(
@@ -55,6 +71,8 @@ class TutorSession(PrimaryKeyUuidMixin, Base):
 class TutorMessage(PrimaryKeyUuidMixin, CreatedAtMixin, Base):
     __tablename__ = "tutor_messages"
     __table_args__ = (
+        CheckConstraint("sender IN ('USER', 'AI')", name="tutor_sender"),
+        CheckConstraint("sequence_number >= 1", name="tutor_messages_sequence_positive"),
         UniqueConstraint("session_id", "sequence_number", name="uq_tutor_messages_sequence"),
     )
 

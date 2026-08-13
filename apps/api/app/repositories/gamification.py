@@ -2,11 +2,12 @@ from typing import NamedTuple
 from uuid import UUID
 
 from sqlalchemy import func, select
+from sqlalchemy.dialects.postgresql import insert
 
 from app.models.attempt import ExerciseAttempt
 from app.models.content import LearningContent
 from app.models.enums import AttemptStatus, ContentType
-from app.models.gamification import LevelDefinition, XpTransaction
+from app.models.gamification import XpTransaction
 from app.models.user import UserProgress
 from app.repositories.base import BaseRepository
 
@@ -89,43 +90,22 @@ class GamificationRepository(BaseRepository):
             await self.session.flush()
         return progress
 
-    async def get_level_for_exp(self, total_exp: int) -> LevelDefinition:
-        level = (
+    async def get_or_create_user_progress_for_update(self, user_id: UUID) -> UserProgress:
+        await self.session.execute(
+            insert(UserProgress)
+            .values(user_id=user_id, total_exp=0, current_level=1, completed_content_count=0)
+            .on_conflict_do_nothing(index_elements=[UserProgress.user_id])
+        )
+        progress = (
             (
                 await self.session.execute(
-                    select(LevelDefinition)
-                    .where(LevelDefinition.required_total_exp <= total_exp)
-                    .order_by(LevelDefinition.required_total_exp.desc())
-                    .limit(1)
+                    select(UserProgress).where(UserProgress.user_id == user_id).with_for_update()
                 )
             )
             .scalars()
-            .first()
+            .one()
         )
-        if level is None:
-            level = (
-                (
-                    await self.session.execute(
-                        select(LevelDefinition).order_by(LevelDefinition.level).limit(1)
-                    )
-                )
-                .scalars()
-                .first()
-            )
-        if level is None:
-            raise ValueError("No level definitions seeded")
-        return level
-
-    async def get_level(self, level_number: int) -> LevelDefinition | None:
-        return (
-            (
-                await self.session.execute(
-                    select(LevelDefinition).where(LevelDefinition.level == level_number)
-                )
-            )
-            .scalars()
-            .first()
-        )
+        return progress
 
     async def get_recent_transactions(
         self,

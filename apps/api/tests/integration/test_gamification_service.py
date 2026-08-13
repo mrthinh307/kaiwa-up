@@ -99,7 +99,7 @@ async def test_award_grants_base_exp_and_updates_total(
     assert result.awarded is True
     assert result.amount == 50
     assert result.total_exp == 50
-    assert result.level == 1
+    assert result.level == 2
 
     transaction = await db_session.scalar(
         select(XpTransaction).where(XpTransaction.attempt_id == attempt.id)
@@ -259,12 +259,12 @@ async def test_profile_returns_contract_fields_with_history(
 
     profile = await service.get_profile(user.id, recent_limit=20)
 
-    assert profile.level == 2
-    assert profile.level_title == "Beginner II"
+    assert profile.level == 3
+    assert profile.level_title == "Level 3"
     assert profile.total_exp == 150
-    assert profile.current_level_min_exp == 100
-    assert profile.next_level_min_exp == 250
-    assert profile.exp_to_next_level == 100
+    assert profile.current_level_min_exp == 150
+    assert profile.next_level_min_exp == 300
+    assert profile.exp_to_next_level == 150
     assert [item.amount for item in profile.recent_exp_history] == [50, 100]
     assert profile.recent_exp_history[0].attempt_id == attempt_b.id
     assert profile.recent_exp_history[0].reason == "Hoàn thành Shadowing Dictation: Chào hỏi"

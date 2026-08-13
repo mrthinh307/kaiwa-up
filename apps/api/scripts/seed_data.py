@@ -19,11 +19,11 @@ from app.models.content import (
 from app.models.enums import AttemptStatus, ContentStatus, ContentType, JlptLevel, UserRole
 from app.models.gamification import (
     Achievement,
-    LevelDefinition,
     WeeklyLeaderboardEntry,
     XpTransaction,
 )
 from app.models.user import User, UserProgress
+from app.services.leveling import level_for_total_exp
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("seed_data")
@@ -34,7 +34,6 @@ class UserSeed(TypedDict):
     display_name: str
     role: UserRole
     exp: int
-    level: int
 
 
 # Setup database engine
@@ -54,7 +53,6 @@ async def clean_database(session: AsyncSession) -> None:
         TranslationExercise,
         LearningContent,
         Achievement,
-        LevelDefinition,
         UserProgress,
         User,
     ]
@@ -79,23 +77,7 @@ async def seed_data(clean: bool = False) -> dict[str, int]:
         }
 
         # ==========================================
-        # 1. SEED LEVEL DEFINITIONS
-        # ==========================================
-        levels_data = [
-            {"level": 1, "required_total_exp": 0, "title": "Tân thủ Kaiwa"},
-            {"level": 2, "required_total_exp": 100, "title": "Người chăm chỉ"},
-            {"level": 3, "required_total_exp": 300, "title": "Chiến thần Luyện nói"},
-            {"level": 4, "required_total_exp": 600, "title": "Chuyên gia Phản xạ"},
-            {"level": 5, "required_total_exp": 1000, "title": "Bậc thầy Kaiwa"},
-        ]
-        for l_data in levels_data:
-            level_query = select(LevelDefinition).where(LevelDefinition.level == l_data["level"])
-            res = await session.execute(level_query)
-            if not res.scalar_one_or_none():
-                session.add(LevelDefinition(**l_data))
-
-        # ==========================================
-        # 2. SEED USERS & USER_PROGRESS
+        # 1. SEED USERS & USER_PROGRESS
         # ==========================================
         hashed_pwd = hash_password("12345678")
         users_payload: list[UserSeed] = [
@@ -104,35 +86,30 @@ async def seed_data(clean: bool = False) -> dict[str, int]:
                 "display_name": "Admin KaiwaUp",
                 "role": UserRole.ADMIN,
                 "exp": 1200,
-                "level": 5,
             },
             {
                 "email": "user1@kaiwaup.com",
                 "display_name": "Nguyen Van A",
                 "role": UserRole.USER,
                 "exp": 450,
-                "level": 3,
             },
             {
                 "email": "user2@kaiwaup.com",
                 "display_name": "Tran Thi B",
                 "role": UserRole.USER,
                 "exp": 200,
-                "level": 2,
             },
             {
                 "email": "user3@kaiwaup.com",
                 "display_name": "Tanaka Taro",
                 "role": UserRole.USER,
                 "exp": 80,
-                "level": 1,
             },
             {
                 "email": "user4@kaiwaup.com",
                 "display_name": "Yamada Hanako",
                 "role": UserRole.USER,
                 "exp": 0,
-                "level": 1,
             },
         ]
 
@@ -155,7 +132,7 @@ async def seed_data(clean: bool = False) -> dict[str, int]:
                 progress = UserProgress(
                     user_id=user.id,
                     total_exp=u_info["exp"],
-                    current_level=u_info["level"],
+                    current_level=level_for_total_exp(u_info["exp"]),
                     completed_content_count=2 if u_info["exp"] > 0 else 0,
                 )
                 session.add(progress)
