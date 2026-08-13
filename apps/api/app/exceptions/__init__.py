@@ -7,6 +7,11 @@ from app.exceptions.auth import (
     UnauthorizedException,
 )
 from app.exceptions.base import AppError, ForbiddenError, NotFoundError, UnauthorizedError
+from app.exceptions.dictation import (
+    DictationAttemptNotInProgressError,
+    DictationContentUnavailableError,
+    DictationInvalidSegmentIndexError,
+)
 from app.exceptions.handlers import register_exception_handlers
 from app.exceptions.learning_content import (
     InvalidYouTubeUrlError,
@@ -19,6 +24,9 @@ from app.exceptions.learning_content import (
 
 __all__ = [
     "AppError",
+    "DictationAttemptNotInProgressError",
+    "DictationContentUnavailableError",
+    "DictationInvalidSegmentIndexError",
     "EmailAlreadyExistsException",
     "ForbiddenError",
     "ForbiddenException",

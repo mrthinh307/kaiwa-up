@@ -1,5 +1,7 @@
 import { JLPT_DIFFICULTIES, type JlptDifficulty } from "@/types/practice-catalog";
 
+import type { PracticeLearningStatus } from "./practice-catalog-mock";
+
 export type PracticeCatalogQueryParams = Readonly<Record<string, number | string | undefined>>;
 
 export function buildPracticeCatalogHref({
@@ -42,4 +44,10 @@ export function parseCatalogSearchQuery(value: string | undefined): string | und
 
 export function parseJlptDifficulty(value: string | undefined): JlptDifficulty | undefined {
   return JLPT_DIFFICULTIES.find((difficulty) => difficulty === value);
+}
+
+export function parsePracticeLearningStatus(
+  value: string | undefined,
+): PracticeLearningStatus | undefined {
+  return value === "learned" || value === "not_learned" ? value : undefined;
 }

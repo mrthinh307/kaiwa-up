@@ -14,12 +14,16 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { useLogout } from "@/hooks/use-logout";
+import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 
 import type { ProtectedHeaderUser } from "./protected-user-menu";
 
-import { isProtectedNavigationHrefActive, PROTECTED_NAVIGATION } from "./protected-navigation";
+import {
+  isProtectedNavigationHrefActive,
+  isProtectedNavigationLinkActive,
+  PROTECTED_NAVIGATION,
+} from "./protected-navigation";
 import { ProtectedUserAvatar } from "./protected-user-avatar";
 
 const mobileLinkClassName =
@@ -27,7 +31,7 @@ const mobileLinkClassName =
 
 export function ProtectedMobileMenu({ user }: { user: ProtectedHeaderUser }) {
   const pathname = usePathname();
-  const handleLogout = useLogout();
+  const { isLoggingOut, logout } = useAuth();
   const isProfileActive = isProtectedNavigationHrefActive(pathname, "/profile");
 
   return (
@@ -68,7 +72,7 @@ export function ProtectedMobileMenu({ user }: { user: ProtectedHeaderUser }) {
             {PROTECTED_NAVIGATION.map((item) => {
               if (item.kind === "link") {
                 const Icon = item.icon;
-                const isActive = isProtectedNavigationHrefActive(pathname, item.href);
+                const isActive = isProtectedNavigationLinkActive(pathname, item);
 
                 return (
                   <SheetClose asChild key={item.href}>
@@ -96,7 +100,7 @@ export function ProtectedMobileMenu({ user }: { user: ProtectedHeaderUser }) {
                   <div className="space-y-1 border-l-2 border-border pl-3">
                     {item.items.map((child) => {
                       const Icon = child.icon;
-                      const isActive = isProtectedNavigationHrefActive(pathname, child.href);
+                      const isActive = isProtectedNavigationLinkActive(pathname, child);
 
                       return (
                         <SheetClose asChild key={child.href}>
@@ -139,12 +143,13 @@ export function ProtectedMobileMenu({ user }: { user: ProtectedHeaderUser }) {
             </SheetClose>
             <Button
               className="min-h-11 w-full justify-start gap-3 px-3 text-destructive"
-              onClick={handleLogout}
+              disabled={isLoggingOut}
+              onClick={() => void logout()}
               type="button"
               variant="neutral"
             >
               <LogOut aria-hidden="true" className="size-5" />
-              Log out
+              {isLoggingOut ? "Logging out…" : "Log out"}
             </Button>
           </div>
         </nav>

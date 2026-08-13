@@ -262,7 +262,179 @@
         }
       }
     },
-    "/api/v1/register": {
+    "/api/v1/dictation/segments/check": {
+      "post": {
+        "tags": ["Dictation"],
+        "summary": "Check a Dictation segment answer",
+        "operationId": "checkDictationSegment",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DictationSegmentCheckRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DictationSegmentCheckResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Content",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/dictation/{content_id}/start": {
+      "post": {
+        "tags": ["Dictation"],
+        "summary": "Start a dictation attempt",
+        "operationId": "startDictationAttempt",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "content_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Published dictation content ID",
+              "title": "Content Id"
+            },
+            "description": "Published dictation content ID"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DictationStartResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/register": {
       "post": {
         "tags": ["Auth"],
         "summary": "Register",
@@ -289,12 +461,22 @@
               }
             }
           },
-          "422": {
-            "description": "Validation Error",
+          "409": {
+            "description": "Conflict",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Content",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -302,7 +484,7 @@
         }
       }
     },
-    "/api/v1/login": {
+    "/api/v1/auth/login": {
       "post": {
         "tags": ["Auth"],
         "summary": "Login",
@@ -329,12 +511,22 @@
               }
             }
           },
-          "422": {
-            "description": "Validation Error",
+          "401": {
+            "description": "Unauthorized",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Content",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -342,7 +534,7 @@
         }
       }
     },
-    "/api/v1/refresh": {
+    "/api/v1/auth/refresh": {
       "post": {
         "tags": ["Auth"],
         "summary": "Refresh",
@@ -377,6 +569,16 @@
               }
             }
           },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -390,7 +592,7 @@
         }
       }
     },
-    "/api/v1/logout": {
+    "/api/v1/auth/logout": {
       "post": {
         "tags": ["Auth"],
         "summary": "Logout",
@@ -431,7 +633,7 @@
         }
       }
     },
-    "/api/v1/me": {
+    "/api/v1/users/me": {
       "get": {
         "tags": ["Users"],
         "summary": "Get Me",
@@ -444,6 +646,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/UserResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -481,12 +693,22 @@
               }
             }
           },
-          "422": {
-            "description": "Validation Error",
+          "401": {
+            "description": "Unauthorized",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Content",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -525,13 +747,188 @@
       },
       "AttemptStatus": {
         "type": "string",
-        "enum": ["in_progress", "submitted", "completed"],
+        "enum": ["in_progress", "completed"],
         "title": "AttemptStatus"
       },
       "ContentType": {
         "type": "string",
         "enum": ["shadowing_dictation", "reflex", "listening_translation"],
         "title": "ContentType"
+      },
+      "DictationSegmentCheckRequest": {
+        "properties": {
+          "attempt_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Attempt Id"
+          },
+          "segment_index": {
+            "type": "integer",
+            "title": "Segment Index"
+          },
+          "user_answer": {
+            "type": "string",
+            "title": "User Answer"
+          }
+        },
+        "type": "object",
+        "required": ["attempt_id", "segment_index", "user_answer"],
+        "title": "DictationSegmentCheckRequest"
+      },
+      "DictationSegmentCheckResponse": {
+        "properties": {
+          "segment_index": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Segment Index"
+          },
+          "is_correct": {
+            "type": "boolean",
+            "title": "Is Correct"
+          },
+          "user_answer": {
+            "type": "string",
+            "title": "User Answer"
+          },
+          "correct_script": {
+            "type": "string",
+            "title": "Correct Script"
+          },
+          "is_last_segment": {
+            "type": "boolean",
+            "title": "Is Last Segment"
+          }
+        },
+        "type": "object",
+        "required": [
+          "segment_index",
+          "is_correct",
+          "user_answer",
+          "correct_script",
+          "is_last_segment"
+        ],
+        "title": "DictationSegmentCheckResponse"
+      },
+      "DictationSegmentItem": {
+        "properties": {
+          "segment_index": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Segment Index"
+          },
+          "start_time_ms": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Start Time Ms"
+          },
+          "end_time_ms": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "End Time Ms"
+          }
+        },
+        "type": "object",
+        "required": ["segment_index", "start_time_ms", "end_time_ms"],
+        "title": "DictationSegmentItem"
+      },
+      "DictationStartResponse": {
+        "properties": {
+          "attempt_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Attempt Id"
+          },
+          "content_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Content Id"
+          },
+          "attempt_number": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Attempt Number"
+          },
+          "audio_url": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Audio Url"
+          },
+          "total_segments": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Total Segments"
+          },
+          "segments": {
+            "items": {
+              "$ref": "#/components/schemas/DictationSegmentItem"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Segments"
+          }
+        },
+        "type": "object",
+        "required": [
+          "attempt_id",
+          "content_id",
+          "attempt_number",
+          "audio_url",
+          "total_segments",
+          "segments"
+        ],
+        "title": "DictationStartResponse"
+      },
+      "ErrorDetail": {
+        "properties": {
+          "status": {
+            "type": "integer",
+            "title": "Status"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "details": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ValidationErrorDetail"
+                },
+                "type": "array"
+              },
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Details"
+          }
+        },
+        "type": "object",
+        "required": ["status", "code", "message"],
+        "title": "ErrorDetail",
+        "description": "Application error payload."
+      },
+      "ErrorResponse": {
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/ErrorDetail"
+          }
+        },
+        "type": "object",
+        "required": ["error"],
+        "title": "ErrorResponse",
+        "description": "Stable envelope for expected and unexpected API errors."
       },
       "ExpHistoryItem": {
         "properties": {
@@ -987,6 +1384,11 @@
           "is_active": {
             "type": "boolean",
             "title": "Is Active"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
           }
         },
         "type": "object",
@@ -996,7 +1398,8 @@
           "display_name",
           "avatar_url",
           "role",
-          "is_active"
+          "is_active",
+          "created_at"
         ],
         "title": "UserResponse",
         "description": "Public representation of a user."
@@ -1056,6 +1459,26 @@
         "type": "object",
         "required": ["loc", "msg", "type"],
         "title": "ValidationError"
+      },
+      "ValidationErrorDetail": {
+        "properties": {
+          "field": {
+            "type": "string",
+            "title": "Field"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type"
+          }
+        },
+        "type": "object",
+        "required": ["field", "message", "type"],
+        "title": "ValidationErrorDetail",
+        "description": "Field-level validation failure returned in an error envelope."
       }
     },
     "securitySchemes": {
