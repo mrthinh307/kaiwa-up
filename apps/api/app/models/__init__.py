@@ -9,7 +9,6 @@ from app.models.content import (
 )
 from app.models.gamification import (
     Achievement,
-    LevelDefinition,
     UserAchievement,
     WeeklyLeaderboardEntry,
     XpTransaction,
@@ -25,7 +24,6 @@ __all__ = [
     "CreatedAtMixin",
     "ExerciseAttempt",
     "LearningContent",
-    "LevelDefinition",
     "PrimaryKeyUuidMixin",
     "Recording",
     "ReflexExercise",

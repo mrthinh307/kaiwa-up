@@ -416,6 +416,10 @@ flowchart TD
 
 # 12. Luồng nhận EXP và tăng cấp
 
+Cấp được tính từ tổng EXP, không tra bảng mốc: từ level `L` lên `L+1` cần thêm `50 × L` EXP.
+Việc ghi sổ EXP, cộng `user_progress.total_exp` và tính lại `current_level` nằm trong cùng
+transaction; hệ thống khóa tiến độ của user để hai attempt hoàn thành đồng thời không làm mất EXP.
+
 ```mermaid
 flowchart TD
     A[User hoàn thành bài tập] --> B[Hệ thống kiểm tra điều kiện hoàn thành]
@@ -527,8 +531,6 @@ Các nội dung sau cần được chốt trong giai đoạn thiết kế kiến
 4. AI đánh giá phản xạ dựa trên tiêu chí nào.
 5. AI Tutor có hỗ trợ giọng nói ngay trong MVP hay chỉ hỗ trợ văn bản.
 6. Thuật toán lặp lại ngắt quãng được sử dụng.
-7. Công thức tính EXP.
-8. Công thức xác định cấp độ.
-9. Quy tắc xếp hạng khi người dùng bằng EXP.
-10. Điều kiện hoàn thành từng loại bài tập.
-11. Cách quản lý và thêm mới nội dung bài học khi chưa có giao diện quản trị.
+7. Quy tắc EXP thưởng thêm ngoài `base_exp`, nếu có.
+8. Điều kiện hoàn thành từng loại bài tập.
+9. Cách quản lý và thêm mới nội dung bài học khi chưa có giao diện quản trị.
