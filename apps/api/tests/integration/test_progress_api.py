@@ -114,7 +114,7 @@ async def test_progress_summary_counts_completed_by_content_type(
     await create_attempt(
         session=db_session, user_id=user.id, content_id=translation.id, attempt_number=1
     )
-    await create_attempt(
+    reflex_attempt = await create_attempt(
         session=db_session,
         user_id=user.id,
         content_id=reflex.id,
@@ -133,7 +133,16 @@ async def test_progress_summary_counts_completed_by_content_type(
         "listening_translation_completed": 1,
         "total_completed_attempts": 4,
         "total_attempts": 5,
-        "in_progress_lessons": [],
+        "in_progress_lessons": [
+            {
+                "id": str(reflex_attempt.id),
+                "content_id": str(reflex.id),
+                "content_title": "Reflex lesson",
+                "content_type": "reflex",
+                "difficulty": "N5",
+                "attempt_number": 1,
+            }
+        ],
     }
 
 
