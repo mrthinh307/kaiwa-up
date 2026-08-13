@@ -16,14 +16,7 @@ export function DashboardProgressSummary({
 }: {
   progressSummary: DashboardViewModel["progressSummary"];
 }) {
-  const shadowingCompletedHref = `${buildDashboardHref({
-    practiceMode: "shadowing",
-    status: "completed",
-  })}#attempt-history`;
-  const dictationCompletedHref = `${buildDashboardHref({
-    practiceMode: "dictation",
-    status: "completed",
-  })}#attempt-history`;
+  const completedAttemptsHref = `${buildDashboardHref({ status: "completed" })}#attempt-history`;
 
   return (
     <section
@@ -84,7 +77,7 @@ export function DashboardProgressSummary({
           <p className="mt-2 text-sm leading-relaxed text-foreground/65">Listening and speaking</p>
           <div className="mt-auto pt-6">
             <Button asChild className="w-full" size="sm" variant="neutral">
-              <Link href={shadowingCompletedHref}>
+              <Link href={completedAttemptsHref}>
                 View completed
                 <ArrowRight aria-hidden="true" />
               </Link>
@@ -103,7 +96,7 @@ export function DashboardProgressSummary({
           <p className="mt-2 text-sm leading-relaxed text-foreground/65">Accurate listening</p>
           <div className="mt-auto pt-6">
             <Button asChild className="w-full" size="sm" variant="neutral">
-              <Link href={dictationCompletedHref}>
+              <Link href={completedAttemptsHref}>
                 View completed
                 <ArrowRight aria-hidden="true" />
               </Link>

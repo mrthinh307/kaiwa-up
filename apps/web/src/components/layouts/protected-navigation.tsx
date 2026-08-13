@@ -1,14 +1,13 @@
 "use client";
 
 import {
-  BookOpenCheck,
   ChevronDown,
   Gauge,
   Headphones,
   Languages,
+  LibraryBig,
   Medal,
   MessageCircleMore,
-  Mic2,
   Zap,
   type LucideIcon,
 } from "lucide-react";
@@ -25,6 +24,7 @@ import {
 import { cn } from "@/lib/utils";
 
 type NavigationLink = {
+  activePrefixes?: string[];
   href: string;
   icon: LucideIcon;
   kind: "link";
@@ -48,20 +48,15 @@ export const PROTECTED_NAVIGATION: ProtectedNavigationItem[] = [
     label: "Dashboard",
   },
   {
+    activePrefixes: ["/shadowing", "/dictation"],
+    href: "/lessons",
+    icon: LibraryBig,
+    kind: "link",
+    label: "Lessons",
+  },
+  {
     icon: Headphones,
     items: [
-      {
-        href: "/shadowing",
-        icon: Mic2,
-        kind: "link",
-        label: "Shadowing",
-      },
-      {
-        href: "/dictation",
-        icon: BookOpenCheck,
-        kind: "link",
-        label: "Dictation",
-      },
       {
         href: "/reflex",
         icon: Zap,
@@ -82,14 +77,8 @@ export const PROTECTED_NAVIGATION: ProtectedNavigationItem[] = [
       },
     ],
     kind: "group",
-    label: "Practice",
+    label: "Advanced",
   },
-  // {
-  //   href: "/review",
-  //   icon: RotateCcw,
-  //   kind: "link",
-  //   label: "Review",
-  // },
   {
     href: "/leaderboard",
     icon: Medal,
@@ -102,12 +91,21 @@ export function isProtectedNavigationHrefActive(pathname: string, href: string):
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
+export function isProtectedNavigationLinkActive(pathname: string, item: NavigationLink): boolean {
+  return (
+    isProtectedNavigationHrefActive(pathname, item.href) ||
+    Boolean(
+      item.activePrefixes?.some((prefix) => isProtectedNavigationHrefActive(pathname, prefix)),
+    )
+  );
+}
+
 function isProtectedNavigationItemActive(pathname: string, item: ProtectedNavigationItem): boolean {
   if (item.kind === "link") {
-    return isProtectedNavigationHrefActive(pathname, item.href);
+    return isProtectedNavigationLinkActive(pathname, item);
   }
 
-  return item.items.some((child) => isProtectedNavigationHrefActive(pathname, child.href));
+  return item.items.some((child) => isProtectedNavigationLinkActive(pathname, child));
 }
 
 export function ProtectedNavigation() {
@@ -158,7 +156,7 @@ export function ProtectedNavigation() {
             <DropdownMenuContent align="start" className="min-w-56">
               {item.items.map((child) => {
                 const Icon = child.icon;
-                const isChildActive = isProtectedNavigationHrefActive(pathname, child.href);
+                const isChildActive = isProtectedNavigationLinkActive(pathname, child);
 
                 return (
                   <DropdownMenuItem asChild key={child.href}>

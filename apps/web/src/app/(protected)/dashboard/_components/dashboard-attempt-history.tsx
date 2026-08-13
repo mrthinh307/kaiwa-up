@@ -26,9 +26,6 @@ export function DashboardAttemptHistory({
     attemptHistory.total === 0 ? 0 : (attemptHistory.page - 1) * attemptHistory.pageSize + 1;
   const resultEnd = Math.min(attemptHistory.page * attemptHistory.pageSize, attemptHistory.total);
   const activeFilterLabels = [
-    attemptHistory.selectedPracticeMode
-      ? getDashboardPracticeModeMetadata(attemptHistory.selectedPracticeMode).label
-      : null,
     attemptHistory.selectedStatus
       ? getDashboardAttemptStatusMetadata(attemptHistory.selectedStatus).label
       : null,
@@ -67,7 +64,6 @@ export function DashboardAttemptHistory({
 
         <DashboardAttemptFilters
           searchQuery={attemptHistory.searchQuery}
-          selectedPracticeMode={attemptHistory.selectedPracticeMode}
           selectedStatus={attemptHistory.selectedStatus}
         />
       </div>
@@ -169,14 +165,12 @@ export function DashboardAttemptHistory({
           <DashboardAttemptPagination
             page={attemptHistory.page}
             pages={attemptHistory.pages}
-            practiceMode={attemptHistory.selectedPracticeMode}
             searchQuery={attemptHistory.searchQuery}
             status={attemptHistory.selectedStatus}
           />
         </>
       ) : (
         <DashboardEmptyState
-          selectedPracticeMode={attemptHistory.selectedPracticeMode}
           selectedStatus={attemptHistory.selectedStatus}
           searchQuery={attemptHistory.searchQuery}
           totalAttempts={totalAttempts}
