@@ -7,6 +7,7 @@ import type {
   GetGamificationProfileErrors,
   GetGamificationProfileResponses,
   GetMeData,
+  GetMeErrors,
   GetMeResponses,
   GetProgressAttemptData,
   GetProgressAttemptErrors,
@@ -147,7 +148,7 @@ export const register = <ThrowOnError extends boolean = false>(
   options: Options<RegisterData, ThrowOnError>,
 ): RequestResult<RegisterResponses, RegisterErrors, ThrowOnError> =>
   (options.client ?? client).post<RegisterResponses, RegisterErrors, ThrowOnError>({
-    url: "/api/v1/register",
+    url: "/api/v1/auth/register",
     ...options,
     headers: {
       "Content-Type": "application/json",
@@ -164,7 +165,7 @@ export const login = <ThrowOnError extends boolean = false>(
   options: Options<LoginData, ThrowOnError>,
 ): RequestResult<LoginResponses, LoginErrors, ThrowOnError> =>
   (options.client ?? client).post<LoginResponses, LoginErrors, ThrowOnError>({
-    url: "/api/v1/login",
+    url: "/api/v1/auth/login",
     ...options,
     headers: {
       "Content-Type": "application/json",
@@ -181,7 +182,7 @@ export const refresh = <ThrowOnError extends boolean = false>(
   options?: Options<RefreshData, ThrowOnError>,
 ): RequestResult<RefreshResponses, RefreshErrors, ThrowOnError> =>
   (options?.client ?? client).post<RefreshResponses, RefreshErrors, ThrowOnError>({
-    url: "/api/v1/refresh",
+    url: "/api/v1/auth/refresh",
     ...options,
   });
 
@@ -194,7 +195,7 @@ export const logout = <ThrowOnError extends boolean = false>(
   options?: Options<LogoutData, ThrowOnError>,
 ): RequestResult<LogoutResponses, LogoutErrors, ThrowOnError> =>
   (options?.client ?? client).post<LogoutResponses, LogoutErrors, ThrowOnError>({
-    url: "/api/v1/logout",
+    url: "/api/v1/auth/logout",
     ...options,
   });
 
@@ -205,10 +206,10 @@ export const logout = <ThrowOnError extends boolean = false>(
  */
 export const getMe = <ThrowOnError extends boolean = false>(
   options?: Options<GetMeData, ThrowOnError>,
-): RequestResult<GetMeResponses, unknown, ThrowOnError> =>
-  (options?.client ?? client).get<GetMeResponses, unknown, ThrowOnError>({
+): RequestResult<GetMeResponses, GetMeErrors, ThrowOnError> =>
+  (options?.client ?? client).get<GetMeResponses, GetMeErrors, ThrowOnError>({
     security: [{ scheme: "bearer", type: "http" }],
-    url: "/api/v1/me",
+    url: "/api/v1/users/me",
     ...options,
   });
 
@@ -222,7 +223,7 @@ export const updateMe = <ThrowOnError extends boolean = false>(
 ): RequestResult<UpdateMeResponses, UpdateMeErrors, ThrowOnError> =>
   (options.client ?? client).patch<UpdateMeResponses, UpdateMeErrors, ThrowOnError>({
     security: [{ scheme: "bearer", type: "http" }],
-    url: "/api/v1/me",
+    url: "/api/v1/users/me",
     ...options,
     headers: {
       "Content-Type": "application/json",
