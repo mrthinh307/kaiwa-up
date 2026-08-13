@@ -34,6 +34,7 @@ type PracticeCatalogComboboxFilterProps = {
   queryKey: string;
   searchLabel: string;
   searchPlaceholder: string;
+  onValueChange?: (value: string | undefined) => void;
   value?: string;
 };
 
@@ -48,6 +49,7 @@ export function PracticeCatalogComboboxFilter({
   queryKey,
   searchLabel,
   searchPlaceholder,
+  onValueChange,
   value,
 }: PracticeCatalogComboboxFilterProps) {
   const router = useRouter();
@@ -63,6 +65,11 @@ export function PracticeCatalogComboboxFilter({
     setIsOpen(false);
 
     if (nextValue === selectedValue) {
+      return;
+    }
+
+    if (onValueChange) {
+      onValueChange(nextValue === "all" ? undefined : nextValue);
       return;
     }
 

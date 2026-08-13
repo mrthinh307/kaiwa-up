@@ -19,7 +19,11 @@ import { cn } from "@/lib/utils";
 
 import type { ProtectedHeaderUser } from "./protected-user-menu";
 
-import { isProtectedNavigationHrefActive, PROTECTED_NAVIGATION } from "./protected-navigation";
+import {
+  isProtectedNavigationHrefActive,
+  isProtectedNavigationLinkActive,
+  PROTECTED_NAVIGATION,
+} from "./protected-navigation";
 import { ProtectedUserAvatar } from "./protected-user-avatar";
 
 const mobileLinkClassName =
@@ -68,7 +72,7 @@ export function ProtectedMobileMenu({ user }: { user: ProtectedHeaderUser }) {
             {PROTECTED_NAVIGATION.map((item) => {
               if (item.kind === "link") {
                 const Icon = item.icon;
-                const isActive = isProtectedNavigationHrefActive(pathname, item.href);
+                const isActive = isProtectedNavigationLinkActive(pathname, item);
 
                 return (
                   <SheetClose asChild key={item.href}>
@@ -96,7 +100,7 @@ export function ProtectedMobileMenu({ user }: { user: ProtectedHeaderUser }) {
                   <div className="space-y-1 border-l-2 border-border pl-3">
                     {item.items.map((child) => {
                       const Icon = child.icon;
-                      const isActive = isProtectedNavigationHrefActive(pathname, child.href);
+                      const isActive = isProtectedNavigationLinkActive(pathname, child);
 
                       return (
                         <SheetClose asChild key={child.href}>
