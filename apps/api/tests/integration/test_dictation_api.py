@@ -176,3 +176,154 @@ async def test_start_dictation_attempt_rejects_invalid_transcript_configuration(
         )
     ).all()
     assert attempts == []
+
+
+@pytest.mark.asyncio
+async def test_check_dictation_segment_returns_feedback_and_persists_answer(
+    client: httpx.AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    user = await create_user(db_session, email="segment-check@example.com")
+    content = await create_dictation_content(db_session, slug="segment-check")
+    set_current_user(user)
+    start_response = await client.post(f"/api/v1/dictation/{content.id}/start")
+    attempt_id = start_response.json()["attempt_id"]
+
+    response = await client.post(
+        "/api/v1/dictation/segments/check",
+        json={
+            "attempt_id": attempt_id,
+            "segment_index": 0,
+            "user_answer": " 明日の 会議の資料ですが ",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "segment_index": 0,
+        "is_correct": True,
+        "user_answer": " 明日の 会議の資料ですが ",
+        "correct_script": "明日の会議の資料ですが、",
+        "is_last_segment": False,
+    }
+    attempt = await db_session.get(ExerciseAttempt, uuid.UUID(attempt_id))
+    assert attempt is not None
+    assert attempt.status == AttemptStatus.IN_PROGRESS
+    assert attempt.answer_payload == {"segments": [response.json()]}
+
+
+@pytest.mark.asyncio
+async def test_check_dictation_segment_replaces_previous_answer_and_marks_last_segment(
+    client: httpx.AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    user = await create_user(db_session, email="segment-retry@example.com")
+    content = await create_dictation_content(db_session, slug="segment-retry")
+    set_current_user(user)
+    start_response = await client.post(f"/api/v1/dictation/{content.id}/start")
+    attempt_id = start_response.json()["attempt_id"]
+
+    incorrect_response = await client.post(
+        "/api/v1/dictation/segments/check",
+        json={"attempt_id": attempt_id, "segment_index": 1, "user_answer": "不正解"},
+    )
+    assert incorrect_response.status_code == 200
+    assert incorrect_response.json()["is_correct"] is False
+    response = await client.post(
+        "/api/v1/dictation/segments/check",
+        json={
+            "attempt_id": attempt_id,
+            "segment_index": 1,
+            "user_answer": "今日の夕方までに準備しておきます",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["is_correct"] is True
+    assert response.json()["is_last_segment"] is True
+    attempt = await db_session.get(ExerciseAttempt, uuid.UUID(attempt_id))
+    assert attempt is not None
+    assert attempt.answer_payload == {"segments": [response.json()]}
+
+
+@pytest.mark.asyncio
+async def test_check_dictation_segment_rejects_out_of_range_index(
+    client: httpx.AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    user = await create_user(db_session, email="invalid-index@example.com")
+    content = await create_dictation_content(db_session, slug="invalid-index")
+    set_current_user(user)
+    start_response = await client.post(f"/api/v1/dictation/{content.id}/start")
+    attempt_id = start_response.json()["attempt_id"]
+
+    response = await client.post(
+        "/api/v1/dictation/segments/check",
+        json={"attempt_id": attempt_id, "segment_index": 2, "user_answer": "回答"},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["error"] == {
+        "status": 400,
+        "code": "invalid_segment_index",
+        "message": "Segment index is outside the Dictation transcript",
+        "details": {"segment_index": 2, "total_segments": 2},
+    }
+    attempt = await db_session.get(ExerciseAttempt, uuid.UUID(attempt_id))
+    assert attempt is not None
+    assert attempt.answer_payload == {}
+
+
+@pytest.mark.asyncio
+async def test_check_dictation_segment_rejects_attempt_owned_by_another_user(
+    client: httpx.AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    owner = await create_user(db_session, email="segment-owner@example.com")
+    content = await create_dictation_content(db_session, slug="segment-owner")
+    set_current_user(owner)
+    start_response = await client.post(f"/api/v1/dictation/{content.id}/start")
+    other_user = await create_user(db_session, email="segment-other@example.com")
+    set_current_user(other_user)
+
+    response = await client.post(
+        "/api/v1/dictation/segments/check",
+        json={
+            "attempt_id": start_response.json()["attempt_id"],
+            "segment_index": 0,
+            "user_answer": "回答",
+        },
+    )
+
+    assert response.status_code == 403
+    assert response.json()["error"]["code"] == "forbidden"
+
+
+@pytest.mark.asyncio
+async def test_check_dictation_segment_rejects_completed_attempt(
+    client: httpx.AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    user = await create_user(db_session, email="segment-completed@example.com")
+    content = await create_dictation_content(db_session, slug="segment-completed")
+    set_current_user(user)
+    start_response = await client.post(f"/api/v1/dictation/{content.id}/start")
+    attempt = await db_session.get(
+        ExerciseAttempt,
+        uuid.UUID(start_response.json()["attempt_id"]),
+    )
+    assert attempt is not None
+    attempt.status = AttemptStatus.COMPLETED
+    await db_session.commit()
+
+    response = await client.post(
+        "/api/v1/dictation/segments/check",
+        json={
+            "attempt_id": str(attempt.id),
+            "segment_index": 0,
+            "user_answer": "回答",
+        },
+    )
+
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "dictation_attempt_not_in_progress"

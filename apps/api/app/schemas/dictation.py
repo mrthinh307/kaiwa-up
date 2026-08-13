@@ -31,3 +31,23 @@ class DictationStartResponse(BaseModel):
     audio_url: str = Field(min_length=1)
     total_segments: int = Field(ge=1)
     segments: list[DictationSegmentItem] = Field(min_length=1)
+
+
+class DictationSegmentCheckRequest(BaseModel):
+    attempt_id: uuid.UUID
+    segment_index: int
+    user_answer: str
+
+
+class DictationSegmentCheckResponse(BaseModel):
+    segment_index: int = Field(ge=0)
+    is_correct: bool
+    user_answer: str
+    correct_script: str
+    is_last_segment: bool
+
+
+class DictationAnswerPayload(BaseModel):
+    """Internal validated representation of incremental Dictation answers."""
+
+    segments: list[DictationSegmentCheckResponse] = Field(default_factory=list)
