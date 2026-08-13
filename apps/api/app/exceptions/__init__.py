@@ -6,7 +6,7 @@ from app.exceptions.auth import (
     InvalidCredentialsException,
     UnauthorizedException,
 )
-from app.exceptions.base import AppError
+from app.exceptions.base import AppError, ForbiddenError, NotFoundError
 from app.exceptions.dictation import (
     DictationAttemptNotInProgressError,
     DictationContentUnavailableError,
@@ -20,8 +20,10 @@ __all__ = [
     "DictationContentUnavailableError",
     "DictationInvalidSegmentIndexError",
     "EmailAlreadyExistsException",
+    "ForbiddenError",
     "ForbiddenException",
     "InvalidCredentialsException",
+    "NotFoundError",
     "UnauthorizedException",
     "register_exception_handlers",
 ]
