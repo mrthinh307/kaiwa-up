@@ -21,12 +21,13 @@ from app.schemas.auth import (
     LoginRequest,
     RegisterRequest,
 )
+from app.schemas.error import ErrorResponse
 from app.schemas.user import UserResponse
 from app.services.auth import (
     auth_service,
 )
 
-router = APIRouter(tags=["Auth"])
+router = APIRouter(prefix="/auth", tags=["Auth"])
 
 
 def set_refresh_cookie(
@@ -64,6 +65,10 @@ def delete_refresh_cookie(
     "/register",
     operation_id="register",
     response_model=UserResponse,
+    responses={
+        status.HTTP_409_CONFLICT: {"model": ErrorResponse},
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {"model": ErrorResponse},
+    },
     status_code=status.HTTP_201_CREATED,
 )
 async def register(
@@ -86,6 +91,10 @@ async def register(
     "/login",
     operation_id="login",
     response_model=AccessTokenResponse,
+    responses={
+        status.HTTP_401_UNAUTHORIZED: {"model": ErrorResponse},
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {"model": ErrorResponse},
+    },
 )
 async def login(
     data: LoginRequest,
@@ -119,6 +128,7 @@ async def login(
     "/refresh",
     operation_id="refresh",
     response_model=AccessTokenResponse,
+    responses={status.HTTP_401_UNAUTHORIZED: {"model": ErrorResponse}},
 )
 async def refresh(
     response: Response,
