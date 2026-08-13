@@ -3,13 +3,20 @@ import { Trophy } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 type ProfileProgressCardProps = {
+  expToNextLevel: number;
   level: number;
-  nextLevelExp: number;
+  nextLevelExp: number | null;
   totalExp: number;
 };
 
-export function ProfileProgressCard({ level, nextLevelExp, totalExp }: ProfileProgressCardProps) {
-  const remainingExp = Math.max(nextLevelExp - totalExp, 0);
+export function ProfileProgressCard({
+  expToNextLevel,
+  level,
+  nextLevelExp,
+  totalExp,
+}: ProfileProgressCardProps) {
+  const isMaxLevel = nextLevelExp === null;
+  const progressMax = nextLevelExp ?? Math.max(totalExp, 1);
 
   return (
     <Card className="bg-secondary-background">
@@ -40,15 +47,25 @@ export function ProfileProgressCard({ level, nextLevelExp, totalExp }: ProfilePr
         </div>
 
         <progress
-          aria-label={`Level progress: ${totalExp} of ${nextLevelExp} EXP`}
+          aria-label={
+            isMaxLevel
+              ? `Maximum level reached with ${totalExp} EXP`
+              : `Level progress: ${totalExp} of ${nextLevelExp} EXP`
+          }
           className="mt-6 h-5 w-full overflow-hidden rounded-full border-2 border-border bg-background [&::-moz-progress-bar]:bg-main [&::-webkit-progress-bar]:bg-background [&::-webkit-progress-value]:bg-main"
-          max={nextLevelExp}
+          max={progressMax}
           value={totalExp}
         />
 
         <div className="mt-3 flex flex-col gap-1 text-sm sm:flex-row sm:items-center sm:justify-between">
-          <p className="font-heading">{remainingExp} EXP remaining</p>
-          <p className="text-foreground/70">Next level at {nextLevelExp} EXP</p>
+          <p className="font-heading">
+            {isMaxLevel ? "Highest level reached" : `${expToNextLevel} EXP remaining`}
+          </p>
+          <p className="text-foreground/70">
+            {isMaxLevel
+              ? "Keep practicing to grow your total EXP"
+              : `Next level at ${nextLevelExp} EXP`}
+          </p>
         </div>
       </CardContent>
     </Card>
