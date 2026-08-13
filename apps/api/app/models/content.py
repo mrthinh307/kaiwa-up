@@ -28,6 +28,11 @@ class LearningContent(TimestampMixin, Base):
     __tablename__ = "learning_contents"
     __table_args__ = (
         CheckConstraint(
+            "content_type IN ('SHADOWING_DICTATION', 'REFLEX', 'LISTENING_TRANSLATION')",
+            name="content_type",
+        ),
+        CheckConstraint("status IN ('DRAFT', 'PUBLISHED')", name="content_status"),
+        CheckConstraint(
             "difficulty IN ('N5', 'N4', 'N3', 'N2', 'N1')",
             name="jlpt_level",
         ),
@@ -36,8 +41,13 @@ class LearningContent(TimestampMixin, Base):
             "content_type",
             "difficulty",
             text("published_at DESC"),
-            postgresql_where=text("status = 'published'"),
+            postgresql_where=text("status = 'PUBLISHED'"),
         ),
+        CheckConstraint(
+            "audio_duration_ms IS NULL OR audio_duration_ms >= 0",
+            name="learning_contents_audio_duration_nonnegative",
+        ),
+        CheckConstraint("base_exp > 0", name="learning_contents_base_exp_positive"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, server_default=func.uuidv7())
@@ -78,6 +88,12 @@ class LearningContent(TimestampMixin, Base):
 
 class ReflexExercise(CreatedAtMixin, Base):
     __tablename__ = "reflex_exercises"
+    __table_args__ = (
+        CheckConstraint(
+            "response_start_limit_seconds > 0",
+            name="reflex_exercises_response_limit_positive",
+        ),
+    )
 
     content_id: Mapped[uuid.UUID] = mapped_column(
         Uuid,

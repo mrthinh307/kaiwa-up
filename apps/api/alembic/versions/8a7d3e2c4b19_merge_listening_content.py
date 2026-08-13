@@ -105,15 +105,26 @@ def downgrade() -> None:
         WHERE content_type = 'SHADOWING_DICTATION'
         """
     )
+    op.add_column(
+        "learning_contents",
+        sa.Column("transcript_ja_text", sa.Text(), nullable=True),
+    )
+    op.execute(
+        """
+        UPDATE learning_contents
+        SET transcript_ja_text = (
+            SELECT string_agg(segment->>'script', '' ORDER BY ordinal)
+            FROM jsonb_array_elements(transcript_ja) WITH ORDINALITY AS item(segment, ordinal)
+        )
+        WHERE transcript_ja IS NOT NULL
+        """
+    )
+    op.drop_column("learning_contents", "transcript_ja")
     op.alter_column(
         "learning_contents",
-        "transcript_ja",
-        existing_type=postgresql.JSONB(astext_type=sa.Text()),
-        type_=sa.Text(),
-        postgresql_using="""
-            (SELECT string_agg(segment->>'script', '' ORDER BY ordinal)
-             FROM jsonb_array_elements(transcript_ja) WITH ORDINALITY AS item(segment, ordinal))
-        """,
+        "transcript_ja_text",
+        new_column_name="transcript_ja",
+        existing_type=sa.Text(),
         existing_nullable=True,
     )
     op.execute(

@@ -5,6 +5,7 @@ from datetime import datetime
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     DateTime,
     Enum,
     ForeignKey,
@@ -26,6 +27,7 @@ from app.models.enums import UserRole
 
 class User(PrimaryKeyUuidMixin, TimestampMixin, Base):
     __tablename__ = "users"
+    __table_args__ = (CheckConstraint("role IN ('USER', 'ADMIN')", name="user_role"),)
 
     email: Mapped[str] = mapped_column(CITEXT, nullable=False, unique=True)
     password_hash: Mapped[str] = mapped_column(Text, nullable=False)
@@ -52,6 +54,14 @@ class User(PrimaryKeyUuidMixin, TimestampMixin, Base):
 
 class UserProgress(Base):
     __tablename__ = "user_progress"
+    __table_args__ = (
+        CheckConstraint("total_exp >= 0", name="user_progress_total_exp_nonnegative"),
+        CheckConstraint("current_level >= 1", name="user_progress_current_level_positive"),
+        CheckConstraint(
+            "completed_content_count >= 0",
+            name="user_progress_completed_count_nonnegative",
+        ),
+    )
 
     user_id: Mapped[uuid.UUID] = mapped_column(
         Uuid, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True

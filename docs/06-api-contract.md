@@ -10,8 +10,8 @@ Tài liệu này mô tả chi tiết các hợp đồng giao tiếp API (API Con
 * **Định dạng dữ liệu**: `application/json` (trừ các endpoint tải audio sử dụng `multipart/form-data`).
 * **Múi giờ & Thời gian**: Chuẩn ISO 8601 UTC (`YYYY-MM-DDTHH:mm:ss.sssZ`).
 * **Độ khó bài học (Difficulty Mapping)**:
-  * Database lưu `learning_contents.difficulty` dưới dạng số nguyên `1`–`5` (`1`: N5, `2`: N4, `3`: N3, `4`: N2, `5`: N1).
-  * API Contract chấp nhận/trả về chuỗi JLPT tương ứng (`"N5"`, `"N4"`, `"N3"`, `"N2"`, `"N1"`).
+  * Database và API đều lưu/trả chuỗi JLPT `"N5"`, `"N4"`, `"N3"`, `"N2"`, `"N1"`.
+  * `learning_contents.difficulty` và `tutor_sessions.difficulty` dùng cùng tập giá trị này.
 * **Quy tắc đặt tên (Naming Convention)**:
   * Route parameter & Query parameter: `snake_case` (ví dụ: `lesson_id`, `page_size`).
   * Request Body & Response Field: `snake_case` (ví dụ: `display_name`, `total_exp`).
@@ -561,7 +561,8 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
 ---
 
 #### `GET /api/v1/dictation/lessons/{lesson_id}`
-* **Mục đích**: Lấy đề bài Dictation gồm văn bản có đánh dấu ô trống (`script` từ bảng `dictation_exercises`). **Tuyệt đối không trả đáp án** để bảo mật thông tin trước khi nộp; frontend tự hiển thị ô trống theo vị trí đánh dấu trong script.
+* **Mục đích**: Lấy đề Dictation đã che đáp án do backend tạo từ các segment trong
+  `learning_contents.transcript_ja`. **Tuyệt đối không trả transcript đầy đủ** trước khi nộp.
 * **Yêu cầu xác thực**: Bearer Token
 * **Request Headers**: `Authorization: Bearer <jwt_access_token>`
 * **Path Parameters**:
@@ -585,7 +586,9 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
 ---
 
 #### `POST /api/v1/dictation/lessons/{lesson_id}/submit`
-* **Mục đích**: Nộp câu trả lời bài Dictation theo thứ tự ô trống trong `script`. Backend đối chiếu đáp án với nội dung `dictation_exercises.script`, lưu lượt làm và đáp án vào `exercise_attempts.answer_payload` (JSONB), tính điểm, trả đáp án đúng và cấp 10 EXP nếu đạt tiêu chuẩn hoàn thành.
+* **Mục đích**: Nộp câu trả lời Dictation theo thứ tự ô trống. Backend đối chiếu với transcript
+  nguồn của `learning_contents`, lưu câu trả lời vào `exercise_attempts.answer_payload` (JSONB),
+  tính điểm và cấp `base_exp` đúng một lần khi attempt hoàn thành.
 * **Yêu cầu xác thực**: Bearer Token
 * **Request Headers**: `Authorization: Bearer <jwt_access_token>`, `Content-Type: application/json`
 * **Path Parameters**:
@@ -739,12 +742,12 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
 * **Response Schema (200 OK)**:
   ```json
   {
-    "level": 2,
-    "level_title": "Beginner II",
+    "level": 3,
+    "level_title": "Level 3",
     "total_exp": 150,
-    "current_level_min_exp": 100,
-    "next_level_min_exp": 250,
-    "exp_to_next_level": 100,
+    "current_level_min_exp": 150,
+    "next_level_min_exp": 300,
+    "exp_to_next_level": 150,
     "recent_exp_history": [
       {
         "id": "a31f5b2c-...",
@@ -803,7 +806,8 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
 ### 3.9. Leaderboard Module (P0)
 
 #### `GET /api/v1/leaderboard/weekly`
-* **Mục đích**: Lấy Bảng xếp hạng người học theo tổng EXP tích lũy trong tuần hiện tại (tối ưu từ `weekly_leaderboard_entries`). Sắp xếp theo `weekly_exp DESC`, sau đó `reached_exp_at ASC`.
+* **Mục đích**: Lấy bảng xếp hạng theo tổng EXP tuần từ `weekly_leaderboard_entries`. Job snapshot
+  sắp `weekly_exp DESC`, sau đó `user_id ASC` trước khi gán `rank`; endpoint trả theo `rank ASC`.
 * **Yêu cầu xác thực**: Bearer Token
 * **Request Headers**: `Authorization: Bearer <jwt_access_token>`
 * **Path Parameters**: Không
@@ -1114,7 +1118,7 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
   ```json
   {
     "attempt_id": "990e8400-e29b-41d4-a716-446655440999",
-    "status": "submitted",
+    "status": "completed",
     "exp_earned": 10
   }
   ```
@@ -1316,7 +1320,9 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
 
 ### 4.2. Giả định (Assumptions Made)
 1. **Cloudinary Audio Delivery**: URL audio bài học được cung cấp trực tiếp từ Cloudinary trong response metadata bài học mà không qua backend proxy.
-2. **User Audio Lifecycle**: Audio do người dùng ghi âm được gửi lên dưới dạng `multipart/form-data` và chỉ giữ tạm thời trên bộ nhớ đệm backend trong quá trình AI xử lý, tuyệt đối không lưu vết lâu dài hoặc lưu URL vào PostgreSQL.
+2. **User Audio Lifecycle**: Audio do người dùng ghi âm được gửi bằng `multipart/form-data` và lưu
+   trong private object storage khi nghiệp vụ cần giữ lại. PostgreSQL chỉ lưu metadata và
+   `storage_key` trong `recordings`, không lưu BLOB hoặc public URL.
 3. **Weekly Leaderboard Reset**: Bảng xếp hạng tuần tự động reset theo chu kỳ tuần dựa trên hàm lọc timestamp `EXP ledger`.
 
 ### 4.3. Các mục TODO còn lại
@@ -1326,4 +1332,5 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
 ### 4.4. Đánh giá tính nhất quán tài liệu (Inconsistency Check)
 * Đã đối chiếu hoàn toàn khớp với quy tắc đặt tên (`snake_case`), cấu trúc lỗi Envelope (`status`, `code`, `message`, `details`) tại `08-coding-convention.md`.
 * Đã hoàn thành khớp 1:1 với schema PostgreSQL tại `05-database.md` (bao gồm `auth_refresh_tokens`, `users.role`, `review_schedules` composite PK, `weekly_leaderboard_entries.week_start` và `achievements.code`).
-* Bảng mốc tính cấp độ EXP (Level 1-10) tại `07-module-design.md` được áp dụng nhất quán trong response của Gamification và Dashboard endpoints.
+* Gamification và Dashboard dùng cùng công thức level không giới hạn: level `L` cần tối thiểu
+  `25 × L × (L-1)` tổng EXP; từ level `L` lên `L+1` cần thêm `50 × L` EXP.

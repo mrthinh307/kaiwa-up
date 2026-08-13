@@ -29,7 +29,6 @@ class JlptLevel(enum.StrEnum):
 
 class AttemptStatus(enum.StrEnum):
     IN_PROGRESS = "in_progress"
-    SUBMITTED = "submitted"
     COMPLETED = "completed"
 
 
