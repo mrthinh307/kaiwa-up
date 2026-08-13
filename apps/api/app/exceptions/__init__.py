@@ -6,17 +6,14 @@ from app.exceptions.auth import (
     InvalidCredentialsException,
     UnauthorizedException,
 )
-from app.exceptions.base import AppError, ForbiddenError, NotFoundError, UnauthorizedError
+from app.exceptions.base import AppError
 from app.exceptions.handlers import register_exception_handlers
 
 __all__ = [
     "AppError",
     "EmailAlreadyExistsException",
-    "ForbiddenError",
     "ForbiddenException",
     "InvalidCredentialsException",
-    "NotFoundError",
-    "UnauthorizedError",
     "UnauthorizedException",
     "register_exception_handlers",
 ]
