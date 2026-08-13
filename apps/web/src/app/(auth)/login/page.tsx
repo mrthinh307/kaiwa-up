@@ -12,7 +12,18 @@ export const metadata: Metadata = {
   description: "Log in to KaiwaUp and continue building your Japanese conversation reflexes.",
 };
 
-export default function LoginPage() {
+type LoginPageProps = {
+  searchParams: Promise<{
+    next?: string | string[];
+    registered?: string | string[];
+  }>;
+};
+
+export default async function LoginPage({ searchParams }: LoginPageProps) {
+  const params = await searchParams;
+  const nextPath = typeof params.next === "string" ? params.next : undefined;
+  const isRegistered = params.registered === "1";
+
   return (
     <AuthPageShell
       description="Practice listening, pronunciation, and natural responses until Japanese conversation feels more automatic."
@@ -40,7 +51,7 @@ export default function LoginPage() {
             <span>or use email</span>
             <span className="h-0.5 flex-1 bg-border" />
           </div>
-          <LoginForm />
+          <LoginForm isRegistered={isRegistered} nextPath={nextPath} />
         </div>
       </AuthFormCard>
     </AuthPageShell>

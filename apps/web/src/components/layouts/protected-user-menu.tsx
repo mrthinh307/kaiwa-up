@@ -13,7 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useLogout } from "@/hooks/use-logout";
+import { useAuth } from "@/hooks/use-auth";
 
 import { ProtectedUserAvatar } from "./protected-user-avatar";
 
@@ -25,7 +25,7 @@ export type ProtectedHeaderUser = {
 
 export function ProtectedUserMenu({ user }: { user: ProtectedHeaderUser }) {
   const pathname = usePathname();
-  const handleLogout = useLogout();
+  const { isLoggingOut, logout } = useAuth();
   const isProfileActive = pathname === "/profile" || pathname.startsWith("/profile/");
 
   return (
@@ -61,10 +61,11 @@ export function ProtectedUserMenu({ user }: { user: ProtectedHeaderUser }) {
         <DropdownMenuSeparator />
         <DropdownMenuItem
           className="text-destructive hover:text-destructive-foreground! hover:bg-destructive! hover:cursor-pointer"
-          onSelect={handleLogout}
+          disabled={isLoggingOut}
+          onSelect={() => void logout()}
         >
           <LogOut aria-hidden="true" />
-          Log out
+          {isLoggingOut ? "Logging out…" : "Log out"}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
