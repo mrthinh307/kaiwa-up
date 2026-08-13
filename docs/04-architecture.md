@@ -650,7 +650,8 @@ Bảng trên là cấu hình ban đầu và có thể thay đổi sau khi thử 
 * Frontend chỉ hiển thị EXP nhận được.
 * Không tin dữ liệu EXP do frontend gửi lên.
 * Mỗi lần cộng EXP phải được lưu lịch sử.
-* Cơ chế tính EXP chi tiết sẽ được xác định sau.
+* Mỗi attempt hoàn thành chỉ tạo tối đa một bút toán EXP; tổng EXP được cập nhật dưới khóa dòng để
+  tránh lost update khi nhiều attempt hoàn thành đồng thời.
 
 ---
 
@@ -676,26 +677,9 @@ Thời lượng bản ghi > 2 giây
 
 ## 11.3. Cấp độ
 
-Cấp độ được xác định dựa trên tổng EXP.
-
-MVP sử dụng bảng mốc EXP cố định.
-
-Ví dụ:
-
-| Level | Tổng EXP tối thiểu |
-| ----: | -----------------: |
-|     1 |                  0 |
-|     2 |                100 |
-|     3 |                250 |
-|     4 |                450 |
-|     5 |                700 |
-|     6 |              1.000 |
-|     7 |              1.400 |
-|     8 |              1.900 |
-|     9 |              2.500 |
-|    10 |              3.200 |
-
-Bảng mốc EXP có thể được lưu trong database hoặc cấu hình tại backend.
+Cấp độ được xác định trực tiếp từ tổng EXP, không dùng bảng mốc và không có giới hạn level được
+định nghĩa trước. Từ level `L` lên `L+1` cần `50 × L` EXP; tổng EXP tối thiểu của level `L` là
+`25 × L × (L-1)`. Backend là nguồn tính toán có thẩm quyền; frontend chỉ hiển thị kết quả API.
 
 ---
 
@@ -707,13 +691,13 @@ Thứ tự sắp xếp:
 
 ```text
 weekly_exp DESC
-→ reached_exp_at ASC
+→ user_id ASC
 ```
 
 Quy tắc:
 
 1. Người có EXP tuần cao hơn đứng trước.
-2. Nếu bằng EXP, người đạt mức EXP đó sớm hơn đứng trước.
+2. Nếu bằng EXP, sắp `user_id` tăng dần trước khi gán rank để kết quả có thể tái tạo.
 
 Dữ liệu leaderboard có thể được tính trực tiếp từ lịch sử EXP trong MVP.
 
@@ -742,7 +726,7 @@ backend/
 │   └── listening_translation.json
 │
 └── scripts/
-    └── seed_database.py
+    └── seed_data.py
 ```
 
 Quy trình thêm bài học:
@@ -936,9 +920,9 @@ Tính năng này cần bổ sung:
 | Lặp lại ngắt quãng | Xác định lịch ôn dựa trên điểm AI                      |
 | AI Tutor           | Chưa phát triển trong MVP                              |
 | EXP                | Mỗi chức năng có cơ chế tính riêng                     |
-| Level              | Dựa trên tổng EXP và bảng mốc cố định                  |
+| Level              | Công thức tăng dần `50 × level hiện tại`, không có trần |
 | Leaderboard        | Dựa trên EXP theo tuần                                 |
-| Khi bằng EXP       | Người đạt mốc EXP sớm hơn đứng trước                   |
+| Khi bằng EXP       | Sắp `user_id ASC` trước khi gán rank                   |
 | Nội dung bài học   | JSON + seed script                                     |
 | Admin UI           | Không thuộc phạm vi MVP                                |
 | Cache              | Chưa sử dụng Redis trong MVP                           |

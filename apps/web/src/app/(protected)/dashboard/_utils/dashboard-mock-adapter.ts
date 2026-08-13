@@ -48,7 +48,6 @@ export type DashboardViewModel = {
     page: number;
     pageSize: number;
     pages: number;
-    selectedPracticeMode?: DashboardPracticeMode;
     selectedStatus?: DashboardAttemptStatus;
     searchQuery?: string;
     total: number;
@@ -161,7 +160,6 @@ function adaptDashboardMock({
   attempts,
   gamification,
   page,
-  practiceMode,
   progress,
   searchQuery,
   status,
@@ -169,7 +167,6 @@ function adaptDashboardMock({
   attempts: DashboardAttemptMock[];
   gamification: DashboardGamificationMock;
   page: number;
-  practiceMode?: DashboardPracticeMode;
   progress: DashboardProgressMock;
   searchQuery?: string;
   status?: DashboardAttemptStatus;
@@ -177,7 +174,6 @@ function adaptDashboardMock({
   const normalizedSearchQuery = searchQuery?.toLocaleLowerCase("en");
   const filteredAttempts = attempts.filter(
     (attempt) =>
-      (!practiceMode || attempt.practice_mode === practiceMode) &&
       (!status || attempt.status === status) &&
       (!normalizedSearchQuery ||
         attempt.content_title.toLocaleLowerCase("en").includes(normalizedSearchQuery)),
@@ -201,7 +197,6 @@ function adaptDashboardMock({
       page: normalizedPage,
       pageSize: DASHBOARD_ATTEMPT_PAGE_SIZE,
       pages,
-      selectedPracticeMode: practiceMode,
       selectedStatus: status,
       searchQuery,
       total,
@@ -233,13 +228,11 @@ function adaptDashboardMock({
 export function getDashboardMock({
   isEmpty = false,
   page = 1,
-  practiceMode,
   searchQuery,
   status,
 }: {
   isEmpty?: boolean;
   page?: number;
-  practiceMode?: DashboardPracticeMode;
   searchQuery?: string;
   status?: DashboardAttemptStatus;
 } = {}): DashboardViewModel {
@@ -254,7 +247,6 @@ export function getDashboardMock({
         total_exp: 0,
       },
       page,
-      practiceMode,
       progress: {
         dictation_attempts: 0,
         dictation_completed: 0,
@@ -272,7 +264,6 @@ export function getDashboardMock({
     attempts: DASHBOARD_ATTEMPTS_MOCK,
     gamification: DASHBOARD_GAMIFICATION_MOCK,
     page,
-    practiceMode,
     progress: DASHBOARD_PROGRESS_MOCK,
     searchQuery,
     status,

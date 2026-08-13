@@ -144,5 +144,9 @@ Kiểm tra luồng người dùng phát audio, thu âm giọng nói đuổi theo
 2. **Shadowing:** danh sách bài học, phát audio, ghi âm, chấm điểm mock.
 3. **Dictation:** nghe, nhập đáp án, kiểm tra kết quả đúng/sai.
 4. **Gamification:** cộng EXP, cập nhật cấp độ, hiển thị trạng thái tiến độ.
+
+Các test database của Gamification phải bao phủ thêm: hai attempt cấp EXP đồng thời không làm mất
+điểm, một attempt không được cấp thưởng hai lần, xóa attempt vẫn giữ `xp_transactions`, và CHECK
+constraint từ chối EXP/level/score/rank ngoài miền hợp lệ.
 5. **Phản xạ 3 giây / Spaced Repetition:** gửi câu trả lời, nhận phản hồi, tạo lịch ôn tập.
 6. **AI Tutor / Nghe và dịch:** chỉ cần có smoke test hoặc manual test tối thiểu ở giai đoạn đầu, sau đó mở rộng khi luồng chính đã ổn định.

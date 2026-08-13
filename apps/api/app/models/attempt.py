@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     DateTime,
     Enum,
     ForeignKey,
@@ -34,6 +35,27 @@ if TYPE_CHECKING:
 class ExerciseAttempt(PrimaryKeyUuidMixin, Base):
     __tablename__ = "exercise_attempts"
     __table_args__ = (
+        CheckConstraint("attempt_number >= 1", name="exercise_attempts_number_positive"),
+        CheckConstraint(
+            "status IN ('IN_PROGRESS', 'COMPLETED')",
+            name="attempt_status",
+        ),
+        CheckConstraint(
+            "score IS NULL OR score BETWEEN 0 AND 100",
+            name="exercise_attempts_score_range",
+        ),
+        CheckConstraint(
+            "correct_count IS NULL OR correct_count >= 0",
+            name="exercise_attempts_correct_count_nonnegative",
+        ),
+        CheckConstraint(
+            "total_count IS NULL OR total_count >= 0",
+            name="exercise_attempts_total_count_nonnegative",
+        ),
+        CheckConstraint(
+            "correct_count IS NULL OR total_count IS NULL OR correct_count <= total_count",
+            name="exercise_attempts_correct_not_above_total",
+        ),
         UniqueConstraint(
             "user_id", "content_id", "attempt_number", name="uq_exercise_attempts_order"
         ),
@@ -97,6 +119,14 @@ class ExerciseAttempt(PrimaryKeyUuidMixin, Base):
 class Recording(PrimaryKeyUuidMixin, CreatedAtMixin, Base):
     __tablename__ = "recordings"
     __table_args__ = (
+        CheckConstraint(
+            "kind IN ('SHADOWING', 'REFLEX', 'TUTOR_VOICE')",
+            name="recording_kind",
+        ),
+        CheckConstraint(
+            "duration_ms IS NULL OR duration_ms >= 0",
+            name="recordings_duration_nonnegative",
+        ),
         Index(
             "ix_recordings_user_id_created_at",
             "user_id",
@@ -130,6 +160,18 @@ class Recording(PrimaryKeyUuidMixin, CreatedAtMixin, Base):
 class AiEvaluation(PrimaryKeyUuidMixin, CreatedAtMixin, Base):
     __tablename__ = "ai_evaluations"
     __table_args__ = (
+        CheckConstraint(
+            "status IN ('PENDING', 'COMPLETED', 'FAILED')",
+            name="ai_evaluation_status",
+        ),
+        CheckConstraint(
+            "similarity_score IS NULL OR similarity_score BETWEEN 0 AND 100",
+            name="ai_evaluations_similarity_score_range",
+        ),
+        CheckConstraint(
+            "fluency_score IS NULL OR fluency_score BETWEEN 0 AND 100",
+            name="ai_evaluations_fluency_score_range",
+        ),
         Index(
             "ix_ai_evaluations_attempt_id_created_at",
             "attempt_id",
@@ -163,7 +205,12 @@ class AiEvaluation(PrimaryKeyUuidMixin, CreatedAtMixin, Base):
 
 class ReviewSchedule(Base):
     __tablename__ = "review_schedules"
-    __table_args__ = (Index("ix_review_schedules_user_id_due_at", "user_id", "due_at"),)
+    __table_args__ = (
+        CheckConstraint("interval_days >= 0", name="review_schedules_interval_nonnegative"),
+        CheckConstraint("ease_factor > 0", name="review_schedules_ease_factor_positive"),
+        CheckConstraint("repetitions >= 0", name="review_schedules_repetitions_nonnegative"),
+        Index("ix_review_schedules_user_id_due_at", "user_id", "due_at"),
+    )
 
     user_id: Mapped[uuid.UUID] = mapped_column(
         Uuid, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True

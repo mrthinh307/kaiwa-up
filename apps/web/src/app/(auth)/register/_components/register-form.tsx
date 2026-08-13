@@ -2,6 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { type FieldError, useForm, type UseFormRegisterReturn } from "react-hook-form";
 import { toast } from "sonner";
@@ -9,17 +10,20 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { register as registerRequest } from "@/lib/api-client";
+import { normalizeApiFieldName, parseApiFailure } from "@/lib/api-errors";
 
-import { submitAuthPreview } from "../../_utils/auth-preview-adapter";
 import { registerSchema, type RegisterValues } from "../../_validations/auth-schemas";
 
 export function RegisterForm() {
+  const router = useRouter();
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [isConfirmPasswordVisible, setIsConfirmPasswordVisible] = useState(false);
   const {
     formState: { errors, isSubmitting },
     handleSubmit,
     register,
+    setError,
   } = useForm<RegisterValues>({
     defaultValues: {
       confirmPassword: "",
@@ -31,14 +35,39 @@ export function RegisterForm() {
   });
 
   const handleRegister = async (values: RegisterValues) => {
-    const nextResult = await submitAuthPreview("register", values);
+    const result = await registerRequest({
+      body: {
+        email: values.email,
+        name: values.displayName,
+        password: values.password,
+      },
+    });
 
-    if (nextResult.kind === "error") {
-      toast.error("We could not create your account", { description: nextResult.message });
+    if (!result.data) {
+      const failure = parseApiFailure(result);
+
+      if (failure.status === 409) {
+        setError("email", { message: "This email is already in use." });
+      } else {
+        let hasMappedField = false;
+        for (const fieldError of failure.fieldErrors) {
+          const field = normalizeApiFieldName(fieldError.field);
+          if (field === "displayName" || field === "email" || field === "password") {
+            setError(field, { message: fieldError.message });
+            hasMappedField = true;
+          }
+        }
+
+        if (!hasMappedField) {
+          setError("root.server", { message: failure.message });
+        }
+      }
+
+      toast.error("We could not create your account", { description: failure.message });
       return;
     }
 
-    toast.success("Account ready to continue", { description: nextResult.message });
+    router.replace("/login?registered=1");
   };
 
   return (
@@ -97,6 +126,12 @@ export function RegisterForm() {
           registration={register("confirmPassword")}
         />
       </div>
+
+      {errors.root?.server?.message && (
+        <p className="text-sm text-destructive" role="alert">
+          {errors.root.server.message}
+        </p>
+      )}
 
       <Button className="w-full" disabled={isSubmitting} type="submit">
         {isSubmitting ? "Creating account…" : "Create account"}

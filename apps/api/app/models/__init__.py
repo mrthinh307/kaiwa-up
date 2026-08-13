@@ -3,15 +3,12 @@
 from app.models.attempt import AiEvaluation, ExerciseAttempt, Recording, ReviewSchedule
 from app.models.base import Base, CreatedAtMixin, PrimaryKeyUuidMixin, TimestampMixin
 from app.models.content import (
-    DictationExercise,
     LearningContent,
     ReflexExercise,
-    ShadowingExercise,
     TranslationExercise,
 )
 from app.models.gamification import (
     Achievement,
-    LevelDefinition,
     UserAchievement,
     WeeklyLeaderboardEntry,
     XpTransaction,
@@ -25,15 +22,12 @@ __all__ = [
     "AuthRefreshToken",
     "Base",
     "CreatedAtMixin",
-    "DictationExercise",
     "ExerciseAttempt",
     "LearningContent",
-    "LevelDefinition",
     "PrimaryKeyUuidMixin",
     "Recording",
     "ReflexExercise",
     "ReviewSchedule",
-    "ShadowingExercise",
     "TimestampMixin",
     "TranslationExercise",
     "TutorMessage",

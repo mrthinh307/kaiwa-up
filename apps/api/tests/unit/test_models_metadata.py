@@ -1,4 +1,8 @@
+from sqlalchemy import CheckConstraint, DateTime, Enum, Index, UniqueConstraint
+from sqlalchemy.schema import ColumnDefault
+
 from app.models import Base
+from app.models.enums import JlptLevel
 
 
 def test_all_expected_tables_registered() -> None:
@@ -7,14 +11,11 @@ def test_all_expected_tables_registered() -> None:
         "users",
         "user_progress",
         "auth_refresh_tokens",
-        "level_definitions",
         "achievements",
         "user_achievements",
         "xp_transactions",
         "weekly_leaderboard_entries",
         "learning_contents",
-        "shadowing_exercises",
-        "dictation_exercises",
         "reflex_exercises",
         "translation_exercises",
         "exercise_attempts",
@@ -28,18 +29,17 @@ def test_all_expected_tables_registered() -> None:
 
 
 def test_unique_constraints_defined() -> None:
-    constraints: dict[str, set[str]] = {}
+    constraints: dict[str, set[tuple[str, ...]]] = {}
     for name, table in Base.metadata.tables.items():
         constraints[name] = {
             tuple(sorted(c.columns.keys()))
             for c in table.constraints
-            if c.__class__.__name__ == "UniqueConstraint"
+            if isinstance(c, UniqueConstraint)
         }
 
     assert ("email",) in constraints["users"]
     assert ("token_hash",) in constraints["auth_refresh_tokens"]
     assert ("slug",) in constraints["learning_contents"]
-    assert ("required_total_exp",) in constraints["level_definitions"]
     assert ("code",) in constraints["achievements"]
     assert ("storage_key",) in constraints["recordings"]
     assert ("attempt_id",) in constraints["xp_transactions"]
@@ -57,8 +57,6 @@ def test_composite_primary_keys() -> None:
     assert pks["user_achievements"] == {"user_id", "achievement_id"}
     assert pks["review_schedules"] == {"user_id", "content_id"}
     assert pks["weekly_leaderboard_entries"] == {"week_start", "user_id"}
-    assert pks["shadowing_exercises"] == {"content_id"}
-    assert pks["dictation_exercises"] == {"content_id"}
     assert pks["reflex_exercises"] == {"content_id"}
     assert pks["translation_exercises"] == {"content_id"}
 
@@ -66,7 +64,7 @@ def test_composite_primary_keys() -> None:
 def test_required_indexes_present() -> None:
     indexes: dict[str, set[str]] = {}
     for name, table in Base.metadata.tables.items():
-        indexes[name] = {idx.name for idx in table.indexes}
+        indexes[name] = {str(idx.name) for idx in table.indexes}
 
     assert "ix_auth_refresh_tokens_user_id_expires_at_active" in indexes["auth_refresh_tokens"]
     assert "ix_exercise_attempts_user_id_completed_at" in indexes["exercise_attempts"]
@@ -79,7 +77,7 @@ def test_required_indexes_present() -> None:
     assert "ix_learning_contents_published_catalog" in indexes["learning_contents"]
 
 
-def _index_by_name(table_name: str, index_name: str):
+def _index_by_name(table_name: str, index_name: str) -> Index:
     return next(idx for idx in Base.metadata.tables[table_name].indexes if idx.name == index_name)
 
 
@@ -96,13 +94,66 @@ def test_partial_index_conditions() -> None:
     assert "revoked_at IS NULL" in str(refresh_idx.dialect_options["postgresql"].get("where"))
 
     catalog_idx = _index_by_name("learning_contents", "ix_learning_contents_published_catalog")
-    assert "status = 'published'" in str(catalog_idx.dialect_options["postgresql"].get("where"))
+    assert "status = 'PUBLISHED'" in str(catalog_idx.dialect_options["postgresql"].get("where"))
+
+
+def test_database_check_constraints_present() -> None:
+    expected = {
+        "users": {"user_role"},
+        "user_progress": {
+            "user_progress_total_exp_nonnegative",
+            "user_progress_current_level_positive",
+            "user_progress_completed_count_nonnegative",
+        },
+        "learning_contents": {
+            "content_type",
+            "content_status",
+            "jlpt_level",
+            "learning_contents_audio_duration_nonnegative",
+            "learning_contents_base_exp_positive",
+        },
+        "exercise_attempts": {
+            "attempt_status",
+            "exercise_attempts_number_positive",
+            "exercise_attempts_score_range",
+            "exercise_attempts_correct_count_nonnegative",
+            "exercise_attempts_total_count_nonnegative",
+            "exercise_attempts_correct_not_above_total",
+        },
+        "recordings": {"recording_kind", "recordings_duration_nonnegative"},
+        "ai_evaluations": {
+            "ai_evaluation_status",
+            "ai_evaluations_similarity_score_range",
+            "ai_evaluations_fluency_score_range",
+        },
+        "xp_transactions": {"xp_transactions_amount_positive"},
+        "weekly_leaderboard_entries": {
+            "weekly_leaderboard_exp_nonnegative",
+            "weekly_leaderboard_rank_positive",
+        },
+        "tutor_sessions": {"tutor_session_jlpt_level", "tutor_session_status"},
+        "tutor_messages": {"tutor_sender", "tutor_messages_sequence_positive"},
+    }
+    for table_name, constraint_names in expected.items():
+        actual = {
+            constraint.name
+            for constraint in Base.metadata.tables[table_name].constraints
+            if isinstance(constraint, CheckConstraint)
+        }
+        assert constraint_names <= actual
+
+
+def test_xp_attempt_foreign_key_preserves_ledger() -> None:
+    attempt_id = Base.metadata.tables["xp_transactions"].columns["attempt_id"]
+    foreign_key = next(iter(attempt_id.foreign_keys))
+
+    assert foreign_key.ondelete == "SET NULL"
 
 
 def test_columns_use_timezone_aware_datetime() -> None:
     for name, table in Base.metadata.tables.items():
         for column in table.columns:
-            if column.type.__class__.__name__ == "DateTime":
+            if isinstance(column.type, DateTime):
                 assert column.type.timezone, f"{name}.{column.name} lacks timezone=True"
 
 
@@ -112,7 +163,31 @@ def test_audio_stored_as_reference_only() -> None:
 
     learning = Base.metadata.tables["learning_contents"]
     assert learning.columns["audio_url"].type.__class__.__name__ == "Text"
+    assert learning.columns["transcript_ja"].type.__class__.__name__ == "JSONB"
 
     recordings = Base.metadata.tables["recordings"]
     assert "storage_key" in recordings.columns
     assert "storage_key" in {c.name for c in recordings.columns if c.unique}
+
+
+def test_learning_content_difficulty_uses_jlpt_level() -> None:
+    learning_contents = Base.metadata.tables["learning_contents"]
+    difficulty = learning_contents.columns["difficulty"]
+    jlpt_constraint = next(
+        constraint
+        for constraint in learning_contents.constraints
+        if isinstance(constraint, CheckConstraint) and constraint.name == "jlpt_level"
+    )
+
+    assert isinstance(difficulty.type, Enum)
+    assert difficulty.type.enums == [level.value for level in JlptLevel]
+    assert isinstance(difficulty.default, ColumnDefault)
+    assert difficulty.default.arg == JlptLevel.N5
+    assert str(jlpt_constraint.sqltext) == "difficulty IN ('N5', 'N4', 'N3', 'N2', 'N1')"
+
+
+def test_tutor_difficulty_uses_jlpt_level() -> None:
+    difficulty = Base.metadata.tables["tutor_sessions"].columns["difficulty"]
+
+    assert isinstance(difficulty.type, Enum)
+    assert difficulty.type.enums == [level.value for level in JlptLevel]

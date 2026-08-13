@@ -3,11 +3,46 @@
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from "./client";
 import { client } from "./client.gen";
 import type {
-  HealthCheckApiV1HealthGetData,
-  HealthCheckApiV1HealthGetResponses,
-  ReadinessCheckApiV1ReadyGetData,
-  ReadinessCheckApiV1ReadyGetErrors,
-  ReadinessCheckApiV1ReadyGetResponses,
+  CheckDictationSegmentData,
+  CheckDictationSegmentErrors,
+  CheckDictationSegmentResponses,
+  GetGamificationProfileData,
+  GetGamificationProfileErrors,
+  GetGamificationProfileResponses,
+  GetMeData,
+  GetMeErrors,
+  GetMeResponses,
+  GetProgressAttemptData,
+  GetProgressAttemptErrors,
+  GetProgressAttemptResponses,
+  GetProgressSummaryData,
+  GetProgressSummaryResponses,
+  HealthCheckData,
+  HealthCheckResponses,
+  ListProgressAttemptsData,
+  ListProgressAttemptsErrors,
+  ListProgressAttemptsResponses,
+  LoginData,
+  LoginErrors,
+  LoginResponses,
+  LogoutData,
+  LogoutErrors,
+  LogoutResponses,
+  ReadinessCheckData,
+  ReadinessCheckErrors,
+  ReadinessCheckResponses,
+  RefreshData,
+  RefreshErrors,
+  RefreshResponses,
+  RegisterData,
+  RegisterErrors,
+  RegisterResponses,
+  StartDictationAttemptData,
+  StartDictationAttemptErrors,
+  StartDictationAttemptResponses,
+  UpdateMeData,
+  UpdateMeErrors,
+  UpdateMeResponses,
 } from "./types.gen";
 
 export type Options<
@@ -31,10 +66,10 @@ export type Options<
 /**
  * Check application health
  */
-export const healthCheckApiV1HealthGet = <ThrowOnError extends boolean = false>(
-  options?: Options<HealthCheckApiV1HealthGetData, ThrowOnError>,
-): RequestResult<HealthCheckApiV1HealthGetResponses, unknown, ThrowOnError> =>
-  (options?.client ?? client).get<HealthCheckApiV1HealthGetResponses, unknown, ThrowOnError>({
+export const healthCheck = <ThrowOnError extends boolean = false>(
+  options?: Options<HealthCheckData, ThrowOnError>,
+): RequestResult<HealthCheckResponses, unknown, ThrowOnError> =>
+  (options?.client ?? client).get<HealthCheckResponses, unknown, ThrowOnError>({
     url: "/api/v1/health",
     ...options,
   });
@@ -42,15 +77,198 @@ export const healthCheckApiV1HealthGet = <ThrowOnError extends boolean = false>(
 /**
  * Check application and database readiness
  */
-export const readinessCheckApiV1ReadyGet = <ThrowOnError extends boolean = false>(
-  options?: Options<ReadinessCheckApiV1ReadyGetData, ThrowOnError>,
-): RequestResult<
-  ReadinessCheckApiV1ReadyGetResponses,
-  ReadinessCheckApiV1ReadyGetErrors,
-  ThrowOnError
-> =>
+export const readinessCheck = <ThrowOnError extends boolean = false>(
+  options?: Options<ReadinessCheckData, ThrowOnError>,
+): RequestResult<ReadinessCheckResponses, ReadinessCheckErrors, ThrowOnError> =>
+  (options?.client ?? client).get<ReadinessCheckResponses, ReadinessCheckErrors, ThrowOnError>({
+    url: "/api/v1/ready",
+    ...options,
+  });
+
+/**
+ * Get progress summary for the current user
+ */
+export const getProgressSummary = <ThrowOnError extends boolean = false>(
+  options?: Options<GetProgressSummaryData, ThrowOnError>,
+): RequestResult<GetProgressSummaryResponses, unknown, ThrowOnError> =>
+  (options?.client ?? client).get<GetProgressSummaryResponses, unknown, ThrowOnError>({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/api/v1/progress/summary",
+    ...options,
+  });
+
+/**
+ * List attempt history for the current user
+ */
+export const listProgressAttempts = <ThrowOnError extends boolean = false>(
+  options?: Options<ListProgressAttemptsData, ThrowOnError>,
+): RequestResult<ListProgressAttemptsResponses, ListProgressAttemptsErrors, ThrowOnError> =>
   (options?.client ?? client).get<
-    ReadinessCheckApiV1ReadyGetResponses,
-    ReadinessCheckApiV1ReadyGetErrors,
+    ListProgressAttemptsResponses,
+    ListProgressAttemptsErrors,
     ThrowOnError
-  >({ url: "/api/v1/ready", ...options });
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/api/v1/progress/attempts",
+    ...options,
+  });
+
+/**
+ * Get a single attempt detail for the current user
+ */
+export const getProgressAttempt = <ThrowOnError extends boolean = false>(
+  options: Options<GetProgressAttemptData, ThrowOnError>,
+): RequestResult<GetProgressAttemptResponses, GetProgressAttemptErrors, ThrowOnError> =>
+  (options.client ?? client).get<
+    GetProgressAttemptResponses,
+    GetProgressAttemptErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/api/v1/progress/attempts/{attempt_id}",
+    ...options,
+  });
+
+/**
+ * Get the current user's EXP, level, and recent EXP history
+ */
+export const getGamificationProfile = <ThrowOnError extends boolean = false>(
+  options?: Options<GetGamificationProfileData, ThrowOnError>,
+): RequestResult<GetGamificationProfileResponses, GetGamificationProfileErrors, ThrowOnError> =>
+  (options?.client ?? client).get<
+    GetGamificationProfileResponses,
+    GetGamificationProfileErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/api/v1/gamification/profile",
+    ...options,
+  });
+
+/**
+ * Check a Dictation segment answer
+ */
+export const checkDictationSegment = <ThrowOnError extends boolean = false>(
+  options: Options<CheckDictationSegmentData, ThrowOnError>,
+): RequestResult<CheckDictationSegmentResponses, CheckDictationSegmentErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    CheckDictationSegmentResponses,
+    CheckDictationSegmentErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/api/v1/dictation/segments/check",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Start a dictation attempt
+ */
+export const startDictationAttempt = <ThrowOnError extends boolean = false>(
+  options: Options<StartDictationAttemptData, ThrowOnError>,
+): RequestResult<StartDictationAttemptResponses, StartDictationAttemptErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    StartDictationAttemptResponses,
+    StartDictationAttemptErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/api/v1/dictation/{content_id}/start",
+    ...options,
+  });
+
+/**
+ * Register
+ *
+ * Register a new user.
+ */
+export const register = <ThrowOnError extends boolean = false>(
+  options: Options<RegisterData, ThrowOnError>,
+): RequestResult<RegisterResponses, RegisterErrors, ThrowOnError> =>
+  (options.client ?? client).post<RegisterResponses, RegisterErrors, ThrowOnError>({
+    url: "/api/v1/auth/register",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Login
+ *
+ * Authenticate with email/password.
+ */
+export const login = <ThrowOnError extends boolean = false>(
+  options: Options<LoginData, ThrowOnError>,
+): RequestResult<LoginResponses, LoginErrors, ThrowOnError> =>
+  (options.client ?? client).post<LoginResponses, LoginErrors, ThrowOnError>({
+    url: "/api/v1/auth/login",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Refresh
+ *
+ * Rotate the refresh token and issue a new access token.
+ */
+export const refresh = <ThrowOnError extends boolean = false>(
+  options?: Options<RefreshData, ThrowOnError>,
+): RequestResult<RefreshResponses, RefreshErrors, ThrowOnError> =>
+  (options?.client ?? client).post<RefreshResponses, RefreshErrors, ThrowOnError>({
+    url: "/api/v1/auth/refresh",
+    ...options,
+  });
+
+/**
+ * Logout
+ *
+ * Revoke the current refresh token and clear its cookie.
+ */
+export const logout = <ThrowOnError extends boolean = false>(
+  options?: Options<LogoutData, ThrowOnError>,
+): RequestResult<LogoutResponses, LogoutErrors, ThrowOnError> =>
+  (options?.client ?? client).post<LogoutResponses, LogoutErrors, ThrowOnError>({
+    url: "/api/v1/auth/logout",
+    ...options,
+  });
+
+/**
+ * Get Me
+ *
+ * Return the authenticated user's profile.
+ */
+export const getMe = <ThrowOnError extends boolean = false>(
+  options?: Options<GetMeData, ThrowOnError>,
+): RequestResult<GetMeResponses, GetMeErrors, ThrowOnError> =>
+  (options?.client ?? client).get<GetMeResponses, GetMeErrors, ThrowOnError>({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/api/v1/users/me",
+    ...options,
+  });
+
+/**
+ * Update Me
+ *
+ * Update the authenticated user's display name.
+ */
+export const updateMe = <ThrowOnError extends boolean = false>(
+  options: Options<UpdateMeData, ThrowOnError>,
+): RequestResult<UpdateMeResponses, UpdateMeErrors, ThrowOnError> =>
+  (options.client ?? client).patch<UpdateMeResponses, UpdateMeErrors, ThrowOnError>({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/api/v1/users/me",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });

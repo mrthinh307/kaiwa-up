@@ -9,8 +9,7 @@ class UserRole(enum.StrEnum):
 
 
 class ContentType(enum.StrEnum):
-    SHADOWING = "shadowing"
-    DICTATION = "dictation"
+    SHADOWING_DICTATION = "shadowing_dictation"
     REFLEX = "reflex"
     LISTENING_TRANSLATION = "listening_translation"
 
@@ -20,9 +19,16 @@ class ContentStatus(enum.StrEnum):
     PUBLISHED = "published"
 
 
+class JlptLevel(enum.StrEnum):
+    N5 = "N5"
+    N4 = "N4"
+    N3 = "N3"
+    N2 = "N2"
+    N1 = "N1"
+
+
 class AttemptStatus(enum.StrEnum):
     IN_PROGRESS = "in_progress"
-    SUBMITTED = "submitted"
     COMPLETED = "completed"
 
 

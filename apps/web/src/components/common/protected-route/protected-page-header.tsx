@@ -26,7 +26,7 @@ export function ProtectedPageHeader({
       <div
         className={cn("flex flex-col justify-between gap-7", aside && "lg:flex-row lg:items-end")}
       >
-        <div className="max-w-[820px]">
+        <div className="max-w-[880px]">
           <Badge className="mb-5 gap-2 shadow-shadow">
             {Icon ? <Icon aria-hidden="true" /> : null}
             {eyebrow}

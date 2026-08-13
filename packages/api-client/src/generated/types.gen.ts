@@ -5,6 +5,237 @@ export type ClientOptions = {
 };
 
 /**
+ * AccessTokenResponse
+ *
+ * Access token response returned by login and refresh.
+ */
+export type AccessTokenResponse = {
+  /**
+   * Access Token
+   */
+  access_token: string;
+  /**
+   * Token Type
+   */
+  token_type?: string;
+  /**
+   * Expires In
+   */
+  expires_in: number;
+};
+
+/**
+ * AttemptStatus
+ */
+export type AttemptStatus = "in_progress" | "completed";
+
+/**
+ * ContentType
+ */
+export type ContentType = "shadowing_dictation" | "reflex" | "listening_translation";
+
+/**
+ * DictationSegmentCheckRequest
+ */
+export type DictationSegmentCheckRequest = {
+  /**
+   * Attempt Id
+   */
+  attempt_id: string;
+  /**
+   * Segment Index
+   */
+  segment_index: number;
+  /**
+   * User Answer
+   */
+  user_answer: string;
+};
+
+/**
+ * DictationSegmentCheckResponse
+ */
+export type DictationSegmentCheckResponse = {
+  /**
+   * Segment Index
+   */
+  segment_index: number;
+  /**
+   * Is Correct
+   */
+  is_correct: boolean;
+  /**
+   * User Answer
+   */
+  user_answer: string;
+  /**
+   * Correct Script
+   */
+  correct_script: string;
+  /**
+   * Is Last Segment
+   */
+  is_last_segment: boolean;
+};
+
+/**
+ * DictationSegmentItem
+ */
+export type DictationSegmentItem = {
+  /**
+   * Segment Index
+   */
+  segment_index: number;
+  /**
+   * Start Time Ms
+   */
+  start_time_ms: number;
+  /**
+   * End Time Ms
+   */
+  end_time_ms: number;
+};
+
+/**
+ * DictationStartResponse
+ */
+export type DictationStartResponse = {
+  /**
+   * Attempt Id
+   */
+  attempt_id: string;
+  /**
+   * Content Id
+   */
+  content_id: string;
+  /**
+   * Attempt Number
+   */
+  attempt_number: number;
+  /**
+   * Audio Url
+   */
+  audio_url: string;
+  /**
+   * Total Segments
+   */
+  total_segments: number;
+  /**
+   * Segments
+   */
+  segments: Array<DictationSegmentItem>;
+};
+
+/**
+ * ErrorDetail
+ *
+ * Application error payload.
+ */
+export type ErrorDetail = {
+  /**
+   * Status
+   */
+  status: number;
+  /**
+   * Code
+   */
+  code: string;
+  /**
+   * Message
+   */
+  message: string;
+  /**
+   * Details
+   */
+  details?:
+    | Array<ValidationErrorDetail>
+    | {
+        [key: string]: unknown;
+      }
+    | string
+    | null;
+};
+
+/**
+ * ErrorResponse
+ *
+ * Stable envelope for expected and unexpected API errors.
+ */
+export type ErrorResponse = {
+  error: ErrorDetail;
+};
+
+/**
+ * ExpHistoryItem
+ */
+export type ExpHistoryItem = {
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Attempt Id
+   */
+  attempt_id?: string | null;
+  /**
+   * Amount
+   */
+  amount: number;
+  /**
+   * Reason
+   */
+  reason?: string | null;
+  /**
+   * Created At
+   */
+  created_at: string;
+};
+
+/**
+ * GamificationProfileResponse
+ */
+export type GamificationProfileResponse = {
+  /**
+   * Level
+   */
+  level: number;
+  /**
+   * Level Title
+   */
+  level_title: string;
+  /**
+   * Total Exp
+   */
+  total_exp: number;
+  /**
+   * Current Level Min Exp
+   */
+  current_level_min_exp: number;
+  /**
+   * Next Level Min Exp
+   */
+  next_level_min_exp?: number | null;
+  /**
+   * Exp To Next Level
+   */
+  exp_to_next_level: number;
+  /**
+   * Recent Exp History
+   */
+  recent_exp_history?: Array<ExpHistoryItem>;
+};
+
+/**
+ * HTTPValidationError
+ */
+export type HttpValidationError = {
+  /**
+   * Detail
+   */
+  detail?: Array<ValidationError>;
+};
+
+/**
  * HealthResponse
  */
 export type HealthResponse = {
@@ -20,6 +251,140 @@ export type HealthResponse = {
    * App Name
    */
   app_name: string;
+};
+
+/**
+ * LoginRequest
+ *
+ * Payload for email/password login.
+ */
+export type LoginRequest = {
+  /**
+   * Email
+   */
+  email: string;
+  /**
+   * Password
+   */
+  password: string;
+};
+
+/**
+ * PaginatedResponse[ProgressAttemptItem]
+ */
+export type PaginatedResponseProgressAttemptItem = {
+  /**
+   * Items
+   */
+  items: Array<ProgressAttemptItem>;
+  /**
+   * Total Items
+   */
+  total_items: number;
+  /**
+   * Page
+   */
+  page: number;
+  /**
+   * Page Size
+   */
+  page_size: number;
+  /**
+   * Total Pages
+   */
+  total_pages: number;
+};
+
+/**
+ * ProgressAttemptDetail
+ */
+export type ProgressAttemptDetail = {
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Content Id
+   */
+  content_id: string;
+  content_type: ContentType;
+  /**
+   * Attempt Number
+   */
+  attempt_number: number;
+  status: AttemptStatus;
+  /**
+   * Score
+   */
+  score?: number | null;
+  /**
+   * Answer Payload
+   */
+  answer_payload?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Completed At
+   */
+  completed_at?: string | null;
+};
+
+/**
+ * ProgressAttemptItem
+ */
+export type ProgressAttemptItem = {
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Content Id
+   */
+  content_id: string;
+  /**
+   * Content Title
+   */
+  content_title: string;
+  content_type: ContentType;
+  /**
+   * Attempt Number
+   */
+  attempt_number: number;
+  status: AttemptStatus;
+  /**
+   * Score
+   */
+  score?: number | null;
+  /**
+   * Completed At
+   */
+  completed_at?: string | null;
+};
+
+/**
+ * ProgressSummaryResponse
+ */
+export type ProgressSummaryResponse = {
+  /**
+   * Shadowing Dictation Completed
+   */
+  shadowing_dictation_completed: number;
+  /**
+   * Reflex Completed
+   */
+  reflex_completed: number;
+  /**
+   * Listening Translation Completed
+   */
+  listening_translation_completed: number;
+  /**
+   * Total Completed Attempts
+   */
+  total_completed_attempts: number;
+  /**
+   * Total Attempts
+   */
+  total_attempts: number;
 };
 
 /**
@@ -44,43 +409,550 @@ export type ReadinessResponse = {
   database: "ok";
 };
 
-export type HealthCheckApiV1HealthGetData = {
+/**
+ * RegisterRequest
+ *
+ * Payload for registering a new user.
+ */
+export type RegisterRequest = {
+  /**
+   * Email
+   */
+  email: string;
+  /**
+   * Password
+   */
+  password: string;
+  /**
+   * Name
+   */
+  name: string;
+};
+
+/**
+ * UserResponse
+ *
+ * Public representation of a user.
+ */
+export type UserResponse = {
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Email
+   */
+  email: string;
+  /**
+   * Display Name
+   */
+  display_name: string | null;
+  /**
+   * Avatar Url
+   */
+  avatar_url: string | null;
+  role: UserRole;
+  /**
+   * Is Active
+   */
+  is_active: boolean;
+  /**
+   * Created At
+   */
+  created_at: string;
+};
+
+/**
+ * UserRole
+ */
+export type UserRole = "user" | "admin";
+
+/**
+ * UserUpdateRequest
+ *
+ * Allowed fields for updating the current user's profile.
+ */
+export type UserUpdateRequest = {
+  /**
+   * Display Name
+   */
+  display_name: string;
+};
+
+/**
+ * ValidationError
+ */
+export type ValidationError = {
+  /**
+   * Location
+   */
+  loc: Array<string | number>;
+  /**
+   * Message
+   */
+  msg: string;
+  /**
+   * Error Type
+   */
+  type: string;
+  /**
+   * Input
+   */
+  input?: unknown;
+  /**
+   * Context
+   */
+  ctx?: {
+    [key: string]: unknown;
+  };
+};
+
+/**
+ * ValidationErrorDetail
+ *
+ * Field-level validation failure returned in an error envelope.
+ */
+export type ValidationErrorDetail = {
+  /**
+   * Field
+   */
+  field: string;
+  /**
+   * Message
+   */
+  message: string;
+  /**
+   * Type
+   */
+  type: string;
+};
+
+export type HealthCheckData = {
   body?: never;
   path?: never;
   query?: never;
   url: "/api/v1/health";
 };
 
-export type HealthCheckApiV1HealthGetResponses = {
+export type HealthCheckResponses = {
   /**
    * Successful Response
    */
   200: HealthResponse;
 };
 
-export type HealthCheckApiV1HealthGetResponse =
-  HealthCheckApiV1HealthGetResponses[keyof HealthCheckApiV1HealthGetResponses];
+export type HealthCheckResponse = HealthCheckResponses[keyof HealthCheckResponses];
 
-export type ReadinessCheckApiV1ReadyGetData = {
+export type ReadinessCheckData = {
   body?: never;
   path?: never;
   query?: never;
   url: "/api/v1/ready";
 };
 
-export type ReadinessCheckApiV1ReadyGetErrors = {
+export type ReadinessCheckErrors = {
   /**
    * Database is not ready
    */
   503: unknown;
 };
 
-export type ReadinessCheckApiV1ReadyGetResponses = {
+export type ReadinessCheckResponses = {
   /**
    * Successful Response
    */
   200: ReadinessResponse;
 };
 
-export type ReadinessCheckApiV1ReadyGetResponse =
-  ReadinessCheckApiV1ReadyGetResponses[keyof ReadinessCheckApiV1ReadyGetResponses];
+export type ReadinessCheckResponse = ReadinessCheckResponses[keyof ReadinessCheckResponses];
+
+export type GetProgressSummaryData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/progress/summary";
+};
+
+export type GetProgressSummaryResponses = {
+  /**
+   * Successful Response
+   */
+  200: ProgressSummaryResponse;
+};
+
+export type GetProgressSummaryResponse =
+  GetProgressSummaryResponses[keyof GetProgressSummaryResponses];
+
+export type ListProgressAttemptsData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Content Type
+     */
+    content_type?: ContentType | null;
+    /**
+     * Content Id
+     */
+    content_id?: string | null;
+    /**
+     * Page
+     */
+    page?: number;
+    /**
+     * Page Size
+     */
+    page_size?: number;
+  };
+  url: "/api/v1/progress/attempts";
+};
+
+export type ListProgressAttemptsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListProgressAttemptsError =
+  ListProgressAttemptsErrors[keyof ListProgressAttemptsErrors];
+
+export type ListProgressAttemptsResponses = {
+  /**
+   * Successful Response
+   */
+  200: PaginatedResponseProgressAttemptItem;
+};
+
+export type ListProgressAttemptsResponse =
+  ListProgressAttemptsResponses[keyof ListProgressAttemptsResponses];
+
+export type GetProgressAttemptData = {
+  body?: never;
+  path: {
+    /**
+     * Attempt Id
+     */
+    attempt_id: string;
+  };
+  query?: never;
+  url: "/api/v1/progress/attempts/{attempt_id}";
+};
+
+export type GetProgressAttemptErrors = {
+  /**
+   * Attempt belongs to another user
+   */
+  403: unknown;
+  /**
+   * Attempt not found
+   */
+  404: unknown;
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetProgressAttemptError = GetProgressAttemptErrors[keyof GetProgressAttemptErrors];
+
+export type GetProgressAttemptResponses = {
+  /**
+   * Successful Response
+   */
+  200: ProgressAttemptDetail;
+};
+
+export type GetProgressAttemptResponse =
+  GetProgressAttemptResponses[keyof GetProgressAttemptResponses];
+
+export type GetGamificationProfileData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Limit
+     */
+    limit?: number;
+  };
+  url: "/api/v1/gamification/profile";
+};
+
+export type GetGamificationProfileErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetGamificationProfileError =
+  GetGamificationProfileErrors[keyof GetGamificationProfileErrors];
+
+export type GetGamificationProfileResponses = {
+  /**
+   * Successful Response
+   */
+  200: GamificationProfileResponse;
+};
+
+export type GetGamificationProfileResponse =
+  GetGamificationProfileResponses[keyof GetGamificationProfileResponses];
+
+export type CheckDictationSegmentData = {
+  body: DictationSegmentCheckRequest;
+  path?: never;
+  query?: never;
+  url: "/api/v1/dictation/segments/check";
+};
+
+export type CheckDictationSegmentErrors = {
+  /**
+   * Bad Request
+   */
+  400: ErrorResponse;
+  /**
+   * Unauthorized
+   */
+  401: ErrorResponse;
+  /**
+   * Forbidden
+   */
+  403: ErrorResponse;
+  /**
+   * Not Found
+   */
+  404: ErrorResponse;
+  /**
+   * Conflict
+   */
+  409: ErrorResponse;
+  /**
+   * Unprocessable Content
+   */
+  422: ErrorResponse;
+};
+
+export type CheckDictationSegmentError =
+  CheckDictationSegmentErrors[keyof CheckDictationSegmentErrors];
+
+export type CheckDictationSegmentResponses = {
+  /**
+   * Successful Response
+   */
+  200: DictationSegmentCheckResponse;
+};
+
+export type CheckDictationSegmentResponse =
+  CheckDictationSegmentResponses[keyof CheckDictationSegmentResponses];
+
+export type StartDictationAttemptData = {
+  body?: never;
+  path: {
+    /**
+     * Content Id
+     *
+     * Published dictation content ID
+     */
+    content_id: string;
+  };
+  query?: never;
+  url: "/api/v1/dictation/{content_id}/start";
+};
+
+export type StartDictationAttemptErrors = {
+  /**
+   * Unauthorized
+   */
+  401: ErrorResponse;
+  /**
+   * Not Found
+   */
+  404: ErrorResponse;
+  /**
+   * Conflict
+   */
+  409: ErrorResponse;
+  /**
+   * Unprocessable Content
+   */
+  422: ErrorResponse;
+};
+
+export type StartDictationAttemptError =
+  StartDictationAttemptErrors[keyof StartDictationAttemptErrors];
+
+export type StartDictationAttemptResponses = {
+  /**
+   * Successful Response
+   */
+  201: DictationStartResponse;
+};
+
+export type StartDictationAttemptResponse =
+  StartDictationAttemptResponses[keyof StartDictationAttemptResponses];
+
+export type RegisterData = {
+  body: RegisterRequest;
+  path?: never;
+  query?: never;
+  url: "/api/v1/auth/register";
+};
+
+export type RegisterErrors = {
+  /**
+   * Conflict
+   */
+  409: ErrorResponse;
+  /**
+   * Unprocessable Content
+   */
+  422: ErrorResponse;
+};
+
+export type RegisterError = RegisterErrors[keyof RegisterErrors];
+
+export type RegisterResponses = {
+  /**
+   * Successful Response
+   */
+  201: UserResponse;
+};
+
+export type RegisterResponse = RegisterResponses[keyof RegisterResponses];
+
+export type LoginData = {
+  body: LoginRequest;
+  path?: never;
+  query?: never;
+  url: "/api/v1/auth/login";
+};
+
+export type LoginErrors = {
+  /**
+   * Unauthorized
+   */
+  401: ErrorResponse;
+  /**
+   * Unprocessable Content
+   */
+  422: ErrorResponse;
+};
+
+export type LoginError = LoginErrors[keyof LoginErrors];
+
+export type LoginResponses = {
+  /**
+   * Successful Response
+   */
+  200: AccessTokenResponse;
+};
+
+export type LoginResponse = LoginResponses[keyof LoginResponses];
+
+export type RefreshData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/auth/refresh";
+};
+
+export type RefreshErrors = {
+  /**
+   * Unauthorized
+   */
+  401: ErrorResponse;
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RefreshError = RefreshErrors[keyof RefreshErrors];
+
+export type RefreshResponses = {
+  /**
+   * Successful Response
+   */
+  200: AccessTokenResponse;
+};
+
+export type RefreshResponse = RefreshResponses[keyof RefreshResponses];
+
+export type LogoutData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/auth/logout";
+};
+
+export type LogoutErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type LogoutError = LogoutErrors[keyof LogoutErrors];
+
+export type LogoutResponses = {
+  /**
+   * Successful Response
+   */
+  204: void;
+};
+
+export type LogoutResponse = LogoutResponses[keyof LogoutResponses];
+
+export type GetMeData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/users/me";
+};
+
+export type GetMeErrors = {
+  /**
+   * Unauthorized
+   */
+  401: ErrorResponse;
+};
+
+export type GetMeError = GetMeErrors[keyof GetMeErrors];
+
+export type GetMeResponses = {
+  /**
+   * Successful Response
+   */
+  200: UserResponse;
+};
+
+export type GetMeResponse = GetMeResponses[keyof GetMeResponses];
+
+export type UpdateMeData = {
+  body: UserUpdateRequest;
+  path?: never;
+  query?: never;
+  url: "/api/v1/users/me";
+};
+
+export type UpdateMeErrors = {
+  /**
+   * Unauthorized
+   */
+  401: ErrorResponse;
+  /**
+   * Unprocessable Content
+   */
+  422: ErrorResponse;
+};
+
+export type UpdateMeError = UpdateMeErrors[keyof UpdateMeErrors];
+
+export type UpdateMeResponses = {
+  /**
+   * Successful Response
+   */
+  200: UserResponse;
+};
+
+export type UpdateMeResponse = UpdateMeResponses[keyof UpdateMeResponses];

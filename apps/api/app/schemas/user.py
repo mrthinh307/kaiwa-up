@@ -1,6 +1,7 @@
 """Schemas for user profile APIs."""
 
 import uuid
+from datetime import datetime
 
 from pydantic import (
     BaseModel,
@@ -24,6 +25,7 @@ class UserResponse(BaseModel):
     avatar_url: str | None
     role: UserRole
     is_active: bool
+    created_at: datetime
 
 
 class UserUpdateRequest(BaseModel):

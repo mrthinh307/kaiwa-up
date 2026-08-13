@@ -4,6 +4,7 @@ import { DM_Sans, Noto_Sans_JP } from "next/font/google";
 
 import { ThemeProvider } from "@/components/common/theme/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
+import { AuthProvider } from "@/providers/auth-provider";
 
 import "./globals.css";
 
@@ -39,8 +40,10 @@ export default function RootLayout({
     >
       <body suppressHydrationWarning className="flex min-h-full flex-col">
         <ThemeProvider>
-          {children}
-          <Toaster position="top-right" />
+          <AuthProvider>
+            {children}
+            <Toaster position="top-right" />
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>

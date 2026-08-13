@@ -429,20 +429,9 @@ Backend P0:
 - Bảo đảm một sự kiện hoàn thành không được cộng EXP hai lần.
 - Quản lý tập trung cơ chế EXP riêng của từng loại bài; module luyện tập chỉ gửi reward context đã
   chuẩn hóa, không tự cập nhật EXP.
-- Tính tổng EXP và level theo bảng mốc cố định đã chốt:
-
-| Level | Tổng EXP tối thiểu |
-| ----: | -----------------: |
-|     1 |                  0 |
-|     2 |                100 |
-|     3 |                250 |
-|     4 |                450 |
-|     5 |                700 |
-|     6 |              1.000 |
-|     7 |              1.400 |
-|     8 |              1.900 |
-|     9 |              2.500 |
-|    10 |              3.200 |
+- Tính level không giới hạn bằng công thức: từ level `L` lên `L+1` cần `50 × L` EXP; tổng EXP tối
+  thiểu của level `L` là `25 × L × (L-1)`.
+- Khóa dòng `user_progress` khi cấp thưởng để các attempt đồng thời không ghi đè tổng EXP của nhau.
 
 Backend P1:
 
@@ -577,10 +566,10 @@ Backend:
 
 ```text
 weekly_exp DESC
-→ reached_exp_at ASC
+→ user_id ASC
 ```
 
-- Người có EXP tuần cao hơn đứng trước; nếu bằng điểm, người đạt mức EXP đó sớm hơn đứng trước.
+- Người có EXP tuần cao hơn đứng trước; nếu bằng điểm, sắp `user_id ASC` trước khi gán rank.
 - Trả thứ hạng, tên hiển thị, avatar nếu có, EXP tuần và vị trí của người dùng hiện tại.
 - MVP có thể tính trực tiếp từ EXP ledger; chưa cần Redis hoặc cache riêng.
 
@@ -944,7 +933,7 @@ Các boundary cần ưu tiên test:
 - Shadowing/Reflex vẫn có fallback khi AI lỗi.
 - Audio người dùng được xóa cả khi AI thành công, timeout hoặc trả lỗi.
 - Review schedule chỉ lấy dữ liệu của người dùng hiện tại và ánh xạ đúng các ngưỡng điểm đã chốt.
-- Leaderboard chỉ tính EXP đúng khoảng tuần và sắp xếp tie theo `reached_exp_at ASC`.
+- Leaderboard chỉ tính EXP đúng khoảng tuần và phá hòa theo `user_id ASC`.
 - AI Tutor không cho người dùng đọc hoặc gửi message vào conversation của người khác.
 
 Kế hoạch và công cụ test chi tiết thuộc `10-testing-plan.md`.

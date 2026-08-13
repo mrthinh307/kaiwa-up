@@ -10,8 +10,8 @@ Tài liệu này mô tả chi tiết các hợp đồng giao tiếp API (API Con
 * **Định dạng dữ liệu**: `application/json` (trừ các endpoint tải audio sử dụng `multipart/form-data`).
 * **Múi giờ & Thời gian**: Chuẩn ISO 8601 UTC (`YYYY-MM-DDTHH:mm:ss.sssZ`).
 * **Độ khó bài học (Difficulty Mapping)**:
-  * Database lưu `learning_contents.difficulty` dưới dạng số nguyên `1`–`5` (`1`: N5, `2`: N4, `3`: N3, `4`: N2, `5`: N1).
-  * API Contract chấp nhận/trả về chuỗi JLPT tương ứng (`"N5"`, `"N4"`, `"N3"`, `"N2"`, `"N1"`).
+  * Database và API đều lưu/trả chuỗi JLPT `"N5"`, `"N4"`, `"N3"`, `"N2"`, `"N1"`.
+  * `learning_contents.difficulty` và `tutor_sessions.difficulty` dùng cùng tập giá trị này.
 * **Quy tắc đặt tên (Naming Convention)**:
   * Route parameter & Query parameter: `snake_case` (ví dụ: `lesson_id`, `page_size`).
   * Request Body & Response Field: `snake_case` (ví dụ: `display_name`, `total_exp`).
@@ -546,7 +546,6 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
         "id": "770e8400-e29b-41d4-a716-446655440111",
         "title": "Nghe điền từ: Thời tiết hôm nay",
         "difficulty": "N5",
-        "total_blanks": 3,
         "is_completed": false
       }
     ],
@@ -562,7 +561,8 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
 ---
 
 #### `GET /api/v1/dictation/lessons/{lesson_id}`
-* **Mục đích**: Lấy đề bài Dictation kèm vị trí ô trống và ID ô trống (`blank_id` tương ứng với bảng `dictation_blanks`). **Tuyệt đối không trả đáp án** để bảo mật thông tin trước khi nộp.
+* **Mục đích**: Lấy đề Dictation đã che đáp án do backend tạo từ các segment trong
+  `learning_contents.transcript_ja`. **Tuyệt đối không trả transcript đầy đủ** trước khi nộp.
 * **Yêu cầu xác thực**: Bearer Token
 * **Request Headers**: `Authorization: Bearer <jwt_access_token>`
 * **Path Parameters**:
@@ -575,11 +575,8 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
     "id": "770e8400-e29b-41d4-a716-446655440111",
     "title": "Nghe điền từ: Thời tiết hôm nay",
     "audio_url": "https://res.cloudinary.com/kaiwaup/audio/dict_01.mp3",
-    "display_text_template": "きょうは ___ (1) ですね。あしたは ___ (2) がふるでしょう。",
-    "blanks": [
-      { "blank_id": "550e8400-e29b-41d4-a716-446655440111", "blank_index": 1, "hint": "Thời tiết (Tính từ)" },
-      { "blank_id": "550e8400-e29b-41d4-a716-446655440222", "blank_index": 2, "hint": "Hiện tượng thời tiết (Danh từ)" }
-    ]
+    "script": "きょうは ___ (1) ですね。あしたは ___ (2) がふるでしょう。",
+    "difficulty": "N5"
   }
   ```
 * **Status Codes & Error Responses**:
@@ -588,8 +585,93 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
 
 ---
 
+#### `POST /api/v1/dictation/{content_id}/start`
+* **Mục đích**: Khởi tạo một lượt làm Dictation ở trạng thái `in_progress` và trả danh sách segment
+  cùng mốc thời gian audio. Response không chứa `script` hoặc đáp án.
+* **Yêu cầu xác thực**: Bearer Token
+* **Request Headers**: `Authorization: Bearer <jwt_access_token>`
+* **Path Parameters**:
+  * `content_id` (string, UUID): ID nội dung `shadowing_dictation` đã publish
+* **Query Parameters**: Không
+* **Request Body**: Không
+* **Response Schema (201 Created)**:
+  ```json
+  {
+    "attempt_id": "01912345-6789-7abc-def0-123456789abc",
+    "content_id": "01912345-6789-7abc-def0-987654321xyz",
+    "attempt_number": 1,
+    "audio_url": "https://res.cloudinary.com/kaiwaup/audio/dictation_01.mp3",
+    "total_segments": 2,
+    "segments": [
+      { "segment_index": 0, "start_time_ms": 0, "end_time_ms": 12000 },
+      { "segment_index": 1, "start_time_ms": 12000, "end_time_ms": 25000 }
+    ]
+  }
+  ```
+* **Status Codes & Error Responses**:
+  * `201 Created`: Attempt được tạo thành công.
+  * `401 Unauthorized` (`code`: `unauthorized`): Chưa đăng nhập.
+  * `404 Not Found` (`code`: `not_found`): Nội dung không tồn tại, chưa publish hoặc sai loại.
+  * `409 Conflict` (`code`: `dictation_content_unavailable`): Nội dung thiếu audio hoặc segment hợp lệ.
+
+---
+
+#### `POST /api/v1/dictation/segments/check`
+* **Mục đích**: Chuẩn hóa và kiểm tra ngay câu trả lời của một segment trong attempt đang thực hiện,
+  sau đó lưu kết quả tăng dần vào `exercise_attempts.answer_payload`. Endpoint không hoàn tất attempt,
+  tính điểm toàn bài hoặc cấp EXP.
+* **Yêu cầu xác thực**: Bearer Token; attempt phải thuộc user hiện tại.
+* **Request Headers**: `Authorization: Bearer <jwt_access_token>`, `Content-Type: application/json`
+* **Path Parameters**: Không
+* **Query Parameters**: Không
+* **Request Body Schema**:
+  ```json
+  {
+    "attempt_id": "01912345-6789-7abc-def0-123456789abc",
+    "segment_index": 0,
+    "user_answer": "明日の会議の資料ですが"
+  }
+  ```
+* **Response Schema (200 OK)**:
+  ```json
+  {
+    "segment_index": 0,
+    "is_correct": true,
+    "user_answer": "明日の会議の資料ですが",
+    "correct_script": "明日の会議の資料ですが、",
+    "is_last_segment": false
+  }
+  ```
+* **Quy tắc chuẩn hóa**: Loại bỏ mọi khoảng trắng và các dấu `。`, `、` trước khi so sánh
+  chính xác. Gửi lại cùng `segment_index` sẽ thay thế kết quả cũ, không tạo bản ghi trùng.
+* **Dữ liệu lưu trong `answer_payload`**:
+  ```json
+  {
+    "segments": [
+      {
+        "segment_index": 0,
+        "is_correct": true,
+        "user_answer": "明日の会議の資料ですが",
+        "correct_script": "明日の会議の資料ですが、",
+        "is_last_segment": false
+      }
+    ]
+  }
+  ```
+* **Status Codes & Error Responses**:
+  * `200 OK`: Segment được chấm và lưu thành công; attempt vẫn là `in_progress`.
+  * `400 Bad Request` (`code`: `invalid_segment_index`): `segment_index` nằm ngoài transcript.
+  * `401 Unauthorized` (`code`: `unauthorized`): Chưa đăng nhập.
+  * `403 Forbidden` (`code`: `forbidden`): Attempt không thuộc user hiện tại.
+  * `404 Not Found` (`code`: `not_found`): Không tìm thấy Dictation attempt.
+  * `409 Conflict` (`code`: `dictation_attempt_not_in_progress`): Attempt đã hoàn tất.
+
+---
+
 #### `POST /api/v1/dictation/lessons/{lesson_id}/submit`
-* **Mục đích**: Nộp câu trả lời bài Dictation. Backend đối chiếu đáp án với `dictation_blanks`, lưu lượt làm vào `attempt_dictation_answers`, tính điểm, trả đáp án đúng và cấp 10 EXP nếu đạt tiêu chuẩn hoàn thành.
+* **Mục đích**: Nộp câu trả lời Dictation theo thứ tự ô trống. Backend đối chiếu với transcript
+  nguồn của `learning_contents`, lưu câu trả lời vào `exercise_attempts.answer_payload` (JSONB),
+  tính điểm và cấp `base_exp` đúng một lần khi attempt hoàn thành.
 * **Yêu cầu xác thực**: Bearer Token
 * **Request Headers**: `Authorization: Bearer <jwt_access_token>`, `Content-Type: application/json`
 * **Path Parameters**:
@@ -599,8 +681,8 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
   ```json
   {
     "answers": [
-      { "blank_id": "550e8400-e29b-41d4-a716-446655440111", "blank_index": 1, "user_answer": "いいてんき" },
-      { "blank_id": "550e8400-e29b-41d4-a716-446655440222", "blank_index": 2, "user_answer": "あめ" }
+      { "blank_index": 1, "user_answer": "いいてんき" },
+      { "blank_index": 2, "user_answer": "あめ" }
     ]
   }
   ```
@@ -616,14 +698,12 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
     "exp_earned": 10,
     "results": [
       {
-        "blank_id": "550e8400-e29b-41d4-a716-446655440111",
         "blank_index": 1,
         "user_answer": "いいてんき",
         "correct_answer": "いいてんき",
         "is_correct": true
       },
       {
-        "blank_id": "550e8400-e29b-41d4-a716-446655440222",
         "blank_index": 2,
         "user_answer": "あめ",
         "correct_answer": "あめ",
@@ -745,16 +825,18 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
 * **Response Schema (200 OK)**:
   ```json
   {
-    "level": 2,
+    "level": 3,
+    "level_title": "Level 3",
     "total_exp": 150,
-    "current_level_min_exp": 100,
-    "next_level_min_exp": 250,
-    "exp_to_next_level": 100,
+    "current_level_min_exp": 150,
+    "next_level_min_exp": 300,
+    "exp_to_next_level": 150,
     "recent_exp_history": [
       {
-        "id": "exp_01",
+        "id": "a31f5b2c-...",
+        "attempt_id": "880e8400-e29b-41d4-a716-446655440222",
         "amount": 10,
-        "reason": "Hoàn thành bài Dictation: Thời tiết hôm nay",
+        "reason": "Hoàn thành Dictation: Thời tiết hôm nay",
         "created_at": "2026-08-06T14:42:00.000Z"
       }
     ]
@@ -762,6 +844,8 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
   ```
 * **Status Codes & Error Responses**:
   * `200 OK`: Thành công.
+  * `401 Unauthorized` (`code`: `unauthorized`): Chưa đăng nhập.
+  * `422 Unprocessable Entity` (`code`: `validation_error`): Tham số `limit` ngoài phạm vi `1..100`.
 
 ---
 
@@ -805,7 +889,8 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
 ### 3.9. Leaderboard Module (P0)
 
 #### `GET /api/v1/leaderboard/weekly`
-* **Mục đích**: Lấy Bảng xếp hạng người học theo tổng EXP tích lũy trong tuần hiện tại (tối ưu từ `weekly_leaderboard_entries`). Sắp xếp theo `weekly_exp DESC`, sau đó `reached_exp_at ASC`.
+* **Mục đích**: Lấy bảng xếp hạng theo tổng EXP tuần từ `weekly_leaderboard_entries`. Job snapshot
+  sắp `weekly_exp DESC`, sau đó `user_id ASC` trước khi gán `rank`; endpoint trả theo `rank ASC`.
 * **Yêu cầu xác thực**: Bearer Token
 * **Request Headers**: `Authorization: Bearer <jwt_access_token>`
 * **Path Parameters**: Không
@@ -928,7 +1013,7 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
 ---
 
 #### `GET /api/v1/reflex/lessons/{lesson_id}`
-* **Mục đích**: Lấy tình huống / audio câu hỏi bài phản xạ 3 giây.
+* **Mục đích**: Lấy tình huống / câu hỏi bài phản xạ 3 giây (từ `reflex_exercises`).
 * **Yêu cầu xác thực**: Bearer Token
 * **Request Headers**: `Authorization: Bearer <jwt_access_token>`
 * **Path Parameters**:
@@ -940,9 +1025,10 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
   {
     "id": "330e8400-e29b-41d4-a716-446655440333",
     "title": "Phản xạ câu hỏi: Điểm hẹn",
-    "prompt_text": "どこで会いましょうか？",
-    "prompt_audio_url": "https://res.cloudinary.com/kaiwaup/audio/reflex_01.mp3",
-    "time_limit_seconds": 3
+    "audio_url": "https://res.cloudinary.com/kaiwaup/audio/reflex_01.mp3",
+    "prompt_ja": "どこで会いましょうか？",
+    "scenario_ja": "待ち合わせ場所について",
+    "response_start_limit_seconds": 3
   }
   ```
 * **Status Codes & Error Responses**:
@@ -1075,7 +1161,7 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
 ---
 
 #### `GET /api/v1/listening-translation/lessons/{lesson_id}`
-* **Mục đích**: Lấy nội dung audio và câu hỏi bài tập Nghe & Dịch kèm các lựa chọn (`translation_choices`).
+* **Mục đích**: Lấy nội dung audio, văn bản và bản dịch tham chiếu của bài tập Nghe & Dịch (từ `translation_exercises`).
 * **Yêu cầu xác thực**: Bearer Token
 * **Request Headers**: `Authorization: Bearer <jwt_access_token>`
 * **Path Parameters**:
@@ -1088,12 +1174,8 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
     "id": "660e8400-e29b-41d4-a716-446655440666",
     "title": "Nghe hiểu ý chính: Đặt bàn ăn",
     "audio_url": "https://res.cloudinary.com/kaiwaup/audio/trans_01.mp3",
-    "question_text": "Nội dung cuộc gọi nhằm mục đích gì?",
-    "options": [
-      { "choice_id": "550e8400-e29b-41d4-a716-446655440555", "option_id": "A", "option_text": "Đặt bàn ăn cho 4 người vào 7 giờ tối" },
-      { "choice_id": "550e8400-e29b-41d4-a716-446655440666", "option_id": "B", "option_text": "Hủy đặt bàn ăn đã hẹn" },
-      { "choice_id": "550e8400-e29b-41d4-a716-446655440777", "option_id": "C", "option_text": "Hỏi về thực đơn món ăn" }
-    ]
+    "transcript_ja": "4人で7時に予約したいですが、いいですか。",
+    "reference_translation_vi": "Tôi muốn đặt bàn cho 4 người lúc 7 giờ, được không?"
   }
   ```
 * **Status Codes & Error Responses**:
@@ -1103,7 +1185,7 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
 ---
 
 #### `POST /api/v1/listening-translation/lessons/{lesson_id}/submit`
-* **Mục đích**: Nộp đáp án trắc nghiệm hoặc bản dịch tiếng Việt để chấm kết quả.
+* **Mục đích**: Nộp bản dịch tiếng Việt tự do. Backend lưu lượt làm và bản dịch vào `exercise_attempts.answer_payload`; bài `free_text` không có đáp án cố định nên được chấm qua `ai_evaluations`.
 * **Yêu cầu xác thực**: Bearer Token
 * **Request Headers**: `Authorization: Bearer <jwt_access_token>`, `Content-Type: application/json`
 * **Path Parameters**:
@@ -1112,16 +1194,14 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
 * **Request Body Schema**:
   ```json
   {
-    "selected_option_id": "A"
+    "translation_vi": "Tôi muốn đặt bàn cho 4 người lúc 7 giờ, được không?"
   }
   ```
 * **Response Schema (200 OK)**:
   ```json
   {
     "attempt_id": "990e8400-e29b-41d4-a716-446655440999",
-    "is_correct": true,
-    "correct_option_id": "A",
-    "explanation": "Khách hàng nói '4人で7時に予約したいですが' (Tôi muốn đặt bàn cho 4 người lúc 7 giờ).",
+    "status": "completed",
     "exp_earned": 10
   }
   ```
@@ -1319,11 +1399,13 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
 
 ### 4.1. Thống kê tài liệu
 * **Số lượng Module được mô tả**: 15 module (Health, Auth, User, Learning Content, Shadowing, Dictation, Progress, Gamification, Leaderboard, Dashboard, Reflex, Review, Listening & Translation, AI Tutor, Pronunciation Analysis).
-* **Tổng số API Endpoints được quy định**: 29 endpoints.
+* **Tổng số API Endpoints được quy định**: 31 endpoints.
 
 ### 4.2. Giả định (Assumptions Made)
 1. **Cloudinary Audio Delivery**: URL audio bài học được cung cấp trực tiếp từ Cloudinary trong response metadata bài học mà không qua backend proxy.
-2. **User Audio Lifecycle**: Audio do người dùng ghi âm được gửi lên dưới dạng `multipart/form-data` và chỉ giữ tạm thời trên bộ nhớ đệm backend trong quá trình AI xử lý, tuyệt đối không lưu vết lâu dài hoặc lưu URL vào PostgreSQL.
+2. **User Audio Lifecycle**: Audio do người dùng ghi âm được gửi bằng `multipart/form-data` và lưu
+   trong private object storage khi nghiệp vụ cần giữ lại. PostgreSQL chỉ lưu metadata và
+   `storage_key` trong `recordings`, không lưu BLOB hoặc public URL.
 3. **Weekly Leaderboard Reset**: Bảng xếp hạng tuần tự động reset theo chu kỳ tuần dựa trên hàm lọc timestamp `EXP ledger`.
 
 ### 4.3. Các mục TODO còn lại
@@ -1332,5 +1414,6 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
 
 ### 4.4. Đánh giá tính nhất quán tài liệu (Inconsistency Check)
 * Đã đối chiếu hoàn toàn khớp với quy tắc đặt tên (`snake_case`), cấu trúc lỗi Envelope (`status`, `code`, `message`, `details`) tại `08-coding-convention.md`.
-* Đã hoàn thành khớp 1:1 với schema PostgreSQL tại `05-database.md` (bao gồm `auth_refresh_tokens`, `users.role`, `dictation_blanks.id`, `review_schedules` composite PK, `weekly_leaderboard_entries.week_start`, `achievements.code` và `translation_choices.id`).
-* Bảng mốc tính cấp độ EXP (Level 1-10) tại `07-module-design.md` được áp dụng nhất quán trong response của Gamification và Dashboard endpoints.
+* Đã hoàn thành khớp 1:1 với schema PostgreSQL tại `05-database.md` (bao gồm `auth_refresh_tokens`, `users.role`, `review_schedules` composite PK, `weekly_leaderboard_entries.week_start` và `achievements.code`).
+* Gamification và Dashboard dùng cùng công thức level không giới hạn: level `L` cần tối thiểu
+  `25 × L × (L-1)` tổng EXP; từ level `L` lên `L+1` cần thêm `50 × L` EXP.

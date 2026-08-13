@@ -24,6 +24,9 @@
 ## FastAPI
 
 - Give each HTTP operation its own handler.
+- Declare a stable, unique `lowerCamelCase` `operation_id` for every endpoint so generated clients
+  receive concise names without HTTP method, path, or API-version suffixes. Treat changes to an
+  existing `operation_id` as API contract changes and regenerate the OpenAPI/client artifacts.
 - Define `prefix`, `tags`, and shared dependencies on the closest `APIRouter`.
 - Keep parent routers limited to composing child routers and API version prefixes.
 - Declare a typed return value or `response_model` for every endpoint.
