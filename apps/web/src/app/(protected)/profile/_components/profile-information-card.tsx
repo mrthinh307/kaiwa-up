@@ -17,8 +17,10 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useAuth } from "@/hooks/use-auth";
+import { updateMe } from "@/lib/api-client";
+import { normalizeApiFieldName, parseApiFailure } from "@/lib/api-errors";
 
-import { saveProfilePreview } from "../_utils/profile-preview-adapter";
 import { profileSchema, type ProfileValues } from "../_validations/profile-schema";
 
 type ProfileInformationCardProps = {
@@ -26,7 +28,6 @@ type ProfileInformationCardProps = {
   email: string;
   isEditing: boolean;
   onEditingChange: (isEditing: boolean) => void;
-  onNameChange: (displayName: string) => void;
 };
 
 export function ProfileInformationCard({
@@ -34,13 +35,14 @@ export function ProfileInformationCard({
   email,
   isEditing,
   onEditingChange,
-  onNameChange,
 }: ProfileInformationCardProps) {
+  const { protectedRequest, updateUser } = useAuth();
   const {
     formState: { errors, isDirty, isSubmitting },
     handleSubmit,
     register,
     reset,
+    setError,
   } = useForm<ProfileValues>({
     defaultValues: { displayName },
     resolver: zodResolver(profileSchema),
@@ -62,15 +64,29 @@ export function ProfileInformationCard({
       return;
     }
 
-    const nextResult = await saveProfilePreview(values.displayName);
+    const result = await protectedRequest(() =>
+      updateMe({ body: { display_name: values.displayName } }),
+    );
 
-    if (nextResult.kind === "error") {
-      toast.error("We could not update your profile", { description: nextResult.message });
+    if (!result.data) {
+      const failure = parseApiFailure(result);
+      const displayNameError = failure.fieldErrors.find(
+        (fieldError) => normalizeApiFieldName(fieldError.field) === "displayName",
+      );
+
+      if (displayNameError) {
+        setError("displayName", { message: displayNameError.message });
+      } else {
+        setError("root.server", { message: failure.message });
+      }
+
+      toast.error("We could not update your profile", { description: failure.message });
       return;
     }
 
-    onNameChange(nextResult.displayName);
-    reset({ displayName: nextResult.displayName });
+    const savedDisplayName = result.data.display_name?.trim() || result.data.email;
+    updateUser(result.data);
+    reset({ displayName: savedDisplayName });
     onEditingChange(false);
     toast.success("Profile updated", { description: "Your display name has been saved." });
   };
@@ -106,6 +122,11 @@ export function ProfileInformationCard({
               {errors.displayName?.message && (
                 <p className="text-sm text-destructive" id="profile-display-name-error">
                   {errors.displayName.message}
+                </p>
+              )}
+              {errors.root?.server?.message && (
+                <p className="text-sm text-destructive" role="alert">
+                  {errors.root.server.message}
                 </p>
               )}
             </div>

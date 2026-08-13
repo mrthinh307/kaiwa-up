@@ -35,6 +35,45 @@ export type AttemptStatus = "in_progress" | "submitted" | "completed";
 export type ContentType = "shadowing_dictation" | "reflex" | "listening_translation";
 
 /**
+ * ErrorDetail
+ *
+ * Application error payload.
+ */
+export type ErrorDetail = {
+  /**
+   * Status
+   */
+  status: number;
+  /**
+   * Code
+   */
+  code: string;
+  /**
+   * Message
+   */
+  message: string;
+  /**
+   * Details
+   */
+  details?:
+    | Array<ValidationErrorDetail>
+    | {
+        [key: string]: unknown;
+      }
+    | string
+    | null;
+};
+
+/**
+ * ErrorResponse
+ *
+ * Stable envelope for expected and unexpected API errors.
+ */
+export type ErrorResponse = {
+  error: ErrorDetail;
+};
+
+/**
  * ExpHistoryItem
  */
 export type ExpHistoryItem = {
@@ -325,6 +364,10 @@ export type UserResponse = {
    * Is Active
    */
   is_active: boolean;
+  /**
+   * Created At
+   */
+  created_at: string;
 };
 
 /**
@@ -370,6 +413,26 @@ export type ValidationError = {
   ctx?: {
     [key: string]: unknown;
   };
+};
+
+/**
+ * ValidationErrorDetail
+ *
+ * Field-level validation failure returned in an error envelope.
+ */
+export type ValidationErrorDetail = {
+  /**
+   * Field
+   */
+  field: string;
+  /**
+   * Message
+   */
+  message: string;
+  /**
+   * Type
+   */
+  type: string;
 };
 
 export type HealthCheckData = {
@@ -547,14 +610,18 @@ export type RegisterData = {
   body: RegisterRequest;
   path?: never;
   query?: never;
-  url: "/api/v1/register";
+  url: "/api/v1/auth/register";
 };
 
 export type RegisterErrors = {
   /**
-   * Validation Error
+   * Conflict
    */
-  422: HttpValidationError;
+  409: ErrorResponse;
+  /**
+   * Unprocessable Content
+   */
+  422: ErrorResponse;
 };
 
 export type RegisterError = RegisterErrors[keyof RegisterErrors];
@@ -572,14 +639,18 @@ export type LoginData = {
   body: LoginRequest;
   path?: never;
   query?: never;
-  url: "/api/v1/login";
+  url: "/api/v1/auth/login";
 };
 
 export type LoginErrors = {
   /**
-   * Validation Error
+   * Unauthorized
    */
-  422: HttpValidationError;
+  401: ErrorResponse;
+  /**
+   * Unprocessable Content
+   */
+  422: ErrorResponse;
 };
 
 export type LoginError = LoginErrors[keyof LoginErrors];
@@ -597,10 +668,14 @@ export type RefreshData = {
   body?: never;
   path?: never;
   query?: never;
-  url: "/api/v1/refresh";
+  url: "/api/v1/auth/refresh";
 };
 
 export type RefreshErrors = {
+  /**
+   * Unauthorized
+   */
+  401: ErrorResponse;
   /**
    * Validation Error
    */
@@ -622,7 +697,7 @@ export type LogoutData = {
   body?: never;
   path?: never;
   query?: never;
-  url: "/api/v1/logout";
+  url: "/api/v1/auth/logout";
 };
 
 export type LogoutErrors = {
@@ -647,8 +722,17 @@ export type GetMeData = {
   body?: never;
   path?: never;
   query?: never;
-  url: "/api/v1/me";
+  url: "/api/v1/users/me";
 };
+
+export type GetMeErrors = {
+  /**
+   * Unauthorized
+   */
+  401: ErrorResponse;
+};
+
+export type GetMeError = GetMeErrors[keyof GetMeErrors];
 
 export type GetMeResponses = {
   /**
@@ -663,14 +747,18 @@ export type UpdateMeData = {
   body: UserUpdateRequest;
   path?: never;
   query?: never;
-  url: "/api/v1/me";
+  url: "/api/v1/users/me";
 };
 
 export type UpdateMeErrors = {
   /**
-   * Validation Error
+   * Unauthorized
    */
-  422: HttpValidationError;
+  401: ErrorResponse;
+  /**
+   * Unprocessable Content
+   */
+  422: ErrorResponse;
 };
 
 export type UpdateMeError = UpdateMeErrors[keyof UpdateMeErrors];

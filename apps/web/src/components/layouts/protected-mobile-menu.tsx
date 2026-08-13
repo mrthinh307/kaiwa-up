@@ -14,7 +14,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { useLogout } from "@/hooks/use-logout";
+import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 
 import type { ProtectedHeaderUser } from "./protected-user-menu";
@@ -27,7 +27,7 @@ const mobileLinkClassName =
 
 export function ProtectedMobileMenu({ user }: { user: ProtectedHeaderUser }) {
   const pathname = usePathname();
-  const handleLogout = useLogout();
+  const { isLoggingOut, logout } = useAuth();
   const isProfileActive = isProtectedNavigationHrefActive(pathname, "/profile");
 
   return (
@@ -139,12 +139,13 @@ export function ProtectedMobileMenu({ user }: { user: ProtectedHeaderUser }) {
             </SheetClose>
             <Button
               className="min-h-11 w-full justify-start gap-3 px-3 text-destructive"
-              onClick={handleLogout}
+              disabled={isLoggingOut}
+              onClick={() => void logout()}
               type="button"
               variant="neutral"
             >
               <LogOut aria-hidden="true" className="size-5" />
-              Log out
+              {isLoggingOut ? "Logging out…" : "Log out"}
             </Button>
           </div>
         </nav>
