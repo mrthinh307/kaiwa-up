@@ -262,7 +262,7 @@
         }
       }
     },
-    "/api/v1/register": {
+    "/api/v1/auth/register": {
       "post": {
         "tags": ["Auth"],
         "summary": "Register",
@@ -289,12 +289,22 @@
               }
             }
           },
-          "422": {
-            "description": "Validation Error",
+          "409": {
+            "description": "Conflict",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Content",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -302,7 +312,7 @@
         }
       }
     },
-    "/api/v1/login": {
+    "/api/v1/auth/login": {
       "post": {
         "tags": ["Auth"],
         "summary": "Login",
@@ -329,12 +339,22 @@
               }
             }
           },
-          "422": {
-            "description": "Validation Error",
+          "401": {
+            "description": "Unauthorized",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Content",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -342,7 +362,7 @@
         }
       }
     },
-    "/api/v1/refresh": {
+    "/api/v1/auth/refresh": {
       "post": {
         "tags": ["Auth"],
         "summary": "Refresh",
@@ -377,6 +397,16 @@
               }
             }
           },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -390,7 +420,7 @@
         }
       }
     },
-    "/api/v1/logout": {
+    "/api/v1/auth/logout": {
       "post": {
         "tags": ["Auth"],
         "summary": "Logout",
@@ -431,7 +461,7 @@
         }
       }
     },
-    "/api/v1/me": {
+    "/api/v1/users/me": {
       "get": {
         "tags": ["Users"],
         "summary": "Get Me",
@@ -444,6 +474,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/UserResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -481,12 +521,22 @@
               }
             }
           },
-          "422": {
-            "description": "Validation Error",
+          "401": {
+            "description": "Unauthorized",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Content",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -532,6 +582,58 @@
         "type": "string",
         "enum": ["shadowing_dictation", "reflex", "listening_translation"],
         "title": "ContentType"
+      },
+      "ErrorDetail": {
+        "properties": {
+          "status": {
+            "type": "integer",
+            "title": "Status"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "details": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ValidationErrorDetail"
+                },
+                "type": "array"
+              },
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Details"
+          }
+        },
+        "type": "object",
+        "required": ["status", "code", "message"],
+        "title": "ErrorDetail",
+        "description": "Application error payload."
+      },
+      "ErrorResponse": {
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/ErrorDetail"
+          }
+        },
+        "type": "object",
+        "required": ["error"],
+        "title": "ErrorResponse",
+        "description": "Stable envelope for expected and unexpected API errors."
       },
       "ExpHistoryItem": {
         "properties": {
@@ -987,6 +1089,11 @@
           "is_active": {
             "type": "boolean",
             "title": "Is Active"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
           }
         },
         "type": "object",
@@ -996,7 +1103,8 @@
           "display_name",
           "avatar_url",
           "role",
-          "is_active"
+          "is_active",
+          "created_at"
         ],
         "title": "UserResponse",
         "description": "Public representation of a user."
@@ -1056,6 +1164,26 @@
         "type": "object",
         "required": ["loc", "msg", "type"],
         "title": "ValidationError"
+      },
+      "ValidationErrorDetail": {
+        "properties": {
+          "field": {
+            "type": "string",
+            "title": "Field"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type"
+          }
+        },
+        "type": "object",
+        "required": ["field", "message", "type"],
+        "title": "ValidationErrorDetail",
+        "description": "Field-level validation failure returned in an error envelope."
       }
     },
     "securitySchemes": {

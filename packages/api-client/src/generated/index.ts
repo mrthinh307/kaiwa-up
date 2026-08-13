@@ -20,6 +20,8 @@ export type {
   AttemptStatus,
   ClientOptions,
   ContentType,
+  ErrorDetail,
+  ErrorResponse,
   ExpHistoryItem,
   GamificationProfileResponse,
   GetGamificationProfileData,
@@ -28,6 +30,8 @@ export type {
   GetGamificationProfileResponse,
   GetGamificationProfileResponses,
   GetMeData,
+  GetMeError,
+  GetMeErrors,
   GetMeResponse,
   GetMeResponses,
   GetProgressAttemptData,
@@ -88,4 +92,5 @@ export type {
   UserRole,
   UserUpdateRequest,
   ValidationError,
+  ValidationErrorDetail,
 } from "./types.gen";
