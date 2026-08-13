@@ -12,6 +12,7 @@ export type LearningContentFixture = {
   shortDescription: string;
   title: string;
   topic: string;
+  youtubeVideoId: string | null;
 };
 
 export type PracticeCatalogLesson = LearningContentFixture & {
@@ -31,6 +32,8 @@ export type PracticeCatalogViewModel = {
   total: number;
 };
 
+const SAMPLE_YOUTUBE_VIDEO_ID = "M7lc1UVf-VE";
+
 const LEARNING_CONTENT_FIXTURES = [
   {
     audioDurationMs: 32_000,
@@ -39,6 +42,7 @@ const LEARNING_CONTENT_FIXTURES = [
     shortDescription: "Practice the phrases you need for a quick everyday shopping trip.",
     title: "Shopping for everyday essentials",
     topic: "Daily life",
+    youtubeVideoId: SAMPLE_YOUTUBE_VIDEO_ID,
   },
   {
     audioDurationMs: 45_000,
@@ -47,6 +51,7 @@ const LEARNING_CONTENT_FIXTURES = [
     shortDescription: "Build confidence introducing yourself in a friendly school setting.",
     title: "Introducing yourself at school",
     topic: "Introductions",
+    youtubeVideoId: SAMPLE_YOUTUBE_VIDEO_ID,
   },
   {
     audioDurationMs: 58_000,
@@ -55,6 +60,7 @@ const LEARNING_CONTENT_FIXTURES = [
     shortDescription: "Catch the polite questions and answers used at a busy station.",
     title: "Asking for directions at the station",
     topic: "Directions",
+    youtubeVideoId: SAMPLE_YOUTUBE_VIDEO_ID,
   },
   {
     audioDurationMs: 72_000,
@@ -63,6 +69,7 @@ const LEARNING_CONTENT_FIXTURES = [
     shortDescription: "Talk about the weather with natural everyday expressions.",
     title: "Talking about today’s weather",
     topic: "Weather",
+    youtubeVideoId: SAMPLE_YOUTUBE_VIDEO_ID,
   },
   {
     audioDurationMs: 91_000,
@@ -71,6 +78,7 @@ const LEARNING_CONTENT_FIXTURES = [
     shortDescription: "Retell a recent trip with clear timing and useful detail.",
     title: "Sharing an experience from a recent trip",
     topic: "Travel stories",
+    youtubeVideoId: SAMPLE_YOUTUBE_VIDEO_ID,
   },
   {
     audioDurationMs: 98_000,
@@ -79,6 +87,7 @@ const LEARNING_CONTENT_FIXTURES = [
     shortDescription: "Discuss a policy change and respond with professional language.",
     title: "Discussing a change in company policy",
     topic: "Business",
+    youtubeVideoId: SAMPLE_YOUTUBE_VIDEO_ID,
   },
   {
     audioDurationMs: 134_000,
@@ -87,6 +96,7 @@ const LEARNING_CONTENT_FIXTURES = [
     shortDescription: "Present a nuanced academic position with clear supporting ideas.",
     title: "Presenting a nuanced argument clearly",
     topic: "Academic discussion",
+    youtubeVideoId: SAMPLE_YOUTUBE_VIDEO_ID,
   },
   {
     audioDurationMs: 18_000,
@@ -95,6 +105,7 @@ const LEARNING_CONTENT_FIXTURES = [
     shortDescription: "Catch weather phrases in a short convenience-store exchange.",
     title: "Weather at the convenience store",
     topic: "Daily life",
+    youtubeVideoId: SAMPLE_YOUTUBE_VIDEO_ID,
   },
   {
     audioDurationMs: 16_000,
@@ -103,6 +114,7 @@ const LEARNING_CONTENT_FIXTURES = [
     shortDescription: "Write the key details from a classroom self-introduction.",
     title: "Meeting a new classmate",
     topic: "Introductions",
+    youtubeVideoId: SAMPLE_YOUTUBE_VIDEO_ID,
   },
   {
     audioDurationMs: 22_000,
@@ -111,6 +123,7 @@ const LEARNING_CONTENT_FIXTURES = [
     shortDescription: "Reconstruct a natural café order one phrase at a time.",
     title: "Ordering lunch at a café",
     topic: "Food and dining",
+    youtubeVideoId: SAMPLE_YOUTUBE_VIDEO_ID,
   },
   {
     audioDurationMs: 20_000,
@@ -119,6 +132,7 @@ const LEARNING_CONTENT_FIXTURES = [
     shortDescription: "Fill in the phrases used to find the correct train platform.",
     title: "Finding the right train platform",
     topic: "Travel",
+    youtubeVideoId: SAMPLE_YOUTUBE_VIDEO_ID,
   },
   {
     audioDurationMs: 27_000,
@@ -127,6 +141,7 @@ const LEARNING_CONTENT_FIXTURES = [
     shortDescription: "Listen for the expressions used to make and confirm weekend plans.",
     title: "Making plans for the weekend",
     topic: "Plans and invitations",
+    youtubeVideoId: SAMPLE_YOUTUBE_VIDEO_ID,
   },
   {
     audioDurationMs: 24_000,
@@ -135,6 +150,7 @@ const LEARNING_CONTENT_FIXTURES = [
     shortDescription: "Complete a polite exchange about finding your way downtown.",
     title: "Asking for directions downtown",
     topic: "Directions",
+    youtubeVideoId: SAMPLE_YOUTUBE_VIDEO_ID,
   },
   {
     audioDurationMs: 35_000,
@@ -143,6 +159,7 @@ const LEARNING_CONTENT_FIXTURES = [
     shortDescription: "Rebuild a workplace conversation about solving an unexpected problem.",
     title: "Explaining a problem at work",
     topic: "Workplace",
+    youtubeVideoId: SAMPLE_YOUTUBE_VIDEO_ID,
   },
   {
     audioDurationMs: 31_000,
@@ -151,6 +168,7 @@ const LEARNING_CONTENT_FIXTURES = [
     shortDescription: "Capture the details in a story about a recent travel experience.",
     title: "Sharing a recent travel experience",
     topic: "Travel stories",
+    youtubeVideoId: SAMPLE_YOUTUBE_VIDEO_ID,
   },
   {
     audioDurationMs: 30_000,
@@ -159,6 +177,7 @@ const LEARNING_CONTENT_FIXTURES = [
     shortDescription: "Compare two neighborhoods through a clear everyday conversation.",
     title: "Comparing two neighborhoods",
     topic: "City life",
+    youtubeVideoId: SAMPLE_YOUTUBE_VIDEO_ID,
   },
   {
     audioDurationMs: 39_000,
@@ -167,6 +186,7 @@ const LEARNING_CONTENT_FIXTURES = [
     shortDescription: "Follow a professional response to a dissatisfied customer.",
     title: "Responding politely to a complaint",
     topic: "Customer service",
+    youtubeVideoId: SAMPLE_YOUTUBE_VIDEO_ID,
   },
   {
     audioDurationMs: 38_000,
@@ -175,6 +195,7 @@ const LEARNING_CONTENT_FIXTURES = [
     shortDescription: "Reconstruct the main points of a business meeting summary.",
     title: "Summarizing the main point of a meeting",
     topic: "Business",
+    youtubeVideoId: SAMPLE_YOUTUBE_VIDEO_ID,
   },
   {
     audioDurationMs: 33_000,
@@ -183,6 +204,7 @@ const LEARNING_CONTENT_FIXTURES = [
     shortDescription: "Catch the details in a public service announcement.",
     title: "Following a public service announcement",
     topic: "Public information",
+    youtubeVideoId: SAMPLE_YOUTUBE_VIDEO_ID,
   },
   {
     audioDurationMs: 52_000,
@@ -191,6 +213,7 @@ const LEARNING_CONTENT_FIXTURES = [
     shortDescription: "Write the key ideas from a discussion about remote work.",
     title: "Examining different views on remote work",
     topic: "Society and work",
+    youtubeVideoId: SAMPLE_YOUTUBE_VIDEO_ID,
   },
   {
     audioDurationMs: 56_000,
@@ -199,6 +222,7 @@ const LEARNING_CONTENT_FIXTURES = [
     shortDescription: "Follow a detailed news commentary and recover its missing phrases.",
     title: "Following a detailed news commentary",
     topic: "News and media",
+    youtubeVideoId: SAMPLE_YOUTUBE_VIDEO_ID,
   },
   {
     audioDurationMs: 61_000,
@@ -207,6 +231,7 @@ const LEARNING_CONTENT_FIXTURES = [
     shortDescription: "Rebuild the logic of a nuanced academic argument.",
     title: "Understanding a nuanced academic argument",
     topic: "Academic discussion",
+    youtubeVideoId: SAMPLE_YOUTUBE_VIDEO_ID,
   },
 ] satisfies readonly LearningContentFixture[];
 
