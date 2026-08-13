@@ -3,6 +3,9 @@
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from "./client";
 import { client } from "./client.gen";
 import type {
+  CheckDictationSegmentData,
+  CheckDictationSegmentErrors,
+  CheckDictationSegmentResponses,
   GetGamificationProfileData,
   GetGamificationProfileErrors,
   GetGamificationProfileResponses,
@@ -34,6 +37,9 @@ import type {
   RegisterData,
   RegisterErrors,
   RegisterResponses,
+  StartDictationAttemptData,
+  StartDictationAttemptErrors,
+  StartDictationAttemptResponses,
   UpdateMeData,
   UpdateMeErrors,
   UpdateMeResponses,
@@ -136,6 +142,42 @@ export const getGamificationProfile = <ThrowOnError extends boolean = false>(
   >({
     security: [{ scheme: "bearer", type: "http" }],
     url: "/api/v1/gamification/profile",
+    ...options,
+  });
+
+/**
+ * Check a Dictation segment answer
+ */
+export const checkDictationSegment = <ThrowOnError extends boolean = false>(
+  options: Options<CheckDictationSegmentData, ThrowOnError>,
+): RequestResult<CheckDictationSegmentResponses, CheckDictationSegmentErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    CheckDictationSegmentResponses,
+    CheckDictationSegmentErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/api/v1/dictation/segments/check",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Start a dictation attempt
+ */
+export const startDictationAttempt = <ThrowOnError extends boolean = false>(
+  options: Options<StartDictationAttemptData, ThrowOnError>,
+): RequestResult<StartDictationAttemptResponses, StartDictationAttemptErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    StartDictationAttemptResponses,
+    StartDictationAttemptErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/api/v1/dictation/{content_id}/start",
     ...options,
   });
 

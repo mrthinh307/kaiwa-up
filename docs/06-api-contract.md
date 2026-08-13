@@ -585,6 +585,89 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
 
 ---
 
+#### `POST /api/v1/dictation/{content_id}/start`
+* **Mục đích**: Khởi tạo một lượt làm Dictation ở trạng thái `in_progress` và trả danh sách segment
+  cùng mốc thời gian audio. Response không chứa `script` hoặc đáp án.
+* **Yêu cầu xác thực**: Bearer Token
+* **Request Headers**: `Authorization: Bearer <jwt_access_token>`
+* **Path Parameters**:
+  * `content_id` (string, UUID): ID nội dung `shadowing_dictation` đã publish
+* **Query Parameters**: Không
+* **Request Body**: Không
+* **Response Schema (201 Created)**:
+  ```json
+  {
+    "attempt_id": "01912345-6789-7abc-def0-123456789abc",
+    "content_id": "01912345-6789-7abc-def0-987654321xyz",
+    "attempt_number": 1,
+    "audio_url": "https://res.cloudinary.com/kaiwaup/audio/dictation_01.mp3",
+    "total_segments": 2,
+    "segments": [
+      { "segment_index": 0, "start_time_ms": 0, "end_time_ms": 12000 },
+      { "segment_index": 1, "start_time_ms": 12000, "end_time_ms": 25000 }
+    ]
+  }
+  ```
+* **Status Codes & Error Responses**:
+  * `201 Created`: Attempt được tạo thành công.
+  * `401 Unauthorized` (`code`: `unauthorized`): Chưa đăng nhập.
+  * `404 Not Found` (`code`: `not_found`): Nội dung không tồn tại, chưa publish hoặc sai loại.
+  * `409 Conflict` (`code`: `dictation_content_unavailable`): Nội dung thiếu audio hoặc segment hợp lệ.
+
+---
+
+#### `POST /api/v1/dictation/segments/check`
+* **Mục đích**: Chuẩn hóa và kiểm tra ngay câu trả lời của một segment trong attempt đang thực hiện,
+  sau đó lưu kết quả tăng dần vào `exercise_attempts.answer_payload`. Endpoint không hoàn tất attempt,
+  tính điểm toàn bài hoặc cấp EXP.
+* **Yêu cầu xác thực**: Bearer Token; attempt phải thuộc user hiện tại.
+* **Request Headers**: `Authorization: Bearer <jwt_access_token>`, `Content-Type: application/json`
+* **Path Parameters**: Không
+* **Query Parameters**: Không
+* **Request Body Schema**:
+  ```json
+  {
+    "attempt_id": "01912345-6789-7abc-def0-123456789abc",
+    "segment_index": 0,
+    "user_answer": "明日の会議の資料ですが"
+  }
+  ```
+* **Response Schema (200 OK)**:
+  ```json
+  {
+    "segment_index": 0,
+    "is_correct": true,
+    "user_answer": "明日の会議の資料ですが",
+    "correct_script": "明日の会議の資料ですが、",
+    "is_last_segment": false
+  }
+  ```
+* **Quy tắc chuẩn hóa**: Loại bỏ mọi khoảng trắng và các dấu `。`, `、` trước khi so sánh
+  chính xác. Gửi lại cùng `segment_index` sẽ thay thế kết quả cũ, không tạo bản ghi trùng.
+* **Dữ liệu lưu trong `answer_payload`**:
+  ```json
+  {
+    "segments": [
+      {
+        "segment_index": 0,
+        "is_correct": true,
+        "user_answer": "明日の会議の資料ですが",
+        "correct_script": "明日の会議の資料ですが、",
+        "is_last_segment": false
+      }
+    ]
+  }
+  ```
+* **Status Codes & Error Responses**:
+  * `200 OK`: Segment được chấm và lưu thành công; attempt vẫn là `in_progress`.
+  * `400 Bad Request` (`code`: `invalid_segment_index`): `segment_index` nằm ngoài transcript.
+  * `401 Unauthorized` (`code`: `unauthorized`): Chưa đăng nhập.
+  * `403 Forbidden` (`code`: `forbidden`): Attempt không thuộc user hiện tại.
+  * `404 Not Found` (`code`: `not_found`): Không tìm thấy Dictation attempt.
+  * `409 Conflict` (`code`: `dictation_attempt_not_in_progress`): Attempt đã hoàn tất.
+
+---
+
 #### `POST /api/v1/dictation/lessons/{lesson_id}/submit`
 * **Mục đích**: Nộp câu trả lời Dictation theo thứ tự ô trống. Backend đối chiếu với transcript
   nguồn của `learning_contents`, lưu câu trả lời vào `exercise_attempts.answer_payload` (JSONB),
@@ -1316,7 +1399,7 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
 
 ### 4.1. Thống kê tài liệu
 * **Số lượng Module được mô tả**: 15 module (Health, Auth, User, Learning Content, Shadowing, Dictation, Progress, Gamification, Leaderboard, Dashboard, Reflex, Review, Listening & Translation, AI Tutor, Pronunciation Analysis).
-* **Tổng số API Endpoints được quy định**: 29 endpoints.
+* **Tổng số API Endpoints được quy định**: 31 endpoints.
 
 ### 4.2. Giả định (Assumptions Made)
 1. **Cloudinary Audio Delivery**: URL audio bài học được cung cấp trực tiếp từ Cloudinary trong response metadata bài học mà không qua backend proxy.

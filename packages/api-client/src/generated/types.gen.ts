@@ -27,12 +27,104 @@ export type AccessTokenResponse = {
 /**
  * AttemptStatus
  */
-export type AttemptStatus = "in_progress" | "submitted" | "completed";
+export type AttemptStatus = "in_progress" | "completed";
 
 /**
  * ContentType
  */
 export type ContentType = "shadowing_dictation" | "reflex" | "listening_translation";
+
+/**
+ * DictationSegmentCheckRequest
+ */
+export type DictationSegmentCheckRequest = {
+  /**
+   * Attempt Id
+   */
+  attempt_id: string;
+  /**
+   * Segment Index
+   */
+  segment_index: number;
+  /**
+   * User Answer
+   */
+  user_answer: string;
+};
+
+/**
+ * DictationSegmentCheckResponse
+ */
+export type DictationSegmentCheckResponse = {
+  /**
+   * Segment Index
+   */
+  segment_index: number;
+  /**
+   * Is Correct
+   */
+  is_correct: boolean;
+  /**
+   * User Answer
+   */
+  user_answer: string;
+  /**
+   * Correct Script
+   */
+  correct_script: string;
+  /**
+   * Is Last Segment
+   */
+  is_last_segment: boolean;
+};
+
+/**
+ * DictationSegmentItem
+ */
+export type DictationSegmentItem = {
+  /**
+   * Segment Index
+   */
+  segment_index: number;
+  /**
+   * Start Time Ms
+   */
+  start_time_ms: number;
+  /**
+   * End Time Ms
+   */
+  end_time_ms: number;
+};
+
+/**
+ * DictationStartResponse
+ */
+export type DictationStartResponse = {
+  /**
+   * Attempt Id
+   */
+  attempt_id: string;
+  /**
+   * Content Id
+   */
+  content_id: string;
+  /**
+   * Attempt Number
+   */
+  attempt_number: number;
+  /**
+   * Audio Url
+   */
+  audio_url: string;
+  /**
+   * Total Segments
+   */
+  total_segments: number;
+  /**
+   * Segments
+   */
+  segments: Array<DictationSegmentItem>;
+};
 
 /**
  * ErrorDetail
@@ -605,6 +697,99 @@ export type GetGamificationProfileResponses = {
 
 export type GetGamificationProfileResponse =
   GetGamificationProfileResponses[keyof GetGamificationProfileResponses];
+
+export type CheckDictationSegmentData = {
+  body: DictationSegmentCheckRequest;
+  path?: never;
+  query?: never;
+  url: "/api/v1/dictation/segments/check";
+};
+
+export type CheckDictationSegmentErrors = {
+  /**
+   * Bad Request
+   */
+  400: ErrorResponse;
+  /**
+   * Unauthorized
+   */
+  401: ErrorResponse;
+  /**
+   * Forbidden
+   */
+  403: ErrorResponse;
+  /**
+   * Not Found
+   */
+  404: ErrorResponse;
+  /**
+   * Conflict
+   */
+  409: ErrorResponse;
+  /**
+   * Unprocessable Content
+   */
+  422: ErrorResponse;
+};
+
+export type CheckDictationSegmentError =
+  CheckDictationSegmentErrors[keyof CheckDictationSegmentErrors];
+
+export type CheckDictationSegmentResponses = {
+  /**
+   * Successful Response
+   */
+  200: DictationSegmentCheckResponse;
+};
+
+export type CheckDictationSegmentResponse =
+  CheckDictationSegmentResponses[keyof CheckDictationSegmentResponses];
+
+export type StartDictationAttemptData = {
+  body?: never;
+  path: {
+    /**
+     * Content Id
+     *
+     * Published dictation content ID
+     */
+    content_id: string;
+  };
+  query?: never;
+  url: "/api/v1/dictation/{content_id}/start";
+};
+
+export type StartDictationAttemptErrors = {
+  /**
+   * Unauthorized
+   */
+  401: ErrorResponse;
+  /**
+   * Not Found
+   */
+  404: ErrorResponse;
+  /**
+   * Conflict
+   */
+  409: ErrorResponse;
+  /**
+   * Unprocessable Content
+   */
+  422: ErrorResponse;
+};
+
+export type StartDictationAttemptError =
+  StartDictationAttemptErrors[keyof StartDictationAttemptErrors];
+
+export type StartDictationAttemptResponses = {
+  /**
+   * Successful Response
+   */
+  201: DictationStartResponse;
+};
+
+export type StartDictationAttemptResponse =
+  StartDictationAttemptResponses[keyof StartDictationAttemptResponses];
 
 export type RegisterData = {
   body: RegisterRequest;
