@@ -22,7 +22,7 @@ Mục tiêu:
 | Backend               | FastAPI                             |
 | Database              | PostgreSQL                          |
 | Database Cloud        | Neon                                |
-| Nguồn audio bài học | YouTube                                |
+| Nguồn audio bài học | YouTube (cho shadowing/dictation), Cloudinary (cho reflex)                                |
 | Xử lý AI              | Chưa chốt nhà cung cấp hoặc mô hình |
 | Xác thực              | JWT                                 |
 | Triển khai Frontend   | Chưa chốt                           |
