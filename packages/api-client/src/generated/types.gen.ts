@@ -210,6 +210,11 @@ export type HealthResponse = {
 };
 
 /**
+ * JlptLevel
+ */
+export type JlptLevel = "N5" | "N4" | "N3" | "N2" | "N1";
+
+/**
  * LoginRequest
  *
  * Payload for email/password login.
@@ -318,6 +323,30 @@ export type ProgressAttemptItem = {
 };
 
 /**
+ * ProgressInProgressLesson
+ */
+export type ProgressInProgressLesson = {
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Content Id
+   */
+  content_id: string;
+  /**
+   * Content Title
+   */
+  content_title: string;
+  content_type: ContentType;
+  difficulty: JlptLevel;
+  /**
+   * Attempt Number
+   */
+  attempt_number: number;
+};
+
+/**
  * ProgressSummaryResponse
  */
 export type ProgressSummaryResponse = {
@@ -341,6 +370,10 @@ export type ProgressSummaryResponse = {
    * Total Attempts
    */
   total_attempts: number;
+  /**
+   * In Progress Lessons
+   */
+  in_progress_lessons?: Array<ProgressInProgressLesson>;
 };
 
 /**
@@ -552,6 +585,14 @@ export type ListProgressAttemptsData = {
      */
     content_id?: string | null;
     /**
+     * Q
+     */
+    q?: string | null;
+    /**
+     * Status
+     */
+    status?: AttemptStatus | null;
+    /**
      * Page
      */
     page?: number;
@@ -682,7 +723,7 @@ export type StartDictationAttemptErrors = {
    */
   409: ErrorResponse;
   /**
-   * Unprocessable Content
+   * Unprocessable Entity
    */
   422: ErrorResponse;
 };
@@ -713,7 +754,7 @@ export type RegisterErrors = {
    */
   409: ErrorResponse;
   /**
-   * Unprocessable Content
+   * Unprocessable Entity
    */
   422: ErrorResponse;
 };
@@ -742,7 +783,7 @@ export type LoginErrors = {
    */
   401: ErrorResponse;
   /**
-   * Unprocessable Content
+   * Unprocessable Entity
    */
   422: ErrorResponse;
 };
@@ -850,7 +891,7 @@ export type UpdateMeErrors = {
    */
   401: ErrorResponse;
   /**
-   * Unprocessable Content
+   * Unprocessable Entity
    */
   422: ErrorResponse;
 };

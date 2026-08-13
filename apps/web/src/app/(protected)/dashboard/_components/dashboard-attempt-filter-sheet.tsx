@@ -15,9 +15,18 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 
-import type { DashboardAttemptStatus } from "../_utils/dashboard-mock-adapter";
+import type {
+  DashboardAttemptStatus,
+  DashboardPracticeMode,
+} from "../_utils/dashboard-api-adapter";
 
 import { buildDashboardHref } from "../_utils/dashboard-query";
+
+const ATTEMPT_MODE_OPTIONS = [
+  { label: "Shadowing & Dictation", value: "shadowing_dictation" },
+  { label: "Reflex", value: "reflex" },
+  { label: "Listening & Translation", value: "listening_translation" },
+] as const;
 
 const ATTEMPT_STATUS_OPTIONS = [
   { label: "Completed", value: "completed" },
@@ -25,23 +34,27 @@ const ATTEMPT_STATUS_OPTIONS = [
 ] as const;
 
 type DashboardAttemptFilterSheetProps = {
+  mode?: DashboardPracticeMode;
   searchQuery?: string;
   selectedStatus?: DashboardAttemptStatus;
 };
 
 export function DashboardAttemptFilterSheet({
+  mode,
   searchQuery,
   selectedStatus,
 }: DashboardAttemptFilterSheetProps) {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const [draftMode, setDraftMode] = useState<DashboardPracticeMode | undefined>(mode);
   const [draftStatus, setDraftStatus] = useState<DashboardAttemptStatus | undefined>(
     selectedStatus,
   );
-  const activeFilterCount = Number(Boolean(selectedStatus));
+  const activeFilterCount = Number(Boolean(mode)) + Number(Boolean(selectedStatus));
 
   const resetDraft = () => {
+    setDraftMode(mode);
     setDraftStatus(selectedStatus);
   };
 
@@ -57,6 +70,7 @@ export function DashboardAttemptFilterSheet({
     startTransition(() => {
       router.push(
         buildDashboardHref({
+          mode: draftMode,
           searchQuery,
           status: draftStatus,
         }),
@@ -66,6 +80,7 @@ export function DashboardAttemptFilterSheet({
   };
 
   const handleReset = () => {
+    setDraftMode(undefined);
     setDraftStatus(undefined);
   };
 
@@ -91,10 +106,25 @@ export function DashboardAttemptFilterSheet({
       <SheetContent className="flex flex-col overflow-y-auto p-0" side="right">
         <SheetHeader className="border-b-4 border-border p-5 pr-16">
           <SheetTitle>Filter attempts</SheetTitle>
-          <SheetDescription>Refine your practice log by completion status.</SheetDescription>
+          <SheetDescription>
+            Refine your practice log by practice mode and completion status.
+          </SheetDescription>
         </SheetHeader>
 
         <div className="flex flex-1 flex-col gap-7 p-5">
+          <PracticeCatalogComboboxFilter
+            allLabel="All practice modes"
+            basePath="/dashboard"
+            emptyMessage="No practice mode found."
+            id="dashboard-attempt-mode-filter"
+            label="Practice mode"
+            onValueChange={(value) => setDraftMode(value as DashboardPracticeMode | undefined)}
+            options={ATTEMPT_MODE_OPTIONS}
+            queryKey="mode"
+            searchLabel="Search practice modes"
+            searchPlaceholder="Search modes..."
+            value={draftMode}
+          />
           <PracticeCatalogComboboxFilter
             allLabel="All statuses"
             basePath="/dashboard"

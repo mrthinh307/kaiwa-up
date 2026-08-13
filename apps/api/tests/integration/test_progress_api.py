@@ -133,6 +133,7 @@ async def test_progress_summary_counts_completed_by_content_type(
         "listening_translation_completed": 1,
         "total_completed_attempts": 4,
         "total_attempts": 5,
+        "in_progress_lessons": [],
     }
 
 
@@ -164,7 +165,55 @@ async def test_progress_summary_only_uses_current_user_data(
         "listening_translation_completed": 0,
         "total_completed_attempts": 0,
         "total_attempts": 0,
+        "in_progress_lessons": [],
     }
+
+
+@pytest.mark.asyncio
+async def test_progress_summary_lists_in_progress_lessons(
+    client: httpx.AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    user = await create_user(session=db_session, email="a@example.com", display_name="User A")
+    listening = await create_content(
+        session=db_session,
+        content_type=ContentType.SHADOWING_DICTATION,
+        slug="listening",
+        title="Listening lesson",
+    )
+    completed = await create_content(
+        session=db_session,
+        content_type=ContentType.REFLEX,
+        slug="reflex",
+        title="Reflex lesson",
+    )
+    in_progress = await create_attempt(
+        session=db_session,
+        user_id=user.id,
+        content_id=listening.id,
+        attempt_number=1,
+        status=AttemptStatus.IN_PROGRESS,
+    )
+    await create_attempt(
+        session=db_session, user_id=user.id, content_id=completed.id, attempt_number=1
+    )
+
+    set_current_user(user)
+
+    response = await client.get(SUMMARY_PATH)
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["in_progress_lessons"] == [
+        {
+            "id": str(in_progress.id),
+            "content_id": str(listening.id),
+            "content_title": "Listening lesson",
+            "content_type": "shadowing_dictation",
+            "difficulty": "N5",
+            "attempt_number": 1,
+        }
+    ]
 
 
 @pytest.mark.asyncio
@@ -234,6 +283,89 @@ async def test_progress_attempts_filter_by_content_type(
     assert payload["items"][0]["content_id"] == str(listening.id)
     assert payload["items"][0]["content_type"] == "shadowing_dictation"
     assert payload["items"][0]["content_title"] == "Listening"
+
+
+@pytest.mark.asyncio
+async def test_progress_attempts_filter_by_status(
+    client: httpx.AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    user = await create_user(session=db_session, email="a@example.com", display_name="User A")
+    content = await create_content(
+        session=db_session,
+        content_type=ContentType.SHADOWING_DICTATION,
+        slug="listening",
+        title="Listening",
+    )
+    await create_attempt(
+        session=db_session, user_id=user.id, content_id=content.id, attempt_number=1
+    )
+    await create_attempt(
+        session=db_session,
+        user_id=user.id,
+        content_id=content.id,
+        attempt_number=2,
+        status=AttemptStatus.IN_PROGRESS,
+    )
+
+    set_current_user(user)
+
+    response = await client.get(ATTEMPTS_PATH, params={"status": "in_progress"})
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["total_items"] == 1
+    assert payload["items"][0]["status"] == "in_progress"
+    assert payload["items"][0]["attempt_number"] == 2
+
+
+@pytest.mark.asyncio
+async def test_progress_attempts_filter_by_search_query(
+    client: httpx.AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    user = await create_user(session=db_session, email="a@example.com", display_name="User A")
+    weather = await create_content(
+        session=db_session,
+        content_type=ContentType.SHADOWING_DICTATION,
+        slug="weather",
+        title="Today's weather forecast",
+    )
+    shopping = await create_content(
+        session=db_session,
+        content_type=ContentType.REFLEX,
+        slug="shopping",
+        title="Shopping conversation",
+    )
+    await create_attempt(
+        session=db_session, user_id=user.id, content_id=weather.id, attempt_number=1
+    )
+    await create_attempt(
+        session=db_session, user_id=user.id, content_id=shopping.id, attempt_number=1
+    )
+
+    set_current_user(user)
+
+    response = await client.get(ATTEMPTS_PATH, params={"q": "weather"})
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["total_items"] == 1
+    assert payload["items"][0]["content_title"] == "Today's weather forecast"
+
+
+@pytest.mark.asyncio
+async def test_progress_attempts_reject_invalid_status(
+    client: httpx.AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    user = await create_user(session=db_session, email="a@example.com", display_name="User A")
+    set_current_user(user)
+
+    response = await client.get(ATTEMPTS_PATH, params={"status": "not-a-status"})
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "validation_error"
 
 
 @pytest.mark.asyncio
