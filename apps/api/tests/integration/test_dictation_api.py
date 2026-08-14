@@ -10,7 +10,11 @@ from app.main import app
 from app.models.attempt import ExerciseAttempt
 from app.models.content import LearningContent
 from app.models.enums import AttemptStatus, ContentStatus, ContentType, JlptLevel
-from app.models.user import User
+from app.models.gamification import XpTransaction
+from app.models.user import User, UserProgress
+from app.repositories.dictation import DictationRepository
+from app.services.dictation import DictationService
+from app.services.gamification import GamificationService
 
 
 async def create_user(session: AsyncSession, *, email: str) -> User:
@@ -211,6 +215,22 @@ async def test_check_dictation_segment_returns_feedback_and_persists_answer(
     assert attempt.status == AttemptStatus.IN_PROGRESS
     assert attempt.answer_payload == {"segments": [response.json()]}
 
+    review_response = await client.get(f"/api/v1/dictation/attempts/{attempt_id}")
+
+    assert review_response.status_code == 200
+    assert review_response.json()["status"] == "in_progress"
+    assert review_response.json()["score"] is None
+    assert review_response.json()["earned_exp"] == 0
+    assert review_response.json()["details"] == [
+        {
+            "segment_index": 0,
+            "user_answer": " 明日の 会議の資料ですが ",
+            "correct_script": "明日の会議の資料ですが、",
+            "is_correct": True,
+        }
+    ]
+    assert "今日の夕方までに準備しておきます" not in review_response.text
+
 
 @pytest.mark.asyncio
 async def test_check_dictation_segment_replaces_previous_answer_and_marks_last_segment(
@@ -327,3 +347,224 @@ async def test_check_dictation_segment_rejects_completed_attempt(
 
     assert response.status_code == 409
     assert response.json()["error"]["code"] == "dictation_attempt_not_in_progress"
+
+
+@pytest.mark.asyncio
+async def test_complete_dictation_attempt_scores_awards_exp_and_supports_review(
+    client: httpx.AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    user = await create_user(db_session, email="complete@example.com")
+    content = await create_dictation_content(db_session, slug="complete-dictation")
+    set_current_user(user)
+    start_response = await client.post(f"/api/v1/dictation/{content.id}/start")
+    attempt_id = start_response.json()["attempt_id"]
+    await client.post(
+        "/api/v1/dictation/segments/check",
+        json={
+            "attempt_id": attempt_id,
+            "segment_index": 0,
+            "user_answer": "明日の会議の資料ですが",
+        },
+    )
+    await client.post(
+        "/api/v1/dictation/segments/check",
+        json={"attempt_id": attempt_id, "segment_index": 1, "user_answer": "不正解"},
+    )
+
+    response = await client.post(
+        "/api/v1/dictation/complete",
+        json={"attempt_id": attempt_id},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload == {
+        "attempt_id": attempt_id,
+        "status": "completed",
+        "score": 50.0,
+        "correct_count": 1,
+        "total_count": 2,
+        "earned_exp": 50,
+        "completed_at": payload["completed_at"],
+    }
+    attempt = await db_session.get(ExerciseAttempt, uuid.UUID(attempt_id))
+    assert attempt is not None
+    assert attempt.status == AttemptStatus.COMPLETED
+    assert float(attempt.score or 0) == 50.0
+    assert attempt.correct_count == 1
+    assert attempt.total_count == 2
+    assert attempt.submitted_at is not None
+    assert attempt.completed_at is not None
+    progress = await db_session.get(UserProgress, user.id)
+    assert progress is not None
+    assert progress.total_exp == 50
+    transactions = (
+        await db_session.scalars(
+            select(XpTransaction).where(XpTransaction.attempt_id == uuid.UUID(attempt_id))
+        )
+    ).all()
+    assert len(transactions) == 1
+    assert transactions[0].amount == 50
+
+    review_response = await client.get(f"/api/v1/dictation/attempts/{attempt_id}")
+
+    assert review_response.status_code == 200
+    assert review_response.json() == {
+        "attempt_id": attempt_id,
+        "status": "completed",
+        "score": 50.0,
+        "earned_exp": 50,
+        "details": [
+            {
+                "segment_index": 0,
+                "user_answer": "明日の会議の資料ですが",
+                "correct_script": "明日の会議の資料ですが、",
+                "is_correct": True,
+            },
+            {
+                "segment_index": 1,
+                "user_answer": "不正解",
+                "correct_script": "今日の夕方までに準備しておきます。",
+                "is_correct": False,
+            },
+        ],
+    }
+
+
+@pytest.mark.asyncio
+async def test_complete_dictation_attempt_counts_unanswered_segments_as_incorrect(
+    client: httpx.AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    user = await create_user(db_session, email="early-submit@example.com")
+    content = await create_dictation_content(db_session, slug="early-submit")
+    set_current_user(user)
+    start_response = await client.post(f"/api/v1/dictation/{content.id}/start")
+    attempt_id = start_response.json()["attempt_id"]
+    await client.post(
+        "/api/v1/dictation/segments/check",
+        json={
+            "attempt_id": attempt_id,
+            "segment_index": 0,
+            "user_answer": "明日の会議の資料ですが",
+        },
+    )
+
+    response = await client.post(
+        "/api/v1/dictation/complete",
+        json={"attempt_id": attempt_id},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["correct_count"] == 1
+    assert response.json()["total_count"] == 2
+    assert response.json()["score"] == 50.0
+
+    review_response = await client.get(f"/api/v1/dictation/attempts/{attempt_id}")
+
+    assert review_response.status_code == 200
+    assert review_response.json()["details"][1] == {
+        "segment_index": 1,
+        "user_answer": "",
+        "correct_script": "今日の夕方までに準備しておきます。",
+        "is_correct": False,
+    }
+
+
+@pytest.mark.asyncio
+async def test_complete_dictation_attempt_rejects_duplicate_without_duplicate_exp(
+    client: httpx.AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    user = await create_user(db_session, email="duplicate-complete@example.com")
+    content = await create_dictation_content(db_session, slug="duplicate-complete")
+    set_current_user(user)
+    start_response = await client.post(f"/api/v1/dictation/{content.id}/start")
+    attempt_id = start_response.json()["attempt_id"]
+
+    first_response = await client.post(
+        "/api/v1/dictation/complete",
+        json={"attempt_id": attempt_id},
+    )
+    second_response = await client.post(
+        "/api/v1/dictation/complete",
+        json={"attempt_id": attempt_id},
+    )
+
+    assert first_response.status_code == 200
+    assert second_response.status_code == 409
+    assert second_response.json()["error"]["code"] == "dictation_attempt_not_in_progress"
+    transactions = (
+        await db_session.scalars(
+            select(XpTransaction).where(XpTransaction.attempt_id == uuid.UUID(attempt_id))
+        )
+    ).all()
+    assert len(transactions) == 1
+    progress = await db_session.get(UserProgress, user.id)
+    assert progress is not None
+    assert progress.total_exp == 50
+
+
+@pytest.mark.asyncio
+async def test_complete_and_review_dictation_attempt_enforce_ownership(
+    client: httpx.AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    owner = await create_user(db_session, email="complete-owner@example.com")
+    content = await create_dictation_content(db_session, slug="complete-owner")
+    set_current_user(owner)
+    start_response = await client.post(f"/api/v1/dictation/{content.id}/start")
+    attempt_id = start_response.json()["attempt_id"]
+    other_user = await create_user(db_session, email="complete-other@example.com")
+    set_current_user(other_user)
+
+    complete_response = await client.post(
+        "/api/v1/dictation/complete",
+        json={"attempt_id": attempt_id},
+    )
+    review_response = await client.get(f"/api/v1/dictation/attempts/{attempt_id}")
+
+    assert complete_response.status_code == 403
+    assert complete_response.json()["error"]["code"] == "forbidden"
+    assert review_response.status_code == 403
+    assert review_response.json()["error"]["code"] == "forbidden"
+    attempt = await db_session.get(ExerciseAttempt, uuid.UUID(attempt_id))
+    assert attempt is not None
+    assert attempt.status == AttemptStatus.IN_PROGRESS
+
+
+@pytest.mark.asyncio
+async def test_complete_dictation_attempt_rolls_back_when_exp_award_fails(
+    client: httpx.AsyncClient,
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    user = await create_user(db_session, email="atomic-complete@example.com")
+    content = await create_dictation_content(db_session, slug="atomic-complete")
+    set_current_user(user)
+    start_response = await client.post(f"/api/v1/dictation/{content.id}/start")
+    attempt_id = uuid.UUID(start_response.json()["attempt_id"])
+
+    async def fail_award(*_args: object, **_kwargs: object) -> None:
+        raise RuntimeError("simulated EXP failure")
+
+    monkeypatch.setattr(
+        GamificationService,
+        "award_experience_in_transaction",
+        fail_award,
+    )
+    service = DictationService(DictationRepository(db_session))
+
+    with pytest.raises(RuntimeError, match="simulated EXP failure"):
+        await service.complete_attempt(user_id=user.id, attempt_id=attempt_id)
+
+    attempt = await db_session.get(ExerciseAttempt, attempt_id)
+    assert attempt is not None
+    assert attempt.status == AttemptStatus.IN_PROGRESS
+    assert attempt.score is None
+    assert attempt.completed_at is None
+    assert (
+        await db_session.scalar(select(XpTransaction).where(XpTransaction.attempt_id == attempt_id))
+        is None
+    )
