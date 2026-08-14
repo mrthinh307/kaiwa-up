@@ -89,6 +89,7 @@ async def test_list_learning_contents_returns_only_matching_published_content(
             "difficulty": "N5",
             "topic": "Daily",
             "duration_seconds": 3.5,
+            "audio_url": "https://www.youtube.com/watch?v=example",
         }
     ]
 

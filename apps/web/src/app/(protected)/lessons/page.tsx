@@ -4,7 +4,7 @@ import { LibraryBig } from "lucide-react";
 
 import { PracticeCatalog } from "@/components/common/practice-catalog/practice-catalog";
 import { ProtectedPageHeader } from "@/components/common/protected-route/protected-page-header";
-import { getPracticeCatalog, getPracticeTopics } from "@/lib/practice-catalog-mock";
+import { getPracticeCatalogFromApi } from "@/lib/practice-catalog-api";
 import {
   parseCatalogPage,
   parseCatalogSearchQuery,
@@ -28,7 +28,6 @@ function firstQueryValue(value: string | string[] | undefined): string | undefin
 
 export default async function LessonsPage({ searchParams }: LessonsPageProps) {
   const resolvedSearchParams = await searchParams;
-  const topics = getPracticeTopics();
   const difficulty = parseJlptDifficulty(firstQueryValue(resolvedSearchParams.difficulty));
   const page = parseCatalogPage(firstQueryValue(resolvedSearchParams.page));
   const searchQuery = parseCatalogSearchQuery(firstQueryValue(resolvedSearchParams.q));
@@ -36,16 +35,16 @@ export default async function LessonsPage({ searchParams }: LessonsPageProps) {
   const selectedLearningStatus = parsePracticeLearningStatus(
     firstQueryValue(resolvedSearchParams.learning_status),
   );
-  const selectedTopic = topics.find(
-    (topic) => topic.toLocaleLowerCase("en") === topicParam?.toLocaleLowerCase("en"),
-  );
-  const catalog = getPracticeCatalog({
+  const { catalog, topics } = await getPracticeCatalogFromApi({
     difficulty,
     learningStatus: selectedLearningStatus,
     page,
     searchQuery,
-    topic: selectedTopic,
+    topic: topicParam,
   });
+  const selectedTopic = topics.find(
+    (topic) => topic.toLocaleLowerCase("en") === topicParam?.toLocaleLowerCase("en"),
+  );
 
   return (
     <main className="px-5 py-10 sm:px-8 sm:py-12 lg:py-14">

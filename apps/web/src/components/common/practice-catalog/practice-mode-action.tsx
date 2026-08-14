@@ -3,7 +3,7 @@ import type { LucideIcon } from "lucide-react";
 import { ArrowRight, BookOpenCheck, Mic2, RotateCcw } from "lucide-react";
 import Link from "next/link";
 
-import type { LessonModeProgress, PracticeMode } from "@/lib/practice-catalog-mock";
+import type { LessonModeProgress, PracticeMode } from "@/lib/practice-catalog-api";
 
 import { cn } from "@/lib/utils";
 

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import {
   type PracticeCatalogViewModel,
   type PracticeLearningStatus,
-} from "@/lib/practice-catalog-mock";
+} from "@/lib/practice-catalog-api";
 import { cn } from "@/lib/utils";
 
 import { PracticeCatalogFilterSheet } from "./practice-catalog-filter-sheet";

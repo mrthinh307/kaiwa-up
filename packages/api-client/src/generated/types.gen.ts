@@ -483,6 +483,10 @@ export type LearningContentItem = {
    * Duration Seconds
    */
   duration_seconds?: number | null;
+  /**
+   * Audio Url
+   */
+  audio_url?: string | null;
 };
 
 /**

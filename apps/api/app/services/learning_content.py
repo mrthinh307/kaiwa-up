@@ -199,12 +199,12 @@ class LearningContentService:
             difficulty=content.difficulty,
             topic=content.topic,
             duration_seconds=cls._duration_seconds(content),
+            audio_url=content.audio_url,
         )
 
     @classmethod
     def _to_detail(cls, content: LearningContent) -> LearningContentDetail:
         return LearningContentDetail(
             **cls._to_item(content).model_dump(),
-            audio_url=content.audio_url,
             published_at=content.published_at,
         )

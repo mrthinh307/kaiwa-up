@@ -3,7 +3,6 @@ import asyncio
 import logging
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
-from random import Random
 from typing import TypedDict
 
 from sqlalchemy import delete, select
@@ -41,24 +40,87 @@ class UserSeed(TypedDict):
     exp: int
 
 
-YOUTUBE_LESSON_URLS = (
-    "https://www.youtube.com/watch?v=GfkM7xF8orE",
-    "https://www.youtube.com/watch?v=EnXnpI-bCUk",
-    "https://www.youtube.com/watch?v=UXX2p47i5Jo",
-    "https://www.youtube.com/watch?v=wDlbYTLREVg",
-    "https://www.youtube.com/watch?v=gcMUMqSacFs",
-    "https://www.youtube.com/watch?v=wZzjMc4BzE0",
-    "https://www.youtube.com/watch?v=1kDRCAg7s1Q",
-    "https://www.youtube.com/watch?v=Tz6iAK_XRAA",
-    "https://www.youtube.com/watch?v=_9mTBpPyiL4",
-    "https://www.youtube.com/watch?v=yKINx0VaC-Y",
+class YouTubeLessonSeed(TypedDict):
+    youtube_url: str
+    title: str
+    difficulty: JlptLevel
+
+
+YOUTUBE_LESSONS: tuple[YouTubeLessonSeed, ...] = (
+    {
+        "youtube_url": "https://www.youtube.com/watch?v=GfkM7xF8orE",
+        "title": "".join(
+            [
+                "痛みや苦しみがわかる人間になりたいよね｜",
+                "日本語ポッドキャスト、N2～N1聴解【中級、上級】",
+            ]
+        ),
+        "difficulty": JlptLevel.N2,
+    },
+    {
+        "youtube_url": "https://www.youtube.com/watch?v=EnXnpI-bCUk",
+        "title": (
+            "【日本語ポッドキャストリレー】コーヒーとお酒、どっちを選ぶ？"
+            "世界の消費量も調べてみた！｜日本語ポッドキャスト、N3～N1聴解【中級、上級】"
+        ),
+        "difficulty": JlptLevel.N2,
+    },
+    {
+        "youtube_url": "https://www.youtube.com/watch?v=UXX2p47i5Jo",
+        "title": "私が日本を出た理由 Japanese Listening Practice N3・N2レベル【中級】Ep.714",
+        "difficulty": JlptLevel.N3,
+    },
+    {
+        "youtube_url": "https://www.youtube.com/watch?v=wDlbYTLREVg",
+        "title": "".join(
+            [
+                "[Japanese Podcast] Summer in Japan: What Do People Eat? 🇯🇵 | ",
+                "Easy Japanese Podcast",
+            ]
+        ),
+        "difficulty": JlptLevel.N3,
+    },
+    {
+        "youtube_url": "https://www.youtube.com/watch?v=gcMUMqSacFs",
+        "title": "".join(
+            [
+                "Relaxing Japanese Listening: A Peaceful Night | 安らぎの夜 | ",
+                "Japanese Daily Podcast",
+            ]
+        ),
+        "difficulty": JlptLevel.N3,
+    },
+    {
+        "youtube_url": "https://www.youtube.com/watch?v=wZzjMc4BzE0",
+        "title": "Shopping at a Huge Japanese Supermarket! Useful Japanese Phrases 🛒",
+        "difficulty": JlptLevel.N3,
+    },
+    {
+        "youtube_url": "https://www.youtube.com/watch?v=1kDRCAg7s1Q",
+        "title": "日本の夏の過ごし方 Japanese Listening Practice N3・N2レベル【中級】Ep.704",
+        "difficulty": JlptLevel.N3,
+    },
+    {
+        "youtube_url": "https://www.youtube.com/watch?v=Tz6iAK_XRAA",
+        "title": "A Day in My Hometown 🌇 | Easy Japanese Listening (N4, 20 min)",
+        "difficulty": JlptLevel.N4,
+    },
+    {
+        "youtube_url": "https://www.youtube.com/watch?v=_9mTBpPyiL4",
+        "title": "".join(
+            [
+                "祖父が亡くなって思ったこと Japanese Listening Practice ",
+                "N3・N2レベル【中級】Ep.713",
+            ]
+        ),
+        "difficulty": JlptLevel.N3,
+    },
+    {
+        "youtube_url": "https://www.youtube.com/watch?v=yKINx0VaC-Y",
+        "title": "【Japanese Podcast #39】How Japanese People REALLY Say No (Without Saying It)",
+        "difficulty": JlptLevel.N2,
+    },
 )
-
-
-def youtube_lesson_difficulties() -> dict[str, JlptLevel]:
-    levels = list(JlptLevel) * 2
-    Random(26).shuffle(levels)
-    return dict(zip(YOUTUBE_LESSON_URLS, levels, strict=True))
 
 
 async def seed_youtube_lessons(session: AsyncSession) -> list[LearningContent]:
@@ -66,10 +128,9 @@ async def seed_youtube_lessons(session: AsyncSession) -> list[LearningContent]:
     repository = LearningContentRepository(session)
     service = LearningContentService(repository, YouTubeCaptionProvider())
     seeded_contents: list[LearningContent] = []
-    difficulties = youtube_lesson_difficulties()
 
-    for youtube_url in YOUTUBE_LESSON_URLS:
-        difficulty = difficulties[youtube_url]
+    for lesson in YOUTUBE_LESSONS:
+        youtube_url = lesson["youtube_url"]
         video_id = YouTubeCaptionProvider.extract_video_id(youtube_url)
         slug = f"youtube-{video_id}"
         content = await repository.get_by_slug(slug)
@@ -77,8 +138,9 @@ async def seed_youtube_lessons(session: AsyncSession) -> list[LearningContent]:
             created = await service.create_from_youtube(
                 LearningContentCreate(
                     youtube_url=youtube_url,
+                    title=lesson["title"],
                     topic="Japanese listening",
-                    difficulty=difficulty,
+                    difficulty=lesson["difficulty"],
                     base_exp=50,
                 )
             )
@@ -86,8 +148,9 @@ async def seed_youtube_lessons(session: AsyncSession) -> list[LearningContent]:
             if content is None:
                 raise RuntimeError(f"Created YouTube lesson was not found: {created.slug}")
 
-        if content.difficulty != difficulty:
-            content.difficulty = difficulty
+        if content.title != lesson["title"] or content.difficulty != lesson["difficulty"]:
+            content.title = lesson["title"]
+            content.difficulty = lesson["difficulty"]
             await repository.update(content)
         if content.status != ContentStatus.PUBLISHED:
             await service.publish_content(content.id)
