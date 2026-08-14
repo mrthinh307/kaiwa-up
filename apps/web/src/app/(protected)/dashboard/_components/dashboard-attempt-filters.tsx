@@ -1,13 +1,18 @@
 import { PracticeCatalogSearch } from "@/components/common/practice-catalog/practice-catalog-search";
 
-import type { DashboardAttemptStatus } from "../_utils/dashboard-mock-adapter";
+import type {
+  DashboardAttemptStatus,
+  DashboardPracticeMode,
+} from "../_utils/dashboard-api-adapter";
 
 import { DashboardAttemptFilterSheet } from "./dashboard-attempt-filter-sheet";
 
 export function DashboardAttemptFilters({
+  mode,
   searchQuery,
   selectedStatus,
 }: {
+  mode?: DashboardPracticeMode;
   searchQuery?: string;
   selectedStatus?: DashboardAttemptStatus;
 }) {
@@ -21,10 +26,15 @@ export function DashboardAttemptFilters({
         label="Search attempts"
         placeholder="Search by lesson title..."
         preservedParams={{
+          mode,
           status: selectedStatus,
         }}
       />
-      <DashboardAttemptFilterSheet searchQuery={searchQuery} selectedStatus={selectedStatus} />
+      <DashboardAttemptFilterSheet
+        mode={mode}
+        searchQuery={searchQuery}
+        selectedStatus={selectedStatus}
+      />
     </div>
   );
 }

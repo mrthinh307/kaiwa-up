@@ -147,6 +147,39 @@
             }
           },
           {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 100
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/AttemptStatus"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
             "name": "page",
             "in": "query",
             "required": false,
@@ -1208,7 +1241,7 @@
             }
           },
           "422": {
-            "description": "Unprocessable Content",
+            "description": "Unprocessable Entity",
             "content": {
               "application/json": {
                 "schema": {
@@ -2018,6 +2051,11 @@
         "required": ["id", "title", "content_type", "difficulty"],
         "title": "LearningContentItem"
       },
+      "JlptLevel": {
+        "type": "string",
+        "enum": ["N5", "N4", "N3", "N2", "N1"],
+        "title": "JlptLevel"
+      },
       "LoginRequest": {
         "properties": {
           "email": {
@@ -2249,6 +2287,45 @@
         ],
         "title": "ProgressAttemptItem"
       },
+      "ProgressInProgressLesson": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "content_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Content Id"
+          },
+          "content_title": {
+            "type": "string",
+            "title": "Content Title"
+          },
+          "content_type": {
+            "$ref": "#/components/schemas/ContentType"
+          },
+          "difficulty": {
+            "$ref": "#/components/schemas/JlptLevel"
+          },
+          "attempt_number": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Attempt Number"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "content_id",
+          "content_title",
+          "content_type",
+          "difficulty",
+          "attempt_number"
+        ],
+        "title": "ProgressInProgressLesson"
+      },
       "ProgressSummaryResponse": {
         "properties": {
           "shadowing_dictation_completed": {
@@ -2275,6 +2352,13 @@
             "type": "integer",
             "minimum": 0.0,
             "title": "Total Attempts"
+          },
+          "in_progress_lessons": {
+            "items": {
+              "$ref": "#/components/schemas/ProgressInProgressLesson"
+            },
+            "type": "array",
+            "title": "In Progress Lessons"
           }
         },
         "type": "object",

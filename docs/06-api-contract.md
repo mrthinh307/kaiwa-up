@@ -724,7 +724,7 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
 ### 3.7. Progress / Attempt Module (P0)
 
 #### `GET /api/v1/progress/summary`
-* **Mục đích**: Xem tổng quan chỉ số học tập (tổng bài học đã hoàn thành, số lượt luyện tập).
+* **Mục đích**: Xem tổng quan chỉ số học tập (tổng bài đã hoàn thành, tổng lượt luyện tập, các bài đang làm dở).
 * **Yêu cầu xác thực**: Bearer Token
 * **Request Headers**: `Authorization: Bearer <jwt_access_token>`
 * **Path Parameters**: Không
@@ -733,11 +733,21 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
 * **Response Schema (200 OK)**:
   ```json
   {
-    "shadowing_completed": 12,
-    "dictation_completed": 8,
+    "shadowing_dictation_completed": 12,
     "reflex_completed": 5,
-    "total_lessons_completed": 25,
-    "total_practice_time_minutes": 140
+    "listening_translation_completed": 3,
+    "total_completed_attempts": 20,
+    "total_attempts": 31,
+    "in_progress_lessons": [
+      {
+        "id": "880e8400-e29b-41d4-a716-446655440222",
+        "content_id": "770e8400-e29b-41d4-a716-446655440111",
+        "content_title": "Thời tiết hôm nay",
+        "content_type": "shadowing_dictation",
+        "difficulty": "N4",
+        "attempt_number": 1
+      }
+    ]
   }
   ```
 * **Status Codes & Error Responses**:
@@ -752,9 +762,12 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
 * **Request Headers**: `Authorization: Bearer <jwt_access_token>`
 * **Path Parameters**: Không
 * **Query Parameters**:
-  * `type` (optional, string): `shadowing` | `dictation` | `reflex` | `listening_translation`
+  * `content_type` (optional, string): `shadowing_dictation` | `reflex` | `listening_translation`
+  * `content_id` (optional, string, UUID): Lọc theo nội dung cụ thể
+  * `q` (optional, string, tối đa 100 ký tự): Tìm kiếm theo tiêu đề bài học (không phân biệt hoa thường)
+  * `status` (optional, string): `in_progress` | `completed`
   * `page` (optional, integer, default: `1`)
-  * `page_size` (optional, integer, default: `20`)
+  * `page_size` (optional, integer, default: `20`, tối đa `100`)
 * **Request Body**: Không
 * **Response Schema (200 OK)**:
   ```json
@@ -762,12 +775,12 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
     "items": [
       {
         "id": "880e8400-e29b-41d4-a716-446655440222",
-        "lesson_id": "770e8400-e29b-41d4-a716-446655440111",
-        "lesson_title": "Nghe điền từ: Thời tiết hôm nay",
-        "lesson_type": "dictation",
+        "content_id": "770e8400-e29b-41d4-a716-446655440111",
+        "content_title": "Nghe điền từ: Thời tiết hôm nay",
+        "content_type": "shadowing_dictation",
+        "attempt_number": 1,
         "status": "completed",
         "score": 100.0,
-        "exp_earned": 10,
         "completed_at": "2026-08-06T14:42:00.000Z"
       }
     ],
@@ -779,6 +792,8 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
   ```
 * **Status Codes & Error Responses**:
   * `200 OK`: Lấy lịch sử thành công.
+  * `401 Unauthorized` (`code`: `unauthorized`): Chưa đăng nhập.
+  * `422 Unprocessable Entity` (`code`: `validation_error`): Tham số filter hoặc pagination không hợp lệ.
 
 ---
 

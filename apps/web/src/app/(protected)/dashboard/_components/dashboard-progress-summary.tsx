@@ -1,9 +1,9 @@
-import { ArrowRight, BookOpenCheck, ListChecks, Mic2 } from "lucide-react";
+import { ArrowRight, BookOpenCheck, ListChecks, Mic2, Zap } from "lucide-react";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 
-import type { DashboardViewModel } from "../_utils/dashboard-mock-adapter";
+import type { DashboardViewModel } from "../_utils/dashboard-api-adapter";
 
 import { formatDashboardNumber } from "../_utils/dashboard-formatters";
 import { buildDashboardHref } from "../_utils/dashboard-query";
@@ -16,7 +16,10 @@ export function DashboardProgressSummary({
 }: {
   progressSummary: DashboardViewModel["progressSummary"];
 }) {
-  const completedAttemptsHref = `${buildDashboardHref({ status: "completed" })}#attempt-history`;
+  const shadowingDictationHref = `${buildDashboardHref({
+    mode: "shadowing_dictation",
+  })}#attempt-history`;
+  const allAttemptsHref = `${buildDashboardHref()}#attempt-history`;
 
   return (
     <section
@@ -48,19 +51,28 @@ export function DashboardProgressSummary({
             <p className="flex items-center justify-between gap-3 border-t-2 border-border pt-3">
               <span className="flex items-center gap-2">
                 <Mic2 aria-hidden="true" className="size-4" />
-                Shadowing
+                Shadowing &amp; Dictation
               </span>
               <span className="tabular-nums">
-                {formatDashboardNumber(progressSummary.shadowingAttempts)}
+                {formatDashboardNumber(progressSummary.shadowingDictationCompleted)}
+              </span>
+            </p>
+            <p className="flex items-center justify-between gap-3">
+              <span className="flex items-center gap-2">
+                <Zap aria-hidden="true" className="size-4" />
+                Reflex
+              </span>
+              <span className="tabular-nums">
+                {formatDashboardNumber(progressSummary.reflexCompleted)}
               </span>
             </p>
             <p className="flex items-center justify-between gap-3">
               <span className="flex items-center gap-2">
                 <BookOpenCheck aria-hidden="true" className="size-4" />
-                Dictation
+                Listening &amp; Translation
               </span>
               <span className="tabular-nums">
-                {formatDashboardNumber(progressSummary.dictationAttempts)}
+                {formatDashboardNumber(progressSummary.listeningTranslationCompleted)}
               </span>
             </p>
           </div>
@@ -71,13 +83,15 @@ export function DashboardProgressSummary({
             <Mic2 aria-hidden="true" className="size-5" />
           </span>
           <p className="mt-7 text-4xl font-heading tabular-nums sm:text-5xl">
-            {formatDashboardNumber(progressSummary.shadowingCompleted)}
+            {formatDashboardNumber(progressSummary.shadowingDictationCompleted)}
           </p>
-          <h3 className="mt-2 text-lg leading-tight">Shadowing completed</h3>
-          <p className="mt-2 text-sm leading-relaxed text-foreground/65">Listening and speaking</p>
+          <h3 className="mt-2 text-lg leading-tight">Shadowing &amp; Dictation completed</h3>
+          <p className="mt-2 text-sm leading-relaxed text-foreground/65">
+            Listening and speaking practice
+          </p>
           <div className="mt-auto pt-6">
             <Button asChild className="w-full" size="sm" variant="neutral">
-              <Link href={completedAttemptsHref}>
+              <Link href={shadowingDictationHref}>
                 View completed
                 <ArrowRight aria-hidden="true" />
               </Link>
@@ -87,16 +101,20 @@ export function DashboardProgressSummary({
 
         <article className={METRIC_CARD_CLASS_NAME}>
           <span className="flex size-11 items-center justify-center rounded-base border-2 border-border bg-chart-5 text-main-foreground shadow-shadow">
-            <BookOpenCheck aria-hidden="true" className="size-5" />
+            <Zap aria-hidden="true" className="size-5" />
           </span>
           <p className="mt-7 text-4xl font-heading tabular-nums sm:text-5xl">
-            {formatDashboardNumber(progressSummary.dictationCompleted)}
+            {formatDashboardNumber(
+              progressSummary.reflexCompleted + progressSummary.listeningTranslationCompleted,
+            )}
           </p>
-          <h3 className="mt-2 text-lg leading-tight">Dictation completed</h3>
-          <p className="mt-2 text-sm leading-relaxed text-foreground/65">Accurate listening</p>
+          <h3 className="mt-2 text-lg leading-tight">Reflex &amp; Listening completed</h3>
+          <p className="mt-2 text-sm leading-relaxed text-foreground/65">
+            Quick-response and translation practice
+          </p>
           <div className="mt-auto pt-6">
             <Button asChild className="w-full" size="sm" variant="neutral">
-              <Link href={completedAttemptsHref}>
+              <Link href={allAttemptsHref}>
                 View completed
                 <ArrowRight aria-hidden="true" />
               </Link>

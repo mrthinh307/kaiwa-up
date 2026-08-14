@@ -16,7 +16,7 @@ import {
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 
-import type { DashboardViewModel } from "../_utils/dashboard-mock-adapter";
+import type { DashboardViewModel } from "../_utils/dashboard-api-adapter";
 
 import { getDashboardPracticeModeMetadata } from "../_utils/dashboard-formatters";
 

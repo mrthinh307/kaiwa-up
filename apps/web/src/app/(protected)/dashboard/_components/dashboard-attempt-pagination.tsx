@@ -9,7 +9,10 @@ import {
 } from "@/components/ui/pagination";
 import { cn } from "@/lib/utils";
 
-import type { DashboardAttemptStatus } from "../_utils/dashboard-mock-adapter";
+import type {
+  DashboardAttemptStatus,
+  DashboardPracticeMode,
+} from "../_utils/dashboard-api-adapter";
 
 import { buildDashboardHref } from "../_utils/dashboard-query";
 
@@ -32,11 +35,13 @@ function getPaginationEntries(page: number, pages: number): PaginationEntry[] {
 }
 
 export function DashboardAttemptPagination({
+  mode,
   page,
   pages,
   searchQuery,
   status,
 }: {
+  mode?: DashboardPracticeMode;
   page: number;
   pages: number;
   searchQuery?: string;
@@ -45,6 +50,9 @@ export function DashboardAttemptPagination({
   if (pages <= 1) {
     return null;
   }
+
+  const hrefForPage = (nextPage: number) =>
+    buildDashboardHref({ mode, page: nextPage, searchQuery, status });
 
   return (
     <Pagination aria-label="Attempt history pages" className="mt-8">
@@ -56,9 +64,7 @@ export function DashboardAttemptPagination({
               "[&_span]:hidden sm:[&_span]:inline",
               page <= 1 && "pointer-events-none opacity-50",
             )}
-            href={
-              page > 1 ? buildDashboardHref({ page: page - 1, searchQuery, status }) : undefined
-            }
+            href={page > 1 ? hrefForPage(page - 1) : undefined}
             tabIndex={page <= 1 ? -1 : undefined}
           />
         </PaginationItem>
@@ -68,7 +74,7 @@ export function DashboardAttemptPagination({
             <PaginationItem key={entry}>
               <PaginationLink
                 aria-label={`Go to attempt page ${entry}`}
-                href={buildDashboardHref({ page: entry, searchQuery, status })}
+                href={hrefForPage(entry)}
                 isActive={entry === page}
               >
                 {entry}
@@ -88,9 +94,7 @@ export function DashboardAttemptPagination({
               "[&_span]:hidden sm:[&_span]:inline",
               page >= pages && "pointer-events-none opacity-50",
             )}
-            href={
-              page < pages ? buildDashboardHref({ page: page + 1, searchQuery, status }) : undefined
-            }
+            href={page < pages ? hrefForPage(page + 1) : undefined}
             tabIndex={page >= pages ? -1 : undefined}
           />
         </PaginationItem>

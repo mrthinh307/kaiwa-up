@@ -124,6 +124,7 @@ export type {
   PaginatedResponseProgressAttemptItem,
   ProgressAttemptDetail,
   ProgressAttemptItem,
+  ProgressInProgressLesson,
   ProgressSummaryResponse,
   PublishLearningContentData,
   PublishLearningContentErrors,

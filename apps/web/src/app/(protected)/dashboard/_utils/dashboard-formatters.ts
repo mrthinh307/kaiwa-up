@@ -1,6 +1,6 @@
-import { BookOpenCheck, CheckCircle2, CirclePlay, Mic2, type LucideIcon } from "lucide-react";
+import { CheckCircle2, CirclePlay, Languages, Mic2, Zap, type LucideIcon } from "lucide-react";
 
-import type { DashboardAttemptStatus, DashboardPracticeMode } from "./dashboard-mock-adapter";
+import type { DashboardAttemptStatus, DashboardPracticeMode } from "./dashboard-api-adapter";
 
 type DashboardPracticeModeMetadata = {
   badgeClassName: string;
@@ -34,15 +34,20 @@ const DASHBOARD_PRACTICE_MODE_METADATA: Record<
   DashboardPracticeMode,
   DashboardPracticeModeMetadata
 > = {
-  dictation: {
-    badgeClassName: "bg-chart-5 text-main-foreground",
-    icon: BookOpenCheck,
-    label: "Dictation",
-  },
-  shadowing: {
+  shadowing_dictation: {
     badgeClassName: "bg-chart-1 text-main-foreground",
     icon: Mic2,
-    label: "Shadowing",
+    label: "Shadowing & Dictation",
+  },
+  reflex: {
+    badgeClassName: "bg-chart-3 text-main-foreground",
+    icon: Zap,
+    label: "Reflex",
+  },
+  listening_translation: {
+    badgeClassName: "bg-chart-5 text-main-foreground",
+    icon: Languages,
+    label: "Listening & Translation",
   },
 };
 

@@ -7,7 +7,7 @@ from sqlalchemy import ColumnElement, func, select
 
 from app.models.attempt import ExerciseAttempt
 from app.models.content import LearningContent
-from app.models.enums import AttemptStatus, ContentType
+from app.models.enums import AttemptStatus, ContentType, JlptLevel
 from app.repositories.base import BaseRepository
 
 
@@ -22,6 +22,15 @@ class AttemptHistoryRow(NamedTuple):
     completed_at: datetime | None
 
 
+class InProgressLessonRow(NamedTuple):
+    id: UUID
+    content_id: UUID
+    content_title: str
+    content_type: ContentType
+    difficulty: JlptLevel
+    attempt_number: int
+
+
 class AttemptDetailRow(NamedTuple):
     attempt: ExerciseAttempt
     content_type: ContentType
@@ -34,12 +43,18 @@ class ProgressRepository(BaseRepository):
         *,
         content_type: ContentType | None,
         content_id: UUID | None,
+        status: AttemptStatus | None = None,
+        search_query: str | None = None,
     ) -> tuple[ColumnElement[bool], ...]:
         conditions: list[ColumnElement[bool]] = [ExerciseAttempt.user_id == user_id]
         if content_type is not None:
             conditions.append(LearningContent.content_type == content_type)
         if content_id is not None:
             conditions.append(ExerciseAttempt.content_id == content_id)
+        if status is not None:
+            conditions.append(ExerciseAttempt.status == status)
+        if search_query:
+            conditions.append(LearningContent.title.ilike(f"%{search_query}%"))
         return tuple(conditions)
 
     async def get_summary(self, user_id: UUID) -> tuple[int, dict[ContentType, int]]:
@@ -71,11 +86,17 @@ class ProgressRepository(BaseRepository):
         *,
         content_type: ContentType | None = None,
         content_id: UUID | None = None,
+        status: AttemptStatus | None = None,
+        search_query: str | None = None,
         limit: int,
         offset: int,
     ) -> tuple[list[AttemptHistoryRow], int]:
         conditions = self._history_conditions(
-            user_id, content_type=content_type, content_id=content_id
+            user_id,
+            content_type=content_type,
+            content_id=content_id,
+            status=status,
+            search_query=search_query,
         )
         total = (
             await self.session.scalar(
@@ -122,6 +143,38 @@ class ProgressRepository(BaseRepository):
             for row in results
         ]
         return items, total
+
+    async def get_in_progress_lessons(self, user_id: UUID) -> list[InProgressLessonRow]:
+        results = (
+            await self.session.execute(
+                select(
+                    ExerciseAttempt.id,
+                    ExerciseAttempt.content_id,
+                    LearningContent.title,
+                    LearningContent.content_type,
+                    LearningContent.difficulty,
+                    ExerciseAttempt.attempt_number,
+                )
+                .join(LearningContent, LearningContent.id == ExerciseAttempt.content_id)
+                .where(
+                    ExerciseAttempt.user_id == user_id,
+                    ExerciseAttempt.status == AttemptStatus.IN_PROGRESS,
+                )
+                .order_by(ExerciseAttempt.started_at.desc())
+            )
+        ).all()
+
+        return [
+            InProgressLessonRow(
+                id=row.id,
+                content_id=row.content_id,
+                content_title=row.title,
+                content_type=row.content_type,
+                difficulty=row.difficulty,
+                attempt_number=row.attempt_number,
+            )
+            for row in results
+        ]
 
     async def get_attempt_detail(self, attempt_id: UUID) -> AttemptDetailRow | None:
         result = (

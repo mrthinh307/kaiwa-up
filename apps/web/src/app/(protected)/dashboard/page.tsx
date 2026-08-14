@@ -1,13 +1,10 @@
 import type { Metadata } from "next";
 
-import { DashboardPreviewError } from "./_components/dashboard-preview-error";
-import { DashboardScreen } from "./_components/dashboard-screen";
-import { DashboardSkeleton } from "./_components/dashboard-skeleton";
-import { getDashboardMock } from "./_utils/dashboard-mock-adapter";
+import { DashboardContent } from "./_components/dashboard-content";
 import {
   parseDashboardAttemptStatus,
   parseDashboardPage,
-  parseDashboardPreviewState,
+  parseDashboardPracticeMode,
   parseDashboardSearchQuery,
 } from "./_utils/dashboard-query";
 
@@ -29,27 +26,12 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const page = parseDashboardPage(getFirstSearchParam(resolvedSearchParams.page));
   const searchQuery = parseDashboardSearchQuery(getFirstSearchParam(resolvedSearchParams.q));
   const status = parseDashboardAttemptStatus(getFirstSearchParam(resolvedSearchParams.status));
-  const previewState = parseDashboardPreviewState(
-    getFirstSearchParam(resolvedSearchParams.preview),
-  );
+  const mode = parseDashboardPracticeMode(getFirstSearchParam(resolvedSearchParams.mode));
 
   return (
     <main className="px-5 py-10 sm:px-8 sm:py-12 lg:py-14">
       <div className="mx-auto w-full max-w-[1300px]">
-        {previewState === "loading" ? (
-          <DashboardSkeleton />
-        ) : previewState === "error" ? (
-          <DashboardPreviewError />
-        ) : (
-          <DashboardScreen
-            dashboard={getDashboardMock({
-              isEmpty: previewState === "empty",
-              page,
-              searchQuery,
-              status,
-            })}
-          />
-        )}
+        <DashboardContent mode={mode} page={page} searchQuery={searchQuery} status={status} />
       </div>
     </main>
   );
