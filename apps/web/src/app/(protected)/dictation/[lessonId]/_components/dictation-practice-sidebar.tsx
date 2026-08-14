@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 import type {
+  DictationKeyboardShortcut,
   DictationPracticeSidebarProps,
   DictationSegmentState,
 } from "../../_types/dictation-practice";
@@ -20,10 +21,21 @@ function getSegmentState({
   result: DictationPracticeSidebarProps["results"][number] | undefined;
 }): DictationSegmentState {
   if (result?.user_answer === answer) {
+    if (!result.user_answer.trim()) {
+      return "not_started";
+    }
+
     return result.is_correct ? "correct" : "incorrect";
   }
   return answer.trim() ? "draft" : "not_started";
 }
+
+const PRACTICE_SHORTCUTS: readonly DictationKeyboardShortcut[] = [
+  { action: "Check answer", keyLabel: "⏎" },
+  { action: "Replay segment", keyLabel: "⎵" },
+  { action: "Next segment", keyLabel: "→" },
+  { action: "Previous segment", keyLabel: "←" },
+];
 
 const STATE_CONFIG = {
   correct: {
@@ -76,18 +88,24 @@ export function DictationPracticeSidebar({
   checkedCount,
   correctCount,
   draftCount: _draftCount,
+  hideCompletionCard = false,
   isCompleting,
+  keyboardShortcuts = PRACTICE_SHORTCUTS,
   onComplete,
   onSelectSegment,
   results,
   segments,
   storedResultCount: _storedResultCount,
   totalSegments,
+  variant = "practice",
 }: DictationPracticeSidebarProps) {
   const isAllChecked = checkedCount === totalSegments;
   const incorrectCount = checkedCount - correctCount;
   const remainingCount = totalSegments - checkedCount;
   const progressPercent = Math.round((checkedCount / totalSegments) * 100);
+  const legendStates = (
+    variant === "result" ? ["correct", "incorrect", "not_started"] : Object.keys(STATE_CONFIG)
+  ) as DictationSegmentState[];
 
   return (
     <aside className="space-y-4">
@@ -168,9 +186,11 @@ export function DictationPracticeSidebar({
 
         {/* Prominent Colored Legend */}
         <ul className="mt-4 grid grid-cols-2 gap-2 border-t-2 border-border/30 pt-3 text-xs">
-          {(Object.keys(STATE_CONFIG) as DictationSegmentState[]).map((state) => {
+          {legendStates.map((state) => {
             const config = STATE_CONFIG[state];
             const Icon = config.icon;
+            const label =
+              variant === "result" && state === "not_started" ? "Unanswered" : config.label;
             return (
               <li className="flex items-center gap-2" key={state}>
                 <span
@@ -181,7 +201,7 @@ export function DictationPracticeSidebar({
                 >
                   <Icon aria-hidden="true" className={cn("size-3", config.iconColor)} />
                 </span>
-                <span className={cn("font-heading text-xs", config.iconColor)}>{config.label}</span>
+                <span className={cn("font-heading text-xs", config.iconColor)}>{label}</span>
               </li>
             );
           })}
@@ -208,12 +228,7 @@ export function DictationPracticeSidebar({
             </tr>
           </thead>
           <tbody>
-            {[
-              { action: "Check answer", keyLabel: "⏎" },
-              { action: "Replay segment", keyLabel: "⎵" },
-              { action: "Next segment", keyLabel: "→" },
-              { action: "Previous segment", keyLabel: "←" },
-            ].map(({ action, keyLabel }) => (
+            {keyboardShortcuts.map(({ action, keyLabel }) => (
               <tr key={action}>
                 <th className="py-1.5 text-left font-normal text-foreground/75" scope="row">
                   {action}
@@ -228,7 +243,7 @@ export function DictationPracticeSidebar({
       </section>
 
       {/* Celebratory Finish Card (Appears when all segments are checked) */}
-      {isAllChecked ? (
+      {isAllChecked && !hideCompletionCard ? (
         <section className="rounded-base border-4 border-border bg-main p-4 text-main-foreground shadow-shadow sm:p-5">
           <div className="flex items-center gap-2">
             <Trophy aria-hidden="true" className="size-5" />

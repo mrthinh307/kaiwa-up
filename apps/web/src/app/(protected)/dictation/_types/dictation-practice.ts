@@ -64,6 +64,16 @@ export type DictationInProgressInfo = {
 
 export type DictationSegmentState = "correct" | "draft" | "incorrect" | "not_started";
 
+export type DictationSegmentMapResult = Pick<
+  DictationSegmentCheckResponse,
+  "is_correct" | "user_answer"
+>;
+
+export type DictationKeyboardShortcut = {
+  action: string;
+  keyLabel: string;
+};
+
 export type DictationStartPanelProps = {
   content: DictationPracticeContent;
   inProgressInfo?: DictationInProgressInfo;
@@ -124,13 +134,16 @@ export type DictationPracticeSidebarProps = {
   checkedCount: number;
   correctCount: number;
   draftCount: number;
+  hideCompletionCard?: boolean;
   isCompleting: boolean;
+  keyboardShortcuts?: readonly DictationKeyboardShortcut[];
   onComplete: () => void;
   onSelectSegment: (segmentIndex: number) => void;
-  results: Record<number, DictationSegmentCheckResponse>;
+  results: Record<number, DictationSegmentMapResult>;
   segments: DictationSegmentItem[];
   storedResultCount: number;
   totalSegments: number;
+  variant?: "practice" | "result";
 };
 
 export type DictationResultProps = {
