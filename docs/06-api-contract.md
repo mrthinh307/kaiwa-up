@@ -669,55 +669,80 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
 
 ---
 
-#### `POST /api/v1/dictation/lessons/{lesson_id}/submit`
-* **Mục đích**: Nộp câu trả lời Dictation theo thứ tự ô trống. Backend đối chiếu với transcript
-  nguồn của `learning_contents`, lưu câu trả lời vào `exercise_attempts.answer_payload` (JSONB),
-  tính điểm và cấp `base_exp` đúng một lần khi attempt hoàn thành.
-* **Yêu cầu xác thực**: Bearer Token
+#### `POST /api/v1/dictation/complete`
+* **Mục đích**: Đóng attempt sau khi người dùng hoàn thành các segment hoặc chọn nộp sớm. Backend
+  tính điểm dựa trên toàn bộ số segment, cập nhật attempt và cấp `base_exp` trong cùng một DB
+  transaction. Segment chưa được kiểm tra khi nộp sớm được tính là chưa đúng.
+* **Yêu cầu xác thực**: Bearer Token; attempt phải thuộc user hiện tại.
 * **Request Headers**: `Authorization: Bearer <jwt_access_token>`, `Content-Type: application/json`
-* **Path Parameters**:
-  * `lesson_id` (string, UUID): ID bài Dictation
+* **Path Parameters**: Không
 * **Query Parameters**: Không
 * **Request Body Schema**:
   ```json
   {
-    "answers": [
-      { "blank_index": 1, "user_answer": "いいてんき" },
-      { "blank_index": 2, "user_answer": "あめ" }
-    ]
+    "attempt_id": "01912345-6789-7abc-def0-123456789abc"
   }
   ```
 * **Response Schema (200 OK)**:
   ```json
   {
-    "attempt_id": "880e8400-e29b-41d4-a716-446655440222",
-    "lesson_id": "770e8400-e29b-41d4-a716-446655440111",
-    "total_questions": 2,
+    "attempt_id": "01912345-6789-7abc-def0-123456789abc",
+    "status": "completed",
+    "score": 100.0,
     "correct_count": 2,
-    "score_percentage": 100.0,
-    "is_passed": true,
-    "exp_earned": 10,
-    "results": [
+    "total_count": 2,
+    "earned_exp": 50,
+    "completed_at": "2026-08-13T11:30:00Z"
+  }
+  ```
+* **Quy tắc transaction và idempotency**:
+  * Cập nhật attempt, tạo `xp_transactions` và cập nhật `user_progress.total_exp` cùng commit hoặc
+    cùng rollback.
+  * Khóa attempt trong lúc complete; attempt không còn `in_progress` bị từ chối để không cấp EXP
+    lần hai.
+  * UNIQUE `xp_transactions.attempt_id` là lớp bảo vệ cuối cùng chống ghi sổ EXP trùng.
+* **Status Codes & Error Responses**:
+  * `200 OK`: Attempt được hoàn tất và EXP được cấp thành công.
+  * `401 Unauthorized` (`code`: `unauthorized`): Chưa đăng nhập.
+  * `403 Forbidden` (`code`: `forbidden`): Attempt không thuộc user hiện tại.
+  * `404 Not Found` (`code`: `not_found`): Không tìm thấy Dictation attempt.
+  * `409 Conflict` (`code`: `dictation_attempt_not_in_progress`): Attempt đã hoàn tất.
+
+---
+
+#### `GET /api/v1/dictation/attempts/{attempt_id}`
+* **Mục đích**: Xem lại các câu trả lời đã được kiểm tra, đáp án chuẩn và kết quả của một Dictation
+  attempt. Attempt đã hoàn tất trả đủ mọi segment; segment bị bỏ qua khi nộp sớm có
+  `user_answer = ""`, `is_correct = false`. Attempt đang làm dở có `score = null`,
+  `earned_exp = 0` và chỉ trả các segment đã được kiểm tra để không lộ đáp án còn lại.
+* **Yêu cầu xác thực**: Bearer Token; attempt phải thuộc user hiện tại.
+* **Request Headers**: `Authorization: Bearer <jwt_access_token>`
+* **Path Parameters**:
+  * `attempt_id` (string, UUID): ID lượt làm Dictation
+* **Query Parameters**: Không
+* **Request Body**: Không
+* **Response Schema (200 OK)**:
+  ```json
+  {
+    "attempt_id": "01912345-6789-7abc-def0-123456789abc",
+    "status": "completed",
+    "score": 100.0,
+    "earned_exp": 50,
+    "details": [
       {
-        "blank_index": 1,
-        "user_answer": "いいてんき",
-        "correct_answer": "いいてんき",
-        "is_correct": true
-      },
-      {
-        "blank_index": 2,
-        "user_answer": "あめ",
-        "correct_answer": "あめ",
+        "segment_index": 0,
+        "user_answer": "明日の会議の資料ですが",
+        "correct_script": "明日の会議の資料ですが、",
         "is_correct": true
       }
-    ],
-    "full_transcript": "きょうはいいてんきですね。あしたがあめがふるでしょう。"
+    ]
   }
   ```
 * **Status Codes & Error Responses**:
-  * `200 OK`: Chấm bài và trả kết quả thành công.
-  * `404 Not Found` (`code`: `not_found`): Bài học không tồn tại.
-  * `422 Unprocessable Entity` (`code`: `validation_error`): Danh sách câu trả lời thiếu câu hỏi.
+  * `200 OK`: Trả thông tin review thành công.
+  * `401 Unauthorized` (`code`: `unauthorized`): Chưa đăng nhập.
+  * `403 Forbidden` (`code`: `forbidden`): Attempt không thuộc user hiện tại.
+  * `404 Not Found` (`code`: `not_found`): Không tìm thấy Dictation attempt.
 
 ---
 
