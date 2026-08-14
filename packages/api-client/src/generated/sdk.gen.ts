@@ -13,9 +13,15 @@ import type {
   CheckDictationSegmentData,
   CheckDictationSegmentErrors,
   CheckDictationSegmentResponses,
+  CompleteDictationAttemptData,
+  CompleteDictationAttemptErrors,
+  CompleteDictationAttemptResponses,
   CreateLearningContentFromYouTubeData,
   CreateLearningContentFromYouTubeErrors,
   CreateLearningContentFromYouTubeResponses,
+  GetDictationAttemptData,
+  GetDictationAttemptErrors,
+  GetDictationAttemptResponses,
   GetDictationContentData,
   GetDictationContentErrors,
   GetDictationContentResponses,
@@ -323,6 +329,42 @@ export const checkDictationSegment = <ThrowOnError extends boolean = false>(
       "Content-Type": "application/json",
       ...options.headers,
     },
+  });
+
+/**
+ * Complete a Dictation attempt
+ */
+export const completeDictationAttempt = <ThrowOnError extends boolean = false>(
+  options: Options<CompleteDictationAttemptData, ThrowOnError>,
+): RequestResult<CompleteDictationAttemptResponses, CompleteDictationAttemptErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    CompleteDictationAttemptResponses,
+    CompleteDictationAttemptErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/api/v1/dictation/complete",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Review a Dictation attempt
+ */
+export const getDictationAttempt = <ThrowOnError extends boolean = false>(
+  options: Options<GetDictationAttemptData, ThrowOnError>,
+): RequestResult<GetDictationAttemptResponses, GetDictationAttemptErrors, ThrowOnError> =>
+  (options.client ?? client).get<
+    GetDictationAttemptResponses,
+    GetDictationAttemptErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/api/v1/dictation/attempts/{attempt_id}",
+    ...options,
   });
 
 /**

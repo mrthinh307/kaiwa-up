@@ -1,7 +1,10 @@
 import uuid
+from datetime import datetime
 from typing import Self
 
 from pydantic import BaseModel, Field, model_validator
+
+from app.models.enums import AttemptStatus
 
 
 class DictationTranscriptSegment(BaseModel):
@@ -51,3 +54,32 @@ class DictationAnswerPayload(BaseModel):
     """Internal validated representation of incremental Dictation answers."""
 
     segments: list[DictationSegmentCheckResponse] = Field(default_factory=list)
+
+
+class DictationCompleteRequest(BaseModel):
+    attempt_id: uuid.UUID
+
+
+class DictationCompleteResponse(BaseModel):
+    attempt_id: uuid.UUID
+    status: AttemptStatus
+    score: float = Field(ge=0, le=100)
+    correct_count: int = Field(ge=0)
+    total_count: int = Field(ge=1)
+    earned_exp: int = Field(ge=0)
+    completed_at: datetime
+
+
+class DictationSegmentReview(BaseModel):
+    segment_index: int = Field(ge=0)
+    user_answer: str
+    correct_script: str
+    is_correct: bool
+
+
+class DictationAttemptReviewResponse(BaseModel):
+    attempt_id: uuid.UUID
+    status: AttemptStatus
+    score: float | None = Field(ge=0, le=100)
+    earned_exp: int = Field(ge=0)
+    details: list[DictationSegmentReview]

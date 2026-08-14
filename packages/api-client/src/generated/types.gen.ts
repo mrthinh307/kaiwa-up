@@ -64,6 +64,70 @@ export type ContentStatus = "draft" | "published";
 export type ContentType = "shadowing_dictation" | "reflex" | "listening_translation";
 
 /**
+ * DictationAttemptReviewResponse
+ */
+export type DictationAttemptReviewResponse = {
+  /**
+   * Attempt Id
+   */
+  attempt_id: string;
+  status: AttemptStatus;
+  /**
+   * Score
+   */
+  score: number | null;
+  /**
+   * Earned Exp
+   */
+  earned_exp: number;
+  /**
+   * Details
+   */
+  details: Array<DictationSegmentReview>;
+};
+
+/**
+ * DictationCompleteRequest
+ */
+export type DictationCompleteRequest = {
+  /**
+   * Attempt Id
+   */
+  attempt_id: string;
+};
+
+/**
+ * DictationCompleteResponse
+ */
+export type DictationCompleteResponse = {
+  /**
+   * Attempt Id
+   */
+  attempt_id: string;
+  status: AttemptStatus;
+  /**
+   * Score
+   */
+  score: number;
+  /**
+   * Correct Count
+   */
+  correct_count: number;
+  /**
+   * Total Count
+   */
+  total_count: number;
+  /**
+   * Earned Exp
+   */
+  earned_exp: number;
+  /**
+   * Completed At
+   */
+  completed_at: string;
+};
+
+/**
  * DictationContentDetail
  */
 export type DictationContentDetail = {
@@ -185,6 +249,28 @@ export type DictationSegmentItem = {
    * End Time Ms
    */
   end_time_ms: number;
+};
+
+/**
+ * DictationSegmentReview
+ */
+export type DictationSegmentReview = {
+  /**
+   * Segment Index
+   */
+  segment_index: number;
+  /**
+   * User Answer
+   */
+  user_answer: string;
+  /**
+   * Correct Script
+   */
+  correct_script: string;
+  /**
+   * Is Correct
+   */
+  is_correct: boolean;
 };
 
 /**
@@ -1496,6 +1582,94 @@ export type CheckDictationSegmentResponses = {
 export type CheckDictationSegmentResponse =
   CheckDictationSegmentResponses[keyof CheckDictationSegmentResponses];
 
+export type CompleteDictationAttemptData = {
+  body: DictationCompleteRequest;
+  path?: never;
+  query?: never;
+  url: "/api/v1/dictation/complete";
+};
+
+export type CompleteDictationAttemptErrors = {
+  /**
+   * Unauthorized
+   */
+  401: ErrorResponse;
+  /**
+   * Forbidden
+   */
+  403: ErrorResponse;
+  /**
+   * Not Found
+   */
+  404: ErrorResponse;
+  /**
+   * Conflict
+   */
+  409: ErrorResponse;
+  /**
+   * Unprocessable Content
+   */
+  422: ErrorResponse;
+};
+
+export type CompleteDictationAttemptError =
+  CompleteDictationAttemptErrors[keyof CompleteDictationAttemptErrors];
+
+export type CompleteDictationAttemptResponses = {
+  /**
+   * Successful Response
+   */
+  200: DictationCompleteResponse;
+};
+
+export type CompleteDictationAttemptResponse =
+  CompleteDictationAttemptResponses[keyof CompleteDictationAttemptResponses];
+
+export type GetDictationAttemptData = {
+  body?: never;
+  path: {
+    /**
+     * Attempt Id
+     *
+     * Dictation attempt ID
+     */
+    attempt_id: string;
+  };
+  query?: never;
+  url: "/api/v1/dictation/attempts/{attempt_id}";
+};
+
+export type GetDictationAttemptErrors = {
+  /**
+   * Unauthorized
+   */
+  401: ErrorResponse;
+  /**
+   * Forbidden
+   */
+  403: ErrorResponse;
+  /**
+   * Not Found
+   */
+  404: ErrorResponse;
+  /**
+   * Unprocessable Content
+   */
+  422: ErrorResponse;
+};
+
+export type GetDictationAttemptError = GetDictationAttemptErrors[keyof GetDictationAttemptErrors];
+
+export type GetDictationAttemptResponses = {
+  /**
+   * Successful Response
+   */
+  200: DictationAttemptReviewResponse;
+};
+
+export type GetDictationAttemptResponse =
+  GetDictationAttemptResponses[keyof GetDictationAttemptResponses];
+
 export type StartDictationAttemptData = {
   body?: never;
   path: {
@@ -1524,7 +1698,7 @@ export type StartDictationAttemptErrors = {
    */
   409: ErrorResponse;
   /**
-   * Unprocessable Entity
+   * Unprocessable Content
    */
   422: ErrorResponse;
 };
@@ -1555,7 +1729,7 @@ export type RegisterErrors = {
    */
   409: ErrorResponse;
   /**
-   * Unprocessable Entity
+   * Unprocessable Content
    */
   422: ErrorResponse;
 };
@@ -1584,7 +1758,7 @@ export type LoginErrors = {
    */
   401: ErrorResponse;
   /**
-   * Unprocessable Entity
+   * Unprocessable Content
    */
   422: ErrorResponse;
 };
@@ -1692,7 +1866,7 @@ export type UpdateMeErrors = {
    */
   401: ErrorResponse;
   /**
-   * Unprocessable Entity
+   * Unprocessable Content
    */
   422: ErrorResponse;
 };
