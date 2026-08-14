@@ -1,3 +1,9 @@
+"use client";
+
+import type { MouseEvent } from "react";
+
+import { useRouter } from "next/navigation";
+
 import {
   Pagination,
   PaginationContent,
@@ -47,12 +53,22 @@ export function DashboardAttemptPagination({
   searchQuery?: string;
   status?: DashboardAttemptStatus;
 }) {
+  const router = useRouter();
+
   if (pages <= 1) {
     return null;
   }
 
   const hrefForPage = (nextPage: number) =>
-    buildDashboardHref({ mode, page: nextPage, searchQuery, status });
+    `${buildDashboardHref({ mode, page: nextPage, searchQuery, status })}#dashboard-attempts-heading`;
+  const handlePageClick = (event: MouseEvent<HTMLAnchorElement>, href: string) => {
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+      return;
+    }
+
+    event.preventDefault();
+    router.push(href);
+  };
 
   return (
     <Pagination aria-label="Attempt history pages" className="mt-8">
@@ -65,6 +81,9 @@ export function DashboardAttemptPagination({
               page <= 1 && "pointer-events-none opacity-50",
             )}
             href={page > 1 ? hrefForPage(page - 1) : undefined}
+            onClick={
+              page > 1 ? (event) => handlePageClick(event, hrefForPage(page - 1)) : undefined
+            }
             tabIndex={page <= 1 ? -1 : undefined}
           />
         </PaginationItem>
@@ -76,6 +95,7 @@ export function DashboardAttemptPagination({
                 aria-label={`Go to attempt page ${entry}`}
                 href={hrefForPage(entry)}
                 isActive={entry === page}
+                onClick={(event) => handlePageClick(event, hrefForPage(entry))}
               >
                 {entry}
               </PaginationLink>
@@ -95,6 +115,9 @@ export function DashboardAttemptPagination({
               page >= pages && "pointer-events-none opacity-50",
             )}
             href={page < pages ? hrefForPage(page + 1) : undefined}
+            onClick={
+              page < pages ? (event) => handlePageClick(event, hrefForPage(page + 1)) : undefined
+            }
             tabIndex={page >= pages ? -1 : undefined}
           />
         </PaginationItem>
