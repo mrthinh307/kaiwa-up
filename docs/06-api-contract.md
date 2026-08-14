@@ -418,7 +418,7 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
     "type": "shadowing",
     "difficulty": "N4",
     "topic": "Business",
-    "audio_url": "https://res.cloudinary.com/kaiwaup/audio/lesson_01.mp3",
+    "audio_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
     "duration_seconds": 45,
     "created_at": "2026-08-01T00:00:00.000Z"
   }
@@ -465,7 +465,8 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
 ---
 
 #### `GET /api/v1/shadowing/lessons/{lesson_id}`
-* **Mục đích**: Lấy chi tiết bài luyện Shadowing bao gồm audio Cloudinary và transcript tiếng Nhật (dành cho chế độ bật/tắt văn bản).
+* **Mục đích**: Lấy chi tiết bài luyện Shadowing gồm URL video YouTube dùng làm nguồn audio và
+  transcript tiếng Nhật.
 * **Yêu cầu xác thực**: Bearer Token
 * **Request Headers**: `Authorization: Bearer <jwt_access_token>`
 * **Path Parameters**:
@@ -477,7 +478,7 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
   {
     "id": "987e6543-e89b-12d3-a456-426614174999",
     "title": "Hội thoại mua sắm",
-    "audio_url": "https://res.cloudinary.com/kaiwaup/audio/shadow_01.mp3",
+    "audio_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
     "duration_seconds": 30,
     "japanese_text": "いらっしゃいませ。何をお探しですか？",
     "romaji_text": "Irasshaimase. Nani wo osagashi desu ka?",
@@ -574,7 +575,7 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
   {
     "id": "770e8400-e29b-41d4-a716-446655440111",
     "title": "Nghe điền từ: Thời tiết hôm nay",
-    "audio_url": "https://res.cloudinary.com/kaiwaup/audio/dict_01.mp3",
+    "audio_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
     "script": "きょうは ___ (1) ですね。あしたは ___ (2) がふるでしょう。",
     "difficulty": "N5"
   }
@@ -1025,7 +1026,7 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
   {
     "id": "330e8400-e29b-41d4-a716-446655440333",
     "title": "Phản xạ câu hỏi: Điểm hẹn",
-    "audio_url": "https://res.cloudinary.com/kaiwaup/audio/reflex_01.mp3",
+    "audio_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
     "prompt_ja": "どこで会いましょうか？",
     "scenario_ja": "待ち合わせ場所について",
     "response_start_limit_seconds": 3
@@ -1173,7 +1174,7 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
   {
     "id": "660e8400-e29b-41d4-a716-446655440666",
     "title": "Nghe hiểu ý chính: Đặt bàn ăn",
-    "audio_url": "https://res.cloudinary.com/kaiwaup/audio/trans_01.mp3",
+    "audio_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
     "transcript_ja": "4人で7時に予約したいですが、いいですか。",
     "reference_translation_vi": "Tôi muốn đặt bàn cho 4 người lúc 7 giờ, được không?"
   }
@@ -1402,7 +1403,8 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
 * **Tổng số API Endpoints được quy định**: 31 endpoints.
 
 ### 4.2. Giả định (Assumptions Made)
-1. **Cloudinary Audio Delivery**: URL audio bài học được cung cấp trực tiếp từ Cloudinary trong response metadata bài học mà không qua backend proxy.
+1. **YouTube Audio Delivery**: `audio_url` là URL video YouTube được trả trong metadata bài học.
+   Frontend phát bằng YouTube player; backend không proxy luồng media.
 2. **User Audio Lifecycle**: Audio do người dùng ghi âm được gửi bằng `multipart/form-data` và lưu
    trong private object storage khi nghiệp vụ cần giữ lại. PostgreSQL chỉ lưu metadata và
    `storage_key` trong `recordings`, không lưu BLOB hoặc public URL.

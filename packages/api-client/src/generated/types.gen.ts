@@ -54,9 +54,76 @@ export type BodyRecordShadowingSegment = {
 };
 
 /**
+ * ContentStatus
+ */
+export type ContentStatus = "draft" | "published";
+
+/**
  * ContentType
  */
 export type ContentType = "shadowing_dictation" | "reflex" | "listening_translation";
+
+/**
+ * DictationContentDetail
+ */
+export type DictationContentDetail = {
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Title
+   */
+  title: string;
+  /**
+   * Description
+   */
+  description?: string | null;
+  content_type: ContentType;
+  difficulty: JlptLevel;
+  /**
+   * Topic
+   */
+  topic?: string | null;
+  /**
+   * Duration Seconds
+   */
+  duration_seconds?: number | null;
+  /**
+   * Audio Url
+   */
+  audio_url?: string | null;
+  /**
+   * Published At
+   */
+  published_at?: string | null;
+  /**
+   * Prompts
+   */
+  prompts: Array<DictationPromptSegment>;
+};
+
+/**
+ * DictationPromptSegment
+ */
+export type DictationPromptSegment = {
+  /**
+   * Blank Index
+   */
+  blank_index: number;
+  /**
+   * Start Time Ms
+   */
+  start_time_ms: number;
+  /**
+   * End Time Ms
+   */
+  end_time_ms: number;
+  /**
+   * Prompt
+   */
+  prompt: string;
+};
 
 /**
  * DictationSegmentCheckRequest
@@ -278,6 +345,147 @@ export type HealthResponse = {
 };
 
 /**
+ * JlptLevel
+ */
+export type JlptLevel = "N5" | "N4" | "N3" | "N2" | "N1";
+
+/**
+ * LearningContentCreate
+ */
+export type LearningContentCreate = {
+  /**
+   * Youtube Url
+   */
+  youtube_url: string;
+  /**
+   * Title
+   */
+  title?: string | null;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Topic
+   */
+  topic?: string | null;
+  difficulty?: JlptLevel;
+  /**
+   * Base Exp
+   */
+  base_exp?: number;
+};
+
+/**
+ * LearningContentCreateResponse
+ */
+export type LearningContentCreateResponse = {
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Title
+   */
+  title: string;
+  /**
+   * Description
+   */
+  description?: string | null;
+  content_type: ContentType;
+  difficulty: JlptLevel;
+  /**
+   * Topic
+   */
+  topic?: string | null;
+  /**
+   * Duration Seconds
+   */
+  duration_seconds?: number | null;
+  /**
+   * Audio Url
+   */
+  audio_url?: string | null;
+  /**
+   * Published At
+   */
+  published_at?: string | null;
+  /**
+   * Transcript
+   */
+  transcript: Array<TranscriptSegment>;
+  /**
+   * Slug
+   */
+  slug: string;
+  status: ContentStatus;
+};
+
+/**
+ * LearningContentDetail
+ */
+export type LearningContentDetail = {
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Title
+   */
+  title: string;
+  /**
+   * Description
+   */
+  description?: string | null;
+  content_type: ContentType;
+  difficulty: JlptLevel;
+  /**
+   * Topic
+   */
+  topic?: string | null;
+  /**
+   * Duration Seconds
+   */
+  duration_seconds?: number | null;
+  /**
+   * Audio Url
+   */
+  audio_url?: string | null;
+  /**
+   * Published At
+   */
+  published_at?: string | null;
+};
+
+/**
+ * LearningContentItem
+ */
+export type LearningContentItem = {
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Title
+   */
+  title: string;
+  /**
+   * Description
+   */
+  description?: string | null;
+  content_type: ContentType;
+  difficulty: JlptLevel;
+  /**
+   * Topic
+   */
+  topic?: string | null;
+  /**
+   * Duration Seconds
+   */
+  duration_seconds?: number | null;
+};
+
+/**
  * LoginRequest
  *
  * Payload for email/password login.
@@ -291,6 +499,32 @@ export type LoginRequest = {
    * Password
    */
   password: string;
+};
+
+/**
+ * PaginatedResponse[LearningContentItem]
+ */
+export type PaginatedResponseLearningContentItem = {
+  /**
+   * Items
+   */
+  items: Array<LearningContentItem>;
+  /**
+   * Total Items
+   */
+  total_items: number;
+  /**
+   * Page
+   */
+  page: number;
+  /**
+   * Page Size
+   */
+  page_size: number;
+  /**
+   * Total Pages
+   */
+  total_pages: number;
 };
 
 /**
@@ -434,6 +668,27 @@ export type ReadinessResponse = {
 };
 
 /**
+ * RefreshSessionResponse
+ *
+ * Refreshed access token and current public user profile.
+ */
+export type RefreshSessionResponse = {
+  /**
+   * Access Token
+   */
+  access_token: string;
+  /**
+   * Token Type
+   */
+  token_type?: string;
+  /**
+   * Expires In
+   */
+  expires_in: number;
+  user: UserResponse;
+};
+
+/**
  * RegisterRequest
  *
  * Payload for registering a new user.
@@ -451,6 +706,46 @@ export type RegisterRequest = {
    * Name
    */
   name: string;
+};
+
+/**
+ * ShadowingContentDetail
+ */
+export type ShadowingContentDetail = {
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Title
+   */
+  title: string;
+  /**
+   * Description
+   */
+  description?: string | null;
+  content_type: ContentType;
+  difficulty: JlptLevel;
+  /**
+   * Topic
+   */
+  topic?: string | null;
+  /**
+   * Duration Seconds
+   */
+  duration_seconds?: number | null;
+  /**
+   * Audio Url
+   */
+  audio_url?: string | null;
+  /**
+   * Published At
+   */
+  published_at?: string | null;
+  /**
+   * Transcript
+   */
+  transcript: Array<TranscriptSegment>;
 };
 
 /**
@@ -503,6 +798,24 @@ export type ShadowingRecordingPlaybackResponse = {
    * Created At
    */
   created_at: string;
+};
+
+/**
+ * TranscriptSegment
+ */
+export type TranscriptSegment = {
+  /**
+   * Start Time Ms
+   */
+  start_time_ms: number;
+  /**
+   * End Time Ms
+   */
+  end_time_ms: number;
+  /**
+   * Script
+   */
+  script: string;
 };
 
 /**
@@ -641,6 +954,236 @@ export type ReadinessCheckResponses = {
 };
 
 export type ReadinessCheckResponse = ReadinessCheckResponses[keyof ReadinessCheckResponses];
+
+export type ListLearningContentsData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Type
+     */
+    type?: ContentType | null;
+    /**
+     * Difficulty
+     */
+    difficulty?: JlptLevel | null;
+    /**
+     * Topic
+     */
+    topic?: string | null;
+    /**
+     * Page
+     */
+    page?: number;
+    /**
+     * Page Size
+     */
+    page_size?: number;
+  };
+  url: "/api/v1/lessons";
+};
+
+export type ListLearningContentsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListLearningContentsError =
+  ListLearningContentsErrors[keyof ListLearningContentsErrors];
+
+export type ListLearningContentsResponses = {
+  /**
+   * Successful Response
+   */
+  200: PaginatedResponseLearningContentItem;
+};
+
+export type ListLearningContentsResponse =
+  ListLearningContentsResponses[keyof ListLearningContentsResponses];
+
+export type CreateLearningContentFromYouTubeData = {
+  body: LearningContentCreate;
+  path?: never;
+  query?: never;
+  url: "/api/v1/lessons";
+};
+
+export type CreateLearningContentFromYouTubeErrors = {
+  /**
+   * Admin access required
+   */
+  403: unknown;
+  /**
+   * Learning content already exists
+   */
+  409: unknown;
+  /**
+   * Invalid URL or Japanese transcript unavailable
+   */
+  422: unknown;
+  /**
+   * YouTube transcript provider failed
+   */
+  502: unknown;
+};
+
+export type CreateLearningContentFromYouTubeResponses = {
+  /**
+   * Successful Response
+   */
+  201: LearningContentCreateResponse;
+};
+
+export type CreateLearningContentFromYouTubeResponse =
+  CreateLearningContentFromYouTubeResponses[keyof CreateLearningContentFromYouTubeResponses];
+
+export type PublishLearningContentData = {
+  body?: never;
+  path: {
+    /**
+     * Content Id
+     */
+    content_id: string;
+  };
+  query?: never;
+  url: "/api/v1/lessons/{content_id}/publish";
+};
+
+export type PublishLearningContentErrors = {
+  /**
+   * Admin access required
+   */
+  403: unknown;
+  /**
+   * Learning content not found
+   */
+  404: unknown;
+  /**
+   * Learning content already published
+   */
+  409: unknown;
+  /**
+   * Learning content is incomplete
+   */
+  422: unknown;
+};
+
+export type PublishLearningContentResponses = {
+  /**
+   * Successful Response
+   */
+  200: LearningContentCreateResponse;
+};
+
+export type PublishLearningContentResponse =
+  PublishLearningContentResponses[keyof PublishLearningContentResponses];
+
+export type GetLearningContentData = {
+  body?: never;
+  path: {
+    /**
+     * Content Id
+     */
+    content_id: string;
+  };
+  query?: never;
+  url: "/api/v1/lessons/{content_id}";
+};
+
+export type GetLearningContentErrors = {
+  /**
+   * Learning content not found
+   */
+  404: unknown;
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetLearningContentError = GetLearningContentErrors[keyof GetLearningContentErrors];
+
+export type GetLearningContentResponses = {
+  /**
+   * Successful Response
+   */
+  200: LearningContentDetail;
+};
+
+export type GetLearningContentResponse =
+  GetLearningContentResponses[keyof GetLearningContentResponses];
+
+export type GetShadowingContentData = {
+  body?: never;
+  path: {
+    /**
+     * Content Id
+     */
+    content_id: string;
+  };
+  query?: never;
+  url: "/api/v1/shadowing/lessons/{content_id}";
+};
+
+export type GetShadowingContentErrors = {
+  /**
+   * Shadowing content not found
+   */
+  404: unknown;
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetShadowingContentError = GetShadowingContentErrors[keyof GetShadowingContentErrors];
+
+export type GetShadowingContentResponses = {
+  /**
+   * Successful Response
+   */
+  200: ShadowingContentDetail;
+};
+
+export type GetShadowingContentResponse =
+  GetShadowingContentResponses[keyof GetShadowingContentResponses];
+
+export type GetDictationContentData = {
+  body?: never;
+  path: {
+    /**
+     * Content Id
+     */
+    content_id: string;
+  };
+  query?: never;
+  url: "/api/v1/dictation/lessons/{content_id}";
+};
+
+export type GetDictationContentErrors = {
+  /**
+   * Dictation content not found
+   */
+  404: unknown;
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetDictationContentError = GetDictationContentErrors[keyof GetDictationContentErrors];
+
+export type GetDictationContentResponses = {
+  /**
+   * Successful Response
+   */
+  200: DictationContentDetail;
+};
+
+export type GetDictationContentResponse =
+  GetDictationContentResponses[keyof GetDictationContentResponses];
 
 export type GetProgressSummaryData = {
   body?: never;
@@ -1045,7 +1588,7 @@ export type RefreshResponses = {
   /**
    * Successful Response
    */
-  200: AccessTokenResponse;
+  200: RefreshSessionResponse;
 };
 
 export type RefreshResponse = RefreshResponses[keyof RefreshResponses];

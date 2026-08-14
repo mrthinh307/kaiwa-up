@@ -11,7 +11,8 @@ Các nguyên tắc chính:
 - Các bảng nghiệp vụ dùng UUIDv7 để khóa chính có tính tuần tự theo thời gian tốt hơn UUID ngẫu
   nhiên. Bảng liên kết và snapshot dùng khóa ghép phù hợp với miền nghiệp vụ.
 - Thời điểm được lưu bằng `TIMESTAMPTZ` và xử lý theo UTC.
-- Audio không được lưu dạng BLOB. Database chỉ lưu URL hoặc `storage_key` của object storage.
+- Audio bài học không được lưu dạng BLOB. `learning_contents.audio_url` lưu URL video YouTube;
+  bản ghi người dùng chỉ lưu `storage_key` của private object storage.
 - `learning_contents` chứa dữ liệu chung. Reflex và Translation có bảng mở rộng 1-1;
   Shadowing/Dictation dùng trực tiếp audio và transcript JSONB trên bảng nội dung.
 - `exercise_attempts` lưu từng lần làm bài, không ghi đè lịch sử cũ.
@@ -282,7 +283,7 @@ hoạt động.
 | `short_description` | TEXT | Có | - | - | Mô tả ngắn cho catalog; NULL nếu không có mô tả. |
 | `topic` | VARCHAR(100) | Có | - | - | Chủ đề dùng để phân loại hoặc lọc nội dung. |
 | `difficulty` | VARCHAR | Không | - | CHECK `jlpt_level` | Cấp JLPT `N5`, `N4`, `N3`, `N2` hoặc `N1`; application mặc định `N5`. |
-| `audio_url` | TEXT | Có | - | - | Vị trí audio nguồn của bài; NULL với nội dung không cần audio. |
+| `audio_url` | TEXT | Có | - | - | URL video YouTube dùng làm nguồn phát audio; NULL với nội dung không cần media. |
 | `audio_duration_ms` | INTEGER | Có | - | - | Độ dài audio theo millisecond, dùng đồng bộ transcript và kiểm tra bản ghi. |
 | `transcript_ja` | JSONB | Có | - | - | Danh sách segment tiếng Nhật có nội dung và mốc thời gian; hỗ trợ phát audio đồng bộ từng đoạn. |
 | `base_exp` | INTEGER | Không | - | CHECK `base_exp > 0` | EXP cơ sở trước khi áp dụng quy tắc thưởng; application mặc định `50`. |

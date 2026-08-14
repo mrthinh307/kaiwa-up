@@ -20,7 +20,7 @@ KaiwaUP được triển khai theo mô hình tách frontend và backend:
 * **Frontend:** Next.js, deploy trên Vercel.
 * **Backend:** FastAPI, deploy trên một nền tảng chạy API riêng như Render, Railway hoặc tương đương.
 * **Database:** PostgreSQL trên Neon.
-* **File media / audio:** Cloudinary hoặc dịch vụ lưu trữ tương đương.
+* **Audio bài học:** video YouTube; bản ghi người dùng dùng private object storage khi cần lưu.
 
 * Vercel xử lý tốt frontend và preview branch.
 * Backend FastAPI có thể scale độc lập.
@@ -77,7 +77,7 @@ Mỗi môi trường cần có bộ biến môi trường riêng.
 * `DATABASE_URL`: kết nối PostgreSQL.
 * `JWT_SECRET_KEY`: khóa ký JWT.
 * `CORS_ORIGINS`: danh sách domain frontend được phép gọi backend.
-* `CLOUDINARY_URL` hoặc thông tin Cloudinary tương đương.
+* `YOUTUBE_API_KEY` nếu backend cần gọi YouTube Data API; không cần biến này nếu chỉ lưu/phát URL.
 * `AI_API_KEY` hoặc cấu hình dịch vụ AI nếu có.
 * `APP_ENV`: development, staging hoặc production.
 
@@ -223,4 +223,3 @@ Quy trình deploy tối thiểu cho KaiwaUP:
 5. Merge khi pass kiểm tra.
 6. Frontend deploy production trên Vercel.
 7. Backend deploy riêng trên nền tảng API phù hợp.
-

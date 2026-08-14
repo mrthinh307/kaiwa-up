@@ -19,19 +19,17 @@ class AppError(Exception):
         super().__init__(self.message)
 
 
-class UnauthorizedError(AppError):
-    status_code = status.HTTP_401_UNAUTHORIZED
-    code = "unauthorized"
-    message = "Authentication required"
-
-
-class ForbiddenError(AppError):
-    status_code = status.HTTP_403_FORBIDDEN
-    code = "forbidden"
-    message = "You do not have permission to access this resource"
-
-
 class NotFoundError(AppError):
+    """Raised when a requested resource does not exist."""
+
     status_code = status.HTTP_404_NOT_FOUND
     code = "not_found"
     message = "Resource not found"
+
+
+class ForbiddenError(AppError):
+    """Raised when the user is not allowed to access a resource."""
+
+    status_code = status.HTTP_403_FORBIDDEN
+    code = "forbidden"
+    message = "Permission denied"

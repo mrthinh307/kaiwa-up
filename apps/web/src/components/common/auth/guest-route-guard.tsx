@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
-import { AppLoadingScreen } from "@/components/common/app-route/app-loading-screen";
+import { ProtectedRouteContentSkeleton } from "@/components/common/protected-route/protected-route-content-skeleton";
 import { useAuth } from "@/hooks/use-auth";
 
 export function GuestRouteGuard({ children }: { children: ReactNode }) {
@@ -22,14 +22,15 @@ export function GuestRouteGuard({ children }: { children: ReactNode }) {
     const isRestoringSession = status === "initializing";
 
     return (
-      <AppLoadingScreen
-        description={
-          isRestoringSession
-            ? "We’re checking your session so you can continue where you left off."
-            : "Your session is ready. We’re taking you to your learning dashboard."
-        }
-        title={isRestoringSession ? "Welcome back — one moment" : "Opening your dashboard"}
-      />
+      <div className="landing-grid min-h-dvh bg-background text-foreground">
+        <ProtectedRouteContentSkeleton
+          statusMessage={
+            isRestoringSession
+              ? "Checking your session…"
+              : "Your session is ready. Redirecting to your dashboard…"
+          }
+        />
+      </div>
     );
   }
 
