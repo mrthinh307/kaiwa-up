@@ -1,59 +1,81 @@
 "use server";
 
-import type { DictationAnswerInput, DictationSubmitResponse } from "../_types/dictation-practice";
+import type {
+  DictationCheckResponse,
+  DictationCompleteActionResponse,
+  DictationPracticeRequest,
+  DictationStartActionResponse,
+} from "../_types/dictation-practice";
 
 import {
-  getDictationPracticeLesson,
-  gradeDictationAttempt,
+  checkMockDictationSegment,
+  completeMockDictationAttempt,
+  getMockDictationAttemptReview,
+  getMockDictationInProgressAttempt,
+  startMockDictationAttempt,
 } from "../_utils/dictation-practice-mock";
 
-export async function submitDictationAttempt({
-  answers,
-  lessonId,
-}: {
-  answers: DictationAnswerInput[];
-  lessonId: string;
-}): Promise<DictationSubmitResponse> {
-  const lesson = getDictationPracticeLesson(lessonId);
+export async function getDictationInProgressAttemptAction(contentId: string) {
+  const inProgressAttempt = getMockDictationInProgressAttempt(contentId);
+  return { inProgressAttempt, status: "success" as const };
+}
 
-  if (!lesson) {
+export async function startDictationAttemptAction(
+  contentId: string,
+): Promise<DictationStartActionResponse> {
+  await new Promise((resolve) => setTimeout(resolve, 350));
+
+  const attempt = startMockDictationAttempt(contentId);
+  if (!attempt) {
     return {
-      fieldErrors: {},
+      code: "content_not_found",
       message: "This Dictation lesson is no longer available.",
       status: "error",
     };
   }
 
-  const answersByIndex = new Map(
-    answers.map((answer) => [answer.blankIndex, answer.userAnswer] as const),
-  );
-  const fieldErrors = Object.fromEntries(
-    lesson.blanks.flatMap((blank) =>
-      answersByIndex.get(blank.blankIndex)?.trim()
-        ? []
-        : [[blank.blankIndex, "Enter an answer before submitting."]],
-    ),
-  );
+  return { attempt, status: "success" };
+}
 
-  if (Object.keys(fieldErrors).length > 0) {
-    return {
-      fieldErrors,
-      message: "Complete every blank before checking your answers.",
-      status: "error",
-    };
-  }
+export async function checkDictationSegmentAction(
+  request: DictationPracticeRequest,
+): Promise<DictationCheckResponse> {
+  await new Promise((resolve) => setTimeout(resolve, 350));
 
-  await new Promise((resolve) => setTimeout(resolve, 450));
-
-  const result = gradeDictationAttempt(lessonId, answers);
-
+  const result = checkMockDictationSegment(request);
   if (!result) {
     return {
-      fieldErrors: {},
-      message: "We could not check this attempt. Please try again.",
+      code: request.segment_index < 0 ? "invalid_segment_index" : "attempt_not_found",
+      message: "This attempt or segment is no longer available. Refresh and start again.",
       status: "error",
     };
   }
 
   return { result, status: "success" };
+}
+
+export async function completeDictationAttemptAction(
+  attemptId: string,
+): Promise<DictationCompleteActionResponse> {
+  await new Promise((resolve) => setTimeout(resolve, 450));
+
+  const completion = completeMockDictationAttempt(attemptId);
+  if (!completion) {
+    return {
+      code: "attempt_not_in_progress",
+      message: "This attempt could not be completed. It may already be finished.",
+      status: "error",
+    };
+  }
+
+  const review = getMockDictationAttemptReview(attemptId);
+  if (!review) {
+    return {
+      code: "attempt_not_found",
+      message: "The completed attempt review is unavailable.",
+      status: "error",
+    };
+  }
+
+  return { completion, review, status: "success" };
 }
