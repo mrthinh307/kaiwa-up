@@ -2,8 +2,8 @@ import math
 import uuid
 
 from app.exceptions.progress import AttemptForbiddenError, AttemptNotFoundError
-from app.models.enums import ContentType
-from app.repositories.progress import AttemptHistoryRow, ProgressRepository
+from app.models.enums import AttemptStatus, ContentType
+from app.repositories.progress import AttemptHistoryRow, InProgressLessonRow, ProgressRepository
 from app.schemas.pagination import PaginatedResponse
 from app.schemas.progress import (
     ProgressAttemptDetail,
