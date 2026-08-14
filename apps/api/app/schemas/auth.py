@@ -8,6 +8,8 @@ from pydantic import (
     field_validator,
 )
 
+from app.schemas.user import UserResponse
+
 
 class RegisterRequest(BaseModel):
     """Payload for registering a new user."""
@@ -72,3 +74,9 @@ class AccessTokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     expires_in: int
+
+
+class RefreshSessionResponse(AccessTokenResponse):
+    """Refreshed access token and current public user profile."""
+
+    user: UserResponse

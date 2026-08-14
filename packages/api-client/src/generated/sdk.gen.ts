@@ -6,9 +6,18 @@ import type {
   CheckDictationSegmentData,
   CheckDictationSegmentErrors,
   CheckDictationSegmentResponses,
+  CreateLearningContentFromYouTubeData,
+  CreateLearningContentFromYouTubeErrors,
+  CreateLearningContentFromYouTubeResponses,
+  GetDictationContentData,
+  GetDictationContentErrors,
+  GetDictationContentResponses,
   GetGamificationProfileData,
   GetGamificationProfileErrors,
   GetGamificationProfileResponses,
+  GetLearningContentData,
+  GetLearningContentErrors,
+  GetLearningContentResponses,
   GetMeData,
   GetMeErrors,
   GetMeResponses,
@@ -17,11 +26,17 @@ import type {
   GetProgressAttemptResponses,
   GetProgressSummaryData,
   GetProgressSummaryResponses,
+  GetShadowingContentData,
+  GetShadowingContentErrors,
+  GetShadowingContentResponses,
   GetWeeklyLeaderboardData,
   GetWeeklyLeaderboardErrors,
   GetWeeklyLeaderboardResponses,
   HealthCheckData,
   HealthCheckResponses,
+  ListLearningContentsData,
+  ListLearningContentsErrors,
+  ListLearningContentsResponses,
   ListProgressAttemptsData,
   ListProgressAttemptsErrors,
   ListProgressAttemptsResponses,
@@ -31,6 +46,9 @@ import type {
   LogoutData,
   LogoutErrors,
   LogoutResponses,
+  PublishLearningContentData,
+  PublishLearningContentErrors,
+  PublishLearningContentResponses,
   ReadinessCheckData,
   ReadinessCheckErrors,
   ReadinessCheckResponses,
@@ -87,6 +105,94 @@ export const readinessCheck = <ThrowOnError extends boolean = false>(
     url: "/api/v1/ready",
     ...options,
   });
+
+/**
+ * List published learning content
+ */
+export const listLearningContents = <ThrowOnError extends boolean = false>(
+  options?: Options<ListLearningContentsData, ThrowOnError>,
+): RequestResult<ListLearningContentsResponses, ListLearningContentsErrors, ThrowOnError> =>
+  (options?.client ?? client).get<
+    ListLearningContentsResponses,
+    ListLearningContentsErrors,
+    ThrowOnError
+  >({ url: "/api/v1/lessons", ...options });
+
+/**
+ * Create draft learning content from Japanese YouTube captions
+ */
+export const createLearningContentFromYouTube = <ThrowOnError extends boolean = false>(
+  options: Options<CreateLearningContentFromYouTubeData, ThrowOnError>,
+): RequestResult<
+  CreateLearningContentFromYouTubeResponses,
+  CreateLearningContentFromYouTubeErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).post<
+    CreateLearningContentFromYouTubeResponses,
+    CreateLearningContentFromYouTubeErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/api/v1/lessons",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Publish draft learning content
+ */
+export const publishLearningContent = <ThrowOnError extends boolean = false>(
+  options: Options<PublishLearningContentData, ThrowOnError>,
+): RequestResult<PublishLearningContentResponses, PublishLearningContentErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    PublishLearningContentResponses,
+    PublishLearningContentErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/api/v1/lessons/{content_id}/publish",
+    ...options,
+  });
+
+/**
+ * Get published learning content detail
+ */
+export const getLearningContent = <ThrowOnError extends boolean = false>(
+  options: Options<GetLearningContentData, ThrowOnError>,
+): RequestResult<GetLearningContentResponses, GetLearningContentErrors, ThrowOnError> =>
+  (options.client ?? client).get<
+    GetLearningContentResponses,
+    GetLearningContentErrors,
+    ThrowOnError
+  >({ url: "/api/v1/lessons/{content_id}", ...options });
+
+/**
+ * Get shadowing learning content detail
+ */
+export const getShadowingContent = <ThrowOnError extends boolean = false>(
+  options: Options<GetShadowingContentData, ThrowOnError>,
+): RequestResult<GetShadowingContentResponses, GetShadowingContentErrors, ThrowOnError> =>
+  (options.client ?? client).get<
+    GetShadowingContentResponses,
+    GetShadowingContentErrors,
+    ThrowOnError
+  >({ url: "/api/v1/shadowing/lessons/{content_id}", ...options });
+
+/**
+ * Get dictation learning content detail without answers
+ */
+export const getDictationContent = <ThrowOnError extends boolean = false>(
+  options: Options<GetDictationContentData, ThrowOnError>,
+): RequestResult<GetDictationContentResponses, GetDictationContentErrors, ThrowOnError> =>
+  (options.client ?? client).get<
+    GetDictationContentResponses,
+    GetDictationContentErrors,
+    ThrowOnError
+  >({ url: "/api/v1/dictation/lessons/{content_id}", ...options });
 
 /**
  * Get progress summary for the current user

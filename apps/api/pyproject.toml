@@ -16,6 +16,7 @@ dependencies = [
     "pyjwt>=2.13.0",
     "sqlalchemy[asyncio]>=2.0,<2.2",
     "uvicorn[standard]>=0.35,<1",
+    "youtube-transcript-api>=1.2,<2",
 ]
 
 [dependency-groups]

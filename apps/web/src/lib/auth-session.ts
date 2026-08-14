@@ -1,3 +1,5 @@
+import type { UserResponse } from "@kaiwa-app/api-client";
+
 import { clearAccessToken, setAccessToken } from "@/lib/access-token";
 import { refresh } from "@/lib/api-client";
 
@@ -5,7 +7,8 @@ type ApiResultLike = {
   response?: Response;
 };
 
-export type RefreshOutcome = "success" | "unauthorized" | "unavailable";
+export type RefreshOutcome =
+  { kind: "success"; user: UserResponse } | { kind: "unauthorized" } | { kind: "unavailable" };
 
 let refreshPromise: Promise<RefreshOutcome> | null = null;
 
@@ -14,15 +17,15 @@ async function requestNewAccessToken(): Promise<RefreshOutcome> {
 
   if (result.data) {
     setAccessToken(result.data.access_token);
-    return "success";
+    return { kind: "success", user: result.data.user };
   }
 
   if (result.response?.status === 401) {
     clearAccessToken();
-    return "unauthorized";
+    return { kind: "unauthorized" };
   }
 
-  return "unavailable";
+  return { kind: "unavailable" };
 }
 
 export function refreshAccessToken(): Promise<RefreshOutcome> {
@@ -47,11 +50,11 @@ export async function requestWithAccessTokenRetry<TResult extends ApiResultLike>
 
   const refreshOutcome = await refreshAccessToken();
 
-  if (refreshOutcome === "success") {
+  if (refreshOutcome.kind === "success") {
     return request();
   }
 
-  if (refreshOutcome === "unauthorized") {
+  if (refreshOutcome.kind === "unauthorized") {
     onRefreshUnauthorized();
   }
 
