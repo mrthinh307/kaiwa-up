@@ -81,18 +81,18 @@ export function PracticeCatalogFilterSheet({
 
   const handleApply = () => {
     startTransition(() => {
-      router.push(
-        buildPracticeCatalogHref({
-          basePath: "/lessons",
-          params: {
-            difficulty: draftDifficulty,
-            learning_status: draftLearningStatus,
-            page: undefined,
-            q: searchQuery,
-            topic: draftTopic,
-          },
-        }),
-      );
+      const href = buildPracticeCatalogHref({
+        basePath: "/lessons",
+        params: {
+          difficulty: draftDifficulty,
+          learning_status: draftLearningStatus,
+          page: undefined,
+          q: searchQuery,
+          topic: draftTopic,
+        },
+      });
+
+      router.push(`${href}#lessons-catalog-heading`);
       setIsOpen(false);
     });
   };
