@@ -4,6 +4,11 @@ from app.schemas.auth import AccessTokenResponse, LoginRequest, RegisterRequest
 from app.schemas.error import ErrorDetail, ErrorResponse, ValidationErrorDetail
 from app.schemas.gamification import ExpHistoryItem, GamificationProfileResponse
 from app.schemas.health import HealthResponse
+from app.schemas.leaderboard import (
+    LeaderboardUser,
+    WeeklyLeaderboardData,
+    WeeklyLeaderboardResponse,
+)
 from app.schemas.pagination import PaginatedResponse
 from app.schemas.progress import (
     ProgressAttemptDetail,
@@ -30,4 +35,7 @@ __all__ = [
     "UserResponse",
     "UserUpdateRequest",
     "ValidationErrorDetail",
+    "LeaderboardUser",
+    "WeeklyLeaderboardData",
+    "WeeklyLeaderboardResponse",
 ]
