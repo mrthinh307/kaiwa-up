@@ -478,6 +478,7 @@ async def test_complete_dictation_attempt_rejects_duplicate_without_duplicate_ex
     db_session: AsyncSession,
 ) -> None:
     user = await create_user(db_session, email="duplicate-complete@example.com")
+    user_id = user.id
     content = await create_dictation_content(db_session, slug="duplicate-complete")
     set_current_user(user)
     start_response = await client.post(f"/api/v1/dictation/{content.id}/start")
@@ -501,7 +502,7 @@ async def test_complete_dictation_attempt_rejects_duplicate_without_duplicate_ex
         )
     ).all()
     assert len(transactions) == 1
-    progress = await db_session.get(UserProgress, user.id)
+    progress = await db_session.get(UserProgress, user_id)
     assert progress is not None
     assert progress.total_exp == 50
 
