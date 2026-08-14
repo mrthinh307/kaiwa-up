@@ -7,6 +7,9 @@ from app.api.dependencies.auth import CurrentUser
 from app.api.dependencies.database import DatabaseSession
 from app.repositories.dictation import DictationRepository
 from app.schemas.dictation import (
+    DictationAttemptReviewResponse,
+    DictationCompleteRequest,
+    DictationCompleteResponse,
     DictationSegmentCheckRequest,
     DictationSegmentCheckResponse,
     DictationStartResponse,
@@ -42,6 +45,55 @@ async def check_dictation_segment(
         attempt_id=request.attempt_id,
         segment_index=request.segment_index,
         user_answer=request.user_answer,
+    )
+
+
+@router.post(
+    "/complete",
+    operation_id="completeDictationAttempt",
+    response_model=DictationCompleteResponse,
+    summary="Complete a Dictation attempt",
+    responses={
+        status.HTTP_401_UNAUTHORIZED: {"model": ErrorResponse},
+        status.HTTP_403_FORBIDDEN: {"model": ErrorResponse},
+        status.HTTP_404_NOT_FOUND: {"model": ErrorResponse},
+        status.HTTP_409_CONFLICT: {"model": ErrorResponse},
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {"model": ErrorResponse},
+    },
+)
+async def complete_dictation_attempt(
+    request: DictationCompleteRequest,
+    current_user: CurrentUser,
+    session: DatabaseSession,
+) -> DictationCompleteResponse:
+    service = DictationService(DictationRepository(session))
+    return await service.complete_attempt(
+        user_id=current_user.id,
+        attempt_id=request.attempt_id,
+    )
+
+
+@router.get(
+    "/attempts/{attempt_id}",
+    operation_id="getDictationAttempt",
+    response_model=DictationAttemptReviewResponse,
+    summary="Review a Dictation attempt",
+    responses={
+        status.HTTP_401_UNAUTHORIZED: {"model": ErrorResponse},
+        status.HTTP_403_FORBIDDEN: {"model": ErrorResponse},
+        status.HTTP_404_NOT_FOUND: {"model": ErrorResponse},
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {"model": ErrorResponse},
+    },
+)
+async def get_dictation_attempt(
+    attempt_id: Annotated[uuid.UUID, Path(description="Dictation attempt ID")],
+    current_user: CurrentUser,
+    session: DatabaseSession,
+) -> DictationAttemptReviewResponse:
+    service = DictationService(DictationRepository(session))
+    return await service.get_attempt_review(
+        user_id=current_user.id,
+        attempt_id=attempt_id,
     )
 
 
