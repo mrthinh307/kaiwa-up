@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 
 import { PracticeCatalogFilterSheet } from "./practice-catalog-filter-sheet";
 import { PracticeCatalogPagination } from "./practice-catalog-pagination";
+import { PracticeCatalogPaginationScroll } from "./practice-catalog-pagination-scroll";
 import { PracticeCatalogSearch } from "./practice-catalog-search";
 import { PracticeLessonCard } from "./practice-lesson-card";
 import { PracticePreviewProvider } from "./practice-preview-provider";
@@ -43,7 +44,12 @@ export function PracticeCatalog({
     : "";
 
   return (
-    <section aria-labelledby="lessons-catalog-heading">
+    <section
+      aria-labelledby="lessons-catalog-heading"
+      className="scroll-mt-24"
+      id="lessons-catalog"
+    >
+      <PracticeCatalogPaginationScroll page={catalog.page} targetId="lessons-catalog" />
       <div className="grid gap-5 rounded-base border-4 border-border bg-background p-5 shadow-shadow sm:p-7 lg:grid-cols-[minmax(180px,0.7fr)_minmax(0,1.6fr)] lg:items-end">
         <div>
           <h2 className="text-2xl sm:text-3xl" id="lessons-catalog-heading">
