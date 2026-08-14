@@ -6,10 +6,11 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 
 import { ProtectedRouteBackground } from "@/components/common/protected-route/protected-route-background";
+import { ProtectedRouteContentSkeleton } from "@/components/common/protected-route/protected-route-content-skeleton";
 import { ProtectedRouteStatusPanel } from "@/components/common/protected-route/protected-route-status-panel";
+import { ProtectedSessionShell } from "@/components/common/protected-route/protected-session-shell";
 import { ProtectedHeader } from "@/components/layouts/protected-header";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import { getUserDisplayName } from "@/contexts/auth-context";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -29,32 +30,35 @@ export function ProtectedRouteGuard({ children }: { children: ReactNode }) {
 
   if (status === "initializing") {
     return (
-      <main
-        aria-busy="true"
-        aria-label="Restoring your session"
-        className="flex min-h-dvh items-center px-5 py-14 sm:px-8"
-      >
-        <span className="sr-only">Restoring your session…</span>
-        <Skeleton className="mx-auto h-52 w-full max-w-[680px] border-4 shadow-shadow" />
-      </main>
+      <ProtectedSessionShell isBusy statusMessage="Restoring your session…">
+        <ProtectedRouteContentSkeleton shouldAnnounce={false} />
+      </ProtectedSessionShell>
     );
   }
 
   if (status === "unavailable") {
     return (
-      <main className="flex min-h-dvh items-center px-5 py-14 sm:px-8">
-        <ProtectedRouteStatusPanel
-          action={<Button onClick={() => void retrySession()}>Try again</Button>}
-          description="We could not restore your session because the service is unavailable. Check your connection and try again."
-          title="Session unavailable"
-          variant="error"
-        />
-      </main>
+      <ProtectedSessionShell statusMessage="Session unavailable">
+        <main className="flex min-h-[calc(100dvh-70px)] items-center px-5 py-14 sm:px-8">
+          <div className="mx-auto w-full max-w-[1300px]">
+            <ProtectedRouteStatusPanel
+              action={<Button onClick={() => void retrySession()}>Try again</Button>}
+              description="We could not restore your session because the service is unavailable. Check your connection and try again."
+              title="Session unavailable"
+              variant="error"
+            />
+          </div>
+        </main>
+      </ProtectedSessionShell>
     );
   }
 
   if (status !== "authenticated" || !user) {
-    return null;
+    return (
+      <ProtectedSessionShell isBusy statusMessage="Redirecting to login…">
+        <ProtectedRouteContentSkeleton shouldAnnounce={false} />
+      </ProtectedSessionShell>
+    );
   }
 
   return (

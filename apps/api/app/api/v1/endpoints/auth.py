@@ -19,6 +19,7 @@ from app.exceptions.auth import (
 from app.schemas.auth import (
     AccessTokenResponse,
     LoginRequest,
+    RefreshSessionResponse,
     RegisterRequest,
 )
 from app.schemas.error import ErrorResponse
@@ -127,7 +128,7 @@ async def login(
 @router.post(
     "/refresh",
     operation_id="refresh",
-    response_model=AccessTokenResponse,
+    response_model=RefreshSessionResponse,
     responses={status.HTTP_401_UNAUTHORIZED: {"model": ErrorResponse}},
 )
 async def refresh(
@@ -140,7 +141,7 @@ async def refresh(
         str | None,
         Cookie(alias=settings.REFRESH_COOKIE_NAME),
     ] = None,
-) -> AccessTokenResponse:
+) -> RefreshSessionResponse:
     """Rotate the refresh token and issue a new access token."""
     if refresh_token is None:
         raise UnauthorizedException("Refresh token is required")
@@ -148,6 +149,7 @@ async def refresh(
     (
         new_access_token,
         new_refresh_token,
+        user,
     ) = await auth_service.refresh(
         db,
         refresh_token,
@@ -158,9 +160,10 @@ async def refresh(
         new_refresh_token,
     )
 
-    return AccessTokenResponse(
+    return RefreshSessionResponse(
         access_token=new_access_token,
         expires_in=(settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60),
+        user=UserResponse.model_validate(user),
     )
 
 

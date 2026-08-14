@@ -410,6 +410,27 @@ export type ReadinessResponse = {
 };
 
 /**
+ * RefreshSessionResponse
+ *
+ * Refreshed access token and current public user profile.
+ */
+export type RefreshSessionResponse = {
+  /**
+   * Access Token
+   */
+  access_token: string;
+  /**
+   * Token Type
+   */
+  token_type?: string;
+  /**
+   * Expires In
+   */
+  expires_in: number;
+  user: UserResponse;
+};
+
+/**
  * RegisterRequest
  *
  * Payload for registering a new user.
@@ -873,7 +894,7 @@ export type RefreshResponses = {
   /**
    * Successful Response
    */
-  200: AccessTokenResponse;
+  200: RefreshSessionResponse;
 };
 
 export type RefreshResponse = RefreshResponses[keyof RefreshResponses];

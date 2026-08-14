@@ -115,7 +115,7 @@ class AuthService:
         self,
         db: AsyncSession,
         raw_refresh_token: str,
-    ) -> tuple[str, str]:
+    ) -> tuple[str, str, User]:
         token_hash = hash_refresh_token(raw_refresh_token)
 
         stored_token = await refresh_token_repository.get_by_hash(
@@ -185,6 +185,7 @@ class AuthService:
         return (
             new_access_token,
             new_refresh_token,
+            user,
         )
 
     async def logout(
