@@ -19,6 +19,7 @@ class LeaderboardRow(NamedTuple):
     rank: int
     user_id: UUID
     display_name: str | None
+    avatar_url: str | None
     weekly_exp: int
 
 
@@ -88,6 +89,7 @@ class LeaderboardRepository(BaseRepository):
                     WeeklyLeaderboardEntry.rank,
                     WeeklyLeaderboardEntry.user_id,
                     User.display_name,
+                    User.avatar_url,
                     WeeklyLeaderboardEntry.weekly_exp,
                 )
                 .join(User, User.id == WeeklyLeaderboardEntry.user_id)
@@ -102,6 +104,7 @@ class LeaderboardRepository(BaseRepository):
                 rank=row.rank,
                 user_id=row.user_id,
                 display_name=row.display_name,
+                avatar_url=row.avatar_url,
                 weekly_exp=row.weekly_exp,
             )
             for row in results
@@ -119,6 +122,7 @@ class LeaderboardRepository(BaseRepository):
                     WeeklyLeaderboardEntry.rank,
                     WeeklyLeaderboardEntry.user_id,
                     User.display_name,
+                    User.avatar_url,
                     WeeklyLeaderboardEntry.weekly_exp,
                 )
                 .join(User, User.id == WeeklyLeaderboardEntry.user_id)
@@ -135,5 +139,6 @@ class LeaderboardRepository(BaseRepository):
             rank=result.rank,
             user_id=result.user_id,
             display_name=result.display_name,
+            avatar_url=result.avatar_url,
             weekly_exp=result.weekly_exp,
         )

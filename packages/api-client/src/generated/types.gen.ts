@@ -30,6 +30,30 @@ export type AccessTokenResponse = {
 export type AttemptStatus = "in_progress" | "completed";
 
 /**
+ * Body_recordShadowingSegment
+ */
+export type BodyRecordShadowingSegment = {
+  /**
+   * Audio File
+   *
+   * User audio recording file
+   */
+  audio_file: Blob | File;
+  /**
+   * Segment Id
+   *
+   * Segment identifier
+   */
+  segment_id: string;
+  /**
+   * Attempt Id
+   *
+   * Optional attempt ID
+   */
+  attempt_id?: string | null;
+};
+
+/**
  * ContentStatus
  */
 export type ContentStatus = "draft" | "published";
@@ -341,6 +365,10 @@ export type LeaderboardUser = {
    * Display Name
    */
   display_name: string | null;
+  /**
+   * Avatar Url
+   */
+  avatar_url: string | null;
   /**
    * Weekly Exp
    */
@@ -775,6 +803,58 @@ export type ShadowingContentDetail = {
 };
 
 /**
+ * ShadowingRecordSegmentResponse
+ */
+export type ShadowingRecordSegmentResponse = {
+  /**
+   * Recording Id
+   */
+  recording_id: string;
+  /**
+   * Attempt Id
+   */
+  attempt_id: string;
+  /**
+   * Segment Id
+   */
+  segment_id: string;
+  /**
+   * Storage Key
+   */
+  storage_key: string;
+  /**
+   * Duration Seconds
+   */
+  duration_seconds: number;
+  /**
+   * Created At
+   */
+  created_at: string;
+};
+
+/**
+ * ShadowingRecordingPlaybackResponse
+ */
+export type ShadowingRecordingPlaybackResponse = {
+  /**
+   * Recording Id
+   */
+  recording_id: string;
+  /**
+   * Playback Url
+   */
+  playback_url: string;
+  /**
+   * Duration Seconds
+   */
+  duration_seconds: number;
+  /**
+   * Created At
+   */
+  created_at: string;
+};
+
+/**
  * TranscriptSegment
  */
 export type TranscriptSegment = {
@@ -903,13 +983,6 @@ export type WeeklyLeaderboardData = {
    * Rankings
    */
   rankings?: Array<LeaderboardUser>;
-};
-
-/**
- * WeeklyLeaderboardResponse
- */
-export type WeeklyLeaderboardResponse = {
-  response: WeeklyLeaderboardData;
 };
 
 export type HealthCheckData = {
@@ -1321,6 +1394,102 @@ export type GetGamificationProfileResponses = {
 export type GetGamificationProfileResponse =
   GetGamificationProfileResponses[keyof GetGamificationProfileResponses];
 
+export type RecordShadowingSegmentData = {
+  body: BodyRecordShadowingSegment;
+  path: {
+    /**
+     * Content Id
+     *
+     * Published shadowing content ID
+     */
+    content_id: string;
+  };
+  query?: never;
+  url: "/api/v1/shadowing/{content_id}/record-segment";
+};
+
+export type RecordShadowingSegmentErrors = {
+  /**
+   * Bad Request
+   */
+  400: ErrorResponse;
+  /**
+   * Unauthorized
+   */
+  401: ErrorResponse;
+  /**
+   * Forbidden
+   */
+  403: ErrorResponse;
+  /**
+   * Not Found
+   */
+  404: ErrorResponse;
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RecordShadowingSegmentError =
+  RecordShadowingSegmentErrors[keyof RecordShadowingSegmentErrors];
+
+export type RecordShadowingSegmentResponses = {
+  /**
+   * Successful Response
+   */
+  201: ShadowingRecordSegmentResponse;
+};
+
+export type RecordShadowingSegmentResponse =
+  RecordShadowingSegmentResponses[keyof RecordShadowingSegmentResponses];
+
+export type GetShadowingRecordingPlaybackData = {
+  body?: never;
+  path: {
+    /**
+     * Recording Id
+     *
+     * Recording ID
+     */
+    recording_id: string;
+  };
+  query?: never;
+  url: "/api/v1/shadowing/recordings/{recording_id}";
+};
+
+export type GetShadowingRecordingPlaybackErrors = {
+  /**
+   * Unauthorized
+   */
+  401: ErrorResponse;
+  /**
+   * Forbidden
+   */
+  403: ErrorResponse;
+  /**
+   * Not Found
+   */
+  404: ErrorResponse;
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetShadowingRecordingPlaybackError =
+  GetShadowingRecordingPlaybackErrors[keyof GetShadowingRecordingPlaybackErrors];
+
+export type GetShadowingRecordingPlaybackResponses = {
+  /**
+   * Successful Response
+   */
+  200: ShadowingRecordingPlaybackResponse;
+};
+
+export type GetShadowingRecordingPlaybackResponse =
+  GetShadowingRecordingPlaybackResponses[keyof GetShadowingRecordingPlaybackResponses];
+
 export type CheckDictationSegmentData = {
   body: DictationSegmentCheckRequest;
   path?: never;
@@ -1606,7 +1775,7 @@ export type GetWeeklyLeaderboardResponses = {
   /**
    * Successful Response
    */
-  200: WeeklyLeaderboardResponse;
+  200: WeeklyLeaderboardData;
 };
 
 export type GetWeeklyLeaderboardResponse =

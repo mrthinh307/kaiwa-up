@@ -12,7 +12,6 @@ from app.schemas.health import HealthResponse
 from app.schemas.leaderboard import (
     LeaderboardUser,
     WeeklyLeaderboardData,
-    WeeklyLeaderboardResponse,
 )
 from app.schemas.pagination import PaginatedResponse
 from app.schemas.progress import (
@@ -44,5 +43,4 @@ __all__ = [
     "ValidationErrorDetail",
     "LeaderboardUser",
     "WeeklyLeaderboardData",
-    "WeeklyLeaderboardResponse",
 ]

@@ -6,7 +6,6 @@ from app.repositories.leaderboard import LeaderboardRepository, LeaderboardRow
 from app.schemas.leaderboard import (
     LeaderboardUser,
     WeeklyLeaderboardData,
-    WeeklyLeaderboardResponse,
 )
 
 
@@ -45,7 +44,7 @@ class LeaderboardService:
         user_id: uuid.UUID,
         week_start: date,
         limit: int,
-    ) -> WeeklyLeaderboardResponse:
+    ) -> WeeklyLeaderboardData:
         rankings = await self.repository.get_week_rankings(
             week_start=week_start,
             limit=limit,
@@ -55,12 +54,10 @@ class LeaderboardService:
             user_id=user_id,
         )
 
-        return WeeklyLeaderboardResponse(
-            response=WeeklyLeaderboardData(
-                week_start=week_start,
-                user_rank=(_to_user(user_entry) if user_entry is not None else None),
-                rankings=[_to_user(row) for row in rankings],
-            )
+        return WeeklyLeaderboardData(
+            week_start=week_start,
+            user_rank=(_to_user(user_entry) if user_entry is not None else None),
+            rankings=[_to_user(row) for row in rankings],
         )
 
 
@@ -73,5 +70,6 @@ def _to_user(row: LeaderboardRow) -> LeaderboardUser:
         rank=row.rank,
         user_id=row.user_id,
         display_name=row.display_name,
+        avatar_url=row.avatar_url,
         weekly_exp=row.weekly_exp,
     )

@@ -81,14 +81,15 @@ async def test_weekly_leaderboard_returns_rankings_and_user_rank(
 
     assert response.status_code == 200
     body = response.json()
-    assert body["response"]["week_start"] == week_start.isoformat()
-    assert body["response"]["user_rank"]["rank"] == 2
-    assert body["response"]["user_rank"]["user_id"] == str(current_user.id)
-    assert [entry["rank"] for entry in body["response"]["rankings"]] == [1, 2]
-    assert body["response"]["rankings"][0] == {
+    assert body["week_start"] == week_start.isoformat()
+    assert body["user_rank"]["rank"] == 2
+    assert body["user_rank"]["user_id"] == str(current_user.id)
+    assert [entry["rank"] for entry in body["rankings"]] == [1, 2]
+    assert body["rankings"][0] == {
         "rank": 1,
         "user_id": str(top_user.id),
         "display_name": "Top",
+        "avatar_url": None,
         "weekly_exp": 250,
     }
 
@@ -116,8 +117,8 @@ async def test_weekly_leaderboard_returns_null_user_rank_without_exp(
 
     assert response.status_code == 200
     body = response.json()
-    assert body["response"]["user_rank"] is None
-    assert [entry["user_id"] for entry in body["response"]["rankings"]] == [str(other_user.id)]
+    assert body["user_rank"] is None
+    assert [entry["user_id"] for entry in body["rankings"]] == [str(other_user.id)]
 
 
 @pytest.mark.asyncio
@@ -136,8 +137,8 @@ async def test_weekly_leaderboard_empty_when_no_snapshot(
 
     assert response.status_code == 200
     body = response.json()
-    assert body["response"]["rankings"] == []
-    assert body["response"]["user_rank"] is None
+    assert body["rankings"] == []
+    assert body["user_rank"] is None
 
 
 @pytest.mark.asyncio
@@ -166,8 +167,8 @@ async def test_weekly_leaderboard_limit_is_applied(
 
     assert response.status_code == 200
     body = response.json()
-    assert len(body["response"]["rankings"]) == 2
-    assert body["response"]["user_rank"] is None
+    assert len(body["rankings"]) == 2
+    assert body["user_rank"] is None
 
 
 @pytest.mark.asyncio
