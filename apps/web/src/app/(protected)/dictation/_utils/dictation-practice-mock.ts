@@ -12,7 +12,6 @@ import type {
 type DictationAnswerKey = {
   acceptedAnswers?: string[];
   correctAnswer: string;
-  explanation: string;
 };
 
 type DictationPracticeScript = {
@@ -29,12 +28,10 @@ const DICTATION_PRACTICE_SCRIPTS: Record<string, DictationPracticeScript> = {
       {
         acceptedAnswers: ["いいてんき"],
         correctAnswer: "いい天気",
-        explanation: "いい天気 is the natural phrase for pleasant or fine weather.",
       },
       {
         acceptedAnswers: ["あめがふる"],
         correctAnswer: "雨が降る",
-        explanation: "雨が降る combines the noun 雨 with the verb 降る, meaning “rain will fall.”",
       },
     ],
     exerciseType: "multiple_words",
@@ -47,16 +44,13 @@ const DICTATION_PRACTICE_SCRIPTS: Record<string, DictationPracticeScript> = {
     answers: [
       {
         correctAnswer: "マリア",
-        explanation: "マリア is the speaker's name, written in katakana.",
       },
       {
         correctAnswer: "スペイン",
-        explanation: "スペイン is the Japanese name for Spain.",
       },
       {
         acceptedAnswers: ["にほんご"],
         correctAnswer: "日本語",
-        explanation: "日本語 means the Japanese language.",
       },
     ],
     exerciseType: "one_word",
@@ -69,16 +63,13 @@ const DICTATION_PRACTICE_SCRIPTS: Record<string, DictationPracticeScript> = {
       {
         acceptedAnswers: ["ひがわりらんちをひとつ"],
         correctAnswer: "日替わりランチを一つ",
-        explanation: "一つ is the general counter used here to order one lunch set.",
       },
       {
         correctAnswer: "アイスコーヒー",
-        explanation: "アイスコーヒー is the common café term for iced coffee.",
       },
       {
         acceptedAnswers: ["おねがいします"],
         correctAnswer: "お願いします",
-        explanation: "お願いします politely completes a request or order.",
       },
     ],
     exerciseType: "multiple_words",
@@ -91,8 +82,6 @@ const DICTATION_PRACTICE_SCRIPTS: Record<string, DictationPracticeScript> = {
       {
         acceptedAnswers: ["きょうとゆきのでんしゃはさんばんほーむからでます"],
         correctAnswer: "京都行きの電車は三番ホームから出ます",
-        explanation:
-          "行き marks the destination, while から出ます identifies the platform the train departs from.",
       },
     ],
     exerciseType: "full_sentence",
@@ -106,23 +95,18 @@ const DICTATION_PRACTICE_SCRIPTS: Record<string, DictationPracticeScript> = {
       {
         acceptedAnswers: ["こんどのどようび"],
         correctAnswer: "今度の土曜日",
-        explanation: "今度の土曜日 refers to the coming Saturday.",
       },
       {
         acceptedAnswers: ["えいがをみにいきませんか"],
         correctAnswer: "映画を見に行きませんか",
-        explanation:
-          "〜に行きませんか is a polite pattern for inviting someone to go do something.",
       },
       {
         acceptedAnswers: ["ごごなら"],
         correctAnswer: "午後なら",
-        explanation: "なら presents the condition under which the speaker is available.",
       },
       {
         acceptedAnswers: ["だいじょうぶです"],
         correctAnswer: "大丈夫です",
-        explanation: "大丈夫です means the proposed time works for the speaker.",
       },
     ],
     exerciseType: "multiple_words",
@@ -136,22 +120,18 @@ const DICTATION_PRACTICE_SCRIPTS: Record<string, DictationPracticeScript> = {
       {
         acceptedAnswers: ["みぎ"],
         correctAnswer: "右",
-        explanation: "右 means right.",
       },
       {
         acceptedAnswers: ["しんごう"],
         correctAnswer: "信号",
-        explanation: "信号 means traffic light.",
       },
       {
         acceptedAnswers: ["ひだり"],
         correctAnswer: "左",
-        explanation: "左 means left.",
       },
       {
         acceptedAnswers: ["ぎんこう"],
         correctAnswer: "銀行",
-        explanation: "銀行 means bank and identifies the final landmark.",
       },
     ],
     exerciseType: "one_word",
@@ -166,28 +146,22 @@ const DICTATION_PRACTICE_SCRIPTS: Record<string, DictationPracticeScript> = {
       {
         acceptedAnswers: ["さーばーのちょうしがわるくて"],
         correctAnswer: "サーバーの調子が悪くて",
-        explanation: "調子が悪い describes something that is not working properly.",
       },
       {
         acceptedAnswers: ["でーたをひらくことができません"],
         correctAnswer: "データを開くことができません",
-        explanation: "〜ことができません expresses that an action cannot be performed.",
       },
       {
         acceptedAnswers: ["さいきどうしてみましたが"],
         correctAnswer: "再起動してみましたが",
-        explanation:
-          "〜てみましたが means the speaker tried something, but it did not solve the issue.",
       },
       {
         acceptedAnswers: ["まだなおっていません"],
         correctAnswer: "まだ直っていません",
-        explanation: "まだ〜ていません indicates the problem remains unresolved.",
       },
       {
         acceptedAnswers: ["かくにんしていただけますか"],
         correctAnswer: "確認していただけますか",
-        explanation: "〜ていただけますか is a polite request for help.",
       },
     ],
     exerciseType: "multiple_words",
@@ -201,13 +175,10 @@ const DICTATION_PRACTICE_SCRIPTS: Record<string, DictationPracticeScript> = {
       {
         acceptedAnswers: ["せんしゅうまつにともだちとかなざわへいってきました"],
         correctAnswer: "先週末に友達と金沢へ行ってきました",
-        explanation: "〜てきました describes going somewhere and returning from the trip.",
       },
       {
         acceptedAnswers: ["あめはふりましたがまちのふんいきがとてもすてきでした"],
         correctAnswer: "雨は降りましたが、町の雰囲気がとても素敵でした",
-        explanation:
-          "〜ましたが connects the rainy condition with a contrasting positive impression.",
       },
     ],
     exerciseType: "full_sentence",
@@ -221,32 +192,26 @@ const DICTATION_PRACTICE_SCRIPTS: Record<string, DictationPracticeScript> = {
       {
         acceptedAnswers: ["しずか"],
         correctAnswer: "静か",
-        explanation: "静か is a na-adjective meaning quiet.",
       },
       {
         acceptedAnswers: ["こうえん"],
         correctAnswer: "公園",
-        explanation: "公園 means park.",
       },
       {
         acceptedAnswers: ["べんり"],
         correctAnswer: "便利",
-        explanation: "便利 describes something convenient.",
       },
       {
         acceptedAnswers: ["えき"],
         correctAnswer: "駅",
-        explanation: "駅 means station.",
       },
       {
         acceptedAnswers: ["やちん"],
         correctAnswer: "家賃",
-        explanation: "家賃 means rent.",
       },
       {
         acceptedAnswers: ["たかい"],
         correctAnswer: "高い",
-        explanation: "高い means high or expensive in this context.",
       },
     ],
     exerciseType: "one_word",
@@ -261,27 +226,22 @@ const DICTATION_PRACTICE_SCRIPTS: Record<string, DictationPracticeScript> = {
       {
         acceptedAnswers: ["ごふべんをおかけし"],
         correctAnswer: "ご不便をおかけし",
-        explanation: "ご不便をおかけし is a formal apology for causing inconvenience.",
       },
       {
         acceptedAnswers: ["まことにもうしわけございません"],
         correctAnswer: "誠に申し訳ございません",
-        explanation: "This is a highly formal expression of apology.",
       },
       {
         acceptedAnswers: ["じょうきょうをかくにんしたうえで"],
         correctAnswer: "状況を確認した上で",
-        explanation: "〜た上で means after completing the preceding action.",
       },
       {
         acceptedAnswers: ["あらためてごれんらくいたします"],
         correctAnswer: "改めてご連絡いたします",
-        explanation: "改めてご連絡いたします promises a later follow-up in formal language.",
       },
       {
         acceptedAnswers: ["しょうしょうおまちいただけますでしょうか"],
         correctAnswer: "少々お待ちいただけますでしょうか",
-        explanation: "This is a very polite request for the customer to wait.",
       },
     ],
     exerciseType: "multiple_words",
@@ -297,12 +257,10 @@ const DICTATION_PRACTICE_SCRIPTS: Record<string, DictationPracticeScript> = {
           "こんかいのかいぎではしんしょうひんのはつばいじきについていけんをこうかんしました",
         ],
         correctAnswer: "今回の会議では、新商品の発売時期について意見を交換しました",
-        explanation: "〜について identifies the topic on which opinions were exchanged.",
       },
       {
         acceptedAnswers: ["けつろんとしてじゅんびきかんをいっかげつのばすことになりました"],
         correctAnswer: "結論として、準備期間を一か月延ばすことになりました",
-        explanation: "〜ことになりました states the decision reached by the group.",
       },
     ],
     exerciseType: "full_sentence",
@@ -316,37 +274,30 @@ const DICTATION_PRACTICE_SCRIPTS: Record<string, DictationPracticeScript> = {
       {
         acceptedAnswers: ["ごぜん"],
         correctAnswer: "午前",
-        explanation: "午前 marks a time before noon.",
       },
       {
         acceptedAnswers: ["じゅうじ"],
         correctAnswer: "十時",
-        explanation: "十時 means ten o'clock.",
       },
       {
         acceptedAnswers: ["てんけん"],
         correctAnswer: "点検",
-        explanation: "点検 means inspection or maintenance check.",
       },
       {
         acceptedAnswers: ["えれべーたー"],
         correctAnswer: "エレベーター",
-        explanation: "エレベーター is elevator.",
       },
       {
         acceptedAnswers: ["さんじゅっぷん"],
         correctAnswer: "三十分",
-        explanation: "三十分 means thirty minutes.",
       },
       {
         acceptedAnswers: ["かいだん"],
         correctAnswer: "階段",
-        explanation: "階段 means stairs.",
       },
       {
         acceptedAnswers: ["ごりよう"],
         correctAnswer: "ご利用",
-        explanation: "ご利用 is the respectful noun form of using a service or facility.",
       },
     ],
     exerciseType: "one_word",
@@ -363,21 +314,18 @@ const DICTATION_PRACTICE_SCRIPTS: Record<string, DictationPracticeScript> = {
           "ざいたくきんむはつうきんじかんをへらしせいさんせいをたかめるかのうせいがあります",
         ],
         correctAnswer: "在宅勤務は通勤時間を減らし、生産性を高める可能性があります",
-        explanation: "可能性があります presents a potential benefit without claiming certainty.",
       },
       {
         acceptedAnswers: [
           "いっぽうでじょうほうきょうゆうやちーむないのしんらいこうちくがむずかしくなるというしてきもあります",
         ],
         correctAnswer: "一方で、情報共有やチーム内の信頼構築が難しくなるという指摘もあります",
-        explanation: "一方で introduces the contrasting concern.",
       },
       {
         acceptedAnswers: [
           "じゅうようなのはぎょうむのせいしつにおうじてはたらきかたをせんたくすることです",
         ],
         correctAnswer: "重要なのは、業務の性質に応じて働き方を選択することです",
-        explanation: "〜に応じて means according to or depending on a condition.",
       },
     ],
     exerciseType: "full_sentence",
@@ -391,42 +339,34 @@ const DICTATION_PRACTICE_SCRIPTS: Record<string, DictationPracticeScript> = {
       {
         acceptedAnswers: ["せいふがはっぴょうした"],
         correctAnswer: "政府が発表した",
-        explanation: "This relative clause identifies the source of the new policy.",
       },
       {
         acceptedAnswers: ["あらたなけいざいたいさく"],
         correctAnswer: "新たな経済対策",
-        explanation: "新たな経済対策 means new economic measures.",
       },
       {
         acceptedAnswers: ["ちゅうしょうきぎょうへのしえん"],
         correctAnswer: "中小企業への支援",
-        explanation: "への marks the recipients of support.",
       },
       {
         acceptedAnswers: ["ぶっかじょうしょうへのたいおう"],
         correctAnswer: "物価上昇への対応",
-        explanation: "物価上昇 refers to rising prices or inflation.",
       },
       {
         acceptedAnswers: ["じっこうせいをうたがうこえ"],
         correctAnswer: "実効性を疑う声",
-        explanation: "実効性を疑う声 means voices questioning practical effectiveness.",
       },
       {
         acceptedAnswers: ["ざいげんのかくほ"],
         correctAnswer: "財源の確保",
-        explanation: "財源の確保 means securing the necessary funding.",
       },
       {
         acceptedAnswers: ["ちょうきてきなせいちょうせんりゃく"],
         correctAnswer: "長期的な成長戦略",
-        explanation: "長期的な成長戦略 is a long-term growth strategy.",
       },
       {
         acceptedAnswers: ["ぐたいてきなせつめい"],
         correctAnswer: "具体的な説明",
-        explanation: "具体的な説明 means a concrete, detailed explanation.",
       },
     ],
     exerciseType: "multiple_words",
@@ -444,20 +384,16 @@ const DICTATION_PRACTICE_SCRIPTS: Record<string, DictationPracticeScript> = {
         ],
         correctAnswer:
           "筆者は、技術革新が社会にもたらす影響を、単純な利便性の向上として捉えるべきではないと論じています",
-        explanation: "〜として捉えるべきではない rejects a simplistic way of framing the issue.",
       },
       {
         acceptedAnswers: [
           "むしろせいどやかちかんとのそうごさようをちょうきてきなしてんからけんとうするひつようがあります",
         ],
         correctAnswer: "むしろ、制度や価値観との相互作用を長期的な視点から検討する必要があります",
-        explanation:
-          "むしろ redirects the argument toward the more important analytical perspective.",
       },
       {
         acceptedAnswers: ["このかんてんをかくとぎろんはひょうめんてきなものにとどまるでしょう"],
         correctAnswer: "この観点を欠くと、議論は表面的なものにとどまるでしょう",
-        explanation: "〜にとどまる warns that the discussion will remain limited or superficial.",
       },
     ],
     exerciseType: "full_sentence",
@@ -467,13 +403,6 @@ const DICTATION_PRACTICE_SCRIPTS: Record<string, DictationPracticeScript> = {
       "The author argues that the impact of technological innovation on society should not be understood merely as improved convenience. Instead, its interaction with institutions and values must be examined from a long-term perspective. Without this perspective, the discussion will remain superficial.",
   },
 };
-
-function getFullTranscript(script: DictationPracticeScript): string {
-  return script.answers.reduce(
-    (transcript, answer, index) => transcript.replace(`{{${index + 1}}}`, answer.correctAnswer),
-    script.template,
-  );
-}
 
 function normalizeDictationAnswer(value: string): string {
   return value
@@ -511,6 +440,7 @@ export function getDictationPracticeLesson(lessonId: string): DictationPracticeL
     promptParts: script.template.split(/\{\{\d+\}\}/g),
     title: content.title,
     topic: content.topic,
+    youtubeVideoId: content.youtubeVideoId,
   };
 }
 
@@ -536,7 +466,6 @@ export function gradeDictationAttempt(
     return {
       blankIndex,
       correctAnswer: answer.correctAnswer,
-      explanation: answer.explanation,
       isCorrect: acceptedAnswers.some(
         (acceptedAnswer) => normalizeDictationAnswer(acceptedAnswer) === normalizedUserAnswer,
       ),
@@ -551,7 +480,6 @@ export function gradeDictationAttempt(
     attemptId: crypto.randomUUID(),
     correctCount,
     expEarned: isPassed ? 10 : 0,
-    fullTranscript: getFullTranscript(script),
     isPassed,
     lessonId,
     results,

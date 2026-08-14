@@ -1,6 +1,11 @@
+import type { LucideIcon } from "lucide-react";
+import type { FormEvent } from "react";
+
 import type { JlptDifficulty } from "@/types/practice-catalog";
 
-export const DICTATION_EXERCISE_TYPES = ["one_word", "multiple_words", "full_sentence"] as const;
+import { DICTATION_EXERCISE_TYPES } from "../_constants/dictation-constants";
+
+export { DICTATION_EXERCISE_TYPES };
 
 export type DictationExerciseType = (typeof DICTATION_EXERCISE_TYPES)[number];
 
@@ -19,6 +24,7 @@ export type DictationPracticeLesson = {
   promptParts: string[];
   title: string;
   topic: string;
+  youtubeVideoId: string | null;
 };
 
 export type DictationAnswerInput = {
@@ -28,7 +34,6 @@ export type DictationAnswerInput = {
 
 export type DictationBlankResult = DictationAnswerInput & {
   correctAnswer: string;
-  explanation: string;
   isCorrect: boolean;
 };
 
@@ -36,7 +41,6 @@ export type DictationAttemptResult = {
   attemptId: string;
   correctCount: number;
   expEarned: number;
-  fullTranscript: string;
   isPassed: boolean;
   lessonId: string;
   results: DictationBlankResult[];
@@ -55,3 +59,52 @@ export type DictationSubmitResponse =
       result: DictationAttemptResult;
       status: "success";
     };
+
+export type DictationStep = {
+  description: string;
+  icon: LucideIcon;
+  number: string;
+  title: string;
+};
+
+export type DictationBlankInputProps = {
+  blankIndex: number;
+  disabled: boolean;
+  inputSizeClass: string;
+  onAnswerChange: (blankIndex: number, value: string) => void;
+  placeholder: string;
+  value: string;
+};
+
+export type DictationPromptInputsProps = {
+  answers: Record<number, string>;
+  isSubmitting: boolean;
+  lesson: DictationPracticeLesson;
+  onAnswerChange: (blankIndex: number, value: string) => void;
+};
+
+export type DictationAnswerFormProps = {
+  answers: Record<number, string>;
+  isSubmitting: boolean;
+  lesson: DictationPracticeLesson;
+  onAnswerChange: (blankIndex: number, value: string) => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  submitError?: string;
+};
+
+export type DictationResultProps = {
+  lesson: DictationPracticeLesson;
+  onTryAgain: () => void;
+  result: DictationAttemptResult;
+};
+
+export type ExpectedTranscriptProps = {
+  lesson: DictationPracticeLesson;
+  result: DictationAttemptResult;
+};
+
+export type DictationVideoPlayerProps = {
+  className?: string;
+  lessonTitle: string;
+  youtubeVideoId: string | null;
+};
