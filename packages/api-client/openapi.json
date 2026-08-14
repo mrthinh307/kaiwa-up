@@ -46,6 +46,334 @@
         }
       }
     },
+    "/api/v1/lessons": {
+      "post": {
+        "tags": ["Learning Content"],
+        "summary": "Create draft learning content from Japanese YouTube captions",
+        "operationId": "createLearningContentFromYouTube",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LearningContentCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LearningContentCreateResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Admin access required"
+          },
+          "409": {
+            "description": "Learning content already exists"
+          },
+          "422": {
+            "description": "Invalid URL or Japanese transcript unavailable"
+          },
+          "502": {
+            "description": "YouTube transcript provider failed"
+          }
+        }
+      },
+      "get": {
+        "tags": ["Learning Content"],
+        "summary": "List published learning content",
+        "operationId": "listLearningContents",
+        "parameters": [
+          {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/ContentType"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Type"
+            }
+          },
+          {
+            "name": "difficulty",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/JlptLevel"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Difficulty"
+            }
+          },
+          {
+            "name": "topic",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Topic"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Page Size"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedResponse_LearningContentItem_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/lessons/{content_id}/publish": {
+      "post": {
+        "tags": ["Learning Content"],
+        "summary": "Publish draft learning content",
+        "operationId": "publishLearningContent",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "content_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Content Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LearningContentCreateResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Admin access required"
+          },
+          "404": {
+            "description": "Learning content not found"
+          },
+          "409": {
+            "description": "Learning content already published"
+          },
+          "422": {
+            "description": "Learning content is incomplete"
+          }
+        }
+      }
+    },
+    "/api/v1/lessons/{content_id}": {
+      "get": {
+        "tags": ["Learning Content"],
+        "summary": "Get published learning content detail",
+        "operationId": "getLearningContent",
+        "parameters": [
+          {
+            "name": "content_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Content Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LearningContentDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Learning content not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/shadowing/lessons/{content_id}": {
+      "get": {
+        "tags": ["Learning Content"],
+        "summary": "Get shadowing learning content detail",
+        "operationId": "getShadowingContent",
+        "parameters": [
+          {
+            "name": "content_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Content Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShadowingContentDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Shadowing content not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dictation/lessons/{content_id}": {
+      "get": {
+        "tags": ["Learning Content"],
+        "summary": "Get dictation learning content detail without answers",
+        "operationId": "getDictationContent",
+        "parameters": [
+          {
+            "name": "content_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Content Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DictationContentDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Dictation content not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/progress/summary": {
       "get": {
         "tags": ["Progress"],
@@ -564,7 +892,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AccessTokenResponse"
+                  "$ref": "#/components/schemas/RefreshSessionResponse"
                 }
               }
             }
@@ -750,10 +1078,127 @@
         "enum": ["in_progress", "completed"],
         "title": "AttemptStatus"
       },
+      "ContentStatus": {
+        "type": "string",
+        "enum": ["draft", "published"],
+        "title": "ContentStatus"
+      },
       "ContentType": {
         "type": "string",
         "enum": ["shadowing_dictation", "reflex", "listening_translation"],
         "title": "ContentType"
+      },
+      "DictationContentDetail": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "content_type": {
+            "$ref": "#/components/schemas/ContentType"
+          },
+          "difficulty": {
+            "$ref": "#/components/schemas/JlptLevel"
+          },
+          "topic": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Topic"
+          },
+          "duration_seconds": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Seconds"
+          },
+          "audio_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Audio Url"
+          },
+          "published_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published At"
+          },
+          "prompts": {
+            "items": {
+              "$ref": "#/components/schemas/DictationPromptSegment"
+            },
+            "type": "array",
+            "title": "Prompts"
+          }
+        },
+        "type": "object",
+        "required": ["id", "title", "content_type", "difficulty", "prompts"],
+        "title": "DictationContentDetail"
+      },
+      "DictationPromptSegment": {
+        "properties": {
+          "blank_index": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Blank Index"
+          },
+          "start_time_ms": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Start Time Ms"
+          },
+          "end_time_ms": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "End Time Ms"
+          },
+          "prompt": {
+            "type": "string",
+            "title": "Prompt"
+          }
+        },
+        "type": "object",
+        "required": ["blank_index", "start_time_ms", "end_time_ms", "prompt"],
+        "title": "DictationPromptSegment"
       },
       "DictationSegmentCheckRequest": {
         "properties": {
@@ -1064,6 +1509,308 @@
         "required": ["status", "timestamp", "app_name"],
         "title": "HealthResponse"
       },
+      "JlptLevel": {
+        "type": "string",
+        "enum": ["N5", "N4", "N3", "N2", "N1"],
+        "title": "JlptLevel"
+      },
+      "LearningContentCreate": {
+        "properties": {
+          "youtube_url": {
+            "type": "string",
+            "maxLength": 2083,
+            "minLength": 1,
+            "format": "uri",
+            "title": "Youtube Url"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "topic": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Topic"
+          },
+          "difficulty": {
+            "$ref": "#/components/schemas/JlptLevel",
+            "default": "N5"
+          },
+          "base_exp": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Base Exp",
+            "default": 50
+          }
+        },
+        "type": "object",
+        "required": ["youtube_url"],
+        "title": "LearningContentCreate"
+      },
+      "LearningContentCreateResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "content_type": {
+            "$ref": "#/components/schemas/ContentType"
+          },
+          "difficulty": {
+            "$ref": "#/components/schemas/JlptLevel"
+          },
+          "topic": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Topic"
+          },
+          "duration_seconds": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Seconds"
+          },
+          "audio_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Audio Url"
+          },
+          "published_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published At"
+          },
+          "transcript": {
+            "items": {
+              "$ref": "#/components/schemas/TranscriptSegment"
+            },
+            "type": "array",
+            "title": "Transcript"
+          },
+          "slug": {
+            "type": "string",
+            "title": "Slug"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ContentStatus"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "content_type",
+          "difficulty",
+          "transcript",
+          "slug",
+          "status"
+        ],
+        "title": "LearningContentCreateResponse"
+      },
+      "LearningContentDetail": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "content_type": {
+            "$ref": "#/components/schemas/ContentType"
+          },
+          "difficulty": {
+            "$ref": "#/components/schemas/JlptLevel"
+          },
+          "topic": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Topic"
+          },
+          "duration_seconds": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Seconds"
+          },
+          "audio_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Audio Url"
+          },
+          "published_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published At"
+          }
+        },
+        "type": "object",
+        "required": ["id", "title", "content_type", "difficulty"],
+        "title": "LearningContentDetail"
+      },
+      "LearningContentItem": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "content_type": {
+            "$ref": "#/components/schemas/ContentType"
+          },
+          "difficulty": {
+            "$ref": "#/components/schemas/JlptLevel"
+          },
+          "topic": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Topic"
+          },
+          "duration_seconds": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Seconds"
+          }
+        },
+        "type": "object",
+        "required": ["id", "title", "content_type", "difficulty"],
+        "title": "LearningContentItem"
+      },
       "LoginRequest": {
         "properties": {
           "email": {
@@ -1083,6 +1830,46 @@
         "required": ["email", "password"],
         "title": "LoginRequest",
         "description": "Payload for email/password login."
+      },
+      "PaginatedResponse_LearningContentItem_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/LearningContentItem"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total_items": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Total Items"
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Page"
+          },
+          "page_size": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Page Size"
+          },
+          "total_pages": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Total Pages"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total_items",
+          "page",
+          "page_size",
+          "total_pages"
+        ],
+        "title": "PaginatedResponse[LearningContentItem]"
       },
       "PaginatedResponse_ProgressAttemptItem_": {
         "properties": {
@@ -1318,6 +2105,30 @@
         "required": ["status", "timestamp", "app_name", "database"],
         "title": "ReadinessResponse"
       },
+      "RefreshSessionResponse": {
+        "properties": {
+          "access_token": {
+            "type": "string",
+            "title": "Access Token"
+          },
+          "token_type": {
+            "type": "string",
+            "title": "Token Type",
+            "default": "bearer"
+          },
+          "expires_in": {
+            "type": "integer",
+            "title": "Expires In"
+          },
+          "user": {
+            "$ref": "#/components/schemas/UserResponse"
+          }
+        },
+        "type": "object",
+        "required": ["access_token", "expires_in", "user"],
+        "title": "RefreshSessionResponse",
+        "description": "Refreshed access token and current public user profile."
+      },
       "RegisterRequest": {
         "properties": {
           "email": {
@@ -1343,6 +2154,113 @@
         "required": ["email", "password", "name"],
         "title": "RegisterRequest",
         "description": "Payload for registering a new user."
+      },
+      "ShadowingContentDetail": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "content_type": {
+            "$ref": "#/components/schemas/ContentType"
+          },
+          "difficulty": {
+            "$ref": "#/components/schemas/JlptLevel"
+          },
+          "topic": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Topic"
+          },
+          "duration_seconds": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Seconds"
+          },
+          "audio_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Audio Url"
+          },
+          "published_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published At"
+          },
+          "transcript": {
+            "items": {
+              "$ref": "#/components/schemas/TranscriptSegment"
+            },
+            "type": "array",
+            "title": "Transcript"
+          }
+        },
+        "type": "object",
+        "required": ["id", "title", "content_type", "difficulty", "transcript"],
+        "title": "ShadowingContentDetail"
+      },
+      "TranscriptSegment": {
+        "properties": {
+          "start_time_ms": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Start Time Ms"
+          },
+          "end_time_ms": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "End Time Ms"
+          },
+          "script": {
+            "type": "string",
+            "title": "Script"
+          }
+        },
+        "type": "object",
+        "required": ["start_time_ms", "end_time_ms", "script"],
+        "title": "TranscriptSegment"
       },
       "UserResponse": {
         "properties": {

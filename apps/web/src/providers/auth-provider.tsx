@@ -37,40 +37,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setStatus("guest");
   }, []);
 
-  const loadUserAfterRefresh = useCallback(
-    async (refreshOutcome: RefreshOutcome): Promise<void> => {
-      if (refreshOutcome === "unauthorized") {
+  const applyRefreshOutcome = useCallback(
+    (refreshOutcome: RefreshOutcome): void => {
+      if (refreshOutcome.kind === "unauthorized") {
         becomeGuest();
         return;
       }
 
-      if (refreshOutcome === "unavailable") {
+      if (refreshOutcome.kind === "unavailable") {
         setStatus("unavailable");
         return;
       }
 
-      const meResult = await getMe();
-
-      if (meResult.data) {
-        setUser(meResult.data);
-        setStatus("authenticated");
-        return;
-      }
-
-      if (meResult.response?.status === 401) {
-        becomeGuest();
-        return;
-      }
-
-      setStatus("unavailable");
+      setUser(refreshOutcome.user);
+      setStatus("authenticated");
     },
     [becomeGuest],
   );
 
   const retrySession = useCallback(async () => {
     setStatus("initializing");
-    await loadUserAfterRefresh(await refreshAccessToken());
-  }, [loadUserAfterRefresh]);
+    applyRefreshOutcome(await refreshAccessToken());
+  }, [applyRefreshOutcome]);
 
   useEffect(() => {
     if (hasBootstrapped.current) {

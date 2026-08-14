@@ -1,6 +1,11 @@
 """Public Pydantic request and response schemas."""
 
-from app.schemas.auth import AccessTokenResponse, LoginRequest, RegisterRequest
+from app.schemas.auth import (
+    AccessTokenResponse,
+    LoginRequest,
+    RefreshSessionResponse,
+    RegisterRequest,
+)
 from app.schemas.error import ErrorDetail, ErrorResponse, ValidationErrorDetail
 from app.schemas.gamification import ExpHistoryItem, GamificationProfileResponse
 from app.schemas.health import HealthResponse
@@ -27,6 +32,7 @@ __all__ = [
     "ProgressAttemptItem",
     "ProgressSummaryResponse",
     "ReadinessResponse",
+    "RefreshSessionResponse",
     "RegisterRequest",
     "UserResponse",
     "UserUpdateRequest",

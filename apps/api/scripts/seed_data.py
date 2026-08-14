@@ -190,7 +190,7 @@ async def seed_data(clean: bool = False) -> dict[str, int]:
                 "slug": "listening-n5-jidoshoukai",
                 "title": "N5: Tự giới thiệu bản thân (自己紹介)",
                 "difficulty": JlptLevel.N5,
-                "audio_url": "https://res.cloudinary.com/kaiwaup/video/upload/v1/audio/shadowing_n5.mp3",
+                "audio_url": "https://www.youtube.com/watch?v=KaiwaN5A001",
                 "audio_duration_ms": 15000,
                 "transcript_ja": [
                     {
@@ -209,7 +209,7 @@ async def seed_data(clean: bool = False) -> dict[str, int]:
                 "slug": "listening-n3-office",
                 "title": "N3: Trao đổi công việc văn phòng",
                 "difficulty": JlptLevel.N3,
-                "audio_url": "https://res.cloudinary.com/kaiwaup/video/upload/v1/audio/shadowing_n3.mp3",
+                "audio_url": "https://www.youtube.com/watch?v=KaiwaN3A001",
                 "audio_duration_ms": 25000,
                 "transcript_ja": [
                     {
@@ -228,7 +228,7 @@ async def seed_data(clean: bool = False) -> dict[str, int]:
                 "slug": "listening-n1-news",
                 "title": "N1: Tin tức kinh tế nhật bản",
                 "difficulty": JlptLevel.N1,
-                "audio_url": "https://res.cloudinary.com/kaiwaup/video/upload/v1/audio/shadowing_n1.mp3",
+                "audio_url": "https://www.youtube.com/watch?v=KaiwaN1A001",
                 "audio_duration_ms": 40000,
                 "transcript_ja": [
                     {
@@ -319,14 +319,14 @@ async def seed_data(clean: bool = False) -> dict[str, int]:
                 "slug": "translation-n4-restaurant",
                 "title": "N4: Gọi món tại nhà hàng",
                 "difficulty": JlptLevel.N4,
-                "audio_url": "https://res.cloudinary.com/kaiwaup/video/upload/v1/audio/trans_n4.mp3",
+                "audio_url": "https://www.youtube.com/watch?v=KaiwaN4T001",
                 "ref_vi": "Xin lỗi, cho tôi xem thực đơn.",
             },
             {
                 "slug": "translation-n2-business",
                 "title": "N2: Đàm phán hợp đồng",
                 "difficulty": JlptLevel.N2,
-                "audio_url": "https://res.cloudinary.com/kaiwaup/video/upload/v1/audio/trans_n2.mp3",
+                "audio_url": "https://www.youtube.com/watch?v=KaiwaN2T001",
                 "ref_vi": "Chúng tôi mong muốn điều chỉnh lại điều khoản thanh toán.",
             },
         ]
