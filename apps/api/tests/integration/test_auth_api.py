@@ -148,7 +148,14 @@ async def test_refresh_rotates_cookie_and_rejects_reuse(
     refresh_response = await client.post(REFRESH_PATH)
 
     assert refresh_response.status_code == 200
-    assert refresh_response.json()["access_token"]
+    payload = refresh_response.json()
+    assert payload["access_token"]
+    assert payload["token_type"] == "bearer"
+    assert payload["expires_in"] == settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
+    assert payload["user"]["email"] == "learner@example.com"
+    assert payload["user"]["display_name"] == "Kaiwa Learner"
+    assert "password" not in payload["user"]
+    assert "password_hash" not in payload["user"]
     assert refresh_response.cookies[settings.REFRESH_COOKIE_NAME] != old_refresh_token
 
     client.cookies.set(

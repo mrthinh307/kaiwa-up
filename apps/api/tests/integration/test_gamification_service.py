@@ -5,7 +5,7 @@ import pytest
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.exceptions import ForbiddenError, NotFoundError
+from app.exceptions.gamification import AttemptForbiddenError, AttemptNotFoundError
 from app.models.attempt import ExerciseAttempt
 from app.models.content import LearningContent
 from app.models.enums import AttemptStatus, ContentStatus, ContentType, JlptLevel
@@ -180,7 +180,7 @@ async def test_award_raises_forbidden_for_other_user(
     )
     attempt = await create_attempt(session=db_session, user_id=owner.id, content_id=content.id)
 
-    with pytest.raises(ForbiddenError):
+    with pytest.raises(AttemptForbiddenError):
         await make_service(db_session).award_experience(
             user_id=requester.id,
             attempt_id=attempt.id,
@@ -193,7 +193,7 @@ async def test_award_raises_not_found_for_unknown_attempt(
 ) -> None:
     user = await create_user(session=db_session, email="a@example.com")
 
-    with pytest.raises(NotFoundError):
+    with pytest.raises(AttemptNotFoundError):
         await make_service(db_session).award_experience(
             user_id=user.id,
             attempt_id=uuid.uuid4(),
