@@ -1,7 +1,7 @@
 import math
 import uuid
 
-from app.exceptions import ForbiddenError, NotFoundError
+from app.exceptions.progress import AttemptForbiddenError, AttemptNotFoundError
 from app.models.enums import AttemptStatus, ContentType
 from app.repositories.progress import AttemptHistoryRow, InProgressLessonRow, ProgressRepository
 from app.schemas.pagination import PaginatedResponse
@@ -70,10 +70,10 @@ class ProgressService:
     ) -> ProgressAttemptDetail:
         row = await self.repository.get_attempt_detail(attempt_id)
         if row is None:
-            raise NotFoundError()
+            raise AttemptNotFoundError()
         attempt = row.attempt
         if attempt.user_id != user_id:
-            raise ForbiddenError()
+            raise AttemptForbiddenError()
         return ProgressAttemptDetail(
             id=attempt.id,
             content_id=attempt.content_id,
