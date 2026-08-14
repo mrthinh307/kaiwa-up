@@ -10,6 +10,7 @@ from app.exceptions.base import AppError, ForbiddenError, NotFoundError
 from app.exceptions.dictation import (
     DictationAttemptNotInProgressError,
     DictationContentUnavailableError,
+    DictationExperienceAlreadyAwardedError,
     DictationInvalidSegmentIndexError,
 )
 from app.exceptions.handlers import register_exception_handlers
@@ -26,6 +27,7 @@ __all__ = [
     "AppError",
     "DictationAttemptNotInProgressError",
     "DictationContentUnavailableError",
+    "DictationExperienceAlreadyAwardedError",
     "DictationInvalidSegmentIndexError",
     "EmailAlreadyExistsException",
     "ForbiddenError",

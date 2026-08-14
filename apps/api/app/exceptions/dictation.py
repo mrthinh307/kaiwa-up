@@ -27,3 +27,9 @@ class DictationAttemptNotInProgressError(AppError):
     status_code = status.HTTP_409_CONFLICT
     code = "dictation_attempt_not_in_progress"
     message = "Dictation attempt is not in progress"
+
+
+class DictationExperienceAlreadyAwardedError(AppError):
+    status_code = status.HTTP_409_CONFLICT
+    code = "dictation_experience_already_awarded"
+    message = "Dictation attempt already has an EXP transaction"
