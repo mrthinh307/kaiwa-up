@@ -26,3 +26,5 @@ Thumbs.db
 
 .codegraph/
 .env
+
+.pnpm-store/
