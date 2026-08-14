@@ -3,7 +3,7 @@ from typing import NamedTuple
 
 from sqlalchemy.exc import IntegrityError
 
-from app.exceptions import ForbiddenError, NotFoundError
+from app.exceptions.gamification import AttemptForbiddenError, AttemptNotFoundError
 from app.models.enums import AttemptStatus, ContentType
 from app.repositories.gamification import GamificationRepository
 from app.schemas.gamification import ExpHistoryItem, GamificationProfileResponse
@@ -29,9 +29,9 @@ class GamificationService:
     ) -> XpAwardResult:
         attempt = await self.repository.get_attempt_for_reward(attempt_id)
         if attempt is None:
-            raise NotFoundError()
+            raise AttemptNotFoundError()
         if attempt.user_id != user_id:
-            raise ForbiddenError()
+            raise AttemptForbiddenError()
 
         if attempt.status != AttemptStatus.COMPLETED:
             progress = await self.repository.get_or_create_user_progress(user_id)

@@ -19,6 +19,7 @@ from app.schemas.readiness import ReadinessResponse
 from app.schemas.user import UserResponse, UserUpdateRequest
 
 __all__ = [
+    "HealthResponse",
     "AccessTokenResponse",
     "ErrorDetail",
     "ErrorResponse",
