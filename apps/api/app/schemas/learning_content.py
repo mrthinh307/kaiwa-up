@@ -23,10 +23,10 @@ class LearningContentItem(BaseModel):
     difficulty: JlptLevel
     topic: str | None = None
     duration_seconds: float | None = Field(default=None, ge=0)
+    audio_url: str | None = None
 
 
 class LearningContentDetail(LearningContentItem):
-    audio_url: str | None = None
     published_at: datetime | None = None
 
 

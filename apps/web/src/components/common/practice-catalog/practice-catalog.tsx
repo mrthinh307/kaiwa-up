@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import {
   type PracticeCatalogViewModel,
   type PracticeLearningStatus,
-} from "@/lib/practice-catalog-mock";
+} from "@/lib/practice-catalog-api";
 import { cn } from "@/lib/utils";
 
 import { PracticeCatalogFilterSheet } from "./practice-catalog-filter-sheet";
@@ -60,6 +60,7 @@ export function PracticeCatalog({
         <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
           <PracticeCatalogSearch
             basePath="/lessons"
+            hash="lessons-catalog-heading"
             id="lessons-search"
             initialQuery={searchQuery}
             key={searchQuery}
@@ -103,6 +104,7 @@ export function PracticeCatalog({
           <PracticeCatalogPagination
             ariaLabel="Lesson catalog pages"
             basePath="/lessons"
+            hash="lessons-catalog-heading"
             page={catalog.page}
             pages={catalog.pages}
             params={{

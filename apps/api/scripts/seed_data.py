@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from app.core.config import settings
 from app.core.security import hash_password
+from app.integrations.youtube import YouTubeCaptionProvider
 from app.models.attempt import ExerciseAttempt, ReviewSchedule
 from app.models.content import (
     LearningContent,
@@ -23,6 +24,9 @@ from app.models.gamification import (
     XpTransaction,
 )
 from app.models.user import User, UserProgress
+from app.repositories.learning_content import LearningContentRepository
+from app.schemas.learning_content import LearningContentCreate
+from app.services.learning_content import LearningContentService
 from app.services.leveling import level_for_total_exp
 
 logging.basicConfig(level=logging.INFO)
@@ -34,6 +38,139 @@ class UserSeed(TypedDict):
     display_name: str
     role: UserRole
     exp: int
+
+
+class YouTubeLessonSeed(TypedDict):
+    youtube_url: str
+    title: str
+    difficulty: JlptLevel
+
+
+YOUTUBE_LESSONS: tuple[YouTubeLessonSeed, ...] = (
+    {
+        "youtube_url": "https://www.youtube.com/watch?v=GfkM7xF8orE",
+        "title": "".join(
+            [
+                "痛みや苦しみがわかる人間になりたいよね｜",
+                "日本語ポッドキャスト、N2～N1聴解【中級、上級】",
+            ]
+        ),
+        "difficulty": JlptLevel.N2,
+    },
+    {
+        "youtube_url": "https://www.youtube.com/watch?v=EnXnpI-bCUk",
+        "title": (
+            "【日本語ポッドキャストリレー】コーヒーとお酒、どっちを選ぶ？"
+            "世界の消費量も調べてみた！｜日本語ポッドキャスト、N3～N1聴解【中級、上級】"
+        ),
+        "difficulty": JlptLevel.N2,
+    },
+    {
+        "youtube_url": "https://www.youtube.com/watch?v=UXX2p47i5Jo",
+        "title": "私が日本を出た理由 Japanese Listening Practice N3・N2レベル【中級】Ep.714",
+        "difficulty": JlptLevel.N3,
+    },
+    {
+        "youtube_url": "https://www.youtube.com/watch?v=wDlbYTLREVg",
+        "title": "".join(
+            [
+                "[Japanese Podcast] Summer in Japan: What Do People Eat? 🇯🇵 | ",
+                "Easy Japanese Podcast",
+            ]
+        ),
+        "difficulty": JlptLevel.N3,
+    },
+    {
+        "youtube_url": "https://www.youtube.com/watch?v=gcMUMqSacFs",
+        "title": "".join(
+            [
+                "Relaxing Japanese Listening: A Peaceful Night | 安らぎの夜 | ",
+                "Japanese Daily Podcast",
+            ]
+        ),
+        "difficulty": JlptLevel.N3,
+    },
+    {
+        "youtube_url": "https://www.youtube.com/watch?v=wZzjMc4BzE0",
+        "title": "Shopping at a Huge Japanese Supermarket! Useful Japanese Phrases 🛒",
+        "difficulty": JlptLevel.N3,
+    },
+    {
+        "youtube_url": "https://www.youtube.com/watch?v=1kDRCAg7s1Q",
+        "title": "日本の夏の過ごし方 Japanese Listening Practice N3・N2レベル【中級】Ep.704",
+        "difficulty": JlptLevel.N3,
+    },
+    {
+        "youtube_url": "https://www.youtube.com/watch?v=Tz6iAK_XRAA",
+        "title": "A Day in My Hometown 🌇 | Easy Japanese Listening (N4, 20 min)",
+        "difficulty": JlptLevel.N4,
+    },
+    {
+        "youtube_url": "https://www.youtube.com/watch?v=_9mTBpPyiL4",
+        "title": "".join(
+            [
+                "祖父が亡くなって思ったこと Japanese Listening Practice ",
+                "N3・N2レベル【中級】Ep.713",
+            ]
+        ),
+        "difficulty": JlptLevel.N3,
+    },
+    {
+        "youtube_url": "https://www.youtube.com/watch?v=yKINx0VaC-Y",
+        "title": "【Japanese Podcast #39】How Japanese People REALLY Say No (Without Saying It)",
+        "difficulty": JlptLevel.N2,
+    },
+)
+
+
+async def seed_youtube_lessons(session: AsyncSession) -> list[LearningContent]:
+    """Create and publish listening lessons from live Japanese YouTube captions."""
+    repository = LearningContentRepository(session)
+    service = LearningContentService(repository, YouTubeCaptionProvider())
+    seeded_contents: list[LearningContent] = []
+
+    for lesson in YOUTUBE_LESSONS:
+        youtube_url = lesson["youtube_url"]
+        video_id = YouTubeCaptionProvider.extract_video_id(youtube_url)
+        slug = f"youtube-{video_id}"
+        content = await repository.get_by_slug(slug)
+        if content is None:
+            created = await service.create_from_youtube(
+                LearningContentCreate(
+                    youtube_url=youtube_url,
+                    title=lesson["title"],
+                    topic="Japanese listening",
+                    difficulty=lesson["difficulty"],
+                    base_exp=50,
+                )
+            )
+            content = await repository.get_by_slug(created.slug)
+            if content is None:
+                raise RuntimeError(f"Created YouTube lesson was not found: {created.slug}")
+
+        if content.title != lesson["title"] or content.difficulty != lesson["difficulty"]:
+            content.title = lesson["title"]
+            content.difficulty = lesson["difficulty"]
+            await repository.update(content)
+        if content.status != ContentStatus.PUBLISHED:
+            await service.publish_content(content.id)
+        seeded_contents.append(content)
+
+    await session.commit()
+    return seeded_contents
+
+
+async def seed_youtube_data() -> dict[str, int]:
+    async with AsyncSessionLocal() as session:
+        contents = await seed_youtube_lessons(session)
+        stats = {"shadowing_dictation_lessons": len(contents)}
+        stats.update(
+            {
+                f"{level.value}_lessons": sum(content.difficulty == level for content in contents)
+                for level in JlptLevel
+            }
+        )
+        return stats
 
 
 # Setup database engine
@@ -185,89 +322,8 @@ async def seed_data(clean: bool = False) -> dict[str, int]:
         # 4. SEED LEARNING CONTENTS & EXERCISES
         # ==========================================
         # 4.1 Shared Shadowing and Dictation content
-        listening_lessons = [
-            {
-                "slug": "listening-n5-jidoshoukai",
-                "title": "N5: Tự giới thiệu bản thân (自己紹介)",
-                "difficulty": JlptLevel.N5,
-                "audio_url": "https://www.youtube.com/watch?v=KaiwaN5A001",
-                "audio_duration_ms": 15000,
-                "transcript_ja": [
-                    {
-                        "start_time_ms": 0,
-                        "end_time_ms": 7000,
-                        "script": "はじめまして、田中です。",
-                    },
-                    {
-                        "start_time_ms": 7000,
-                        "end_time_ms": 15000,
-                        "script": "よろしくお願いします。",
-                    },
-                ],
-            },
-            {
-                "slug": "listening-n3-office",
-                "title": "N3: Trao đổi công việc văn phòng",
-                "difficulty": JlptLevel.N3,
-                "audio_url": "https://www.youtube.com/watch?v=KaiwaN3A001",
-                "audio_duration_ms": 25000,
-                "transcript_ja": [
-                    {
-                        "start_time_ms": 0,
-                        "end_time_ms": 12000,
-                        "script": "明日の会議の資料ですが、",
-                    },
-                    {
-                        "start_time_ms": 12000,
-                        "end_time_ms": 25000,
-                        "script": "今日の夕方までに準備しておきます。",
-                    },
-                ],
-            },
-            {
-                "slug": "listening-n1-news",
-                "title": "N1: Tin tức kinh tế nhật bản",
-                "difficulty": JlptLevel.N1,
-                "audio_url": "https://www.youtube.com/watch?v=KaiwaN1A001",
-                "audio_duration_ms": 40000,
-                "transcript_ja": [
-                    {
-                        "start_time_ms": 0,
-                        "end_time_ms": 19000,
-                        "script": "世界経済の変動に伴い、",
-                    },
-                    {
-                        "start_time_ms": 19000,
-                        "end_time_ms": 40000,
-                        "script": "国内の物価上昇傾向が続いております。",
-                    },
-                ],
-            },
-        ]
-
-        seeded_contents: list[LearningContent] = []
-        for s in listening_lessons:
-            content_query = select(LearningContent).where(LearningContent.slug == s["slug"])
-            content = (await session.execute(content_query)).scalar_one_or_none()
-            if not content:
-                content = LearningContent(
-                    content_type=ContentType.SHADOWING_DICTATION,
-                    status=ContentStatus.PUBLISHED,
-                    slug=s["slug"],
-                    title=s["title"],
-                    short_description="Luyện Shadowing hoặc Dictation theo từng đoạn audio",
-                    difficulty=s["difficulty"],
-                    audio_url=s["audio_url"],
-                    audio_duration_ms=s["audio_duration_ms"],
-                    transcript_ja=s["transcript_ja"],
-                    base_exp=50,
-                    published_at=datetime.now(UTC),
-                )
-                session.add(content)
-                await session.flush()
-
-                stats["shadowing_dictation_lessons"] += 1
-            seeded_contents.append(content)
+        seeded_contents = await seed_youtube_lessons(session)
+        stats["shadowing_dictation_lessons"] = len(seeded_contents)
 
         # 4.3 Reflex (2 lessons: N5, N3)
         reflex_lessons = [
@@ -441,9 +497,14 @@ def main() -> None:
         action="store_true",
         help="Clean database before running seed script",
     )
+    parser.add_argument(
+        "--youtube-only",
+        action="store_true",
+        help="Seed only the configured YouTube listening lessons",
+    )
     args = parser.parse_args()
 
-    stats = asyncio.run(seed_data(clean=args.clean))
+    stats = asyncio.run(seed_youtube_data() if args.youtube_only else seed_data(clean=args.clean))
     print("\n--- SEED EXECUTION SUMMARY ---")
     for entity, count in stats.items():
         print(f"{entity}: {count}")

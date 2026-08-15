@@ -14,6 +14,7 @@ import {
 
 type PracticeCatalogSearchProps = {
   basePath: string;
+  hash?: string;
   id: string;
   initialQuery?: string;
   label?: string;
@@ -23,6 +24,7 @@ type PracticeCatalogSearchProps = {
 
 export function PracticeCatalogSearch({
   basePath,
+  hash,
   id,
   initialQuery,
   label = "Search lessons",
@@ -42,15 +44,15 @@ export function PracticeCatalogSearch({
     }
 
     startTransition(() => {
-      router.push(
-        buildPracticeCatalogHref({
-          basePath,
-          params: {
-            ...preservedParams,
-            q: normalizedQuery || undefined,
-          },
-        }),
-      );
+      const href = buildPracticeCatalogHref({
+        basePath,
+        params: {
+          ...preservedParams,
+          q: normalizedQuery || undefined,
+        },
+      });
+
+      router.push(hash ? `${href}#${hash}` : href);
     });
   };
 

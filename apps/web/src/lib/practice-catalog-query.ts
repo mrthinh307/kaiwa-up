@@ -1,6 +1,6 @@
 import { JLPT_DIFFICULTIES, type JlptDifficulty } from "@/types/practice-catalog";
 
-import type { PracticeLearningStatus } from "./practice-catalog-mock";
+import type { PracticeLearningStatus } from "./practice-catalog-api";
 
 export type PracticeCatalogQueryParams = Readonly<Record<string, number | string | undefined>>;
 

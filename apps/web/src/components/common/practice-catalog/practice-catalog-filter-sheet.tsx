@@ -4,7 +4,7 @@ import { Filter, RotateCcw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
-import type { PracticeLearningStatus } from "@/lib/practice-catalog-mock";
+import type { PracticeLearningStatus } from "@/lib/practice-catalog-api";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -81,18 +81,18 @@ export function PracticeCatalogFilterSheet({
 
   const handleApply = () => {
     startTransition(() => {
-      router.push(
-        buildPracticeCatalogHref({
-          basePath: "/lessons",
-          params: {
-            difficulty: draftDifficulty,
-            learning_status: draftLearningStatus,
-            page: undefined,
-            q: searchQuery,
-            topic: draftTopic,
-          },
-        }),
-      );
+      const href = buildPracticeCatalogHref({
+        basePath: "/lessons",
+        params: {
+          difficulty: draftDifficulty,
+          learning_status: draftLearningStatus,
+          page: undefined,
+          q: searchQuery,
+          topic: draftTopic,
+        },
+      });
+
+      router.push(`${href}#lessons-catalog-heading`);
       setIsOpen(false);
     });
   };
