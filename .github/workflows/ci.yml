@@ -9,11 +9,26 @@ jobs:
   backend:
     name: Backend (lint, format, type-check, test)
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: kaiwa_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d kaiwa_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     defaults:
       run:
         working-directory: apps/api
     env:
-      DATABASE_URL_TEST: ${{ secrets.DATABASE_URL_TEST }}
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/kaiwa_test
+      DATABASE_URL_TEST: postgresql+asyncpg://postgres:postgres@localhost:5432/kaiwa_test
     steps:
       - uses: actions/checkout@v4
 
@@ -21,7 +36,7 @@ jobs:
         uses: astral-sh/setup-uv@v3
 
       - name: Install dependencies
-        run: uv sync
+        run: uv sync --locked
 
       - name: Lint (ruff)
         run: uv run ruff check .
@@ -32,11 +47,11 @@ jobs:
       - name: Type check (mypy)
         run: uv run mypy
 
-      - name: Run migration on Neon test branch
-        run: DATABASE_URL=$DATABASE_URL_TEST uv run alembic upgrade head
+      - name: Run migration on local PostgreSQL
+        run: uv run alembic upgrade head
 
-      - name: Run tests
-        run: uv run pytest
+      - name: Run tests in parallel
+        run: uv run pytest -n 4 --dist loadfile --durations=20
 
   frontend:
     name: Frontend (lint, typecheck, format)

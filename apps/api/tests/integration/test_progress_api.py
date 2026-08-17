@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
 
@@ -85,21 +86,27 @@ def parse_datetime(value: str) -> datetime:
 async def test_progress_summary_counts_completed_by_content_type(
     client: httpx.AsyncClient,
     db_session: AsyncSession,
+    unique_value: Callable[[str], str],
 ) -> None:
-    user = await create_user(session=db_session, email="a@example.com", display_name="User A")
+    user = await create_user(
+        session=db_session, email=f"{unique_value('user-a')}@example.com", display_name="User A"
+    )
     listening = await create_content(
         session=db_session,
         content_type=ContentType.SHADOWING_DICTATION,
-        slug="listening",
+        slug=unique_value("listening"),
         title="Listening lesson",
     )
     reflex = await create_content(
-        session=db_session, content_type=ContentType.REFLEX, slug="reflex", title="Reflex lesson"
+        session=db_session,
+        content_type=ContentType.REFLEX,
+        slug=unique_value("reflex"),
+        title="Reflex lesson",
     )
     translation = await create_content(
         session=db_session,
         content_type=ContentType.LISTENING_TRANSLATION,
-        slug="translation",
+        slug=unique_value("translation"),
         title="Translation lesson",
     )
     await create_attempt(
@@ -150,13 +157,18 @@ async def test_progress_summary_counts_completed_by_content_type(
 async def test_progress_summary_only_uses_current_user_data(
     client: httpx.AsyncClient,
     db_session: AsyncSession,
+    unique_value: Callable[[str], str],
 ) -> None:
-    user_a = await create_user(session=db_session, email="a@example.com", display_name="User A")
-    user_b = await create_user(session=db_session, email="b@example.com", display_name="User B")
+    user_a = await create_user(
+        session=db_session, email=f"{unique_value('user-a')}@example.com", display_name="User A"
+    )
+    user_b = await create_user(
+        session=db_session, email=f"{unique_value('user-b')}@example.com", display_name="User B"
+    )
     content = await create_content(
         session=db_session,
         content_type=ContentType.SHADOWING_DICTATION,
-        slug="listening",
+        slug=unique_value("listening"),
         title="Listening",
     )
     await create_attempt(
@@ -182,18 +194,21 @@ async def test_progress_summary_only_uses_current_user_data(
 async def test_progress_summary_lists_in_progress_lessons(
     client: httpx.AsyncClient,
     db_session: AsyncSession,
+    unique_value: Callable[[str], str],
 ) -> None:
-    user = await create_user(session=db_session, email="a@example.com", display_name="User A")
+    user = await create_user(
+        session=db_session, email=f"{unique_value('user-a')}@example.com", display_name="User A"
+    )
     listening = await create_content(
         session=db_session,
         content_type=ContentType.SHADOWING_DICTATION,
-        slug="listening",
+        slug=unique_value("listening"),
         title="Listening lesson",
     )
     completed = await create_content(
         session=db_session,
         content_type=ContentType.REFLEX,
-        slug="reflex",
+        slug=unique_value("reflex"),
         title="Reflex lesson",
     )
     in_progress = await create_attempt(
@@ -229,12 +244,15 @@ async def test_progress_summary_lists_in_progress_lessons(
 async def test_progress_attempts_support_pagination(
     client: httpx.AsyncClient,
     db_session: AsyncSession,
+    unique_value: Callable[[str], str],
 ) -> None:
-    user = await create_user(session=db_session, email="a@example.com", display_name="User A")
+    user = await create_user(
+        session=db_session, email=f"{unique_value('user-a')}@example.com", display_name="User A"
+    )
     content = await create_content(
         session=db_session,
         content_type=ContentType.SHADOWING_DICTATION,
-        slug="listening",
+        slug=unique_value("listening"),
         title="Listening",
     )
     for index in range(25):
@@ -264,16 +282,22 @@ async def test_progress_attempts_support_pagination(
 async def test_progress_attempts_filter_by_content_type(
     client: httpx.AsyncClient,
     db_session: AsyncSession,
+    unique_value: Callable[[str], str],
 ) -> None:
-    user = await create_user(session=db_session, email="a@example.com", display_name="User A")
+    user = await create_user(
+        session=db_session, email=f"{unique_value('user-a')}@example.com", display_name="User A"
+    )
     listening = await create_content(
         session=db_session,
         content_type=ContentType.SHADOWING_DICTATION,
-        slug="listening",
+        slug=unique_value("listening"),
         title="Listening",
     )
     reflex = await create_content(
-        session=db_session, content_type=ContentType.REFLEX, slug="reflex", title="Reflex"
+        session=db_session,
+        content_type=ContentType.REFLEX,
+        slug=unique_value("reflex"),
+        title="Reflex",
     )
     await create_attempt(
         session=db_session, user_id=user.id, content_id=listening.id, attempt_number=1
@@ -298,12 +322,15 @@ async def test_progress_attempts_filter_by_content_type(
 async def test_progress_attempts_filter_by_status(
     client: httpx.AsyncClient,
     db_session: AsyncSession,
+    unique_value: Callable[[str], str],
 ) -> None:
-    user = await create_user(session=db_session, email="a@example.com", display_name="User A")
+    user = await create_user(
+        session=db_session, email=f"{unique_value('user-a')}@example.com", display_name="User A"
+    )
     content = await create_content(
         session=db_session,
         content_type=ContentType.SHADOWING_DICTATION,
-        slug="listening",
+        slug=unique_value("listening"),
         title="Listening",
     )
     await create_attempt(
@@ -332,18 +359,21 @@ async def test_progress_attempts_filter_by_status(
 async def test_progress_attempts_filter_by_search_query(
     client: httpx.AsyncClient,
     db_session: AsyncSession,
+    unique_value: Callable[[str], str],
 ) -> None:
-    user = await create_user(session=db_session, email="a@example.com", display_name="User A")
+    user = await create_user(
+        session=db_session, email=f"{unique_value('user-a')}@example.com", display_name="User A"
+    )
     weather = await create_content(
         session=db_session,
         content_type=ContentType.SHADOWING_DICTATION,
-        slug="weather",
+        slug=unique_value("weather"),
         title="Today's weather forecast",
     )
     shopping = await create_content(
         session=db_session,
         content_type=ContentType.REFLEX,
-        slug="shopping",
+        slug=unique_value("shopping"),
         title="Shopping conversation",
     )
     await create_attempt(
@@ -367,8 +397,11 @@ async def test_progress_attempts_filter_by_search_query(
 async def test_progress_attempts_reject_invalid_status(
     client: httpx.AsyncClient,
     db_session: AsyncSession,
+    unique_value: Callable[[str], str],
 ) -> None:
-    user = await create_user(session=db_session, email="a@example.com", display_name="User A")
+    user = await create_user(
+        session=db_session, email=f"{unique_value('user-a')}@example.com", display_name="User A"
+    )
     set_current_user(user)
 
     response = await client.get(ATTEMPTS_PATH, params={"status": "not-a-status"})
@@ -381,13 +414,22 @@ async def test_progress_attempts_reject_invalid_status(
 async def test_progress_attempts_filter_by_content_id(
     client: httpx.AsyncClient,
     db_session: AsyncSession,
+    unique_value: Callable[[str], str],
 ) -> None:
-    user = await create_user(session=db_session, email="a@example.com", display_name="User A")
+    user = await create_user(
+        session=db_session, email=f"{unique_value('user-a')}@example.com", display_name="User A"
+    )
     content_a = await create_content(
-        session=db_session, content_type=ContentType.SHADOWING_DICTATION, slug="a", title="Lesson A"
+        session=db_session,
+        content_type=ContentType.SHADOWING_DICTATION,
+        slug=unique_value("content-a"),
+        title="Lesson A",
     )
     content_b = await create_content(
-        session=db_session, content_type=ContentType.REFLEX, slug="b", title="Lesson B"
+        session=db_session,
+        content_type=ContentType.REFLEX,
+        slug=unique_value("content-b"),
+        title="Lesson B",
     )
     await create_attempt(
         session=db_session, user_id=user.id, content_id=content_a.id, attempt_number=1
@@ -410,12 +452,15 @@ async def test_progress_attempts_filter_by_content_id(
 async def test_progress_attempts_sorted_newest_first(
     client: httpx.AsyncClient,
     db_session: AsyncSession,
+    unique_value: Callable[[str], str],
 ) -> None:
-    user = await create_user(session=db_session, email="a@example.com", display_name="User A")
+    user = await create_user(
+        session=db_session, email=f"{unique_value('user-a')}@example.com", display_name="User A"
+    )
     content = await create_content(
         session=db_session,
         content_type=ContentType.SHADOWING_DICTATION,
-        slug="listening",
+        slug=unique_value("listening"),
         title="Listening",
     )
     completions = []
@@ -447,12 +492,15 @@ async def test_progress_attempts_sorted_newest_first(
 async def test_progress_attempts_include_in_progress_items(
     client: httpx.AsyncClient,
     db_session: AsyncSession,
+    unique_value: Callable[[str], str],
 ) -> None:
-    user = await create_user(session=db_session, email="a@example.com", display_name="User A")
+    user = await create_user(
+        session=db_session, email=f"{unique_value('user-a')}@example.com", display_name="User A"
+    )
     content = await create_content(
         session=db_session,
         content_type=ContentType.SHADOWING_DICTATION,
-        slug="listening",
+        slug=unique_value("listening"),
         title="Listening",
     )
     await create_attempt(
@@ -481,12 +529,15 @@ async def test_progress_attempts_include_in_progress_items(
 async def test_progress_attempt_detail_returns_attempt(
     client: httpx.AsyncClient,
     db_session: AsyncSession,
+    unique_value: Callable[[str], str],
 ) -> None:
-    user = await create_user(session=db_session, email="a@example.com", display_name="User A")
+    user = await create_user(
+        session=db_session, email=f"{unique_value('user-a')}@example.com", display_name="User A"
+    )
     content = await create_content(
         session=db_session,
         content_type=ContentType.SHADOWING_DICTATION,
-        slug="listening",
+        slug=unique_value("listening"),
         title="Listening",
     )
     completed_at = datetime(2026, 8, 10, 8, 10, tzinfo=UTC)
@@ -520,13 +571,18 @@ async def test_progress_attempt_detail_returns_attempt(
 async def test_progress_attempt_detail_forbidden_for_other_user(
     client: httpx.AsyncClient,
     db_session: AsyncSession,
+    unique_value: Callable[[str], str],
 ) -> None:
-    user_a = await create_user(session=db_session, email="a@example.com", display_name="User A")
-    user_b = await create_user(session=db_session, email="b@example.com", display_name="User B")
+    user_a = await create_user(
+        session=db_session, email=f"{unique_value('user-a')}@example.com", display_name="User A"
+    )
+    user_b = await create_user(
+        session=db_session, email=f"{unique_value('user-b')}@example.com", display_name="User B"
+    )
     content = await create_content(
         session=db_session,
         content_type=ContentType.SHADOWING_DICTATION,
-        slug="listening",
+        slug=unique_value("listening"),
         title="Listening",
     )
     attempt = await create_attempt(
@@ -545,8 +601,11 @@ async def test_progress_attempt_detail_forbidden_for_other_user(
 async def test_progress_attempt_detail_not_found_for_invalid_attempt(
     client: httpx.AsyncClient,
     db_session: AsyncSession,
+    unique_value: Callable[[str], str],
 ) -> None:
-    user = await create_user(session=db_session, email="a@example.com", display_name="User A")
+    user = await create_user(
+        session=db_session, email=f"{unique_value('user-a')}@example.com", display_name="User A"
+    )
     set_current_user(user)
 
     response = await client.get(f"{ATTEMPTS_PATH}/{uuid4()}")
@@ -559,6 +618,7 @@ async def test_progress_attempt_detail_not_found_for_invalid_attempt(
 async def test_progress_endpoints_reject_unauthenticated_requests(
     client: httpx.AsyncClient,
     db_session: AsyncSession,
+    unique_value: Callable[[str], str],
 ) -> None:
     del db_session
 
@@ -572,8 +632,11 @@ async def test_progress_endpoints_reject_unauthenticated_requests(
 async def test_progress_attempts_reject_invalid_content_type(
     client: httpx.AsyncClient,
     db_session: AsyncSession,
+    unique_value: Callable[[str], str],
 ) -> None:
-    user = await create_user(session=db_session, email="a@example.com", display_name="User A")
+    user = await create_user(
+        session=db_session, email=f"{unique_value('user-a')}@example.com", display_name="User A"
+    )
     set_current_user(user)
 
     response = await client.get(ATTEMPTS_PATH, params={"content_type": "not-a-mode"})

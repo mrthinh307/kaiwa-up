@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 
 import httpx
@@ -49,13 +50,19 @@ async def test_get_me_requires_valid_access_token(client: httpx.AsyncClient) -> 
 async def test_get_me_returns_only_current_user(
     client: httpx.AsyncClient,
     db_session: AsyncSession,
+    unique_email: Callable[[str], str],
 ) -> None:
+    current_email = unique_email("current-user")
     current_user = await create_user(
         db_session,
-        email="current@example.com",
+        email=current_email,
         display_name="Current User",
     )
-    await create_user(db_session, email="other@example.com", display_name="Other User")
+    await create_user(
+        db_session,
+        email=unique_email("other-user"),
+        display_name="Other User",
+    )
 
     response = await client.get(
         PROFILE_PATH,
@@ -65,7 +72,7 @@ async def test_get_me_returns_only_current_user(
     assert response.status_code == 200
     payload = response.json()
     assert payload["id"] == str(current_user.id)
-    assert payload["email"] == "current@example.com"
+    assert payload["email"] == current_email
     assert payload["display_name"] == "Current User"
     assert payload["created_at"]
     assert "password_hash" not in payload
@@ -75,8 +82,13 @@ async def test_get_me_returns_only_current_user(
 async def test_update_me_trims_display_name(
     client: httpx.AsyncClient,
     db_session: AsyncSession,
+    unique_email: Callable[[str], str],
 ) -> None:
-    user = await create_user(db_session, email="current@example.com", display_name="Before")
+    user = await create_user(
+        db_session,
+        email=unique_email("update-user"),
+        display_name="Before",
+    )
     headers = bearer(create_access_token(str(user.id)))
 
     response = await client.patch(
@@ -105,8 +117,13 @@ async def test_update_me_rejects_invalid_or_extra_fields(
     client: httpx.AsyncClient,
     db_session: AsyncSession,
     payload: dict[str, str],
+    unique_email: Callable[[str], str],
 ) -> None:
-    user = await create_user(db_session, email="current@example.com", display_name="Before")
+    user = await create_user(
+        db_session,
+        email=unique_email("invalid-update-user"),
+        display_name="Before",
+    )
 
     response = await client.patch(
         PROFILE_PATH,

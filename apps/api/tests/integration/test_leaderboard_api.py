@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from datetime import UTC, datetime
 from uuid import UUID
 
@@ -72,9 +73,18 @@ async def test_weekly_leaderboard_requires_auth(client: httpx.AsyncClient) -> No
 async def test_weekly_leaderboard_returns_rankings_and_user_rank(
     client: httpx.AsyncClient,
     db_session: AsyncSession,
+    unique_email: Callable[[str], str],
 ) -> None:
-    current_user = await create_user(session=db_session, email="me@example.com", display_name="Me")
-    top_user = await create_user(session=db_session, email="top@example.com", display_name="Top")
+    current_user = await create_user(
+        session=db_session,
+        email=unique_email("leaderboard-me"),
+        display_name="Me",
+    )
+    top_user = await create_user(
+        session=db_session,
+        email=unique_email("leaderboard-top"),
+        display_name="Top",
+    )
     await create_xp(session=db_session, user_id=current_user.id, amount=100)
     await create_xp(session=db_session, user_id=top_user.id, amount=250)
 
@@ -107,10 +117,17 @@ async def test_weekly_leaderboard_returns_rankings_and_user_rank(
 async def test_weekly_leaderboard_returns_null_user_rank_without_exp(
     client: httpx.AsyncClient,
     db_session: AsyncSession,
+    unique_email: Callable[[str], str],
 ) -> None:
-    current_user = await create_user(session=db_session, email="me@example.com", display_name="Me")
+    current_user = await create_user(
+        session=db_session,
+        email=unique_email("leaderboard-me"),
+        display_name="Me",
+    )
     other_user = await create_user(
-        session=db_session, email="other@example.com", display_name="Other"
+        session=db_session,
+        email=unique_email("leaderboard-other"),
+        display_name="Other",
     )
     await create_xp(session=db_session, user_id=other_user.id, amount=100)
 
@@ -134,8 +151,13 @@ async def test_weekly_leaderboard_returns_null_user_rank_without_exp(
 async def test_weekly_leaderboard_empty_when_no_snapshot(
     client: httpx.AsyncClient,
     db_session: AsyncSession,
+    unique_email: Callable[[str], str],
 ) -> None:
-    current_user = await create_user(session=db_session, email="me@example.com", display_name="Me")
+    current_user = await create_user(
+        session=db_session,
+        email=unique_email("leaderboard-me"),
+        display_name="Me",
+    )
     await create_xp(session=db_session, user_id=current_user.id, amount=100)
 
     set_current_user(current_user)
@@ -154,12 +176,17 @@ async def test_weekly_leaderboard_empty_when_no_snapshot(
 async def test_weekly_leaderboard_limit_is_applied(
     client: httpx.AsyncClient,
     db_session: AsyncSession,
+    unique_email: Callable[[str], str],
 ) -> None:
-    current_user = await create_user(session=db_session, email="me@example.com", display_name="Me")
+    current_user = await create_user(
+        session=db_session,
+        email=unique_email("leaderboard-me"),
+        display_name="Me",
+    )
     for index in range(3):
         other = await create_user(
             session=db_session,
-            email=f"other{index}@example.com",
+            email=unique_email(f"leaderboard-other-{index}"),
             display_name=f"Other {index}",
         )
         await create_xp(session=db_session, user_id=other.id, amount=100 + index)
@@ -184,8 +211,13 @@ async def test_weekly_leaderboard_limit_is_applied(
 async def test_weekly_leaderboard_rejects_invalid_limit(
     client: httpx.AsyncClient,
     db_session: AsyncSession,
+    unique_email: Callable[[str], str],
 ) -> None:
-    current_user = await create_user(session=db_session, email="me@example.com", display_name="Me")
+    current_user = await create_user(
+        session=db_session,
+        email=unique_email("leaderboard-me"),
+        display_name="Me",
+    )
 
     set_current_user(current_user)
     try:
