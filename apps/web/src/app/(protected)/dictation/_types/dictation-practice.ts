@@ -2,7 +2,6 @@ import type {
   DictationAttemptReviewResponse,
   DictationCompleteResponse,
   DictationContentDetail,
-  DictationSegmentCheckRequest,
   DictationSegmentCheckResponse,
   DictationSegmentItem,
   DictationStartResponse,
@@ -10,57 +9,6 @@ import type {
 import type { FormEvent } from "react";
 
 export type DictationPracticeContent = DictationContentDetail;
-export type DictationPracticeRequest = DictationSegmentCheckRequest;
-
-export type DictationStartActionResponse =
-  | {
-      code: "content_not_found" | "content_unavailable" | "unknown_error";
-      message: string;
-      status: "error";
-    }
-  | {
-      attempt: DictationStartResponse;
-      status: "success";
-    };
-
-export type DictationCheckResponse =
-  | {
-      code:
-        | "attempt_forbidden"
-        | "attempt_not_found"
-        | "attempt_not_in_progress"
-        | "invalid_segment_index"
-        | "unknown_error";
-      message: string;
-      status: "error";
-    }
-  | {
-      result: DictationSegmentCheckResponse;
-      status: "success";
-    };
-
-export type DictationCompleteActionResponse =
-  | {
-      code:
-        | "attempt_forbidden"
-        | "attempt_not_found"
-        | "attempt_not_in_progress"
-        | "content_unavailable"
-        | "unknown_error";
-      message: string;
-      status: "error";
-    }
-  | {
-      completion: DictationCompleteResponse;
-      review: DictationAttemptReviewResponse;
-      status: "success";
-    };
-
-export type DictationInProgressInfo = {
-  attempt: DictationStartResponse;
-  checkedCount: number;
-  results: Record<number, DictationSegmentCheckResponse>;
-};
 
 export type DictationSegmentState = "correct" | "draft" | "incorrect" | "not_started";
 
@@ -76,9 +24,7 @@ export type DictationKeyboardShortcut = {
 
 export type DictationStartPanelProps = {
   content: DictationPracticeContent;
-  inProgressInfo?: DictationInProgressInfo;
   isStarting: boolean;
-  onResume?: () => void;
   onStart: () => void;
   startError?: string;
 };

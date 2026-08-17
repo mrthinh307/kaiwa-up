@@ -5,33 +5,22 @@ import {
   ArrowLeft,
   Bookmark,
   Clock3,
-  History,
   Info,
   Layers3,
   LoaderCircle,
   PlayCircle,
-  RotateCcw,
   Tag,
   Video,
   VideoOff,
 } from "lucide-react";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 
 import { PracticeMethodGuide } from "@/components/common/practice-catalog/practice-method-guide";
 import { ProtectedPageHeader } from "@/components/common/protected-route/protected-page-header";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 
 import type { DictationStartPanelProps } from "../../_types/dictation-practice";
 
@@ -40,14 +29,10 @@ import { formatDictationDuration, getYouTubeVideoId } from "../../_utils/dictati
 
 export function DictationStartPanel({
   content,
-  inProgressInfo,
   isStarting,
-  onResume,
   onStart,
   startError,
 }: DictationStartPanelProps) {
-  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
-
   const youtubeVideoId = useMemo(
     () => (content.audio_url ? getYouTubeVideoId(content.audio_url) : undefined),
     [content.audio_url],
@@ -222,24 +207,6 @@ export function DictationStartPanel({
               </div>
             </dl>
 
-            {inProgressInfo ? (
-              <div className="rounded-base border-2 border-border bg-chart-3/15 p-4 shadow-[2px_2px_0px_0px_var(--border)]">
-                <div className="flex items-center gap-2">
-                  <History aria-hidden="true" className="size-4 text-foreground/80" />
-                  <h3 className="font-heading text-sm text-foreground">
-                    In-Progress Attempt #{inProgressInfo.attempt.attempt_number}
-                  </h3>
-                </div>
-                <p className="mt-1.5 text-xs leading-relaxed text-foreground/75">
-                  You have an unfinished attempt with{" "}
-                  <strong>
-                    {inProgressInfo.checkedCount}/{inProgressInfo.attempt.total_segments}
-                  </strong>{" "}
-                  segments checked.
-                </p>
-              </div>
-            ) : null}
-
             {startError ? (
               <Alert variant="destructive">
                 <AlertCircle aria-hidden="true" />
@@ -250,97 +217,28 @@ export function DictationStartPanel({
           </div>
 
           <div className="space-y-3 p-5 pt-0 sm:p-6 sm:pt-0">
-            {inProgressInfo ? (
-              <>
-                <Button
-                  className="min-h-12 w-full font-heading text-base"
-                  disabled={isStarting}
-                  onClick={onResume}
-                  size="lg"
-                  type="button"
-                >
+            <Button
+              className="min-h-12 w-full font-heading text-base"
+              disabled={isStarting || content.prompts.length === 0}
+              onClick={onStart}
+              size="lg"
+              type="button"
+            >
+              {isStarting ? (
+                <>
+                  <LoaderCircle aria-hidden="true" className="animate-spin" />
+                  Creating attempt...
+                </>
+              ) : (
+                <>
                   <PlayCircle aria-hidden="true" />
-                  Resume In-Progress Attempt
-                </Button>
-                <Button
-                  className="min-h-11 w-full font-heading text-sm"
-                  disabled={isStarting}
-                  onClick={() => setIsConfirmOpen(true)}
-                  type="button"
-                  variant="neutral"
-                >
-                  {isStarting ? (
-                    <>
-                      <LoaderCircle aria-hidden="true" className="animate-spin" />
-                      Starting new attempt...
-                    </>
-                  ) : (
-                    <>
-                      <RotateCcw aria-hidden="true" />
-                      Start New Attempt
-                    </>
-                  )}
-                </Button>
-              </>
-            ) : (
-              <Button
-                className="min-h-12 w-full font-heading text-base"
-                disabled={isStarting || content.prompts.length === 0}
-                onClick={onStart}
-                size="lg"
-                type="button"
-              >
-                {isStarting ? (
-                  <>
-                    <LoaderCircle aria-hidden="true" className="animate-spin" />
-                    Creating attempt...
-                  </>
-                ) : (
-                  <>
-                    <PlayCircle aria-hidden="true" />
-                    Start Dictation Attempt
-                  </>
-                )}
-              </Button>
-            )}
+                  Start Dictation Attempt
+                </>
+              )}
+            </Button>
           </div>
         </section>
       </div>
-
-      {/* Confirmation Dialog for Starting a New Attempt while In-Progress exists */}
-      <Dialog onOpenChange={setIsConfirmOpen} open={isConfirmOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Start a new attempt?</DialogTitle>
-            <DialogDescription className="mt-2 text-sm leading-relaxed text-foreground/80">
-              You currently have an unfinished attempt (Attempt #
-              {inProgressInfo?.attempt.attempt_number}) with{" "}
-              <strong>
-                {inProgressInfo?.checkedCount}/{inProgressInfo?.attempt.total_segments}
-              </strong>{" "}
-              segments checked. Starting a new attempt will discard your in-progress work and create
-              a fresh attempt from segment 1.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="mt-4 flex gap-3 sm:justify-end">
-            <DialogClose asChild>
-              <Button type="button" variant="neutral">
-                Cancel
-              </Button>
-            </DialogClose>
-            <Button
-              onClick={() => {
-                setIsConfirmOpen(false);
-                onStart();
-              }}
-              type="button"
-            >
-              <RotateCcw aria-hidden="true" />
-              Yes, start new attempt
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </>
   );
 }

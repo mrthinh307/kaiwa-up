@@ -1,8 +1,9 @@
 "use client";
 
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, LoaderCircle } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 
 import type { DictationPracticeContent } from "../../_types/dictation-practice";
 
@@ -29,7 +30,7 @@ export function DictationPracticeScreen({ content }: DictationPracticeScreenProp
     answers,
     attempt,
     checkedCount,
-    completeError: _completeError,
+    completeError,
     completion,
     correctCount,
     draftCount,
@@ -38,11 +39,10 @@ export function DictationPracticeScreen({ content }: DictationPracticeScreenProp
     handleNext,
     handlePrevious,
     handleReplay,
-    handleResume,
+    handleReview,
     handleStart,
     handleSubmit,
     hasPlayedActiveSegment,
-    inProgressInfo,
     isChecking,
     isCompleting,
     isSessionReviewed: _isSessionReviewed,
@@ -78,12 +78,29 @@ export function DictationPracticeScreen({ content }: DictationPracticeScreenProp
     return (
       <DictationStartPanel
         content={content}
-        inProgressInfo={inProgressInfo}
         isStarting={isStarting}
-        onResume={handleResume}
         onStart={handleStart}
         startError={startError}
       />
+    );
+  }
+
+  if (completion && !review) {
+    return (
+      <div className="mx-auto max-w-2xl space-y-4 py-12">
+        <Alert variant="destructive">
+          <AlertCircle aria-hidden="true" />
+          <AlertTitle>Attempt saved, review unavailable</AlertTitle>
+          <AlertDescription>
+            Your score of {completion.score}% and +{completion.earned_exp} EXP were saved by the
+            backend. {completeError ?? "The answer review could not be loaded."}
+          </AlertDescription>
+        </Alert>
+        <Button disabled={isCompleting} onClick={handleReview} type="button">
+          {isCompleting ? <LoaderCircle aria-hidden="true" className="animate-spin" /> : null}
+          {isCompleting ? "Loading review..." : "Load result again"}
+        </Button>
+      </div>
     );
   }
 
@@ -116,6 +133,14 @@ export function DictationPracticeScreen({ content }: DictationPracticeScreenProp
 
   return (
     <div className="space-y-6">
+      {completeError ? (
+        <Alert variant="destructive">
+          <AlertCircle aria-hidden="true" />
+          <AlertTitle>Unable to complete attempt</AlertTitle>
+          <AlertDescription>{completeError}</AlertDescription>
+        </Alert>
+      ) : null}
+
       {/* 1. Compact Focus Toolbar */}
       <CompactPracticeToolbar
         checkedCount={checkedCount}
