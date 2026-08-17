@@ -79,6 +79,15 @@ export function useDictationPractice({ content }: UseDictationPracticeProps) {
   ).length;
   const isSessionReviewed = Boolean(attempt && checkedCount === attempt.total_segments);
 
+  const scrollToPracticeStart = useCallback(() => {
+    window.requestAnimationFrame(() => {
+      document.getElementById("dictation-practice-screen")?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
+  }, []);
+
   useEffect(() => {
     if (!attempt) {
       return;
@@ -127,6 +136,7 @@ export function useDictationPractice({ content }: UseDictationPracticeProps) {
     setCompletion(undefined);
     setReview(undefined);
     setSubmitError(undefined);
+    scrollToPracticeStart();
   };
 
   const handleStart = async () => {
@@ -155,6 +165,7 @@ export function useDictationPractice({ content }: UseDictationPracticeProps) {
       setResults({});
       setReview(undefined);
       setSubmitError(undefined);
+      scrollToPracticeStart();
     } catch {
       setStartError("We could not start this attempt. Please try again.");
     } finally {

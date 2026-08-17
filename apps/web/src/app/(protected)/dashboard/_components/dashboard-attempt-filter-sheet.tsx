@@ -68,13 +68,13 @@ export function DashboardAttemptFilterSheet({
 
   const handleApply = () => {
     startTransition(() => {
-      router.push(
-        buildDashboardHref({
-          mode: draftMode,
-          searchQuery,
-          status: draftStatus,
-        }),
-      );
+      const href = buildDashboardHref({
+        mode: draftMode,
+        searchQuery,
+        status: draftStatus,
+      });
+
+      router.push(`${href}#dashboard-attempts-heading`);
       setIsOpen(false);
     });
   };
