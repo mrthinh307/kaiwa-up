@@ -1,0 +1,144 @@
+.rewardCard {
+  animation: exp-reward-card 1450ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.counter {
+  display: inline-block;
+  transform-origin: center;
+  animation: exp-reward-counter 720ms cubic-bezier(0.22, 1, 0.36, 1) 100ms both;
+}
+
+.particle {
+  opacity: 0;
+}
+
+.particleTop {
+  animation: exp-particle-top 620ms ease-out 220ms both;
+}
+
+.particleRight {
+  animation: exp-particle-right 600ms ease-out 280ms both;
+}
+
+.particleBottom {
+  animation: exp-particle-bottom 620ms ease-out 260ms both;
+}
+
+.particleLeft {
+  animation: exp-particle-left 600ms ease-out 320ms both;
+}
+
+@keyframes exp-reward-card {
+  0% {
+    opacity: 0;
+    transform: translateY(24px) scale(0.72);
+  }
+
+  14% {
+    opacity: 1;
+    transform: translateY(-8px) scale(1.08);
+  }
+
+  24% {
+    transform: translateY(0) scale(1);
+  }
+
+  78% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateY(-28px) scale(0.96);
+  }
+}
+
+@keyframes exp-reward-counter {
+  0% {
+    transform: scale(0.88);
+  }
+
+  50% {
+    transform: scale(1.16);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes exp-particle-top {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 8px) rotate(0deg);
+  }
+
+  30% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -42px) rotate(90deg);
+  }
+}
+
+@keyframes exp-particle-right {
+  0% {
+    opacity: 0;
+    transform: translate(-8px, -50%) rotate(0deg);
+  }
+
+  30% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(42px, -50%) rotate(90deg);
+  }
+}
+
+@keyframes exp-particle-bottom {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -8px) rotate(0deg);
+  }
+
+  30% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(-50%, 42px) rotate(90deg);
+  }
+}
+
+@keyframes exp-particle-left {
+  0% {
+    opacity: 0;
+    transform: translate(8px, -50%) rotate(0deg);
+  }
+
+  30% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(-42px, -50%) rotate(90deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rewardCard,
+  .counter,
+  .particleTop,
+  .particleRight,
+  .particleBottom,
+  .particleLeft {
+    animation: none;
+  }
+}
