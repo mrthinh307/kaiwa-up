@@ -4,7 +4,7 @@ import { ProtectedUserAvatar } from "@/components/layouts/protected-user-avatar"
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
-import type { LeaderboardEntry } from "../_utils/leaderboard-mock-adapter";
+import type { LeaderboardEntry } from "../_utils/leaderboard-types";
 
 import { formatLeaderboardExp, formatLeaderboardRank } from "../_utils/leaderboard-formatters";
 
