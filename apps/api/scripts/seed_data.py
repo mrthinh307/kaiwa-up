@@ -12,17 +12,9 @@ from app.core.config import settings
 from app.core.security import hash_password
 from app.integrations.youtube import YouTubeCaptionProvider
 from app.models.attempt import ExerciseAttempt, ReviewSchedule
-from app.models.content import (
-    LearningContent,
-    ReflexExercise,
-    TranslationExercise,
-)
+from app.models.content import LearningContent, ReflexExercise, TranslationExercise
 from app.models.enums import AttemptStatus, ContentStatus, ContentType, JlptLevel, UserRole
-from app.models.gamification import (
-    Achievement,
-    WeeklyLeaderboardEntry,
-    XpTransaction,
-)
+from app.models.gamification import Achievement, WeeklyLeaderboardEntry, XpTransaction
 from app.models.user import User, UserProgress
 from app.repositories.learning_content import LearningContentRepository
 from app.schemas.learning_content import LearningContentCreate
@@ -137,7 +129,7 @@ async def seed_youtube_lessons(session: AsyncSession) -> list[LearningContent]:
         if content is None:
             created = await service.create_from_youtube(
                 LearningContentCreate(
-                    youtube_url=youtube_url,
+                    youtube_url=youtube_url,  # type: ignore
                     title=lesson["title"],
                     topic="Japanese listening",
                     difficulty=lesson["difficulty"],
@@ -284,29 +276,29 @@ async def seed_data(clean: bool = False) -> dict[str, int]:
         achievements_data = [
             {
                 "code": "first_lesson",
-                "name": "Khởi đầu mới",
-                "description": "Hoàn thành bài học đầu tiên",
+                "name": "A Fresh Start",
+                "description": "Complete your first lesson",
                 "icon_url": "https://res.cloudinary.com/kaiwaup/image/upload/v1/badges/first.png",
                 "criteria": {"type": "completed_count", "target": 1},
             },
             {
                 "code": "shadow_master_1",
-                "name": "Bậc Thầy Shadowing I",
-                "description": "Hoàn thành 5 bài tập Shadowing",
+                "name": "Shadowing Master I",
+                "description": "Complete 5 shadowing exercises",
                 "icon_url": "https://res.cloudinary.com/kaiwaup/image/upload/v1/badges/shadow1.png",
                 "criteria": {"type": "shadowing_count", "target": 5},
             },
             {
                 "code": "dictation_pro",
-                "name": "Thánh Nghe Chép",
-                "description": "Đạt điểm tuyệt đối trong 1 bài Dictation",
+                "name": "Dictation Pro",
+                "description": "Achieve a perfect score in one dictation exercise",
                 "icon_url": "https://res.cloudinary.com/kaiwaup/image/upload/v1/badges/dictation.png",
                 "criteria": {"type": "dictation_score", "target": 100},
             },
             {
                 "code": "reflex_king",
-                "name": "Phản Xạ Thần Tốc",
-                "description": "Trả lời Reflex dưới 2 giây",
+                "name": "Reflex King",
+                "description": "Answer a reflex exercise in under 2 seconds",
                 "icon_url": "https://res.cloudinary.com/kaiwaup/image/upload/v1/badges/reflex.png",
                 "criteria": {"type": "reflex_speed", "max_seconds": 2},
             },
@@ -314,9 +306,17 @@ async def seed_data(clean: bool = False) -> dict[str, int]:
 
         for ach in achievements_data:
             achievement_query = select(Achievement).where(Achievement.code == ach["code"])
-            if not (await session.execute(achievement_query)).scalar_one_or_none():
+            existing_achievement = (await session.execute(achievement_query)).scalar_one_or_none()
+            if not existing_achievement:
                 session.add(Achievement(**ach))
                 stats["achievements"] += 1
+            elif (
+                existing_achievement.name != ach["name"]
+                or existing_achievement.description != ach["description"]
+            ):
+                existing_achievement.name = ach["name"]
+                existing_achievement.description = ach["description"]
+                await session.flush()
 
         # ==========================================
         # 4. SEED LEARNING CONTENTS & EXERCISES
@@ -329,14 +329,14 @@ async def seed_data(clean: bool = False) -> dict[str, int]:
         reflex_lessons = [
             {
                 "slug": "reflex-n5-greeting",
-                "title": "N5: Đáp lại lời chào hỏi",
+                "title": "Đáp lại lời chào hỏi",
                 "difficulty": JlptLevel.N5,
                 "prompt_ja": "おはようございます！",
                 "scenario": "Gặp đồng nghiệp vào buổi sáng tại công ty",
             },
             {
                 "slug": "reflex-n3-invitation",
-                "title": "N3: Từ chối lời mời lịch sự",
+                "title": "Từ chối lời mời một cách lịch sự",
                 "difficulty": JlptLevel.N3,
                 "prompt_ja": "今晩、一緒に飲みに行きませんか。",
                 "scenario": "Được sếp rủ đi uống rượu nhưng bạn có hẹn trước",
@@ -367,20 +367,23 @@ async def seed_data(clean: bool = False) -> dict[str, int]:
                 )
                 session.add(reflex_ex)
                 stats["reflex_lessons"] += 1
+            elif content.title != r["title"]:
+                content.title = r["title"]
+                await session.flush()
             seeded_contents.append(content)
 
         # 4.4 Listening & Translation (2 lessons)
         translation_lessons = [
             {
                 "slug": "translation-n4-restaurant",
-                "title": "N4: Gọi món tại nhà hàng",
+                "title": "Gọi món tại nhà hàng",
                 "difficulty": JlptLevel.N4,
                 "audio_url": "https://www.youtube.com/watch?v=KaiwaN4T001",
                 "ref_vi": "Xin lỗi, cho tôi xem thực đơn.",
             },
             {
                 "slug": "translation-n2-business",
-                "title": "N2: Đàm phán hợp đồng",
+                "title": "Đàm phán hợp đồng",
                 "difficulty": JlptLevel.N2,
                 "audio_url": "https://www.youtube.com/watch?v=KaiwaN2T001",
                 "ref_vi": "Chúng tôi mong muốn điều chỉnh lại điều khoản thanh toán.",
@@ -410,6 +413,9 @@ async def seed_data(clean: bool = False) -> dict[str, int]:
                 )
                 session.add(trans_ex)
                 stats["listening_translation_lessons"] += 1
+            elif content.title != t["title"]:
+                content.title = t["title"]
+                await session.flush()
             seeded_contents.append(content)
 
         # ==========================================
