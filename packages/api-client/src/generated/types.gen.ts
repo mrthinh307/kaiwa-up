@@ -436,6 +436,32 @@ export type HealthResponse = {
 export type JlptLevel = "N5" | "N4" | "N3" | "N2" | "N1";
 
 /**
+ * LeaderboardUser
+ */
+export type LeaderboardUser = {
+  /**
+   * Rank
+   */
+  rank: number;
+  /**
+   * User Id
+   */
+  user_id: string;
+  /**
+   * Display Name
+   */
+  display_name: string | null;
+  /**
+   * Avatar Url
+   */
+  avatar_url: string | null;
+  /**
+   * Weekly Exp
+   */
+  weekly_exp: number;
+};
+
+/**
  * LearningContentCreate
  */
 export type LearningContentCreate = {
@@ -1034,6 +1060,21 @@ export type ValidationErrorDetail = {
   type: string;
 };
 
+/**
+ * WeeklyLeaderboardData
+ */
+export type WeeklyLeaderboardData = {
+  /**
+   * Week Start
+   */
+  week_start: string;
+  user_rank?: LeaderboardUser | null;
+  /**
+   * Rankings
+   */
+  rankings?: Array<LeaderboardUser>;
+};
+
 export type HealthCheckData = {
   body?: never;
   path?: never;
@@ -1568,7 +1609,7 @@ export type CheckDictationSegmentErrors = {
    */
   409: ErrorResponse;
   /**
-   * Unprocessable Content
+   * Unprocessable Entity
    */
   422: ErrorResponse;
 };
@@ -1885,3 +1926,35 @@ export type UpdateMeResponses = {
 };
 
 export type UpdateMeResponse = UpdateMeResponses[keyof UpdateMeResponses];
+
+export type GetWeeklyLeaderboardData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Limit
+     */
+    limit?: number;
+  };
+  url: "/api/v1/leaderboard/weekly";
+};
+
+export type GetWeeklyLeaderboardErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetWeeklyLeaderboardError =
+  GetWeeklyLeaderboardErrors[keyof GetWeeklyLeaderboardErrors];
+
+export type GetWeeklyLeaderboardResponses = {
+  /**
+   * Successful Response
+   */
+  200: WeeklyLeaderboardData;
+};
+
+export type GetWeeklyLeaderboardResponse =
+  GetWeeklyLeaderboardResponses[keyof GetWeeklyLeaderboardResponses];

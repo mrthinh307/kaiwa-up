@@ -876,7 +876,7 @@
             }
           },
           "422": {
-            "description": "Unprocessable Content",
+            "description": "Unprocessable Entity",
             "content": {
               "application/json": {
                 "schema": {
@@ -1128,7 +1128,7 @@
                 }
               }
             },
-            "description": "Unprocessable Content"
+            "description": "Unprocessable Entity"
           }
         }
       }
@@ -1171,7 +1171,7 @@
             }
           },
           "422": {
-            "description": "Unprocessable Content",
+            "description": "Unprocessable Entity",
             "content": {
               "application/json": {
                 "schema": {
@@ -1221,7 +1221,7 @@
             }
           },
           "422": {
-            "description": "Unprocessable Content",
+            "description": "Unprocessable Entity",
             "content": {
               "application/json": {
                 "schema": {
@@ -1418,6 +1418,54 @@
             "HTTPBearer": []
           }
         ]
+      }
+    },
+    "/api/v1/leaderboard/weekly": {
+      "get": {
+        "tags": ["Leaderboard"],
+        "summary": "Get the weekly EXP leaderboard and the current user's rank",
+        "operationId": "getWeeklyLeaderboard",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WeeklyLeaderboardData"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     }
   },
@@ -2045,6 +2093,56 @@
         "type": "string",
         "enum": ["N5", "N4", "N3", "N2", "N1"],
         "title": "JlptLevel"
+      },
+      "LeaderboardUser": {
+        "properties": {
+          "rank": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Rank"
+          },
+          "user_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "User Id"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "avatar_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatar Url"
+          },
+          "weekly_exp": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Weekly Exp"
+          }
+        },
+        "type": "object",
+        "required": [
+          "rank",
+          "user_id",
+          "display_name",
+          "avatar_url",
+          "weekly_exp"
+        ],
+        "title": "LeaderboardUser"
       },
       "LearningContentCreate": {
         "properties": {
@@ -3057,6 +3155,35 @@
         "required": ["field", "message", "type"],
         "title": "ValidationErrorDetail",
         "description": "Field-level validation failure returned in an error envelope."
+      },
+      "WeeklyLeaderboardData": {
+        "properties": {
+          "week_start": {
+            "type": "string",
+            "format": "date",
+            "title": "Week Start"
+          },
+          "user_rank": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LeaderboardUser"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "rankings": {
+            "items": {
+              "$ref": "#/components/schemas/LeaderboardUser"
+            },
+            "type": "array",
+            "title": "Rankings"
+          }
+        },
+        "type": "object",
+        "required": ["week_start"],
+        "title": "WeeklyLeaderboardData"
       }
     },
     "securitySchemes": {
