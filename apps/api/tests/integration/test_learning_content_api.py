@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from datetime import UTC, datetime
 
 import httpx
@@ -67,10 +68,12 @@ def set_current_user(user: User) -> None:
 async def test_list_learning_contents_returns_only_matching_published_content(
     client: httpx.AsyncClient,
     db_session: AsyncSession,
+    unique_value: Callable[[str], str],
 ) -> None:
-    published = await create_content(db_session, slug="published")
-    await create_content(db_session, slug="draft", status=ContentStatus.DRAFT)
-    await create_content(db_session, slug="reflex", content_type=ContentType.REFLEX)
+    published_slug = unique_value("published")
+    published = await create_content(db_session, slug=published_slug)
+    await create_content(db_session, slug=unique_value("draft"), status=ContentStatus.DRAFT)
+    await create_content(db_session, slug=unique_value("reflex"), content_type=ContentType.REFLEX)
 
     response = await client.get(
         "/api/v1/lessons",
@@ -83,7 +86,7 @@ async def test_list_learning_contents_returns_only_matching_published_content(
     assert payload["items"] == [
         {
             "id": str(published.id),
-            "title": "Bài học published",
+            "title": f"Bài học {published_slug}",
             "description": "Mô tả bài học",
             "content_type": "shadowing_dictation",
             "difficulty": "N5",
@@ -98,8 +101,9 @@ async def test_list_learning_contents_returns_only_matching_published_content(
 async def test_shadowing_detail_returns_timestamped_transcript(
     client: httpx.AsyncClient,
     db_session: AsyncSession,
+    unique_value: Callable[[str], str],
 ) -> None:
-    content = await create_content(db_session, slug="shadowing-detail")
+    content = await create_content(db_session, slug=unique_value("shadowing-detail"))
 
     response = await client.get(f"/api/v1/shadowing/lessons/{content.id}")
 
@@ -116,8 +120,9 @@ async def test_shadowing_detail_returns_timestamped_transcript(
 async def test_dictation_detail_masks_every_transcript_segment(
     client: httpx.AsyncClient,
     db_session: AsyncSession,
+    unique_value: Callable[[str], str],
 ) -> None:
-    content = await create_content(db_session, slug="dictation-detail")
+    content = await create_content(db_session, slug=unique_value("dictation-detail"))
 
     response = await client.get(f"/api/v1/dictation/lessons/{content.id}")
 
@@ -143,10 +148,11 @@ async def test_dictation_detail_masks_every_transcript_segment(
 async def test_specialized_detail_rejects_other_content_types(
     client: httpx.AsyncClient,
     db_session: AsyncSession,
+    unique_value: Callable[[str], str],
 ) -> None:
     content = await create_content(
         db_session,
-        slug="reflex-detail",
+        slug=unique_value("reflex-detail"),
         content_type=ContentType.REFLEX,
     )
 
@@ -205,6 +211,7 @@ async def test_admin_creates_draft_content_from_youtube_captions(
 async def test_regular_user_cannot_create_learning_content(
     client: httpx.AsyncClient,
     db_session: AsyncSession,
+    unique_value: Callable[[str], str],
 ) -> None:
     user = await create_user(db_session, role=UserRole.USER)
     set_current_user(user)
@@ -222,11 +229,12 @@ async def test_regular_user_cannot_create_learning_content(
 async def test_admin_publishes_draft_learning_content(
     client: httpx.AsyncClient,
     db_session: AsyncSession,
+    unique_value: Callable[[str], str],
 ) -> None:
     admin = await create_user(db_session, role=UserRole.ADMIN)
     draft = await create_content(
         db_session,
-        slug="draft-to-publish",
+        slug=unique_value("draft-to-publish"),
         status=ContentStatus.DRAFT,
     )
     set_current_user(admin)
@@ -247,9 +255,10 @@ async def test_admin_publishes_draft_learning_content(
 async def test_publish_rejects_already_published_content(
     client: httpx.AsyncClient,
     db_session: AsyncSession,
+    unique_value: Callable[[str], str],
 ) -> None:
     admin = await create_user(db_session, role=UserRole.ADMIN)
-    published = await create_content(db_session, slug="already-published")
+    published = await create_content(db_session, slug=unique_value("already-published"))
     original_published_at = published.published_at
     set_current_user(admin)
 
@@ -265,11 +274,12 @@ async def test_publish_rejects_already_published_content(
 async def test_regular_user_cannot_publish_learning_content(
     client: httpx.AsyncClient,
     db_session: AsyncSession,
+    unique_value: Callable[[str], str],
 ) -> None:
     user = await create_user(db_session, role=UserRole.USER)
     draft = await create_content(
         db_session,
-        slug="unauthorized-publish",
+        slug=unique_value("unauthorized-publish"),
         status=ContentStatus.DRAFT,
     )
     set_current_user(user)
@@ -285,11 +295,12 @@ async def test_regular_user_cannot_publish_learning_content(
 async def test_publish_rejects_incomplete_draft(
     client: httpx.AsyncClient,
     db_session: AsyncSession,
+    unique_value: Callable[[str], str],
 ) -> None:
     admin = await create_user(db_session, role=UserRole.ADMIN)
     draft = await create_content(
         db_session,
-        slug="incomplete-draft",
+        slug=unique_value("incomplete-draft"),
         status=ContentStatus.DRAFT,
     )
     draft.transcript_ja = []

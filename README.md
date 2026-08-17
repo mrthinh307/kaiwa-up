@@ -152,12 +152,13 @@ For API development and testing, the repository exposes commands that keep the b
 make install-api
 ```
 
-2. Set up the test database branch:
+2. Set up an isolated test database:
 
 - Copy `apps/api/.env.example` to `apps/api/.env`
-- Add `DATABASE_URL_TEST` pointing to a Neon test branch
+- Add `DATABASE_URL_TEST` pointing to an isolated PostgreSQL database. A Neon test branch can be
+  used for local smoke, migration, and production-like verification.
 
-3. Apply migrations to the Neon test database branch:
+3. Apply migrations to the test database:
 
 ```bash
 make migrate-api-test
@@ -169,7 +170,13 @@ make migrate-api-test
 make test-api
 ```
 
-The API tests use `DATABASE_URL_TEST` and are intended to run against an isolated Neon test branch. Each test runs in its own transaction and rolls back after completion, so test data is not persisted and multiple developers or CI runners can execute tests safely in parallel.
+The API tests use `DATABASE_URL_TEST`. Each test runs in its own transaction and rolls back after
+completion, so test data is not persisted.
+
+Pull-request CI starts a disposable PostgreSQL 16 service on the GitHub Actions runner, applies all
+Alembic migrations, and runs pytest with four parallel workers. The database is isolated per CI job
+and removed automatically when the job finishes, so pull requests do not use the shared Neon test
+branch or require its connection secret.
 
 ## CI
 
@@ -178,8 +185,8 @@ Pull requests automatically run the repository CI pipeline. The backend job runs
 - `uv run ruff check .`
 - `uv run ruff format --check .`
 - `uv run mypy`
-- `uv run alembic upgrade head` against `DATABASE_URL_TEST`
-- `uv run pytest`
+- `uv run alembic upgrade head` against a disposable PostgreSQL 16 service
+- `uv run pytest -n 4 --dist loadfile --durations=20`
 
 The frontend job runs:
 

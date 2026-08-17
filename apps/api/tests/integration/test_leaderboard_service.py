@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from datetime import UTC, datetime
 
 import pytest
@@ -37,9 +38,18 @@ async def create_xp(
 @pytest.mark.asyncio
 async def test_rebuild_week_aggregates_exp_within_week(
     db_session: AsyncSession,
+    unique_email: Callable[[str], str],
 ) -> None:
-    user_a = await create_user(session=db_session, email="a@example.com", display_name="User A")
-    user_b = await create_user(session=db_session, email="b@example.com", display_name="User B")
+    user_a = await create_user(
+        session=db_session,
+        email=unique_email("leaderboard-user-a"),
+        display_name="User A",
+    )
+    user_b = await create_user(
+        session=db_session,
+        email=unique_email("leaderboard-user-b"),
+        display_name="User B",
+    )
     service = LeaderboardService(LeaderboardRepository(db_session))
 
     monday = datetime(2026, 8, 10, tzinfo=UTC)
@@ -65,9 +75,18 @@ async def test_rebuild_week_aggregates_exp_within_week(
 @pytest.mark.asyncio
 async def test_rebuild_week_breaks_ties_by_user_id(
     db_session: AsyncSession,
+    unique_email: Callable[[str], str],
 ) -> None:
-    user_a = await create_user(session=db_session, email="a@example.com", display_name="User A")
-    user_b = await create_user(session=db_session, email="b@example.com", display_name="User B")
+    user_a = await create_user(
+        session=db_session,
+        email=unique_email("leaderboard-user-a"),
+        display_name="User A",
+    )
+    user_b = await create_user(
+        session=db_session,
+        email=unique_email("leaderboard-user-b"),
+        display_name="User B",
+    )
     service = LeaderboardService(LeaderboardRepository(db_session))
     monday = datetime(2026, 8, 10, 12, 0, tzinfo=UTC)
     await create_xp(session=db_session, user_id=user_a.id, amount=150, created_at=monday)
@@ -84,8 +103,15 @@ async def test_rebuild_week_breaks_ties_by_user_id(
 
 
 @pytest.mark.asyncio
-async def test_rebuild_week_is_idempotent(db_session: AsyncSession) -> None:
-    user_a = await create_user(session=db_session, email="a@example.com", display_name="User A")
+async def test_rebuild_week_is_idempotent(
+    db_session: AsyncSession,
+    unique_email: Callable[[str], str],
+) -> None:
+    user_a = await create_user(
+        session=db_session,
+        email=unique_email("leaderboard-user-a"),
+        display_name="User A",
+    )
     service = LeaderboardService(LeaderboardRepository(db_session))
     monday = datetime(2026, 8, 10, 12, 0, tzinfo=UTC)
     await create_xp(session=db_session, user_id=user_a.id, amount=100, created_at=monday)
