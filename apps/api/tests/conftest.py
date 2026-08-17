@@ -1,6 +1,9 @@
 # apps/api/tests/conftest.py
+from collections.abc import Callable
 from pathlib import Path
+from uuid import uuid4
 
+import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -27,6 +30,28 @@ DATABASE_URL_TEST = DatabaseTestSettings().database_url_test
 
 engine_test = create_async_engine(DATABASE_URL_TEST, poolclass=NullPool)
 TestSessionLocal = async_sessionmaker(bind=engine_test, expire_on_commit=False, class_=AsyncSession)
+
+UniqueValueFactory = Callable[[str], str]
+
+
+@pytest.fixture
+def unique_value(worker_id: str) -> UniqueValueFactory:
+    """Build values that stay unique across tests and xdist workers."""
+
+    def build(prefix: str) -> str:
+        return f"{prefix}-{worker_id}-{uuid4().hex}"
+
+    return build
+
+
+@pytest.fixture
+def unique_email(unique_value: UniqueValueFactory) -> UniqueValueFactory:
+    """Build unique email addresses while retaining a readable test prefix."""
+
+    def build(prefix: str) -> str:
+        return f"{unique_value(prefix)}@example.com"
+
+    return build
 
 
 @pytest_asyncio.fixture
