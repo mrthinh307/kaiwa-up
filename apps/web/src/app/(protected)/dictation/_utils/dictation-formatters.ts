@@ -9,11 +9,8 @@ export function formatDictationDuration(durationSeconds: number): string {
 export function formatDictationTimestamp(timeMs: number): string {
   const minutes = Math.floor(timeMs / 60_000);
   const seconds = Math.floor((timeMs % 60_000) / 1_000);
-  const milliseconds = timeMs % 1_000;
 
-  return `${minutes}:${seconds.toString().padStart(2, "0")}.${milliseconds
-    .toString()
-    .padStart(3, "0")}`;
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 }
 
 export function getYouTubeVideoId(audioUrl: string): string | undefined {
