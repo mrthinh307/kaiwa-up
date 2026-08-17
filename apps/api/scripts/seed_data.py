@@ -15,6 +15,7 @@ from app.models.attempt import ExerciseAttempt, ReviewSchedule
 from app.models.content import LearningContent, ReflexExercise, TranslationExercise
 from app.models.enums import AttemptStatus, ContentStatus, ContentType, JlptLevel, UserRole
 from app.models.gamification import Achievement, WeeklyLeaderboardEntry, XpTransaction
+from app.models.tutor import TutorScenario
 from app.models.user import User, UserProgress
 from app.repositories.learning_content import LearningContentRepository
 from app.schemas.learning_content import LearningContentCreate
@@ -36,6 +37,38 @@ class YouTubeLessonSeed(TypedDict):
     youtube_url: str
     title: str
     difficulty: JlptLevel
+
+
+class ReflexLessonSeed(TypedDict):
+    slug: str
+    title: str
+    short_description: str
+    topic: str
+    difficulty: JlptLevel
+    audio_url: str
+    audio_duration_ms: int
+    prompt_ja: str
+    scenario_ja: str
+
+
+class TranslationLessonSeed(TypedDict):
+    slug: str
+    title: str
+    short_description: str
+    topic: str
+    difficulty: JlptLevel
+    audio_url: str
+    audio_duration_ms: int
+    transcript_ja: list[dict[str, object]]
+    reference_translation_vi: str
+
+
+class TutorScenarioSeed(TypedDict):
+    slug: str
+    topic: str
+    title: str
+    scenario: str
+    display_order: int
 
 
 YOUTUBE_LESSONS: tuple[YouTubeLessonSeed, ...] = (
@@ -115,6 +148,287 @@ YOUTUBE_LESSONS: tuple[YouTubeLessonSeed, ...] = (
 )
 
 
+REFLEX_LESSONS: tuple[ReflexLessonSeed, ...] = (
+    {
+        "slug": "reflex-n5-greeting",
+        "title": "Chào hỏi buổi sáng",
+        "short_description": "Gặp đồng nghiệp và chào hỏi vào buổi sáng.",
+        "topic": "Giao tiếp hàng ngày",
+        "difficulty": JlptLevel.N5,
+        "audio_url": "https://res.cloudinary.com/pje4ce0j/video/upload/v1786964054/reflex/n5/greeting.mp3",
+        "audio_duration_ms": 4702,
+        "prompt_ja": "おはようございます。今日はいい天気ですね。",
+        "scenario_ja": "会社で同僚に朝のあいさつをする場面",
+    },
+    {
+        "slug": "reflex-n4-shopping",
+        "title": "Hỏi mua quần áo",
+        "short_description": "Trao đổi với nhân viên khi tìm quần áo trong cửa hàng.",
+        "topic": "Mua sắm",
+        "difficulty": JlptLevel.N4,
+        "audio_url": "https://res.cloudinary.com/pje4ce0j/video/upload/v1786964120/reflex/n4/shopping.mp3",
+        "audio_duration_ms": 4780,
+        "prompt_ja": "いらっしゃいませ。今日は何をお探しですか。",
+        "scenario_ja": "店員がお客さんに声をかける場面",
+    },
+    {
+        "slug": "reflex-n3-invitation",
+        "title": "Từ chối lời mời lịch sự",
+        "short_description": "Phản hồi lời mời đi uống vào buổi tối một cách lịch sự.",
+        "topic": "Lời mời",
+        "difficulty": JlptLevel.N3,
+        "audio_url": "https://res.cloudinary.com/pje4ce0j/video/upload/v1786964137/reflex/n3/invitation.mp3",
+        "audio_duration_ms": 3396,
+        "prompt_ja": "今晩、一緒に飲みに行きませんか。",
+        "scenario_ja": "友人から飲みに誘われた場面",
+    },
+    {
+        "slug": "reflex-n2-workplace-request",
+        "title": "Nhờ xác nhận tài liệu",
+        "short_description": "Nhờ đồng nghiệp kiểm tra tài liệu trước cuộc họp ngày mai.",
+        "topic": "Công việc",
+        "difficulty": JlptLevel.N2,
+        "audio_url": "https://res.cloudinary.com/pje4ce0j/video/upload/v1786964160/reflex/n2/workplace-request.mp3",
+        "audio_duration_ms": 5251,
+        "prompt_ja": "この資料について、明日の会議までに確認していただけますか。",
+        "scenario_ja": "会議前に資料の確認を依頼する場面",
+    },
+    {
+        "slug": "reflex-n1-workstyle-opinion",
+        "title": "Quan điểm về cách làm việc",
+        "short_description": "Nêu ý kiến về sự đa dạng trong cách làm việc hiện nay.",
+        "topic": "Xã hội",
+        "difficulty": JlptLevel.N1,
+        "audio_url": "https://res.cloudinary.com/pje4ce0j/video/upload/v1786964183/reflex/n1/workstyle-opinion.mp3",
+        "audio_duration_ms": 5669,
+        "prompt_ja": "最近、働き方の多様化について、どのようにお考えですか。",
+        "scenario_ja": "働き方の多様化について意見を述べる場面",
+    },
+)
+
+
+TRANSLATION_LESSONS: tuple[TranslationLessonSeed, ...] = (
+    {
+        "slug": "translation-n5-restaurant",
+        "title": "Đặt bàn tại nhà hàng",
+        "short_description": "Nghe hội thoại ngắn khi đặt chỗ tại nhà hàng.",
+        "topic": "Nhà hàng",
+        "difficulty": JlptLevel.N5,
+        "audio_url": "https://res.cloudinary.com/pje4ce0j/video/upload/v1786965089/translation/n5/restaurant.mp3",
+        "audio_duration_ms": 11807,
+        "transcript_ja": [
+            {
+                "start_time_ms": 0,
+                "end_time_ms": 11807,
+                "script": (
+                    "いらっしゃいませ。何名様ですか。"
+                    "二人です。窓の近くの席はありますか。"
+                    "はい、こちらへどうぞ。"
+                ),
+            }
+        ],
+        "reference_translation_vi": (
+            "Xin chào quý khách. Quý khách đi mấy người ạ? Hai người. "
+            "Có chỗ nào gần cửa sổ không? Vâng, mời quý khách qua đây."
+        ),
+    },
+    {
+        "slug": "translation-n4-shopping",
+        "title": "Mua sắm quần áo",
+        "short_description": "Nghe hội thoại khi hỏi size và thử quần áo trong cửa hàng.",
+        "topic": "Mua sắm",
+        "difficulty": JlptLevel.N4,
+        "audio_url": "https://res.cloudinary.com/pje4ce0j/video/upload/v1786965128/translation/n4/shopping.mp3",
+        "audio_duration_ms": 12330,
+        "transcript_ja": [
+            {
+                "start_time_ms": 0,
+                "end_time_ms": 12330,
+                "script": (
+                    "すみません。このシャツの大きいサイズはありますか。"
+                    "はい、ございます。試着してもいいですか。"
+                    "もちろんです。"
+                ),
+            }
+        ],
+        "reference_translation_vi": (
+            "Xin lỗi, chiếc áo này có size lớn hơn không? Có ạ. "
+            "Tôi thử đồ được không? Tất nhiên rồi."
+        ),
+    },
+    {
+        "slug": "translation-n3-travel",
+        "title": "Hỏi đường đến ga Tokyo",
+        "short_description": "Nghe hội thoại hỏi tuyến tàu để đi đến ga Tokyo.",
+        "topic": "Du lịch",
+        "difficulty": JlptLevel.N3,
+        "audio_url": "https://res.cloudinary.com/pje4ce0j/video/upload/v1786965164/translation/n3/travel.mp3",
+        "audio_duration_ms": 10240,
+        "transcript_ja": [
+            {
+                "start_time_ms": 0,
+                "end_time_ms": 10240,
+                "script": (
+                    "東京駅まで行きたいのですが、どの電車に乗ればいいですか。"
+                    "三番線の電車に乗ってください。ありがとうございます。"
+                ),
+            }
+        ],
+        "reference_translation_vi": (
+            "Tôi muốn đến ga Tokyo, tôi nên đi tàu nào? Hãy đi tàu ở sân ga số 3. Cảm ơn bạn."
+        ),
+    },
+    {
+        "slug": "translation-n2-business",
+        "title": "Điều chỉnh điều khoản thanh toán",
+        "short_description": "Nghe cuộc trao đổi công việc về thời hạn thanh toán trong hợp đồng.",
+        "topic": "Công việc",
+        "difficulty": JlptLevel.N2,
+        "audio_url": "https://res.cloudinary.com/pje4ce0j/video/upload/v1786965209/translation/n2/business.mp3",
+        "audio_duration_ms": 13531,
+        "transcript_ja": [
+            {
+                "start_time_ms": 0,
+                "end_time_ms": 13531,
+                "script": (
+                    "契約書の支払い条件について、一つご相談があります。"
+                    "支払い期限を三十日から六十日に変更していただくことは可能でしょうか。"
+                    "社内で確認してみます。"
+                ),
+            }
+        ],
+        "reference_translation_vi": (
+            "Về điều khoản thanh toán trong hợp đồng, tôi có một vấn đề muốn trao đổi. "
+            "Có thể thay đổi thời hạn thanh toán từ 30 ngày thành 60 ngày không? "
+            "Tôi sẽ xác nhận trong nội bộ công ty."
+        ),
+    },
+    {
+        "slug": "translation-n1-workstyle",
+        "title": "Đa dạng hóa cách làm việc",
+        "short_description": "Nghe cuộc trao đổi về việc cân bằng hiệu quả và sức khỏe nhân viên.",
+        "topic": "Xã hội",
+        "difficulty": JlptLevel.N1,
+        "audio_url": "https://res.cloudinary.com/pje4ce0j/video/upload/v1786965259/translation/n1/workstyle.mp3",
+        "audio_duration_ms": 15595,
+        "transcript_ja": [
+            {
+                "start_time_ms": 0,
+                "end_time_ms": 15595,
+                "script": (
+                    "最近、働き方の多様化が進んでいますが、効率と社員の健康を両立させるには、"
+                    "どのような制度が必要だとお考えですか。"
+                    "在宅勤務と出社を柔軟に組み合わせることが重要だと思います。"
+                ),
+            }
+        ],
+        "reference_translation_vi": (
+            "Gần đây, cách thức làm việc đang trở nên đa dạng. Theo bạn cần những chế độ nào "
+            "để cân bằng hiệu quả và sức khỏe nhân viên? Tôi nghĩ việc kết hợp linh hoạt "
+            "làm việc tại nhà và đến văn phòng là rất quan trọng."
+        ),
+    },
+)
+
+
+TUTOR_SCENARIOS: tuple[TutorScenarioSeed, ...] = (
+    {
+        "slug": "daily-new-classmate",
+        "topic": "Giao tiếp hàng ngày",
+        "title": "Tự giới thiệu với bạn học mới",
+        "scenario": (
+            "Bạn gặp một bạn học mới trong lớp tiếng Nhật. "
+            "Hãy tự giới thiệu bản thân và hỏi tên của bạn ấy."
+        ),
+        "display_order": 10,
+    },
+    {
+        "slug": "daily-weekend-plans",
+        "topic": "Giao tiếp hàng ngày",
+        "title": "Hỏi kế hoạch cuối tuần",
+        "scenario": (
+            "Bạn nói chuyện với một người bạn về kế hoạch cuối tuần "
+            "và rủ bạn ấy cùng tham gia một hoạt động."
+        ),
+        "display_order": 20,
+    },
+    {
+        "slug": "restaurant-order-meal",
+        "topic": "Nhà hàng",
+        "title": "Gọi món tại nhà hàng",
+        "scenario": (
+            "Bạn đang gọi món tại một nhà hàng Nhật. Hãy hỏi món được đề xuất và gọi món mình muốn."
+        ),
+        "display_order": 30,
+    },
+    {
+        "slug": "restaurant-special-request",
+        "topic": "Nhà hàng",
+        "title": "Yêu cầu món ăn đặc biệt",
+        "scenario": (
+            "Bạn không ăn được một nguyên liệu trong món ăn. "
+            "Hãy lịch sự hỏi nhân viên xem có thể thay đổi món hay không."
+        ),
+        "display_order": 40,
+    },
+    {
+        "slug": "travel-train-directions",
+        "topic": "Du lịch",
+        "title": "Hỏi đường tại ga tàu",
+        "scenario": "Bạn đang ở một ga tàu Nhật Bản và cần hỏi đường đến địa điểm tiếp theo.",
+        "display_order": 50,
+    },
+    {
+        "slug": "travel-hotel-check-in",
+        "topic": "Du lịch",
+        "title": "Nhận phòng khách sạn",
+        "scenario": (
+            "Bạn đến khách sạn ở Nhật để nhận phòng. "
+            "Hãy trao đổi với nhân viên lễ tân về đặt phòng và thời gian lưu trú."
+        ),
+        "display_order": 60,
+    },
+    {
+        "slug": "shopping-ask-size",
+        "topic": "Mua sắm",
+        "title": "Hỏi size quần áo",
+        "scenario": (
+            "Bạn muốn mua một chiếc áo nhưng cần hỏi nhân viên về size, màu sắc và việc thử đồ."
+        ),
+        "display_order": 70,
+    },
+    {
+        "slug": "shopping-return-item",
+        "topic": "Mua sắm",
+        "title": "Đổi sản phẩm đã mua",
+        "scenario": (
+            "Bạn muốn đổi một sản phẩm đã mua vì không vừa. "
+            "Hãy giải thích vấn đề và hỏi chính sách đổi hàng."
+        ),
+        "display_order": 80,
+    },
+    {
+        "slug": "workplace-ask-help",
+        "topic": "Công việc",
+        "title": "Nhờ đồng nghiệp hỗ trợ",
+        "scenario": (
+            "Bạn gặp khó khăn trong một nhiệm vụ ở công ty và muốn nhờ đồng nghiệp hướng dẫn."
+        ),
+        "display_order": 90,
+    },
+    {
+        "slug": "workplace-time-off",
+        "topic": "Công việc",
+        "title": "Xin nghỉ phép",
+        "scenario": (
+            "Bạn cần xin nghỉ phép với quản lý. Hãy trình bày lý do, "
+            "thời gian nghỉ và kế hoạch bàn giao công việc."
+        ),
+        "display_order": 100,
+    },
+)
+
+
 async def seed_youtube_lessons(session: AsyncSession) -> list[LearningContent]:
     """Create and publish listening lessons from live Japanese YouTube captions."""
     repository = LearningContentRepository(session)
@@ -165,6 +479,178 @@ async def seed_youtube_data() -> dict[str, int]:
         return stats
 
 
+async def seed_reflex_lessons(session: AsyncSession) -> tuple[list[LearningContent], int]:
+    """Create or update the current N5-N1 Reflex seed catalog idempotently."""
+    seeded_contents: list[LearningContent] = []
+    created_count = 0
+
+    for lesson in REFLEX_LESSONS:
+        content_query = select(LearningContent).where(LearningContent.slug == lesson["slug"])
+        content = (await session.execute(content_query)).scalar_one_or_none()
+        if content is None:
+            content = LearningContent(
+                content_type=ContentType.REFLEX,
+                status=ContentStatus.PUBLISHED,
+                slug=lesson["slug"],
+                title=lesson["title"],
+                short_description=lesson["short_description"],
+                topic=lesson["topic"],
+                difficulty=lesson["difficulty"],
+                audio_url=lesson["audio_url"],
+                audio_duration_ms=lesson["audio_duration_ms"],
+                base_exp=70,
+                published_at=datetime.now(UTC),
+            )
+            session.add(content)
+            await session.flush()
+            created_count += 1
+
+        if content.content_type != ContentType.REFLEX:
+            raise RuntimeError(f"Seed slug is already used by non-Reflex content: {lesson['slug']}")
+
+        content.status = ContentStatus.PUBLISHED
+        content.title = lesson["title"]
+        content.short_description = lesson["short_description"]
+        content.topic = lesson["topic"]
+        content.difficulty = lesson["difficulty"]
+        content.audio_url = lesson["audio_url"]
+        content.audio_duration_ms = lesson["audio_duration_ms"]
+        content.base_exp = 70
+        content.published_at = content.published_at or datetime.now(UTC)
+
+        reflex_query = select(ReflexExercise).where(ReflexExercise.content_id == content.id)
+        reflex_ex = (await session.execute(reflex_query)).scalar_one_or_none()
+        if reflex_ex is None:
+            reflex_ex = ReflexExercise(content_id=content.id)
+            session.add(reflex_ex)
+
+        reflex_ex.prompt_ja = lesson["prompt_ja"]
+        reflex_ex.scenario_ja = lesson["scenario_ja"]
+        reflex_ex.response_start_limit_seconds = 3
+        await session.flush()
+        seeded_contents.append(content)
+
+    return seeded_contents, created_count
+
+
+async def seed_reflex_data() -> dict[str, int]:
+    """Seed only the current Reflex catalog."""
+    async with AsyncSessionLocal() as session:
+        seeded_contents, _ = await seed_reflex_lessons(session)
+        await session.commit()
+        return {"reflex_lessons": len(seeded_contents)}
+
+
+async def seed_translation_lessons(
+    session: AsyncSession,
+) -> tuple[list[LearningContent], int]:
+    """Create or update the current N5-N1 Translation seed catalog idempotently."""
+    seeded_contents: list[LearningContent] = []
+    created_count = 0
+
+    for lesson in TRANSLATION_LESSONS:
+        content_query = select(LearningContent).where(LearningContent.slug == lesson["slug"])
+        content = (await session.execute(content_query)).scalar_one_or_none()
+        if content is None:
+            content = LearningContent(
+                content_type=ContentType.LISTENING_TRANSLATION,
+                status=ContentStatus.PUBLISHED,
+                slug=lesson["slug"],
+                title=lesson["title"],
+                short_description=lesson["short_description"],
+                topic=lesson["topic"],
+                difficulty=lesson["difficulty"],
+                audio_url=lesson["audio_url"],
+                audio_duration_ms=lesson["audio_duration_ms"],
+                transcript_ja=lesson["transcript_ja"],
+                base_exp=80,
+                published_at=datetime.now(UTC),
+            )
+            session.add(content)
+            await session.flush()
+            created_count += 1
+
+        if content.content_type != ContentType.LISTENING_TRANSLATION:
+            raise RuntimeError(
+                f"Seed slug is already used by non-Translation content: {lesson['slug']}"
+            )
+
+        content.status = ContentStatus.PUBLISHED
+        content.title = lesson["title"]
+        content.short_description = lesson["short_description"]
+        content.topic = lesson["topic"]
+        content.difficulty = lesson["difficulty"]
+        content.audio_url = lesson["audio_url"]
+        content.audio_duration_ms = lesson["audio_duration_ms"]
+        content.transcript_ja = lesson["transcript_ja"]
+        content.base_exp = 80
+        content.published_at = content.published_at or datetime.now(UTC)
+
+        translation_query = select(TranslationExercise).where(
+            TranslationExercise.content_id == content.id
+        )
+        translation_ex = (await session.execute(translation_query)).scalar_one_or_none()
+        if translation_ex is None:
+            translation_ex = TranslationExercise(content_id=content.id)
+            session.add(translation_ex)
+
+        translation_ex.reference_translation_vi = lesson["reference_translation_vi"]
+        await session.flush()
+        seeded_contents.append(content)
+
+    return seeded_contents, created_count
+
+
+async def seed_translation_data() -> dict[str, int]:
+    """Seed only the current Translation catalog."""
+    async with AsyncSessionLocal() as session:
+        seeded_contents, _ = await seed_translation_lessons(session)
+        await session.commit()
+        return {"listening_translation_lessons": len(seeded_contents)}
+
+
+async def seed_tutor_scenarios(
+    session: AsyncSession,
+) -> tuple[list[TutorScenario], int]:
+    """Create or update the current Tutor scenario catalog idempotently."""
+    seeded_scenarios: list[TutorScenario] = []
+    created_count = 0
+
+    for scenario_seed in TUTOR_SCENARIOS:
+        scenario_query = select(TutorScenario).where(TutorScenario.slug == scenario_seed["slug"])
+        scenario = (await session.execute(scenario_query)).scalar_one_or_none()
+        if scenario is None:
+            scenario = TutorScenario(
+                slug=scenario_seed["slug"],
+                topic=scenario_seed["topic"],
+                title=scenario_seed["title"],
+                scenario=scenario_seed["scenario"],
+                is_active=True,
+                display_order=scenario_seed["display_order"],
+            )
+            session.add(scenario)
+            await session.flush()
+            created_count += 1
+
+        scenario.topic = scenario_seed["topic"]
+        scenario.title = scenario_seed["title"]
+        scenario.scenario = scenario_seed["scenario"]
+        scenario.is_active = True
+        scenario.display_order = scenario_seed["display_order"]
+        await session.flush()
+        seeded_scenarios.append(scenario)
+
+    return seeded_scenarios, created_count
+
+
+async def seed_tutor_scenarios_data() -> dict[str, int]:
+    """Seed only the current Tutor scenario catalog."""
+    async with AsyncSessionLocal() as session:
+        seeded_scenarios, _ = await seed_tutor_scenarios(session)
+        await session.commit()
+        return {"tutor_scenarios": len(seeded_scenarios)}
+
+
 # Setup database engine
 engine = create_async_engine(settings.database_url, echo=False)
 AsyncSessionLocal = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
@@ -183,12 +669,53 @@ async def clean_database(session: AsyncSession) -> None:
         LearningContent,
         Achievement,
         UserProgress,
+        TutorScenario,
         User,
     ]
     for table in tables_to_clean:
         await session.execute(delete(table))
     await session.commit()
     logger.info("Database cleaned successfully.")
+
+
+async def seed_xp_transactions(
+    session: AsyncSession,
+    seeded_users: list[User],
+    attempt: ExerciseAttempt,
+) -> int:
+    """Create the deterministic sample XP transactions once per seed identity."""
+    created_count = 0
+
+    for i in range(10):
+        target_user = seeded_users[i % len(seeded_users)]
+        reason = f"Completed daily exercise #{i + 1}"
+        if i == 0:
+            xp_query = select(XpTransaction).where(XpTransaction.attempt_id == attempt.id)
+        else:
+            xp_query = select(XpTransaction).where(
+                XpTransaction.user_id == target_user.id,
+                XpTransaction.attempt_id.is_(None),
+                XpTransaction.amount == 50,
+                XpTransaction.reason == reason,
+            )
+
+        existing_transaction = (await session.scalars(xp_query)).first()
+        if existing_transaction is not None:
+            continue
+
+        session.add(
+            XpTransaction(
+                user_id=target_user.id,
+                attempt_id=attempt.id if i == 0 else None,
+                amount=50,
+                reason=reason,
+                created_at=datetime.now(UTC) - timedelta(hours=i * 2),
+            )
+        )
+        created_count += 1
+
+    await session.flush()
+    return created_count
 
 
 async def seed_data(clean: bool = False) -> dict[str, int]:
@@ -201,6 +728,7 @@ async def seed_data(clean: bool = False) -> dict[str, int]:
             "shadowing_dictation_lessons": 0,
             "reflex_lessons": 0,
             "listening_translation_lessons": 0,
+            "tutor_scenarios": 0,
             "achievements": 0,
             "exp_entries": 0,
         }
@@ -325,98 +853,18 @@ async def seed_data(clean: bool = False) -> dict[str, int]:
         seeded_contents = await seed_youtube_lessons(session)
         stats["shadowing_dictation_lessons"] = len(seeded_contents)
 
-        # 4.3 Reflex (2 lessons: N5, N3)
-        reflex_lessons = [
-            {
-                "slug": "reflex-n5-greeting",
-                "title": "Đáp lại lời chào hỏi",
-                "difficulty": JlptLevel.N5,
-                "prompt_ja": "おはようございます！",
-                "scenario": "Gặp đồng nghiệp vào buổi sáng tại công ty",
-            },
-            {
-                "slug": "reflex-n3-invitation",
-                "title": "Từ chối lời mời một cách lịch sự",
-                "difficulty": JlptLevel.N3,
-                "prompt_ja": "今晩、一緒に飲みに行きませんか。",
-                "scenario": "Được sếp rủ đi uống rượu nhưng bạn có hẹn trước",
-            },
-        ]
+        # 4.3 Reflex (one lesson for each JLPT level: N5-N1)
+        reflex_contents, reflex_count = await seed_reflex_lessons(session)
+        stats["reflex_lessons"] = reflex_count
+        seeded_contents.extend(reflex_contents)
 
-        for r in reflex_lessons:
-            content_query = select(LearningContent).where(LearningContent.slug == r["slug"])
-            content = (await session.execute(content_query)).scalar_one_or_none()
-            if not content:
-                content = LearningContent(
-                    content_type=ContentType.REFLEX,
-                    status=ContentStatus.PUBLISHED,
-                    slug=r["slug"],
-                    title=r["title"],
-                    difficulty=r["difficulty"],
-                    base_exp=70,
-                    published_at=datetime.now(UTC),
-                )
-                session.add(content)
-                await session.flush()
+        # 4.4 Listening & Translation (one lesson for each JLPT level: N5-N1)
+        translation_contents, translation_count = await seed_translation_lessons(session)
+        stats["listening_translation_lessons"] = translation_count
+        seeded_contents.extend(translation_contents)
 
-                reflex_ex = ReflexExercise(
-                    content_id=content.id,
-                    prompt_ja=r["prompt_ja"],
-                    scenario_ja=r["scenario"],
-                    response_start_limit_seconds=3,
-                )
-                session.add(reflex_ex)
-                stats["reflex_lessons"] += 1
-            elif content.title != r["title"]:
-                content.title = r["title"]
-                await session.flush()
-            seeded_contents.append(content)
-
-        # 4.4 Listening & Translation (2 lessons)
-        translation_lessons = [
-            {
-                "slug": "translation-n4-restaurant",
-                "title": "Gọi món tại nhà hàng",
-                "difficulty": JlptLevel.N4,
-                "audio_url": "https://www.youtube.com/watch?v=KaiwaN4T001",
-                "ref_vi": "Xin lỗi, cho tôi xem thực đơn.",
-            },
-            {
-                "slug": "translation-n2-business",
-                "title": "Đàm phán hợp đồng",
-                "difficulty": JlptLevel.N2,
-                "audio_url": "https://www.youtube.com/watch?v=KaiwaN2T001",
-                "ref_vi": "Chúng tôi mong muốn điều chỉnh lại điều khoản thanh toán.",
-            },
-        ]
-
-        for t in translation_lessons:
-            content_query = select(LearningContent).where(LearningContent.slug == t["slug"])
-            content = (await session.execute(content_query)).scalar_one_or_none()
-            if not content:
-                content = LearningContent(
-                    content_type=ContentType.LISTENING_TRANSLATION,
-                    status=ContentStatus.PUBLISHED,
-                    slug=t["slug"],
-                    title=t["title"],
-                    difficulty=t["difficulty"],
-                    audio_url=t["audio_url"],
-                    base_exp=80,
-                    published_at=datetime.now(UTC),
-                )
-                session.add(content)
-                await session.flush()
-
-                trans_ex = TranslationExercise(
-                    content_id=content.id,
-                    reference_translation_vi=t["ref_vi"],
-                )
-                session.add(trans_ex)
-                stats["listening_translation_lessons"] += 1
-            elif content.title != t["title"]:
-                content.title = t["title"]
-                await session.flush()
-            seeded_contents.append(content)
+        _, tutor_scenario_count = await seed_tutor_scenarios(session)
+        stats["tutor_scenarios"] = tutor_scenario_count
 
         # ==========================================
         # 5. SEED ATTEMPTS, REVIEW SCHEDULES & XP ENTRIES
@@ -458,18 +906,7 @@ async def seed_data(clean: bool = False) -> dict[str, int]:
             )
             session.add(review)
 
-        # Seed XP Transactions (10 entries mẫu)
-        for i in range(10):
-            target_u = seeded_users[i % len(seeded_users)]
-            xp_tx = XpTransaction(
-                user_id=target_u.id,
-                attempt_id=attempt.id if i == 0 else None,
-                amount=50,
-                reason=f"Completed daily exercise #{i + 1}",
-                created_at=datetime.now(UTC) - timedelta(hours=i * 2),
-            )
-            session.add(xp_tx)
-            stats["exp_entries"] += 1
+        stats["exp_entries"] = await seed_xp_transactions(session, seeded_users, attempt)
 
         # ==========================================
         # 6. SEED WEEKLY LEADERBOARD
@@ -508,9 +945,47 @@ def main() -> None:
         action="store_true",
         help="Seed only the configured YouTube listening lessons",
     )
+    parser.add_argument(
+        "--reflex-only",
+        action="store_true",
+        help="Seed only the current Reflex lessons",
+    )
+    parser.add_argument(
+        "--translation-only",
+        action="store_true",
+        help="Seed only the current Listening & Translation lessons",
+    )
+    parser.add_argument(
+        "--tutor-scenarios-only",
+        action="store_true",
+        help="Seed only the current Tutor scenario catalog",
+    )
     args = parser.parse_args()
 
-    stats = asyncio.run(seed_youtube_data() if args.youtube_only else seed_data(clean=args.clean))
+    selected_modes = sum(
+        bool(mode)
+        for mode in (
+            args.youtube_only,
+            args.reflex_only,
+            args.translation_only,
+            args.tutor_scenarios_only,
+        )
+    )
+    if selected_modes > 1:
+        parser.error("Seed-only options cannot be combined")
+    if selected_modes and args.clean:
+        parser.error("--clean cannot be combined with seed-only options")
+
+    if args.reflex_only:
+        stats = asyncio.run(seed_reflex_data())
+    elif args.translation_only:
+        stats = asyncio.run(seed_translation_data())
+    elif args.tutor_scenarios_only:
+        stats = asyncio.run(seed_tutor_scenarios_data())
+    elif args.youtube_only:
+        stats = asyncio.run(seed_youtube_data())
+    else:
+        stats = asyncio.run(seed_data(clean=args.clean))
     print("\n--- SEED EXECUTION SUMMARY ---")
     for entity, count in stats.items():
         print(f"{entity}: {count}")

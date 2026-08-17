@@ -84,8 +84,20 @@ generate-api-client:
 seed:
 	cd apps/api && python -m scripts.seed_data
 
-seed-clean:
+seed-clean: # Clean the database and seed learning resources from YouTube only for Shadowing, Dictation Feature.
 	cd apps/api && python -m scripts.seed_data --clean
 
-seed-youtube:
+seed-youtube: # Seed learning resources from YouTube only for Shadowing, Dictation Feature.
 	cd apps/api && uv run python -m scripts.seed_data --youtube-only
+
+.PHONY: seed-reflex
+seed-reflex: # Seed the current Reflex lessons for N5-N1 only.
+	cd apps/api && uv run python -m scripts.seed_data --reflex-only
+
+.PHONY: seed-translation
+seed-translation: # Seed the current Listening & Translation lessons for N5-N1 only.
+	cd apps/api && uv run python -m scripts.seed_data --translation-only
+
+.PHONY: seed-tutor-scenarios
+seed-tutor-scenarios: # Seed the current AI Tutor scenario catalog.
+	cd apps/api && uv run python -m scripts.seed_data --tutor-scenarios-only
