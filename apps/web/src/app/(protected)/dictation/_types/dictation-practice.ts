@@ -1,57 +1,157 @@
-import type { JlptDifficulty } from "@/types/practice-catalog";
+import type {
+  DictationAttemptReviewResponse,
+  DictationCompleteResponse,
+  DictationContentDetail,
+  DictationSegmentCheckRequest,
+  DictationSegmentCheckResponse,
+  DictationSegmentItem,
+  DictationStartResponse,
+} from "@kaiwa-app/api-client";
+import type { FormEvent } from "react";
 
-export const DICTATION_EXERCISE_TYPES = ["one_word", "multiple_words", "full_sentence"] as const;
+export type DictationPracticeContent = DictationContentDetail;
+export type DictationPracticeRequest = DictationSegmentCheckRequest;
 
-export type DictationExerciseType = (typeof DICTATION_EXERCISE_TYPES)[number];
-
-export type DictationBlankPrompt = {
-  blankIndex: number;
-};
-
-export type DictationPracticeLesson = {
-  audioDurationSeconds: number;
-  blanks: DictationBlankPrompt[];
-  difficulty: JlptDifficulty;
-  exerciseType: DictationExerciseType;
-  id: string;
-  instruction: string;
-  nextLessonId?: string;
-  promptParts: string[];
-  title: string;
-  topic: string;
-};
-
-export type DictationAnswerInput = {
-  blankIndex: number;
-  userAnswer: string;
-};
-
-export type DictationBlankResult = DictationAnswerInput & {
-  correctAnswer: string;
-  explanation: string;
-  isCorrect: boolean;
-};
-
-export type DictationAttemptResult = {
-  attemptId: string;
-  correctCount: number;
-  expEarned: number;
-  fullTranscript: string;
-  isPassed: boolean;
-  lessonId: string;
-  results: DictationBlankResult[];
-  scorePercentage: number;
-  totalQuestions: number;
-  translation: string;
-};
-
-export type DictationSubmitResponse =
+export type DictationStartActionResponse =
   | {
-      fieldErrors: Record<number, string>;
+      code: "content_not_found" | "content_unavailable" | "unknown_error";
       message: string;
       status: "error";
     }
   | {
-      result: DictationAttemptResult;
+      attempt: DictationStartResponse;
       status: "success";
     };
+
+export type DictationCheckResponse =
+  | {
+      code:
+        | "attempt_forbidden"
+        | "attempt_not_found"
+        | "attempt_not_in_progress"
+        | "invalid_segment_index"
+        | "unknown_error";
+      message: string;
+      status: "error";
+    }
+  | {
+      result: DictationSegmentCheckResponse;
+      status: "success";
+    };
+
+export type DictationCompleteActionResponse =
+  | {
+      code:
+        | "attempt_forbidden"
+        | "attempt_not_found"
+        | "attempt_not_in_progress"
+        | "content_unavailable"
+        | "unknown_error";
+      message: string;
+      status: "error";
+    }
+  | {
+      completion: DictationCompleteResponse;
+      review: DictationAttemptReviewResponse;
+      status: "success";
+    };
+
+export type DictationInProgressInfo = {
+  attempt: DictationStartResponse;
+  checkedCount: number;
+  results: Record<number, DictationSegmentCheckResponse>;
+};
+
+export type DictationSegmentState = "correct" | "draft" | "incorrect" | "not_started";
+
+export type DictationSegmentMapResult = Pick<
+  DictationSegmentCheckResponse,
+  "is_correct" | "user_answer"
+>;
+
+export type DictationKeyboardShortcut = {
+  action: string;
+  keyLabel: string;
+};
+
+export type DictationStartPanelProps = {
+  content: DictationPracticeContent;
+  inProgressInfo?: DictationInProgressInfo;
+  isStarting: boolean;
+  onResume?: () => void;
+  onStart: () => void;
+  startError?: string;
+};
+
+export type CompactPracticeToolbarProps = {
+  autoPlayDelayMs: number;
+  autoPlayOnSegmentChange: boolean;
+  checkedCount: number;
+  correctCount: number;
+  difficulty: string;
+  draftCount: number;
+  isCompleting: boolean;
+  lessonTitle: string;
+  onAutoPlayDelayChange: (value: number) => void;
+  onAutoPlayOnSegmentChange: (value: boolean) => void;
+  onComplete: () => void;
+  onShowVideoChange: (value: boolean) => void;
+  onShowCorrectAnswerChange: (value: boolean) => void;
+  showVideo: boolean;
+  showCorrectAnswer: boolean;
+  storedResultCount: number;
+  totalSegments: number;
+};
+
+export type DictationWorkstationProps = {
+  activeAnswer: string;
+  activeResult?: DictationSegmentCheckResponse;
+  activeSegment: DictationSegmentItem;
+  activeSegmentIndex: number;
+  audioUrl: string;
+  autoPlayDelayMs: number;
+  autoPlayOnSegmentChange: boolean;
+  hasPlayedActiveSegment: boolean;
+  isChecking: boolean;
+  isFirstSegment: boolean;
+  isLastSegment: boolean;
+  lessonTitle: string;
+  onAnswerChange: (value: string) => void;
+  onNext: () => void;
+  onPrevious: () => void;
+  onReplay: () => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  playbackRequest: number;
+  showVideo: boolean;
+  showCorrectAnswer: boolean;
+  submitError?: string;
+  totalSegments: number;
+};
+
+export type DictationPracticeSidebarProps = {
+  activeSegmentIndex: number;
+  answers: Record<number, string>;
+  checkedCount: number;
+  correctCount: number;
+  draftCount: number;
+  hideCompletionCard?: boolean;
+  isCompleting: boolean;
+  keyboardShortcuts?: readonly DictationKeyboardShortcut[];
+  onComplete: () => void;
+  onSelectSegment: (segmentIndex: number) => void;
+  results: Record<number, DictationSegmentMapResult>;
+  segments: DictationSegmentItem[];
+  storedResultCount: number;
+  totalSegments: number;
+  variant?: "practice" | "result";
+};
+
+export type DictationResultProps = {
+  attempt: DictationStartResponse;
+  completion: DictationCompleteResponse;
+  content: DictationPracticeContent;
+  isStarting: boolean;
+  onTryAgain: () => void;
+  review: DictationAttemptReviewResponse;
+  startError?: string;
+};

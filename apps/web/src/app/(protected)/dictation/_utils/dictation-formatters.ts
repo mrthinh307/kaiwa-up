@@ -1,25 +1,34 @@
-import type { DictationExerciseType } from "../_types/dictation-practice";
+export function formatDictationDuration(durationSeconds: number): string {
+  const roundedSeconds = Math.round(durationSeconds);
+  const minutes = Math.floor(roundedSeconds / 60);
+  const seconds = roundedSeconds % 60;
 
-const DICTATION_EXERCISE_TYPE_LABELS: Record<DictationExerciseType, string> = {
-  full_sentence: "Full sentence",
-  multiple_words: "Multiple words",
-  one_word: "One word",
-};
-
-export function formatDictationExerciseType(exerciseType: DictationExerciseType): string {
-  return DICTATION_EXERCISE_TYPE_LABELS[exerciseType];
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 }
 
-export function formatDictationAnswerCount({
-  exerciseType,
-  totalBlanks,
-}: {
-  exerciseType: DictationExerciseType;
-  totalBlanks: number;
-}): string {
-  if (exerciseType === "full_sentence") {
-    return totalBlanks === 1 ? "1 sentence" : `${totalBlanks} sentences`;
+export function formatDictationTimestamp(timeMs: number): string {
+  const minutes = Math.floor(timeMs / 60_000);
+  const seconds = Math.floor((timeMs % 60_000) / 1_000);
+  const milliseconds = timeMs % 1_000;
+
+  return `${minutes}:${seconds.toString().padStart(2, "0")}.${milliseconds
+    .toString()
+    .padStart(3, "0")}`;
+}
+
+export function getYouTubeVideoId(audioUrl: string): string | undefined {
+  try {
+    const url = new URL(audioUrl);
+    if (url.hostname === "youtu.be") {
+      return url.pathname.split("/").filter(Boolean).at(0);
+    }
+
+    if (url.hostname.endsWith("youtube.com")) {
+      return url.searchParams.get("v") ?? url.pathname.split("/").filter(Boolean).at(-1);
+    }
+  } catch {
+    return undefined;
   }
 
-  return totalBlanks === 1 ? "1 blank" : `${totalBlanks} blanks`;
+  return undefined;
 }
