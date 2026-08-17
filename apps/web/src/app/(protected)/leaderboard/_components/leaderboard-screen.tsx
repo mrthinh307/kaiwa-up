@@ -2,7 +2,7 @@ import { CalendarDays, Trophy } from "lucide-react";
 
 import { ProtectedPageHeader } from "@/components/common/protected-route/protected-page-header";
 
-import type { WeeklyLeaderboardViewModel } from "../_utils/leaderboard-mock-adapter";
+import type { WeeklyLeaderboardViewModel } from "../_utils/leaderboard-types";
 
 import { LeaderboardEmptyState } from "./leaderboard-empty-state";
 import { LeaderboardTable } from "./leaderboard-table";

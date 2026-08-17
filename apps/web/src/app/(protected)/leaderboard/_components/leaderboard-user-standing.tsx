@@ -4,7 +4,7 @@ import Link from "next/link";
 import { ProtectedUserAvatar } from "@/components/layouts/protected-user-avatar";
 import { Button } from "@/components/ui/button";
 
-import type { LeaderboardEntry } from "../_utils/leaderboard-mock-adapter";
+import type { LeaderboardEntry } from "../_utils/leaderboard-types";
 
 import { formatLeaderboardExp, formatLeaderboardRank } from "../_utils/leaderboard-formatters";
 
