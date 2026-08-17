@@ -45,6 +45,9 @@ import type {
   GetShadowingRecordingPlaybackData,
   GetShadowingRecordingPlaybackErrors,
   GetShadowingRecordingPlaybackResponses,
+  GetWeeklyLeaderboardData,
+  GetWeeklyLeaderboardErrors,
+  GetWeeklyLeaderboardResponses,
   HealthCheckData,
   HealthCheckResponses,
   ListLearningContentsData,
@@ -473,4 +476,20 @@ export const updateMe = <ThrowOnError extends boolean = false>(
       "Content-Type": "application/json",
       ...options.headers,
     },
+  });
+
+/**
+ * Get the weekly EXP leaderboard and the current user's rank
+ */
+export const getWeeklyLeaderboard = <ThrowOnError extends boolean = false>(
+  options?: Options<GetWeeklyLeaderboardData, ThrowOnError>,
+): RequestResult<GetWeeklyLeaderboardResponses, GetWeeklyLeaderboardErrors, ThrowOnError> =>
+  (options?.client ?? client).get<
+    GetWeeklyLeaderboardResponses,
+    GetWeeklyLeaderboardErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/api/v1/leaderboard/weekly",
+    ...options,
   });

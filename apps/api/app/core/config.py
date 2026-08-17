@@ -23,6 +23,9 @@ class Settings(BaseSettings):
     REFRESH_COOKIE_SECURE: bool = False
     REFRESH_COOKIE_SAMESITE: Literal["lax", "strict", "none"] = "lax"
 
+    leaderboard_rebuild_interval_hours: int = 1
+    leaderboard_rebuild_enabled: bool = True
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

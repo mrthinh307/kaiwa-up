@@ -40,7 +40,6 @@ __all__ = [
     "NotFoundError",
     "TranscriptNotFoundError",
     "TranscriptProviderError",
-    "UnauthorizedError",
     "UnauthorizedException",
     "register_exception_handlers",
 ]
