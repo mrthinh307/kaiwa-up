@@ -2,9 +2,11 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 
 import pytest
+import pytest_asyncio
+from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.gamification import XpTransaction
+from app.models.gamification import WeeklyLeaderboardEntry, XpTransaction
 from app.models.user import User
 from app.repositories.leaderboard import LeaderboardRepository
 from app.services.leaderboard import LeaderboardService
@@ -33,6 +35,13 @@ async def create_xp(
     session.add(transaction)
     await session.flush()
     return transaction
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def _clear_leaderboard_data(db_session: AsyncSession) -> None:
+    """Cô lập test khỏi dữ liệu leaderboard/xp đã commit trong DB test."""
+    await db_session.execute(delete(WeeklyLeaderboardEntry))
+    await db_session.execute(delete(XpTransaction))
 
 
 @pytest.mark.asyncio

@@ -76,12 +76,14 @@ export function DictationPracticeScreen({ content }: DictationPracticeScreenProp
 
   if (!attempt) {
     return (
-      <DictationStartPanel
-        content={content}
-        isStarting={isStarting}
-        onStart={handleStart}
-        startError={startError}
-      />
+      <div className="scroll-mt-24" id="dictation-practice-screen">
+        <DictationStartPanel
+          content={content}
+          isStarting={isStarting}
+          onStart={handleStart}
+          startError={startError}
+        />
+      </div>
     );
   }
 
@@ -106,33 +108,37 @@ export function DictationPracticeScreen({ content }: DictationPracticeScreenProp
 
   if (completion && review) {
     return (
-      <DictationResult
-        attempt={attempt}
-        completion={completion}
-        content={content}
-        isStarting={isStarting}
-        onTryAgain={handleStart}
-        review={review}
-        startError={startError}
-      />
+      <div className="scroll-mt-24" id="dictation-practice-screen">
+        <DictationResult
+          attempt={attempt}
+          completion={completion}
+          content={content}
+          isStarting={isStarting}
+          onTryAgain={handleStart}
+          review={review}
+          startError={startError}
+        />
+      </div>
     );
   }
 
   if (!activeSegment || !activePrompt) {
     return (
-      <Alert variant="destructive">
-        <AlertCircle aria-hidden="true" />
-        <AlertTitle>Attempt data is out of sync</AlertTitle>
-        <AlertDescription>
-          The segments returned when this attempt started do not match the lesson prompts. Refresh
-          the lesson and try again.
-        </AlertDescription>
-      </Alert>
+      <div className="scroll-mt-24" id="dictation-practice-screen">
+        <Alert variant="destructive">
+          <AlertCircle aria-hidden="true" />
+          <AlertTitle>Attempt data is out of sync</AlertTitle>
+          <AlertDescription>
+            The segments returned when this attempt started do not match the lesson prompts. Refresh
+            the lesson and try again.
+          </AlertDescription>
+        </Alert>
+      </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="scroll-mt-24 space-y-6" id="dictation-practice-screen">
       {completeError ? (
         <Alert variant="destructive">
           <AlertCircle aria-hidden="true" />
