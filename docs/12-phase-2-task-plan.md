@@ -189,7 +189,7 @@ Phase 2 gồm:
 | Nội dung | Quyết định Phase 2 |
 |---|---|
 | AI Tutor | Chỉ hỗ trợ text; voice input để giai đoạn sau |
-| AI Tutor hints | Mỗi câu hỏi có tối đa 2–3 gợi ý trả lời phù hợp trình độ |
+| AI Tutor hints | Mỗi câu hỏi có tối đa 3 gợi ý trả lời phù hợp trình độ |
 | Reflex | Ba giây để bắt đầu phản hồi, không phải hoàn thành câu trả lời |
 | Translation | Người dùng bắt buộc nhập bản dịch tiếng Việt dạng free-text |
 | Đánh giá Translation | AI đánh giá theo ý nghĩa, không yêu cầu khớp từng từ với bản dịch tham khảo |
@@ -421,29 +421,35 @@ Phase 2 chỉ hỗ trợ hội thoại bằng văn bản. Voice input được �
 **Nội dung:**
 
 - Hoàn thiện `tutor_sessions` và `tutor_messages`.
+- Bổ sung migration cho `client_message_id` và unique constraint theo `(session_id, client_message_id)`.
 - Xây dựng API:
 
 ```http
+GET /api/v1/ai-tutor/scenarios?topic={topic}
 POST /api/v1/ai-tutor/conversations
 GET /api/v1/ai-tutor/conversations
 GET /api/v1/ai-tutor/conversations/{conversation_id}
 POST /api/v1/ai-tutor/conversations/{conversation_id}/messages
+POST /api/v1/ai-tutor/conversations/{conversation_id}/complete
 ```
 
-- Tạo conversation theo topic và difficulty.
+- Tạo conversation theo `scenario_id` hoặc topic tự do và difficulty.
+- Resolve scenario từ catalog active; snapshot topic/scenario vào conversation.
 - Gọi AI tạo lời mở đầu.
 - Lưu message theo đúng thứ tự.
+- Dùng `client_message_id` trên mỗi user message để retry không tạo duplicate.
 - Gửi context hội thoại có giới hạn sang AI Gateway.
 - Chuẩn hóa mỗi phản hồi AI gồm:
   - Nội dung phản hồi.
   - Câu hỏi tiếp theo.
-  - Tối đa 2–3 gợi ý trả lời.
+  - Tối đa 3 gợi ý trả lời trong `feedback.answer_hints`.
   - Nghĩa tiếng Việt của từng gợi ý.
   - Sửa lỗi ngữ pháp.
   - Gợi ý cách diễn đạt tự nhiên.
 - Lưu gợi ý cùng message để có thể tải lại.
 - Kiểm tra ownership conversation.
 - Xử lý AI timeout mà không làm mất user message.
+- Trả `503 service_unavailable` khi AI Gateway timeout/unavailable; user message đã ghi nhận vẫn giữ lại.
 - Viết test cho service, thứ tự message và authorization.
 
 **Acceptance criteria:**
@@ -453,6 +459,7 @@ POST /api/v1/ai-tutor/conversations/{conversation_id}/messages
 - Gợi ý không quá dài và không bắt buộc người dùng sao chép nguyên câu.
 - Lịch sử message và hints được lưu đúng thứ tự.
 - Người dùng không truy cập được conversation của người khác.
+- Conversation đã complete không nhận message mới.
 
 ---
 
@@ -463,7 +470,7 @@ POST /api/v1/ai-tutor/conversations/{conversation_id}/messages
 
 **Nội dung:**
 
-- Xây dựng màn hình chọn topic và difficulty.
+- Xây dựng màn hình chọn topic/scenario và difficulty.
 - Xây dựng danh sách lịch sử conversation.
 - Xây dựng giao diện chat cho user và AI.
 - Hiển thị trạng thái đang gửi và AI đang phản hồi.
@@ -477,7 +484,7 @@ POST /api/v1/ai-tutor/conversations/{conversation_id}/messages
 **Acceptance criteria:**
 
 - Gợi ý mặc định được thu gọn để khuyến khích tự trả lời.
-- Không hiển thị khối gợi ý khi `answer_hints` rỗng.
+- Không hiển thị khối gợi ý khi `feedback.answer_hints` rỗng.
 - Bấm vào gợi ý không tự động gửi message.
 - Refresh trang vẫn hiển thị được message và hints cũ.
 
@@ -492,13 +499,14 @@ POST /api/v1/ai-tutor/conversations/{conversation_id}/messages
 
 - Kết nối tạo conversation, lịch sử và gửi message với backend.
 - Đồng bộ trạng thái pending, processing, success và failed.
-- Đồng bộ `answer_hints` trong lời mở đầu, phản hồi tiếp theo và lịch sử.
+- Đồng bộ `feedback.answer_hints` trong lời mở đầu, phản hồi tiếp theo và lịch sử.
+- Gửi UUID `client_message_id` ổn định cho mỗi lần user Submit.
 - Kiểm tra retry không tạo duplicate user message.
 - Kiểm tra authorization bằng hai tài khoản.
 - Viết E2E test cho luồng:
 
 ```text
-Chọn topic và difficulty
+Chọn topic/scenario và difficulty
 → Tạo conversation
 → Nhận câu hỏi và gợi ý
 → Chọn một gợi ý
@@ -510,6 +518,7 @@ Chọn topic và difficulty
 **Acceptance criteria:**
 
 - Message không sai thứ tự hoặc bị trùng.
+- Retry cùng `client_message_id` không tạo user message thứ hai.
 - Gợi ý thay đổi phù hợp với difficulty.
 - Refresh không làm mất lịch sử.
 - User A không truy cập được conversation của User B.

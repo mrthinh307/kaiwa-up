@@ -160,9 +160,10 @@ Người dùng có thể:
 Người dùng có thể:
 
 * Luyện hội thoại tiếng Nhật với AI.
-* Nhận câu hỏi hoặc tình huống giao tiếp.
-* Trả lời bằng giọng nói hoặc văn bản.
+* Chọn topic, scenario và cấp JLPT trước khi bắt đầu.
+* Trong Phase 2, trả lời bằng văn bản; voice input để giai đoạn sau.
 * Nhận phản hồi về nội dung, cách diễn đạt hoặc lỗi ngôn ngữ.
+* Nhận tối đa 3 gợi ý trả lời kèm nghĩa tiếng Việt và xem lại lịch sử hội thoại.
 
 ### 7.7. Nghe và dịch
 

@@ -116,6 +116,56 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
 }
 ```
 
+### TutorAnswerHintSchema
+```json
+{
+  "text": "京都に行きたいです。",
+  "meaning_vi": "Tôi muốn đi Kyoto."
+}
+```
+
+Mỗi AI question có tối đa 3 `TutorAnswerHintSchema`. Frontend chỉ điền hint vào ô nhập; không tự
+động gửi message.
+
+### TutorFeedbackSchema
+```json
+{
+  "next_question": "金閣寺と清水寺、どちらに行きたいですか？",
+  "grammar_correction": "お寺を見ます -> お寺を見たいです",
+  "natural_expression_tip": "京都でお寺めぐりをしたいです。",
+  "answer_hints": [
+    {
+      "text": "金閣寺に行きたいです。",
+      "meaning_vi": "Tôi muốn đi Kinkaku-ji."
+    }
+  ]
+}
+```
+
+`grammar_correction`, `natural_expression_tip` và `next_question` có thể là `null`. `answer_hints`
+luôn là array và rỗng khi AI không tạo gợi ý.
+
+### TutorMessageSchema
+```json
+{
+  "id": "msg_03",
+  "sender": "ai",
+  "sequence_number": 3,
+  "text": "京都のお寺はとても綺麗ですよ！",
+  "client_message_id": null,
+  "created_at": "2026-08-06T14:51:05.000Z",
+  "feedback": {
+    "next_question": null,
+    "grammar_correction": null,
+    "natural_expression_tip": null,
+    "answer_hints": []
+  }
+}
+```
+
+`client_message_id` bắt buộc với `user` message và được dùng làm idempotency key; với `ai` message
+giá trị là `null`.
+
 ---
 
 ## 3. Danh sách Endpoints chi tiết theo Module
@@ -1411,8 +1461,38 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
 
 ### 3.14. AI Tutor 1-1 Module (P2)
 
+AI Tutor Phase 2 chỉ hỗ trợ text. API dùng `conversation_id` cho resource phiên hội thoại;
+`tutor_sessions.id` và `session_id` chỉ là tên nội bộ ở database. JSON sender dùng lowercase
+`user` hoặc `ai`; database có thể lưu enum theo quy ước nội bộ nhưng không được lộ khác biệt này
+ra public contract.
+
+#### `GET /api/v1/ai-tutor/scenarios`
+* **Mục đích**: Lấy catalog scenario đang active để người dùng chọn trước khi tạo conversation.
+* **Yêu cầu xác thực**: Bearer Token
+* **Request Headers**: `Authorization: Bearer <jwt_access_token>`
+* **Query Parameters**:
+  * `topic` (optional, string, max 255): Lọc scenario theo topic.
+* **Response Schema (200 OK)**:
+  ```json
+  [
+    {
+      "id": "222e8400-e29b-41d4-a716-446655440222",
+      "slug": "kyoto-trip",
+      "topic": "Du lịch Nhật Bản",
+      "title": "Hỏi kế hoạch đi Kyoto",
+      "scenario": "Bạn đang hỏi bạn bè về kế hoạch đi Kyoto.",
+      "display_order": 1
+    }
+  ]
+  ```
+* **Status Codes & Error Responses**:
+  * `200 OK`: Lấy catalog thành công.
+  * `401 Unauthorized` (`code`: `unauthorized`): Chưa đăng nhập.
+
+---
+
 #### `POST /api/v1/ai-tutor/conversations`
-* **Mục đích**: Khởi tạo phiên luyện hội thoại tự do 1-1 mới với AI Tutor theo chủ đề và độ khó.
+* **Mục đích**: Khởi tạo conversation theo scenario catalog hoặc topic tự do, cùng cấp độ JLPT.
 * **Yêu cầu xác thực**: Bearer Token
 * **Request Headers**: `Authorization: Bearer <jwt_access_token>`, `Content-Type: application/json`
 * **Path Parameters**: Không
@@ -1420,26 +1500,46 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
 * **Request Body Schema**:
   ```json
   {
-    "topic": "Du lịch Nhật Bản",
+    "scenario_id": "222e8400-e29b-41d4-a716-446655440222",
+    "topic": null,
     "difficulty": "N3"
   }
   ```
+  Có thể gửi `scenario_id` thay cho `topic`. Một trong hai trường `scenario_id` hoặc `topic` là bắt
+  buộc; nếu có `scenario_id`, backend lấy topic/scenario từ catalog và lưu snapshot vào conversation.
 * **Response Schema (201 Created)**:
   ```json
   {
     "conversation_id": "111e8400-e29b-41d4-a716-446655440111",
+    "scenario_id": "222e8400-e29b-41d4-a716-446655440222",
     "topic": "Du lịch Nhật Bản",
     "difficulty": "N3",
+    "scenario": "Bạn đang hỏi bạn bè về kế hoạch đi Kyoto.",
+    "status": "active",
     "initial_message": {
       "sender": "ai",
+      "sequence_number": 1,
       "text": "こんにちは！日本旅行について話しましょう。どこに行きたいですか？",
-      "created_at": "2026-08-06T14:50:00.000Z"
+      "created_at": "2026-08-06T14:50:00.000Z",
+      "feedback": {
+        "next_question": "どこに行きたいですか？",
+        "grammar_correction": null,
+        "natural_expression_tip": null,
+        "answer_hints": [
+          {
+            "text": "京都に行きたいです。",
+            "meaning_vi": "Tôi muốn đi Kyoto."
+          }
+        ]
+      }
     }
   }
   ```
 * **Status Codes & Error Responses**:
   * `201 Created`: Tạo phiên hội thoại thành công.
   * `401 Unauthorized` (`code`: `unauthorized`): Chưa đăng nhập.
+  * `404 Not Found` (`code`: `not_found`): `scenario_id` không tồn tại hoặc không còn active.
+  * `503 Service Unavailable` (`code`: `service_unavailable`): AI Gateway chưa sẵn sàng.
 
 ---
 
@@ -1458,8 +1558,11 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
     "items": [
       {
         "conversation_id": "111e8400-e29b-41d4-a716-446655440111",
+        "scenario_id": "222e8400-e29b-41d4-a716-446655440222",
         "topic": "Du lịch Nhật Bản",
         "difficulty": "N3",
+        "scenario": "Bạn đang hỏi bạn bè về kế hoạch đi Kyoto.",
+        "status": "active",
         "last_message_text": "京都に行きたいです。",
         "updated_at": "2026-08-06T14:52:00.000Z"
       }
@@ -1472,6 +1575,7 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
   ```
 * **Status Codes & Error Responses**:
   * `200 OK`: Thành công.
+  * `401 Unauthorized` (`code`: `unauthorized`): Chưa đăng nhập.
 
 ---
 
@@ -1487,26 +1591,42 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
   ```json
   {
     "conversation_id": "111e8400-e29b-41d4-a716-446655440111",
+    "scenario_id": "222e8400-e29b-41d4-a716-446655440222",
     "topic": "Du lịch Nhật Bản",
     "difficulty": "N3",
+    "scenario": "Bạn đang hỏi bạn bè về kế hoạch đi Kyoto.",
+    "status": "active",
+    "started_at": "2026-08-06T14:50:00.000Z",
+    "ended_at": null,
     "messages": [
       {
         "id": "msg_01",
         "sender": "ai",
+        "sequence_number": 1,
         "text": "こんにちは！日本旅行について話しましょう。どこに行きたいですか？",
-        "created_at": "2026-08-06T14:50:00.000Z"
+        "created_at": "2026-08-06T14:50:00.000Z",
+        "feedback": {
+          "next_question": "どこに行きたいですか？",
+          "grammar_correction": null,
+          "natural_expression_tip": null,
+          "answer_hints": []
+        }
       },
       {
         "id": "msg_02",
         "sender": "user",
+        "sequence_number": 2,
         "text": "京都に行きたいです。",
-        "created_at": "2026-08-06T14:51:00.000Z"
+        "client_message_id": "333e8400-e29b-41d4-a716-446655440333",
+        "created_at": "2026-08-06T14:51:00.000Z",
+        "feedback": null
       }
     ]
   }
   ```
 * **Status Codes & Error Responses**:
   * `200 OK`: Thành công.
+  * `401 Unauthorized` (`code`: `unauthorized`): Chưa đăng nhập.
   * `403 Forbidden` (`code`: `forbidden`): Không có quyền truy cập phiên hội thoại này.
   * `404 Not Found` (`code`: `not_found`): Phiên hội thoại không tồn tại.
 
@@ -1522,7 +1642,8 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
 * **Request Body Schema**:
   ```json
   {
-    "text": "京都に行きたいです。お寺を見ます。"
+    "text": "京都に行きたいです。お寺を見ます。",
+    "client_message_id": "333e8400-e29b-41d4-a716-446655440333"
   }
   ```
 * **Response Schema (200 OK)**:
@@ -1531,25 +1652,62 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
     "user_message": {
       "id": "msg_02",
       "sender": "user",
+      "sequence_number": 2,
       "text": "京都に行きたいです。お寺を見ます。",
-      "created_at": "2026-08-06T14:51:00.000Z"
+      "client_message_id": "333e8400-e29b-41d4-a716-446655440333",
+      "created_at": "2026-08-06T14:51:00.000Z",
+      "feedback": null
     },
     "ai_reply": {
       "id": "msg_03",
       "sender": "ai",
+      "sequence_number": 3,
       "text": "京都のお寺はとても綺麗ですよ！金閣寺や清水寺が有名です。どちらに行きたいですか？",
-      "created_at": "2026-08-06T14:51:05.000Z"
-    },
-    "feedback": {
-      "grammar_correction": "お寺を見ます -> お寺を見たいです (Diễn đạt ý muốn tự nhiên hơn)",
-      "natural_expression_tip": "京都でお寺めぐりをしたいです (Tôi muốn đi tham quan các ngôi chùa ở Kyoto)."
+      "created_at": "2026-08-06T14:51:05.000Z",
+      "feedback": {
+        "next_question": "金閣寺と清水寺、どちらに行きたいですか？",
+        "grammar_correction": "お寺を見ます -> お寺を見たいです (Diễn đạt ý muốn tự nhiên hơn)",
+        "natural_expression_tip": "京都でお寺めぐりをしたいです (Tôi muốn đi tham quan các ngôi chùa ở Kyoto).",
+        "answer_hints": [
+          {
+            "text": "金閣寺に行きたいです。",
+            "meaning_vi": "Tôi muốn đi Kinkaku-ji."
+          }
+        ]
+      }
     }
   }
   ```
 * **Status Codes & Error Responses**:
   * `200 OK`: Trả lời hội thoại thành công.
   * `403 Forbidden` (`code`: `forbidden`): Không có quyền truy cập phiên hội thoại.
+  * `404 Not Found` (`code`: `not_found`): Conversation không tồn tại.
+  * `409 Conflict` (`code`: `tutor_conversation_completed` hoặc `tutor_message_idempotency_conflict`):
+    Conversation đã kết thúc hoặc `client_message_id` được dùng cho text khác.
   * `503 Service Unavailable` (`code`: `service_unavailable`): AI Gateway bị sập hoặc quá tải.
+
+---
+
+#### `POST /api/v1/ai-tutor/conversations/{conversation_id}/complete`
+* **Mục đích**: Đóng một conversation đang active và ghi nhận thời điểm kết thúc.
+* **Yêu cầu xác thực**: Bearer Token
+* **Request Headers**: `Authorization: Bearer <jwt_access_token>`
+* **Path Parameters**:
+  * `conversation_id` (string, UUID): ID phiên hội thoại
+* **Request Body**: Không
+* **Response Schema (200 OK)**:
+  ```json
+  {
+    "conversation_id": "111e8400-e29b-41d4-a716-446655440111",
+    "status": "completed",
+    "ended_at": "2026-08-06T14:55:00.000Z"
+  }
+  ```
+* **Status Codes & Error Responses**:
+  * `200 OK`: Đóng conversation thành công; gọi lại endpoint là idempotent.
+  * `401 Unauthorized` (`code`: `unauthorized`): Chưa đăng nhập.
+  * `403 Forbidden` (`code`: `forbidden`): Không có quyền truy cập conversation.
+  * `404 Not Found` (`code`: `not_found`): Conversation không tồn tại.
 
 ---
 
@@ -1597,7 +1755,7 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
 
 ### 4.1. Thống kê tài liệu
 * **Số lượng Module được mô tả**: 15 module (Health, Auth, User, Learning Content, Shadowing, Dictation, Progress, Gamification, Leaderboard, Dashboard, Reflex, Review, Listening & Translation, AI Tutor, Pronunciation Analysis).
-* **Tổng số API Endpoints được quy định**: 31 endpoints.
+* **Tổng số API Endpoints được quy định**: 33 endpoints.
 
 ### 4.2. Giả định (Assumptions Made)
 1. **YouTube Audio Delivery**: `audio_url` là URL video YouTube được trả trong metadata bài học.
@@ -1609,7 +1767,7 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
 
 ### 4.3. Các mục TODO còn lại
 * **TODO-01 (Avatar Upload)**: Endpoint tải ảnh đại diện (`POST /api/v1/users/me/avatar`) tạm thời chưa khai báo do hạ tầng lưu trữ avatar chưa thống nhất trong thiết kế `07-module-design.md`.
-* **TODO-02 (AI Tutor Voice Input)**: Endpoint gửi giọng nói trực tiếp cho AI Tutor (`POST /api/v1/ai-tutor/conversations/{id}/voice-messages`) thuộc phạm vi nâng cao của P2 và sẽ được bổ sung khi mô hình Voice-to-Voice được chốt.
+* **TODO-02 (AI Tutor Voice Input)**: Endpoint gửi giọng nói trực tiếp cho AI Tutor (`POST /api/v1/ai-tutor/conversations/{id}/voice-messages`) không thuộc Phase 2; sẽ được bổ sung ở giai đoạn sau khi mô hình Voice-to-Voice được chốt.
 
 ### 4.4. Đánh giá tính nhất quán tài liệu (Inconsistency Check)
 * Đã đối chiếu hoàn toàn khớp với quy tắc đặt tên (`snake_case`), cấu trúc lỗi Envelope (`status`, `code`, `message`, `details`) tại `08-coding-convention.md`.

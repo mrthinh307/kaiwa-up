@@ -680,7 +680,7 @@ Bảng trên là cấu hình ban đầu và có thể thay đổi sau khi thử 
 | Dictation      | Số câu đã Submit lần đầu chia cho tổng số câu |
 | Phản xạ 3 giây | Câu được hoàn thành lần đầu                   |
 | Nghe và dịch   | Số câu đã Submit lần đầu chia cho tổng số câu |
-| AI Tutor       | Chưa thuộc phạm vi MVP                        |
+| AI Tutor       | Conversation/message history; không có EXP hoặc lesson completion trong Phase 2 |
 
 Bản ghi Shadowing hợp lệ khi:
 
@@ -878,23 +878,29 @@ Khi đó có thể bổ sung một `PronunciationAnalysisService` riêng mà kh�
 
 ## 16.2. AI Tutor
 
-AI Tutor chưa được phát triển trong MVP.
+AI Tutor được triển khai ở Phase 2 dưới dạng text-only. Voice input chưa thuộc contract hiện tại.
 
-Trong tương lai có thể bổ sung:
+Các thành phần chính:
 
 ```text
-AITutorService
-ConversationService
-ConversationRepository
+AI Tutor Router
+    ↓
+TutorService → TutorRepository → tutor_sessions / tutor_messages
+    ↓
+AI Gateway interface → provider adapter
 ```
 
-AI Tutor có thể hỗ trợ:
+Luồng backend:
 
-* Hội thoại bằng văn bản.
-* Hội thoại bằng giọng nói.
-* Nhận xét ngữ pháp.
-* Gợi ý cách diễn đạt tự nhiên.
-* Lưu lịch sử hội thoại.
+1. Router xác thực user, parse request và gọi `TutorService`.
+2. Service resolve scenario catalog hoặc topic tự do rồi tạo conversation.
+3. Service gửi prompt/context giới hạn qua AI Gateway; provider không được lộ ra frontend.
+4. Service chuẩn hóa reply, correction, natural expression và tối đa 3 `answer_hints`.
+5. Repository lưu message theo `sequence_number`; `client_message_id` dùng để retry idempotent.
+6. User chỉ được đọc hoặc gửi message trong conversation của chính mình.
+
+Nếu AI Gateway timeout hoặc chưa sẵn sàng, API trả `503 service_unavailable`; user message đã được
+ghi nhận không bị mất và frontend có thể retry bằng cùng `client_message_id`.
 
 ---
 
@@ -933,7 +939,7 @@ Tính năng này cần bổ sung:
 | Shadowing nâng cao | Phân tích ngữ điệu, ngữ âm và nhấn nhá trong tương lai |
 | Phản xạ 3 giây     | AI chấm điểm và đưa nhận xét                           |
 | Lặp lại ngắt quãng | Xác định lịch ôn dựa trên điểm AI                      |
-| AI Tutor           | Chưa phát triển trong MVP                              |
+| AI Tutor           | Phase 2 text-only; deploy bị block bởi issue #88       |
 | EXP                | Mỗi chức năng có cơ chế tính riêng                     |
 | Level              | Công thức tăng dần `50 × level hiện tại`, không có trần |
 | Leaderboard        | Dựa trên EXP theo tuần                                 |

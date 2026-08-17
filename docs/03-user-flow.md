@@ -347,44 +347,36 @@ Trong phiên bản đầu:
 ```mermaid
 flowchart TD
     A[User mở AI Tutor] --> B[Chọn chủ đề]
-
-    B --> C[Chọn mức độ khó]
-    C --> D[Nhấn bắt đầu]
-
-    D --> E[Hệ thống tạo phiên hội thoại]
-    E --> F[AI gửi câu mở đầu]
-
-    F --> G{Cách trả lời}
-
+    B --> C[Chọn scenario hoặc phiên tự do]
+    C --> D[Chọn mức độ khó]
+    D --> E[Nhấn bắt đầu]
+    E --> F[Tạo conversation]
+    F --> G[AI gửi câu mở đầu và feedback.answer_hints]
     G --> H[Nhập văn bản]
-    G --> I[Ghi âm giọng nói]
-
-    H --> J[Gửi câu trả lời]
-    I --> K[Chuyển giọng nói thành văn bản]
-    K --> J
-
-    J --> L[AI phân tích ngữ cảnh]
-    L --> M[AI phản hồi]
-
-    M --> N[Hiển thị câu trả lời và nhận xét]
-
-    N --> O{Tiếp tục hội thoại?}
-
-    O -- Có --> G
-    O -- Không --> P[Kết thúc phiên]
-
-    P --> Q[Lưu lịch sử hội thoại]
+    H --> I[Gửi text kèm client_message_id]
+    I --> J[Backend kiểm tra ownership và retry key]
+    J --> K[Ghi user message]
+    K --> L[Gửi context giới hạn qua AI Gateway]
+    L --> M[AI trả reply và feedback chuẩn hóa]
+    M --> N[Lưu AI message theo sequence]
+    N --> O[Hiển thị phản hồi và gợi ý]
+    O --> P{Tiếp tục hội thoại?}
+    P -- Có --> H
+    P -- Không --> Q[POST complete]
+    Q --> R[Lưu lịch sử hội thoại]
 ```
 
 ## 10.2. Luồng lỗi
 
 * Không thể tạo phiên hội thoại.
 * AI không phản hồi.
-* Không thể chuyển giọng nói thành văn bản.
 * Nội dung gửi lên không hợp lệ.
 * Kết nối bị gián đoạn.
+* Retry với cùng `client_message_id` phải trả lại kết quả cũ, không tạo user message trùng.
 
 Nếu AI gặp lỗi, hệ thống phải hiển thị thông báo và cho phép người dùng thử lại.
+User message hợp lệ đã ghi nhận không bị mất khi AI timeout; retry tiếp tục dùng cùng
+`client_message_id`.
 
 ---
 
@@ -530,7 +522,7 @@ flowchart TD
 
 ---
 
-# 16. Các điểm cần thống nhất trước khi triển khai
+# 16. Các điểm thiết kế còn mở ngoài quyết định Phase 2
 
 Các nội dung sau cần được chốt trong giai đoạn thiết kế kiến trúc và database:
 
@@ -538,8 +530,7 @@ Các nội dung sau cần được chốt trong giai đoạn thiết kế kiến
 2. Bản ghi âm của người dùng có cần lưu lâu dài hay chỉ xử lý tạm thời.
 3. AI đánh giá Shadowing bằng cách nào.
 4. AI đánh giá phản xạ dựa trên tiêu chí nào.
-5. AI Tutor có hỗ trợ giọng nói ngay trong MVP hay chỉ hỗ trợ văn bản.
-6. Thuật toán lặp lại ngắt quãng được sử dụng.
-7. Quy tắc EXP thưởng thêm ngoài `base_exp`, nếu có.
-8. Điều kiện hoàn thành từng loại bài tập.
-9. Cách quản lý và thêm mới nội dung bài học khi chưa có giao diện quản trị.
+5. Thuật toán lặp lại ngắt quãng được sử dụng.
+6. Quy tắc EXP thưởng thêm ngoài `base_exp`, nếu có.
+7. Điều kiện hoàn thành từng loại bài tập.
+8. Cách quản lý và thêm mới nội dung bài học khi chưa có giao diện quản trị.

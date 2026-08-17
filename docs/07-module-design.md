@@ -613,18 +613,20 @@ giá câu trả lời tự do bằng AI.
 Backend:
 
 - Tạo/kết thúc conversation và lưu message theo đúng thứ tự.
-- Nhận câu trả lời dạng text; dạng voice dùng Media file tạm và AI Gateway Speech-to-Text khi được bật.
-- Gửi context cần thiết qua AI Gateway, chuẩn hóa phản hồi và lưu lịch sử nếu feature cho phép.
+- Cung cấp catalog scenario đang active; tạo conversation bằng `scenario_id` hoặc topic tự do.
+- Phase 2 chỉ nhận câu trả lời dạng text; voice dùng Media file tạm và Speech-to-Text ở giai đoạn sau.
+- Gửi context giới hạn qua AI Gateway, chuẩn hóa reply, feedback và tối đa 3 `answer_hints`.
 - Kiểm tra ownership của conversation và giới hạn context để kiểm soát chi phí/token.
-- Xác định timeout, retry và trạng thái lỗi mà không làm mất message đã được ghi nhận hợp lệ.
+- Dùng `client_message_id` để retry không tạo user message trùng.
+- Xác định timeout, retry và trạng thái lỗi mà không làm mất user message đã được ghi nhận hợp lệ.
 
 Frontend:
 
-- Sở hữu route `/ai-tutor`, màn hình chọn chủ đề/độ khó và giao diện hội thoại.
+- Sở hữu route `/ai-tutor`, màn hình chọn topic/scenario/difficulty và giao diện hội thoại.
 - Hiển thị trạng thái AI đang xử lý, lỗi có thể thử lại và lịch sử phiên.
 - Không gọi trực tiếp AI provider hoặc chứa API key.
 
-Sở hữu: conversation, message, topic, difficulty và normalized tutor feedback.
+Sở hữu: scenario catalog, conversation, message, topic, difficulty, status và normalized tutor feedback.
 
 Phụ thuộc: Auth/User, AI Gateway và Media/Storage nếu hỗ trợ voice.
 

@@ -511,7 +511,7 @@ Người dùng có thể chọn:
 
 * Chủ đề hội thoại.
 * Mức độ khó.
-* Tình huống giao tiếp nếu có.
+* Scenario từ catalog nếu có; phiên tự do có thể chỉ chọn topic.
 
 ---
 
@@ -520,7 +520,9 @@ Người dùng có thể chọn:
 Người dùng có thể gửi câu trả lời cho AI bằng:
 
 * Văn bản.
-* Giọng nói nếu chức năng xử lý giọng nói được triển khai.
+
+Voice input không thuộc Phase 2 và chỉ được bổ sung ở giai đoạn sau khi có contract
+Speech-to-Text/Voice riêng.
 
 ---
 
@@ -532,6 +534,7 @@ AI Tutor có thể:
 * Phản hồi theo ngữ cảnh hội thoại.
 * Sửa lỗi ngữ pháp hoặc cách dùng từ.
 * Gợi ý cách diễn đạt tự nhiên hơn.
+* Đưa ra tối đa 3 gợi ý trả lời ngắn, mỗi gợi ý có nghĩa tiếng Việt.
 * Khuyến khích người dùng tiếp tục hội thoại.
 
 ---
@@ -541,11 +544,12 @@ AI Tutor có thể:
 Hệ thống có thể lưu:
 
 * Nội dung cuộc hội thoại.
-* Chủ đề.
-* Thời gian tạo.
-* Các phản hồi hoặc nhận xét của AI.
+* Topic, scenario snapshot, difficulty và trạng thái phiên.
+* Thời gian tạo/kết thúc và thứ tự message.
+* Các feedback, correction và answer hints của AI.
 
-Người dùng có thể xem lại lịch sử hội thoại nếu chức năng này được triển khai trong phạm vi dự án.
+Người dùng có thể xem lại lịch sử hội thoại của chính mình. Không được đọc hoặc gửi message vào
+conversation của user khác.
 
 ---
 
