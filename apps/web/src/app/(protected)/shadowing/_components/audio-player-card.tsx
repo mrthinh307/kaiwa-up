@@ -35,6 +35,7 @@ export function AudioPlayerCard({
     changePlaybackRate,
     currentTime,
     duration,
+    handleIframeLoad,
     hasError,
     iframeRef,
     isPlaying,
@@ -57,6 +58,7 @@ export function AudioPlayerCard({
               allow="autoplay; encrypted-media; picture-in-picture"
               allowFullScreen
               className="absolute inset-0 size-full border-0"
+              onLoad={handleIframeLoad}
               ref={iframeRef}
               src={`https://www.youtube-nocookie.com/embed/${youtubeVideoId}?enablejsapi=1&autoplay=0&controls=1&rel=0&playsinline=1`}
               title="Shadowing lesson video"
@@ -68,6 +70,7 @@ export function AudioPlayerCard({
               allow="autoplay; encrypted-media; picture-in-picture"
               aria-hidden="true"
               className="size-px border-0"
+              onLoad={handleIframeLoad}
               ref={iframeRef}
               src={`https://www.youtube-nocookie.com/embed/${youtubeVideoId}?enablejsapi=1&autoplay=0&controls=0&rel=0&playsinline=1`}
               tabIndex={-1}

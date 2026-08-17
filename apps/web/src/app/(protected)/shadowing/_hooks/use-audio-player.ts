@@ -48,6 +48,111 @@ export function useAudioPlayer(src: string, initialDuration = 0) {
     );
   }, []);
 
+  const handleIframeLoad = useCallback(() => {
+    iframeRef.current?.contentWindow?.postMessage(
+      JSON.stringify({ event: "listening" }),
+      YOUTUBE_ORIGIN,
+    );
+  }, []);
+
+  // Synchronize bi-directional state from YouTube IFrame events
+  useEffect(() => {
+    if (!isYouTube) return;
+
+    const handleMessage = (event: MessageEvent) => {
+      if (
+        typeof event.origin === "string" &&
+        !event.origin.includes("youtube.com") &&
+        !event.origin.includes("youtube-nocookie.com")
+      ) {
+        return;
+      }
+
+      let payload: {
+        event?: string;
+        info?:
+          | number
+          | {
+              currentTime?: number;
+              duration?: number;
+              playbackRate?: number;
+              playerState?: number;
+            };
+      };
+
+      if (typeof event.data === "string") {
+        try {
+          payload = JSON.parse(event.data);
+        } catch {
+          return;
+        }
+      } else if (typeof event.data === "object" && event.data !== null) {
+        payload = event.data;
+      } else {
+        return;
+      }
+
+      if (!payload) return;
+
+      // Handle onStateChange
+      if (payload.event === "onStateChange") {
+        const state = payload.info;
+        if (state === 1) {
+          // Playing
+          setIsPlaying(true);
+          hasReachedEndRef.current = false;
+        } else if (state === 2) {
+          // Paused
+          setIsPlaying(false);
+        } else if (state === 0) {
+          // Ended
+          setIsPlaying(false);
+          setCurrentTime(0);
+          hasReachedEndRef.current = true;
+        }
+      } else if (payload.event === "infoDelivery" || payload.event === "initialDelivery") {
+        const info = payload.info;
+        if (info && typeof info === "object") {
+          if (typeof info.currentTime === "number") {
+            setCurrentTime(info.currentTime);
+          }
+          if (typeof info.duration === "number" && info.duration > 0) {
+            setAudioDuration(info.duration);
+          }
+          if (typeof info.playbackRate === "number") {
+            setPlaybackRate(info.playbackRate);
+          }
+          if (typeof info.playerState === "number") {
+            if (info.playerState === 1) {
+              setIsPlaying(true);
+              hasReachedEndRef.current = false;
+            } else if (info.playerState === 2) {
+              setIsPlaying(false);
+            } else if (info.playerState === 0) {
+              setIsPlaying(false);
+              setCurrentTime(0);
+              hasReachedEndRef.current = true;
+            }
+          }
+        }
+      }
+    };
+
+    window.addEventListener("message", handleMessage);
+
+    const timer = window.setTimeout(() => {
+      iframeRef.current?.contentWindow?.postMessage(
+        JSON.stringify({ event: "listening" }),
+        YOUTUBE_ORIGIN,
+      );
+    }, 500);
+
+    return () => {
+      window.removeEventListener("message", handleMessage);
+      window.clearTimeout(timer);
+    };
+  }, [isYouTube]);
+
   // HTML5 audio handler for direct audio files
   useEffect(() => {
     if (isYouTube || !src) return;
@@ -89,7 +194,7 @@ export function useAudioPlayer(src: string, initialDuration = 0) {
     };
   }, [initialDuration, isYouTube, playbackRate, src]);
 
-  // YouTube progress tracking timer
+  // YouTube progress tracking timer for smooth interpolated updates
   useEffect(() => {
     if (!isYouTube || !isPlaying) return;
 
@@ -181,6 +286,7 @@ export function useAudioPlayer(src: string, initialDuration = 0) {
     changePlaybackRate,
     currentTime,
     duration,
+    handleIframeLoad,
     hasError,
     iframeRef,
     isPlaying,
