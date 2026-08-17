@@ -6,10 +6,12 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 
-import { useAudioPlayer } from "../_hooks/use-audio-player";
+import { type AudioPlayerState, useAudioPlayer } from "../_hooks/use-audio-player";
 
 interface AudioPlayerCardProps {
   audioUrl: string;
+  durationSeconds?: number | null;
+  player?: AudioPlayerState;
 }
 
 function formatTime(seconds: number): string {
@@ -19,22 +21,46 @@ function formatTime(seconds: number): string {
   return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
 }
 
-export function AudioPlayerCard({ audioUrl }: AudioPlayerCardProps) {
+export function AudioPlayerCard({
+  audioUrl,
+  durationSeconds,
+  player: externalPlayer,
+}: AudioPlayerCardProps) {
+  const internalPlayer = useAudioPlayer(audioUrl, durationSeconds ?? 0);
+  const player = externalPlayer ?? internalPlayer;
+
   const {
     changePlaybackRate,
     currentTime,
     duration,
     hasError,
+    iframeRef,
     isPlaying,
+    isYouTube,
     playbackRate,
     seek,
     togglePlay,
-  } = useAudioPlayer(audioUrl);
+    youtubeVideoId,
+  } = player;
 
   const speedOptions = [0.8, 1.0, 1.2];
 
   return (
     <div className="rounded-base border-2 border-border bg-secondary-background p-6 shadow-shadow">
+      {isYouTube && youtubeVideoId && (
+        <div className="sr-only">
+          <iframe
+            allow="autoplay; encrypted-media; picture-in-picture"
+            aria-hidden="true"
+            className="size-px border-0"
+            ref={iframeRef}
+            src={`https://www.youtube-nocookie.com/embed/${youtubeVideoId}?enablejsapi=1&autoplay=0&controls=0&rel=0&playsinline=1`}
+            tabIndex={-1}
+            title="Shadowing lesson audio"
+          />
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 font-heading text-lg">
           <Headphones className="size-5 text-main" />

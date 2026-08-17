@@ -7,6 +7,7 @@ import { recordShadowingSegment } from "@/lib/api-client";
 
 import type { ShadowingLesson, ShadowingResult } from "../_validations/shadowing-schemas";
 
+import { useAudioPlayer } from "../_hooks/use-audio-player";
 import { AudioPlayerCard } from "./audio-player-card";
 import { CompletionModal } from "./completion-modal";
 import { RecorderCard } from "./recorder-card";
@@ -21,6 +22,8 @@ export function ShadowingScreen({ lesson }: ShadowingScreenProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [result, setResult] = useState<ShadowingResult | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const player = useAudioPlayer(lesson.audio_url ?? "", lesson.duration_seconds ?? 0);
 
   const handleComplete = async ({
     audioBlob,
@@ -87,11 +90,27 @@ export function ShadowingScreen({ lesson }: ShadowingScreenProps) {
     <div className="space-y-6">
       <ShadowingHeader title={lesson.title} />
 
-      <AudioPlayerCard audioUrl={lesson.audio_url ?? ""} />
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:items-start">
+        {/* Left Side: Audio Player & Voice Recorder */}
+        <div className="space-y-6 lg:col-span-7">
+          <AudioPlayerCard
+            audioUrl={lesson.audio_url ?? ""}
+            durationSeconds={lesson.duration_seconds}
+            player={player}
+          />
 
-      <TranscriptCard transcript={lesson.transcript ?? []} />
+          <RecorderCard isSubmitting={isSubmitting} onComplete={handleComplete} />
+        </div>
 
-      <RecorderCard isSubmitting={isSubmitting} onComplete={handleComplete} />
+        {/* Right Side: Synchronized Scrollable Transcript */}
+        <div className="lg:col-span-5">
+          <TranscriptCard
+            currentTimeMs={player.currentTime * 1000}
+            onSeekSegment={(startMs) => player.seek(startMs / 1000)}
+            transcript={lesson.transcript ?? []}
+          />
+        </div>
+      </div>
 
       <CompletionModal
         isOpen={isModalOpen}

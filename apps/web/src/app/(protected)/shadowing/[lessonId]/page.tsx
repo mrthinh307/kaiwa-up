@@ -54,7 +54,7 @@ export default async function ShadowingLessonPage({ params }: ShadowingLessonPag
 
   return (
     <main className="px-5 py-10 sm:px-8 sm:py-12 lg:py-14">
-      <div className="mx-auto w-full max-w-[1000px]">
+      <div className="mx-auto w-full max-w-[1280px]">
         <ShadowingScreen lesson={lesson} />
       </div>
     </main>
