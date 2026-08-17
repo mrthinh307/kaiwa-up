@@ -12,6 +12,7 @@ interface AudioPlayerCardProps {
   audioUrl: string;
   durationSeconds?: number | null;
   player?: AudioPlayerState;
+  showVideo?: boolean;
 }
 
 function formatTime(seconds: number): string {
@@ -25,6 +26,7 @@ export function AudioPlayerCard({
   audioUrl,
   durationSeconds,
   player: externalPlayer,
+  showVideo = false,
 }: AudioPlayerCardProps) {
   const internalPlayer = useAudioPlayer(audioUrl, durationSeconds ?? 0);
   const player = externalPlayer ?? internalPlayer;
@@ -47,19 +49,32 @@ export function AudioPlayerCard({
 
   return (
     <div className="rounded-base border-2 border-border bg-secondary-background p-6 shadow-shadow">
-      {isYouTube && youtubeVideoId && (
-        <div className="sr-only">
-          <iframe
-            allow="autoplay; encrypted-media; picture-in-picture"
-            aria-hidden="true"
-            className="size-px border-0"
-            ref={iframeRef}
-            src={`https://www.youtube-nocookie.com/embed/${youtubeVideoId}?enablejsapi=1&autoplay=0&controls=0&rel=0&playsinline=1`}
-            tabIndex={-1}
-            title="Shadowing lesson audio"
-          />
-        </div>
-      )}
+      {isYouTube &&
+        youtubeVideoId &&
+        (showVideo ? (
+          <div className="relative aspect-video w-full overflow-hidden rounded-base border-2 border-border bg-black mb-6 shadow-xs">
+            <iframe
+              allow="autoplay; encrypted-media; picture-in-picture"
+              allowFullScreen
+              className="absolute inset-0 size-full border-0"
+              ref={iframeRef}
+              src={`https://www.youtube-nocookie.com/embed/${youtubeVideoId}?enablejsapi=1&autoplay=0&controls=1&rel=0&playsinline=1`}
+              title="Shadowing lesson video"
+            />
+          </div>
+        ) : (
+          <div className="sr-only">
+            <iframe
+              allow="autoplay; encrypted-media; picture-in-picture"
+              aria-hidden="true"
+              className="size-px border-0"
+              ref={iframeRef}
+              src={`https://www.youtube-nocookie.com/embed/${youtubeVideoId}?enablejsapi=1&autoplay=0&controls=0&rel=0&playsinline=1`}
+              tabIndex={-1}
+              title="Shadowing lesson audio"
+            />
+          </div>
+        ))}
 
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 font-heading text-lg">

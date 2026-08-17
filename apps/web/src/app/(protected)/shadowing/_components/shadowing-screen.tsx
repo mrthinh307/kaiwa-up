@@ -12,6 +12,7 @@ import { AudioPlayerCard } from "./audio-player-card";
 import { CompletionModal } from "./completion-modal";
 import { RecorderCard } from "./recorder-card";
 import { ShadowingHeader } from "./shadowing-header";
+import { ShadowingSettingsSheet } from "./shadowing-settings-sheet";
 import { TranscriptCard } from "./transcript-card";
 
 interface ShadowingScreenProps {
@@ -22,6 +23,7 @@ export function ShadowingScreen({ lesson }: ShadowingScreenProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [result, setResult] = useState<ShadowingResult | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showVideo, setShowVideo] = useState(false);
 
   const player = useAudioPlayer(lesson.audio_url ?? "", lesson.duration_seconds ?? 0);
 
@@ -88,15 +90,20 @@ export function ShadowingScreen({ lesson }: ShadowingScreenProps) {
 
   return (
     <div className="space-y-6">
-      <ShadowingHeader title={lesson.title} />
+      <ShadowingHeader
+        difficulty={lesson.difficulty ?? "N4"}
+        settings={<ShadowingSettingsSheet onShowVideoChange={setShowVideo} showVideo={showVideo} />}
+        title={lesson.title}
+      />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:items-start">
-        {/* Left Side: Audio Player & Voice Recorder */}
+        {/* Left Side: Audio/Video Player & Voice Recorder */}
         <div className="space-y-6 lg:col-span-7">
           <AudioPlayerCard
             audioUrl={lesson.audio_url ?? ""}
             durationSeconds={lesson.duration_seconds}
             player={player}
+            showVideo={showVideo}
           />
 
           <RecorderCard isSubmitting={isSubmitting} onComplete={handleComplete} />
