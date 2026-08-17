@@ -48,7 +48,7 @@ make test-api
 Each test runs in its own transaction and automatically rolls back after completion.
 Test data is never persisted, so it is safe for concurrent local or CI execution.
 
-Pull-request CI does not connect to Neon. It starts a disposable PostgreSQL 16 service, applies the
+Pull-request CI does not connect to Neon. It starts a disposable PostgreSQL 18 service, applies the
 migrations, and runs the suite with four pytest-xdist workers. The service database is isolated per
 job and removed automatically after CI completes.
 
