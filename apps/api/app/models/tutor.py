@@ -4,6 +4,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     DateTime,
     Enum,
@@ -20,8 +21,34 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.base import Base, CreatedAtMixin, PrimaryKeyUuidMixin
+from app.models.base import Base, CreatedAtMixin, PrimaryKeyUuidMixin, TimestampMixin
 from app.models.enums import JlptLevel, TutorSender
+
+
+class TutorScenario(PrimaryKeyUuidMixin, TimestampMixin, Base):
+    __tablename__ = "tutor_scenarios"
+    __table_args__ = (
+        CheckConstraint(
+            "display_order >= 0",
+            name="tutor_scenarios_display_order_nonnegative",
+        ),
+        UniqueConstraint("slug", name="uq_tutor_scenarios_slug"),
+        Index(
+            "ix_tutor_scenarios_active_order",
+            "is_active",
+            "display_order",
+            "topic",
+        ),
+    )
+
+    slug: Mapped[str] = mapped_column(String(255), nullable=False)
+    topic: Mapped[str] = mapped_column(String(255), nullable=False)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    scenario: Mapped[str] = mapped_column(Text, nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    display_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    sessions: Mapped[list["TutorSession"]] = relationship(back_populates="scenario_catalog")
 
 
 class TutorSession(PrimaryKeyUuidMixin, Base):
@@ -40,10 +67,16 @@ class TutorSession(PrimaryKeyUuidMixin, Base):
             "user_id",
             text("started_at DESC"),
         ),
+        Index("ix_tutor_sessions_scenario_id", "scenario_id"),
     )
 
     user_id: Mapped[uuid.UUID] = mapped_column(
         Uuid, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    scenario_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid,
+        ForeignKey("tutor_scenarios.id", ondelete="SET NULL"),
+        nullable=True,
     )
     topic: Mapped[str | None] = mapped_column(String(255), nullable=True)
     difficulty: Mapped[JlptLevel | None] = mapped_column(
@@ -62,6 +95,7 @@ class TutorSession(PrimaryKeyUuidMixin, Base):
     )
     ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
+    scenario_catalog: Mapped[TutorScenario | None] = relationship(back_populates="sessions")
     messages: Mapped[list["TutorMessage"]] = relationship(
         back_populates="session",
         cascade="all, delete-orphan",
