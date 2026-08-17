@@ -31,55 +31,55 @@ colors:
   chart-5: "#7a83ff"
 typography:
   display-desktop:
-    fontFamily: "DM Sans, Noto Sans JP, sans-serif"
+    fontFamily: "Space Grotesk, Noto Sans JP, sans-serif"
     fontSize: 48px
     fontWeight: 700
     lineHeight: 72px
     letterSpacing: 0px
   display-mobile:
-    fontFamily: "DM Sans, Noto Sans JP, sans-serif"
+    fontFamily: "Space Grotesk, Noto Sans JP, sans-serif"
     fontSize: 24px
     fontWeight: 700
     lineHeight: 36px
     letterSpacing: 0px
   section-title-desktop:
-    fontFamily: "DM Sans, Noto Sans JP, sans-serif"
+    fontFamily: "Space Grotesk, Noto Sans JP, sans-serif"
     fontSize: 60px
     fontWeight: 700
     lineHeight: 75px
     letterSpacing: 0px
   section-title-mobile:
-    fontFamily: "DM Sans, Noto Sans JP, sans-serif"
+    fontFamily: "Space Grotesk, Noto Sans JP, sans-serif"
     fontSize: 30px
     fontWeight: 700
     lineHeight: 37.5px
     letterSpacing: 0px
   heading-card:
-    fontFamily: "DM Sans, Noto Sans JP, sans-serif"
+    fontFamily: "Space Grotesk, Noto Sans JP, sans-serif"
     fontSize: 24px
     fontWeight: 700
     lineHeight: 32px
     letterSpacing: 0px
   body-large:
-    fontFamily: "DM Sans, Noto Sans JP, sans-serif"
+    fontFamily: "Space Grotesk, Noto Sans JP, sans-serif"
     fontSize: 20px
     fontWeight: 500
     lineHeight: 28px
     letterSpacing: 0px
   body:
-    fontFamily: "DM Sans, Noto Sans JP, sans-serif"
+    fontFamily: "Space Grotesk, Noto Sans JP, sans-serif"
     fontSize: 16px
     fontWeight: 500
     lineHeight: 24px
     letterSpacing: 0px
   body-small:
-    fontFamily: "DM Sans, Noto Sans JP, sans-serif"
+    fontFamily: "Space Grotesk, Noto Sans JP, sans-serif"
     fontSize: 14px
     fontWeight: 500
     lineHeight: 20px
     letterSpacing: 0px
   label:
-    fontFamily: "DM Sans, Noto Sans JP, sans-serif"
+    fontFamily: "Space Grotesk, Noto Sans JP, sans-serif"
     fontSize: 14px
     fontWeight: 500
     lineHeight: 20px
@@ -298,8 +298,8 @@ button colors. Pair every podium color with its numeric rank and medal icon, and
 
 ## Typography
 
-The global sans stack is DM Sans followed by Noto Sans JP. DM Sans gives the Latin interface its
-compact, geometric voice; Noto Sans JP supplies Japanese glyphs without requiring per-element font
+The global sans stack is Space Grotesk followed by Noto Sans JP. Space Grotesk gives the Latin interface
+its compact, geometric voice; Noto Sans JP supplies Japanese glyphs without requiring per-element font
 classes. Code and technical identifiers use the system monospace stack.
 
 | Role               | Compact         | Desktop                             | Weight | Typical use                       |
@@ -486,7 +486,7 @@ Badge, surrounding status treatment, or a documented product-specific component.
 - Use 2px component borders, 4px section borders, 5px component radius, and the shared hard shadow.
 - Alternate full-width surfaces to create hierarchy without adding new colors.
 - Keep one obvious primary action per local decision area.
-- Use DM Sans for interface text and Noto Sans JP as the automatic Japanese fallback.
+- Use Space Grotesk for interface text and Noto Sans JP as the automatic Japanese fallback.
 - Give Japanese examples, translations, audio controls, feedback, and progress a clear visual order.
 - Preserve semantic HTML, focus visibility, reduced-motion behavior, and meaningful accessible names.
 - Check the existing Landing Page for composition precedent before inventing a new marketing pattern.
