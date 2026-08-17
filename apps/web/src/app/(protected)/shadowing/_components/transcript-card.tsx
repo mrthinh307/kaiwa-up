@@ -87,18 +87,18 @@ export function TranscriptCard({
       {isVisible ? (
         <div className="mt-4 flex-1">
           {isSegmentArray ? (
-            <ScrollArea className="h-[460px] pr-3">
-              <div className="space-y-3">
+            <ScrollArea className="h-[480px] pr-3">
+              <div className="space-y-3.5">
                 {transcript.map((seg, idx) => {
                   const isActive = idx === activeIndex;
                   return (
                     <div
                       aria-current={isActive ? "true" : undefined}
                       className={cn(
-                        "group relative rounded-base border-2 p-3 sm:p-4 transition-all",
+                        "group relative rounded-base border-2 transition-all duration-200",
                         isActive
-                          ? "border-border bg-main/20 shadow-xs ring-2 ring-main/30"
-                          : "border-border bg-background hover:bg-background/80",
+                          ? "border-border bg-main text-main-foreground shadow-shadow translate-x-1 p-4 sm:p-5"
+                          : "border-border/50 bg-background/80 hover:bg-background hover:border-border p-3.5 sm:p-4",
                         onSeekSegment && "cursor-pointer",
                       )}
                       key={idx}
@@ -111,7 +111,9 @@ export function TranscriptCard({
                         <span
                           className={cn(
                             "font-mono text-xs select-none",
-                            isActive ? "font-bold text-foreground" : "text-foreground/60",
+                            isActive
+                              ? "bg-background text-foreground border-2 border-border font-bold px-2 py-0.5 rounded-base shadow-2xs"
+                              : "text-foreground/50",
                           )}
                         >
                           [{formatTimestamp(seg.start_time_ms)} – {formatTimestamp(seg.end_time_ms)}
@@ -119,19 +121,19 @@ export function TranscriptCard({
                         </span>
 
                         {isActive && (
-                          <span className="flex items-center gap-1 font-heading text-xs text-foreground bg-main/30 px-2 py-0.5 rounded-full border border-border">
-                            <Play className="size-3 fill-current" />
-                            Playing
+                          <span className="flex items-center gap-1.5 font-heading text-xs font-bold bg-background text-foreground border-2 border-border px-2.5 py-0.5 rounded-base shadow-2xs">
+                            <Play className="size-3 fill-current text-main" />
+                            Now Playing
                           </span>
                         )}
                       </div>
 
                       <p
                         className={cn(
-                          "font-sans leading-relaxed text-foreground",
+                          "font-sans leading-relaxed transition-colors",
                           isActive
-                            ? "text-lg sm:text-xl font-bold"
-                            : "text-base sm:text-lg font-medium",
+                            ? "mt-2 text-xl sm:text-2xl font-bold text-main-foreground"
+                            : "mt-1 text-base sm:text-lg font-normal text-foreground/75 group-hover:text-foreground",
                         )}
                       >
                         {seg.script}
