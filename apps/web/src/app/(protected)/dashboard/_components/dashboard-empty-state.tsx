@@ -3,18 +3,23 @@ import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 
-import type { DashboardAttemptStatus } from "../_utils/dashboard-mock-adapter";
+import type {
+  DashboardAttemptStatus,
+  DashboardPracticeMode,
+} from "../_utils/dashboard-api-adapter";
 
 export function DashboardEmptyState({
-  selectedStatus,
+  mode,
   searchQuery,
+  selectedStatus,
   totalAttempts,
 }: {
+  mode?: DashboardPracticeMode;
   searchQuery?: string;
   selectedStatus?: DashboardAttemptStatus;
   totalAttempts: number;
 }) {
-  const isFilteredEmpty = totalAttempts > 0 && Boolean(selectedStatus || searchQuery);
+  const isFilteredEmpty = totalAttempts > 0 && Boolean(mode || selectedStatus || searchQuery);
 
   return (
     <div className="mt-4 flex min-h-80 flex-col items-center justify-center rounded-base border-4 border-border bg-secondary-background px-6 py-12 text-center shadow-shadow">
@@ -26,22 +31,18 @@ export function DashboardEmptyState({
       </h3>
       <p className="mt-3 max-w-[560px] leading-relaxed text-foreground/70">
         {isFilteredEmpty
-          ? "Try another lesson title or status to find a previous attempt."
-          : "Complete a Shadowing or Dictation lesson and your attempt will appear here."}
+          ? "Try another lesson title, practice mode, or status to find a previous attempt."
+          : "Complete a practice lesson and your attempt will appear here."}
       </p>
       <div className="mt-7 flex w-full max-w-[460px] flex-col justify-center gap-3 sm:flex-row">
         {isFilteredEmpty ? (
-          <>
-            <Button asChild variant="neutral">
-              <Link href="/dashboard#attempt-history">Clear filters</Link>
-            </Button>
-          </>
+          <Button asChild variant="neutral">
+            <Link href="/dashboard#attempt-history">Clear filters</Link>
+          </Button>
         ) : (
-          <>
-            <Button asChild>
-              <Link href="/lessons">Browse lessons</Link>
-            </Button>
-          </>
+          <Button asChild>
+            <Link href="/lessons">Browse lessons</Link>
+          </Button>
         )}
       </div>
     </div>

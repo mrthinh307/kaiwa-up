@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from datetime import UTC, datetime
 
 import httpx
@@ -75,8 +76,11 @@ def set_current_user(user: User) -> None:
 async def test_gamification_profile_returns_default_profile(
     client: httpx.AsyncClient,
     db_session: AsyncSession,
+    unique_value: Callable[[str], str],
 ) -> None:
-    user = await create_user(session=db_session, email="a@example.com", display_name="User A")
+    user = await create_user(
+        session=db_session, email=f"{unique_value('user-a')}@example.com", display_name="User A"
+    )
     set_current_user(user)
 
     response = await client.get(PROFILE_PATH)
@@ -97,12 +101,15 @@ async def test_gamification_profile_returns_default_profile(
 async def test_gamification_profile_returns_history_with_attempt_id(
     client: httpx.AsyncClient,
     db_session: AsyncSession,
+    unique_value: Callable[[str], str],
 ) -> None:
-    user = await create_user(session=db_session, email="a@example.com", display_name="User A")
+    user = await create_user(
+        session=db_session, email=f"{unique_value('user-a')}@example.com", display_name="User A"
+    )
     content = await create_content(
         session=db_session,
         content_type=ContentType.SHADOWING_DICTATION,
-        slug="dictation",
+        slug=unique_value("dictation"),
         title="Thời tiết hôm nay",
         base_exp=50,
     )
@@ -139,14 +146,17 @@ async def test_gamification_profile_returns_history_with_attempt_id(
 async def test_gamification_profile_honors_limit_query_param(
     client: httpx.AsyncClient,
     db_session: AsyncSession,
+    unique_value: Callable[[str], str],
 ) -> None:
-    user = await create_user(session=db_session, email="a@example.com", display_name="User A")
+    user = await create_user(
+        session=db_session, email=f"{unique_value('user-a')}@example.com", display_name="User A"
+    )
     service = GamificationService(GamificationRepository(db_session))
     for index in range(5):
         content = await create_content(
             session=db_session,
             content_type=ContentType.SHADOWING_DICTATION,
-            slug=f"content-{index}",
+            slug=unique_value(f"content-{index}"),
             title=f"Bài {index}",
             base_exp=10,
         )
@@ -171,8 +181,9 @@ async def test_gamification_profile_honors_limit_query_param(
 async def test_gamification_profile_rejects_unauthenticated_requests(
     client: httpx.AsyncClient,
     db_session: AsyncSession,
+    unique_value: Callable[[str], str],
 ) -> None:
-    del db_session
+    del db_session, unique_value
 
     response = await client.get(PROFILE_PATH)
 

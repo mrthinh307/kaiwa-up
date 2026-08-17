@@ -1,3 +1,9 @@
+"use client";
+
+import type { MouseEvent } from "react";
+
+import { useRouter } from "next/navigation";
+
 import {
   Pagination,
   PaginationContent,
@@ -9,7 +15,10 @@ import {
 } from "@/components/ui/pagination";
 import { cn } from "@/lib/utils";
 
-import type { DashboardAttemptStatus } from "../_utils/dashboard-mock-adapter";
+import type {
+  DashboardAttemptStatus,
+  DashboardPracticeMode,
+} from "../_utils/dashboard-api-adapter";
 
 import { buildDashboardHref } from "../_utils/dashboard-query";
 
@@ -32,19 +41,34 @@ function getPaginationEntries(page: number, pages: number): PaginationEntry[] {
 }
 
 export function DashboardAttemptPagination({
+  mode,
   page,
   pages,
   searchQuery,
   status,
 }: {
+  mode?: DashboardPracticeMode;
   page: number;
   pages: number;
   searchQuery?: string;
   status?: DashboardAttemptStatus;
 }) {
+  const router = useRouter();
+
   if (pages <= 1) {
     return null;
   }
+
+  const hrefForPage = (nextPage: number) =>
+    `${buildDashboardHref({ mode, page: nextPage, searchQuery, status })}#dashboard-attempts-heading`;
+  const handlePageClick = (event: MouseEvent<HTMLAnchorElement>, href: string) => {
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+      return;
+    }
+
+    event.preventDefault();
+    router.push(href);
+  };
 
   return (
     <Pagination aria-label="Attempt history pages" className="mt-8">
@@ -56,8 +80,9 @@ export function DashboardAttemptPagination({
               "[&_span]:hidden sm:[&_span]:inline",
               page <= 1 && "pointer-events-none opacity-50",
             )}
-            href={
-              page > 1 ? buildDashboardHref({ page: page - 1, searchQuery, status }) : undefined
+            href={page > 1 ? hrefForPage(page - 1) : undefined}
+            onClick={
+              page > 1 ? (event) => handlePageClick(event, hrefForPage(page - 1)) : undefined
             }
             tabIndex={page <= 1 ? -1 : undefined}
           />
@@ -68,8 +93,9 @@ export function DashboardAttemptPagination({
             <PaginationItem key={entry}>
               <PaginationLink
                 aria-label={`Go to attempt page ${entry}`}
-                href={buildDashboardHref({ page: entry, searchQuery, status })}
+                href={hrefForPage(entry)}
                 isActive={entry === page}
+                onClick={(event) => handlePageClick(event, hrefForPage(entry))}
               >
                 {entry}
               </PaginationLink>
@@ -88,8 +114,9 @@ export function DashboardAttemptPagination({
               "[&_span]:hidden sm:[&_span]:inline",
               page >= pages && "pointer-events-none opacity-50",
             )}
-            href={
-              page < pages ? buildDashboardHref({ page: page + 1, searchQuery, status }) : undefined
+            href={page < pages ? hrefForPage(page + 1) : undefined}
+            onClick={
+              page < pages ? (event) => handlePageClick(event, hrefForPage(page + 1)) : undefined
             }
             tabIndex={page >= pages ? -1 : undefined}
           />

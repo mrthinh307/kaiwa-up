@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 
 import httpx
@@ -15,33 +16,35 @@ REFRESH_PATH = "/api/v1/auth/refresh"
 LOGOUT_PATH = "/api/v1/auth/logout"
 
 
-async def register_user(client: httpx.AsyncClient) -> httpx.Response:
+async def register_user(client: httpx.AsyncClient, email: str) -> httpx.Response:
     return await client.post(
         REGISTER_PATH,
         json={
-            "email": "  Learner@Example.com ",
+            "email": f"  {email.upper()} ",
             "name": "  Kaiwa Learner  ",
             "password": "secure-password",
         },
     )
 
 
-async def login_user(client: httpx.AsyncClient) -> httpx.Response:
+async def login_user(client: httpx.AsyncClient, email: str) -> httpx.Response:
     return await client.post(
         LOGIN_PATH,
-        json={"email": "learner@example.com", "password": "secure-password"},
+        json={"email": email, "password": "secure-password"},
     )
 
 
 @pytest.mark.asyncio
 async def test_register_normalizes_user_and_filters_sensitive_fields(
     client: httpx.AsyncClient,
+    unique_email: Callable[[str], str],
 ) -> None:
-    response = await register_user(client)
+    email = unique_email("learner")
+    response = await register_user(client, email)
 
     assert response.status_code == 201
     payload = response.json()
-    assert payload["email"] == "learner@example.com"
+    assert payload["email"] == email
     assert payload["display_name"] == "Kaiwa Learner"
     assert payload["created_at"]
     assert "password" not in payload
@@ -51,10 +54,12 @@ async def test_register_normalizes_user_and_filters_sensitive_fields(
 @pytest.mark.asyncio
 async def test_register_duplicate_email_returns_conflict_envelope(
     client: httpx.AsyncClient,
+    unique_email: Callable[[str], str],
 ) -> None:
-    assert (await register_user(client)).status_code == 201
+    email = unique_email("duplicate-learner")
+    assert (await register_user(client, email)).status_code == 201
 
-    response = await register_user(client)
+    response = await register_user(client, email)
 
     assert response.status_code == 409
     assert response.json() == {
@@ -87,10 +92,12 @@ async def test_register_validation_returns_field_details(client: httpx.AsyncClie
 @pytest.mark.asyncio
 async def test_login_sets_refresh_cookie_and_returns_access_token(
     client: httpx.AsyncClient,
+    unique_email: Callable[[str], str],
 ) -> None:
-    assert (await register_user(client)).status_code == 201
+    email = unique_email("login-learner")
+    assert (await register_user(client, email)).status_code == 201
 
-    response = await login_user(client)
+    response = await login_user(client, email)
 
     assert response.status_code == 200
     assert response.json()["access_token"]
@@ -117,10 +124,12 @@ async def test_login_rejects_invalid_credentials(client: httpx.AsyncClient) -> N
 async def test_login_rejects_inactive_user(
     client: httpx.AsyncClient,
     db_session: AsyncSession,
+    unique_email: Callable[[str], str],
 ) -> None:
+    email = unique_email("inactive-learner")
     db_session.add(
         User(
-            email="inactive@example.com",
+            email=email,
             password_hash=hash_password("secure-password"),
             display_name="Inactive",
             is_active=False,
@@ -130,7 +139,7 @@ async def test_login_rejects_inactive_user(
 
     response = await client.post(
         LOGIN_PATH,
-        json={"email": "inactive@example.com", "password": "secure-password"},
+        json={"email": email, "password": "secure-password"},
     )
 
     assert response.status_code == 401
@@ -140,15 +149,24 @@ async def test_login_rejects_inactive_user(
 @pytest.mark.asyncio
 async def test_refresh_rotates_cookie_and_rejects_reuse(
     client: httpx.AsyncClient,
+    unique_email: Callable[[str], str],
 ) -> None:
-    assert (await register_user(client)).status_code == 201
-    login_response = await login_user(client)
+    email = unique_email("refresh-learner")
+    assert (await register_user(client, email)).status_code == 201
+    login_response = await login_user(client, email)
     old_refresh_token = login_response.cookies[settings.REFRESH_COOKIE_NAME]
 
     refresh_response = await client.post(REFRESH_PATH)
 
     assert refresh_response.status_code == 200
-    assert refresh_response.json()["access_token"]
+    payload = refresh_response.json()
+    assert payload["access_token"]
+    assert payload["token_type"] == "bearer"
+    assert payload["expires_in"] == settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
+    assert payload["user"]["email"] == email
+    assert payload["user"]["display_name"] == "Kaiwa Learner"
+    assert "password" not in payload["user"]
+    assert "password_hash" not in payload["user"]
     assert refresh_response.cookies[settings.REFRESH_COOKIE_NAME] != old_refresh_token
 
     client.cookies.set(
@@ -165,12 +183,14 @@ async def test_refresh_rotates_cookie_and_rejects_reuse(
 async def test_refresh_rejects_missing_and_expired_cookie(
     client: httpx.AsyncClient,
     db_session: AsyncSession,
+    unique_email: Callable[[str], str],
 ) -> None:
     missing_response = await client.post(REFRESH_PATH)
     assert missing_response.status_code == 401
 
-    assert (await register_user(client)).status_code == 201
-    login_response = await login_user(client)
+    email = unique_email("expired-refresh-learner")
+    assert (await register_user(client, email)).status_code == 201
+    login_response = await login_user(client, email)
     raw_token = login_response.cookies[settings.REFRESH_COOKIE_NAME]
     stored_token = await db_session.scalar(
         select(AuthRefreshToken).where(AuthRefreshToken.token_hash == hash_refresh_token(raw_token))
@@ -187,9 +207,11 @@ async def test_refresh_rejects_missing_and_expired_cookie(
 @pytest.mark.asyncio
 async def test_logout_revokes_refresh_token_and_deletes_cookie(
     client: httpx.AsyncClient,
+    unique_email: Callable[[str], str],
 ) -> None:
-    assert (await register_user(client)).status_code == 201
-    assert (await login_user(client)).status_code == 200
+    email = unique_email("logout-learner")
+    assert (await register_user(client, email)).status_code == 201
+    assert (await login_user(client, email)).status_code == 200
 
     response = await client.post(LOGOUT_PATH)
 

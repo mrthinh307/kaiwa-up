@@ -1,562 +1,383 @@
 import "server-only";
 
-import { getLearningContent, getLearningContentIds } from "@/lib/practice-catalog-mock";
-
 import type {
-  DictationAnswerInput,
-  DictationAttemptResult,
-  DictationExerciseType,
-  DictationPracticeLesson,
-} from "../_types/dictation-practice";
+  DictationAttemptReviewResponse,
+  DictationCompleteResponse,
+  DictationContentDetail,
+  DictationSegmentCheckResponse,
+  DictationStartResponse,
+} from "@kaiwa-app/api-client";
 
-type DictationAnswerKey = {
-  acceptedAnswers?: string[];
-  correctAnswer: string;
-  explanation: string;
+import type { DictationPracticeRequest } from "../_types/dictation-practice";
+
+type PrivateTranscriptSegment = {
+  endTimeMs: number;
+  script: string;
+  startTimeMs: number;
 };
 
-type DictationPracticeScript = {
-  answers: DictationAnswerKey[];
-  exerciseType: DictationExerciseType;
-  instruction: string;
-  template: string;
-  translation: string;
+const CONTENT_ID = "019fff97-c567-7e97-8b29-57b2ff7e0d5d";
+const ATTEMPT_ID = "019fff9d-0c6a-7a2d-9154-46289fa845bd";
+const MOCK_BASE_EXP = 50;
+
+type MockAttemptState = {
+  completedAt?: string;
+  results: Map<number, DictationSegmentCheckResponse>;
+  status: "completed" | "in_progress";
 };
 
-const DICTATION_PRACTICE_SCRIPTS: Record<string, DictationPracticeScript> = {
-  "770e8400-e29b-41d4-a716-446655440111": {
-    answers: [
-      {
-        acceptedAnswers: ["いいてんき"],
-        correctAnswer: "いい天気",
-        explanation: "いい天気 is the natural phrase for pleasant or fine weather.",
-      },
-      {
-        acceptedAnswers: ["あめがふる"],
-        correctAnswer: "雨が降る",
-        explanation: "雨が降る combines the noun 雨 with the verb 降る, meaning “rain will fall.”",
-      },
-    ],
-    exerciseType: "multiple_words",
-    instruction: "Listen to the short exchange and complete the two missing phrases.",
-    template: "店員：今日は{{1}}ですね。\n客：そうですね。午後から{{2}}そうですよ。",
-    translation:
-      "Clerk: Nice weather today, isn't it? Customer: It is. I heard it will rain this afternoon.",
-  },
-  "770e8400-e29b-41d4-a716-446655440112": {
-    answers: [
-      {
-        correctAnswer: "マリア",
-        explanation: "マリア is the speaker's name, written in katakana.",
-      },
-      {
-        correctAnswer: "スペイン",
-        explanation: "スペイン is the Japanese name for Spain.",
-      },
-      {
-        acceptedAnswers: ["にほんご"],
-        correctAnswer: "日本語",
-        explanation: "日本語 means the Japanese language.",
-      },
-    ],
-    exerciseType: "one_word",
-    instruction: "Catch the three key nouns in this classroom introduction.",
-    template: "はじめまして。私は{{1}}です。{{2}}から来ました。今、{{3}}を勉強しています。",
-    translation: "Nice to meet you. I am Maria. I came from Spain. I am studying Japanese now.",
-  },
-  "770e8400-e29b-41d4-a716-446655440113": {
-    answers: [
-      {
-        acceptedAnswers: ["ひがわりらんちをひとつ"],
-        correctAnswer: "日替わりランチを一つ",
-        explanation: "一つ is the general counter used here to order one lunch set.",
-      },
-      {
-        correctAnswer: "アイスコーヒー",
-        explanation: "アイスコーヒー is the common café term for iced coffee.",
-      },
-      {
-        acceptedAnswers: ["おねがいします"],
-        correctAnswer: "お願いします",
-        explanation: "お願いします politely completes a request or order.",
-      },
-    ],
-    exerciseType: "multiple_words",
-    instruction: "Complete the customer's order with the phrases you hear.",
-    template: "客：{{1}}。それから、{{2}}も{{3}}。",
-    translation: "Customer: One daily lunch special. And an iced coffee too, please.",
-  },
-  "770e8400-e29b-41d4-a716-446655440114": {
-    answers: [
-      {
-        acceptedAnswers: ["きょうとゆきのでんしゃはさんばんほーむからでます"],
-        correctAnswer: "京都行きの電車は三番ホームから出ます",
-        explanation:
-          "行き marks the destination, while から出ます identifies the platform the train departs from.",
-      },
-    ],
-    exerciseType: "full_sentence",
-    instruction: "Write the station attendant's complete sentence.",
-    template: "旅行者：京都行きはどこですか。\n駅員：{{1}}。",
-    translation:
-      "Traveler: Where is the train for Kyoto? Station attendant: The Kyoto-bound train departs from platform three.",
-  },
-  "770e8400-e29b-41d4-a716-446655440115": {
-    answers: [
-      {
-        acceptedAnswers: ["こんどのどようび"],
-        correctAnswer: "今度の土曜日",
-        explanation: "今度の土曜日 refers to the coming Saturday.",
-      },
-      {
-        acceptedAnswers: ["えいがをみにいきませんか"],
-        correctAnswer: "映画を見に行きませんか",
-        explanation:
-          "〜に行きませんか is a polite pattern for inviting someone to go do something.",
-      },
-      {
-        acceptedAnswers: ["ごごなら"],
-        correctAnswer: "午後なら",
-        explanation: "なら presents the condition under which the speaker is available.",
-      },
-      {
-        acceptedAnswers: ["だいじょうぶです"],
-        correctAnswer: "大丈夫です",
-        explanation: "大丈夫です means the proposed time works for the speaker.",
-      },
-    ],
-    exerciseType: "multiple_words",
-    instruction: "Listen for the proposed plan and the response to it.",
-    template: "A：{{1}}、{{2}}。\nB：いいですね。{{3}}、{{4}}。",
-    translation:
-      "A: Would you like to go see a movie this Saturday? B: Sounds good. The afternoon works for me.",
-  },
-  "770e8400-e29b-41d4-a716-446655440116": {
-    answers: [
-      {
-        acceptedAnswers: ["みぎ"],
-        correctAnswer: "右",
-        explanation: "右 means right.",
-      },
-      {
-        acceptedAnswers: ["しんごう"],
-        correctAnswer: "信号",
-        explanation: "信号 means traffic light.",
-      },
-      {
-        acceptedAnswers: ["ひだり"],
-        correctAnswer: "左",
-        explanation: "左 means left.",
-      },
-      {
-        acceptedAnswers: ["ぎんこう"],
-        correctAnswer: "銀行",
-        explanation: "銀行 means bank and identifies the final landmark.",
-      },
-    ],
-    exerciseType: "one_word",
-    instruction: "Fill in the direction words and landmarks.",
-    template:
-      "この道を{{1}}に曲がって、二つ目の{{2}}まで進んでください。そこで{{3}}に曲がると、{{4}}の隣です。",
-    translation:
-      "Turn right on this road and continue to the second traffic light. Turn left there; it is next to the bank.",
-  },
-  "770e8400-e29b-41d4-a716-446655440117": {
-    answers: [
-      {
-        acceptedAnswers: ["さーばーのちょうしがわるくて"],
-        correctAnswer: "サーバーの調子が悪くて",
-        explanation: "調子が悪い describes something that is not working properly.",
-      },
-      {
-        acceptedAnswers: ["でーたをひらくことができません"],
-        correctAnswer: "データを開くことができません",
-        explanation: "〜ことができません expresses that an action cannot be performed.",
-      },
-      {
-        acceptedAnswers: ["さいきどうしてみましたが"],
-        correctAnswer: "再起動してみましたが",
-        explanation:
-          "〜てみましたが means the speaker tried something, but it did not solve the issue.",
-      },
-      {
-        acceptedAnswers: ["まだなおっていません"],
-        correctAnswer: "まだ直っていません",
-        explanation: "まだ〜ていません indicates the problem remains unresolved.",
-      },
-      {
-        acceptedAnswers: ["かくにんしていただけますか"],
-        correctAnswer: "確認していただけますか",
-        explanation: "〜ていただけますか is a polite request for help.",
-      },
-    ],
-    exerciseType: "multiple_words",
-    instruction: "Complete the workplace report with the problem, attempted fix, and request.",
-    template: "{{1}}、{{2}}。{{3}}、{{4}}。お手数ですが、{{5}}。",
-    translation:
-      "The server is not working properly, so I cannot open the data. I tried restarting it, but it is still not fixed. Could you please check it?",
-  },
-  "770e8400-e29b-41d4-a716-446655440118": {
-    answers: [
-      {
-        acceptedAnswers: ["せんしゅうまつにともだちとかなざわへいってきました"],
-        correctAnswer: "先週末に友達と金沢へ行ってきました",
-        explanation: "〜てきました describes going somewhere and returning from the trip.",
-      },
-      {
-        acceptedAnswers: ["あめはふりましたがまちのふんいきがとてもすてきでした"],
-        correctAnswer: "雨は降りましたが、町の雰囲気がとても素敵でした",
-        explanation:
-          "〜ましたが connects the rainy condition with a contrasting positive impression.",
-      },
-    ],
-    exerciseType: "full_sentence",
-    instruction: "Write the two complete sentences from the travel story.",
-    template: "{{1}}。\n{{2}}。",
-    translation:
-      "I went to Kanazawa with a friend last weekend. It rained, but the atmosphere of the town was wonderful.",
-  },
-  "770e8400-e29b-41d4-a716-446655440119": {
-    answers: [
-      {
-        acceptedAnswers: ["しずか"],
-        correctAnswer: "静か",
-        explanation: "静か is a na-adjective meaning quiet.",
-      },
-      {
-        acceptedAnswers: ["こうえん"],
-        correctAnswer: "公園",
-        explanation: "公園 means park.",
-      },
-      {
-        acceptedAnswers: ["べんり"],
-        correctAnswer: "便利",
-        explanation: "便利 describes something convenient.",
-      },
-      {
-        acceptedAnswers: ["えき"],
-        correctAnswer: "駅",
-        explanation: "駅 means station.",
-      },
-      {
-        acceptedAnswers: ["やちん"],
-        correctAnswer: "家賃",
-        explanation: "家賃 means rent.",
-      },
-      {
-        acceptedAnswers: ["たかい"],
-        correctAnswer: "高い",
-        explanation: "高い means high or expensive in this context.",
-      },
-    ],
-    exerciseType: "one_word",
-    instruction: "Catch the six key words used to compare the neighborhoods.",
-    template:
-      "こちらは{{1}}で、近くに大きな{{2}}があります。あちらはもっと{{3}}で、{{4}}にも近いですが、{{5}}が少し{{6}}です。",
-    translation:
-      "This area is quiet and has a large park nearby. The other area is more convenient and closer to the station, but the rent is a little higher.",
-  },
-  "770e8400-e29b-41d4-a716-446655440120": {
-    answers: [
-      {
-        acceptedAnswers: ["ごふべんをおかけし"],
-        correctAnswer: "ご不便をおかけし",
-        explanation: "ご不便をおかけし is a formal apology for causing inconvenience.",
-      },
-      {
-        acceptedAnswers: ["まことにもうしわけございません"],
-        correctAnswer: "誠に申し訳ございません",
-        explanation: "This is a highly formal expression of apology.",
-      },
-      {
-        acceptedAnswers: ["じょうきょうをかくにんしたうえで"],
-        correctAnswer: "状況を確認した上で",
-        explanation: "〜た上で means after completing the preceding action.",
-      },
-      {
-        acceptedAnswers: ["あらためてごれんらくいたします"],
-        correctAnswer: "改めてご連絡いたします",
-        explanation: "改めてご連絡いたします promises a later follow-up in formal language.",
-      },
-      {
-        acceptedAnswers: ["しょうしょうおまちいただけますでしょうか"],
-        correctAnswer: "少々お待ちいただけますでしょうか",
-        explanation: "This is a very polite request for the customer to wait.",
-      },
-    ],
-    exerciseType: "multiple_words",
-    instruction: "Complete the formal response to a customer complaint.",
-    template: "{{1}}、{{2}}。{{3}}、{{4}}ので、{{5}}。",
-    translation:
-      "We sincerely apologize for the inconvenience. We will confirm the situation and contact you again, so could you please wait a moment?",
-  },
-  "770e8400-e29b-41d4-a716-446655440121": {
-    answers: [
-      {
-        acceptedAnswers: [
-          "こんかいのかいぎではしんしょうひんのはつばいじきについていけんをこうかんしました",
-        ],
-        correctAnswer: "今回の会議では、新商品の発売時期について意見を交換しました",
-        explanation: "〜について identifies the topic on which opinions were exchanged.",
-      },
-      {
-        acceptedAnswers: ["けつろんとしてじゅんびきかんをいっかげつのばすことになりました"],
-        correctAnswer: "結論として、準備期間を一か月延ばすことになりました",
-        explanation: "〜ことになりました states the decision reached by the group.",
-      },
-    ],
-    exerciseType: "full_sentence",
-    instruction: "Write the meeting summary as two complete sentences.",
-    template: "{{1}}。\n{{2}}。",
-    translation:
-      "At this meeting, we exchanged opinions about the launch timing of the new product. We concluded that the preparation period would be extended by one month.",
-  },
-  "770e8400-e29b-41d4-a716-446655440122": {
-    answers: [
-      {
-        acceptedAnswers: ["ごぜん"],
-        correctAnswer: "午前",
-        explanation: "午前 marks a time before noon.",
-      },
-      {
-        acceptedAnswers: ["じゅうじ"],
-        correctAnswer: "十時",
-        explanation: "十時 means ten o'clock.",
-      },
-      {
-        acceptedAnswers: ["てんけん"],
-        correctAnswer: "点検",
-        explanation: "点検 means inspection or maintenance check.",
-      },
-      {
-        acceptedAnswers: ["えれべーたー"],
-        correctAnswer: "エレベーター",
-        explanation: "エレベーター is elevator.",
-      },
-      {
-        acceptedAnswers: ["さんじゅっぷん"],
-        correctAnswer: "三十分",
-        explanation: "三十分 means thirty minutes.",
-      },
-      {
-        acceptedAnswers: ["かいだん"],
-        correctAnswer: "階段",
-        explanation: "階段 means stairs.",
-      },
-      {
-        acceptedAnswers: ["ごりよう"],
-        correctAnswer: "ご利用",
-        explanation: "ご利用 is the respectful noun form of using a service or facility.",
-      },
-    ],
-    exerciseType: "one_word",
-    instruction: "Fill in the key details from the public service announcement.",
-    template:
-      "本日{{1}}{{2}}より、設備{{3}}のため{{4}}を約{{5}}停止します。{{6}}の{{7}}をお願いいたします。",
-    translation:
-      "Today from 10 a.m., the elevator will stop for about 30 minutes for equipment inspection. Please use the stairs.",
-  },
-  "770e8400-e29b-41d4-a716-446655440123": {
-    answers: [
-      {
-        acceptedAnswers: [
-          "ざいたくきんむはつうきんじかんをへらしせいさんせいをたかめるかのうせいがあります",
-        ],
-        correctAnswer: "在宅勤務は通勤時間を減らし、生産性を高める可能性があります",
-        explanation: "可能性があります presents a potential benefit without claiming certainty.",
-      },
-      {
-        acceptedAnswers: [
-          "いっぽうでじょうほうきょうゆうやちーむないのしんらいこうちくがむずかしくなるというしてきもあります",
-        ],
-        correctAnswer: "一方で、情報共有やチーム内の信頼構築が難しくなるという指摘もあります",
-        explanation: "一方で introduces the contrasting concern.",
-      },
-      {
-        acceptedAnswers: [
-          "じゅうようなのはぎょうむのせいしつにおうじてはたらきかたをせんたくすることです",
-        ],
-        correctAnswer: "重要なのは、業務の性質に応じて働き方を選択することです",
-        explanation: "〜に応じて means according to or depending on a condition.",
-      },
-    ],
-    exerciseType: "full_sentence",
-    instruction: "Reconstruct the three sentences presenting both views and the conclusion.",
-    template: "{{1}}。\n{{2}}。\n{{3}}。",
-    translation:
-      "Remote work may reduce commuting time and improve productivity. On the other hand, some point out that sharing information and building trust within teams becomes harder. What matters is choosing a work style according to the nature of the work.",
-  },
-  "770e8400-e29b-41d4-a716-446655440124": {
-    answers: [
-      {
-        acceptedAnswers: ["せいふがはっぴょうした"],
-        correctAnswer: "政府が発表した",
-        explanation: "This relative clause identifies the source of the new policy.",
-      },
-      {
-        acceptedAnswers: ["あらたなけいざいたいさく"],
-        correctAnswer: "新たな経済対策",
-        explanation: "新たな経済対策 means new economic measures.",
-      },
-      {
-        acceptedAnswers: ["ちゅうしょうきぎょうへのしえん"],
-        correctAnswer: "中小企業への支援",
-        explanation: "への marks the recipients of support.",
-      },
-      {
-        acceptedAnswers: ["ぶっかじょうしょうへのたいおう"],
-        correctAnswer: "物価上昇への対応",
-        explanation: "物価上昇 refers to rising prices or inflation.",
-      },
-      {
-        acceptedAnswers: ["じっこうせいをうたがうこえ"],
-        correctAnswer: "実効性を疑う声",
-        explanation: "実効性を疑う声 means voices questioning practical effectiveness.",
-      },
-      {
-        acceptedAnswers: ["ざいげんのかくほ"],
-        correctAnswer: "財源の確保",
-        explanation: "財源の確保 means securing the necessary funding.",
-      },
-      {
-        acceptedAnswers: ["ちょうきてきなせいちょうせんりゃく"],
-        correctAnswer: "長期的な成長戦略",
-        explanation: "長期的な成長戦略 is a long-term growth strategy.",
-      },
-      {
-        acceptedAnswers: ["ぐたいてきなせつめい"],
-        correctAnswer: "具体的な説明",
-        explanation: "具体的な説明 means a concrete, detailed explanation.",
-      },
-    ],
-    exerciseType: "multiple_words",
-    instruction: "Complete the key phrases in this detailed news commentary.",
-    template:
-      "{{1}}{{2}}は、{{3}}と{{4}}を柱としています。一方、{{5}}もあり、{{6}}や{{7}}について、より{{8}}が求められています。",
-    translation:
-      "The new economic measures announced by the government center on support for small and medium-sized businesses and responses to rising prices. Meanwhile, some question their effectiveness, and more concrete explanations are being requested about funding and a long-term growth strategy.",
-  },
-  "770e8400-e29b-41d4-a716-446655440125": {
-    answers: [
-      {
-        acceptedAnswers: [
-          "ひっしゃはぎじゅつかくしんがしゃかいにもたらすえいきょうをたんじゅんなりべんせいのこうじょうとしてとらえるべきではないとろんじています",
-        ],
-        correctAnswer:
-          "筆者は、技術革新が社会にもたらす影響を、単純な利便性の向上として捉えるべきではないと論じています",
-        explanation: "〜として捉えるべきではない rejects a simplistic way of framing the issue.",
-      },
-      {
-        acceptedAnswers: [
-          "むしろせいどやかちかんとのそうごさようをちょうきてきなしてんからけんとうするひつようがあります",
-        ],
-        correctAnswer: "むしろ、制度や価値観との相互作用を長期的な視点から検討する必要があります",
-        explanation:
-          "むしろ redirects the argument toward the more important analytical perspective.",
-      },
-      {
-        acceptedAnswers: ["このかんてんをかくとぎろんはひょうめんてきなものにとどまるでしょう"],
-        correctAnswer: "この観点を欠くと、議論は表面的なものにとどまるでしょう",
-        explanation: "〜にとどまる warns that the discussion will remain limited or superficial.",
-      },
-    ],
-    exerciseType: "full_sentence",
-    instruction: "Reconstruct the argument's claim, supporting perspective, and conclusion.",
-    template: "{{1}}。\n{{2}}。\n{{3}}。",
-    translation:
-      "The author argues that the impact of technological innovation on society should not be understood merely as improved convenience. Instead, its interaction with institutions and values must be examined from a long-term perspective. Without this perspective, the discussion will remain superficial.",
-  },
-};
-
-function getFullTranscript(script: DictationPracticeScript): string {
-  return script.answers.reduce(
-    (transcript, answer, index) => transcript.replace(`{{${index + 1}}}`, answer.correctAnswer),
-    script.template,
-  );
+declare global {
+  var kaiwaDictationMockAttemptState: MockAttemptState | undefined;
 }
 
-function normalizeDictationAnswer(value: string): string {
-  return value
-    .normalize("NFKC")
-    .trim()
-    .toLocaleLowerCase("ja")
-    .replaceAll(/\s+/g, "")
-    .replaceAll(/[。、，,.！？!?]/g, "");
+const mockAttemptState: MockAttemptState =
+  globalThis.kaiwaDictationMockAttemptState ??
+  (globalThis.kaiwaDictationMockAttemptState = {
+    results: new Map(),
+    status: "in_progress",
+  });
+
+const PRIVATE_TRANSCRIPT = [
+  {
+    endTimeMs: 7_866,
+    script: "こんにちは。 今日はキャンプについてゆっくり話します。",
+    startTimeMs: 680,
+  },
+  {
+    endTimeMs: 16_520,
+    script: "私はキャンプが好きです。 自然の中で過ごすのが楽しいです。",
+    startTimeMs: 7_866,
+  },
+  {
+    endTimeMs: 25_920,
+    script: "キャンプ場に着いたらまずテントを立てます。 暗くなるとランタンをつけます。",
+    startTimeMs: 16_520,
+  },
+  {
+    endTimeMs: 33_261,
+    script: "あたたかい光がきれいです。 夜は寝袋で寝ます。",
+    startTimeMs: 25_920,
+  },
+  {
+    endTimeMs: 40_760,
+    script: "あたたかくて気持ちがいいです。 外で料理をします。",
+    startTimeMs: 33_261,
+  },
+  {
+    endTimeMs: 52_760,
+    script: "焼いたお肉はとてもおいしいです。 家族や友だちと食事をします。 会話も楽しいです。",
+    startTimeMs: 40_760,
+  },
+  {
+    endTimeMs: 61_680,
+    script: "キャンプで食べるカレーはとても人気があります。 夜は焚き火をします。 火を見る",
+    startTimeMs: 52_760,
+  },
+  {
+    endTimeMs: 73_200,
+    script: "と落ち着きます。 花火を楽しみます。 明るい光がとてもきれいです。 みんなで話し",
+    startTimeMs: 61_680,
+  },
+  {
+    endTimeMs: 84_320,
+    script: "たり歌ったりします。 楽しい時間です。 静かな夜のキャンプ場もとてもすてきです。",
+    startTimeMs: 73_200,
+  },
+  {
+    endTimeMs: 92_399,
+    script: "朝は森を散歩します。 空気が新鮮で気持ちいいです。",
+    startTimeMs: 84_320,
+  },
+  {
+    endTimeMs: 100_414,
+    script: "湖の近くは静かです。 ゆっくり休むことができます。",
+    startTimeMs: 92_399,
+  },
+  {
+    endTimeMs: 112_280,
+    script: "冬のキャンプも人気です。 雪の景色はとてもきれいです。 秋のキャンプも楽しいです。",
+    startTimeMs: 100_414,
+  },
+  {
+    endTimeMs: 119_880,
+    script: "色づいた葉が見られます。 キャンプでは虫を見つけます。",
+    startTimeMs: 112_280,
+  },
+  {
+    endTimeMs: 127_719,
+    script: "自然を近くに感じます。 川で遊ぶのも楽しいです。",
+    startTimeMs: 119_880,
+  },
+  {
+    endTimeMs: 135_080,
+    script: "冷たい水が気持ちいいです。 釣りを楽しむ人もいます。",
+    startTimeMs: 127_719,
+  },
+  {
+    endTimeMs: 144_440,
+    script: "魚が釣れるとうれしいです。 夜空には星が見えます。 キャンプの楽しみ",
+    startTimeMs: 135_080,
+  },
+  {
+    endTimeMs: 151_640,
+    script: "の一つです。 キャンプの思い出はずっと心に残ります。",
+    startTimeMs: 144_440,
+  },
+  {
+    endTimeMs: 162_068,
+    script: "キャンプはとても楽しいです。 ぜひ行ってみてください。 もう一度聞きます。",
+    startTimeMs: 151_640,
+  },
+  {
+    endTimeMs: 169_800,
+    script: "次はくりかえしてみましょう。 私はキャンプが好きです。",
+    startTimeMs: 162_068,
+  },
+  {
+    endTimeMs: 179_598,
+    script: "自然の中で過ごすのが楽しいです。 キャンプ場に着いたらまずテントを立てます。",
+    startTimeMs: 169_800,
+  },
+  {
+    endTimeMs: 187_720,
+    script: "暗くなるとランタンをつけます。 あたたかい光がきれいです。",
+    startTimeMs: 179_598,
+  },
+  {
+    endTimeMs: 195_239,
+    script: "夜は寝袋で寝ます。 あたたかくて気持ちがいいです。",
+    startTimeMs: 187_720,
+  },
+  {
+    endTimeMs: 202_840,
+    script: "外で料理をします。 焼いたお肉はとてもおいしいです。",
+    startTimeMs: 195_239,
+  },
+  {
+    endTimeMs: 213_239,
+    script: "家族や友だちと食事をします。 会話も楽しいです。 キャンプで食べるカレーはとても",
+    startTimeMs: 202_840,
+  },
+  {
+    endTimeMs: 224_040,
+    script: "人気があります。 夜は焚き火をします。 火を見ると落ち着きます。 花火を楽しみます。",
+    startTimeMs: 213_239,
+  },
+  {
+    endTimeMs: 234_054,
+    script: "明るい光がとてもきれいです。 みんなで話したり歌ったりします。",
+    startTimeMs: 224_040,
+  },
+  {
+    endTimeMs: 242_239,
+    script: "楽しい時間です。 静かな夜のキャンプ場もとてもすてきです。",
+    startTimeMs: 234_054,
+  },
+  {
+    endTimeMs: 250_319,
+    script: "朝は森を散歩します。 空気が新鮮で気持ちいいです。",
+    startTimeMs: 242_239,
+  },
+  {
+    endTimeMs: 258_349,
+    script: "湖の近くは静かです。 ゆっくり休むことができます。",
+    startTimeMs: 250_319,
+  },
+  {
+    endTimeMs: 270_199,
+    script: "冬のキャンプも人気です。 雪の景色はとてもきれいです。 秋のキャンプも楽しいです。",
+    startTimeMs: 258_349,
+  },
+  {
+    endTimeMs: 277_800,
+    script: "色づいた葉が見られます。 キャンプでは虫を見つけます。",
+    startTimeMs: 270_199,
+  },
+  {
+    endTimeMs: 285_720,
+    script: "自然を近くに感じます。 川で遊ぶのも楽しいです。",
+    startTimeMs: 277_800,
+  },
+  {
+    endTimeMs: 293_000,
+    script: "冷たい水が気持ちいいです。 釣りを楽しむ人もいます。",
+    startTimeMs: 285_720,
+  },
+  {
+    endTimeMs: 302_360,
+    script: "魚が釣れるとうれしいです。 夜空には星が見えます。 キャンプの楽しみ",
+    startTimeMs: 293_000,
+  },
+  {
+    endTimeMs: 311_919,
+    script: "の一つです。 キャンプの思い出はずっと心に残ります。 キャンプはとても楽しいです。",
+    startTimeMs: 302_360,
+  },
+  {
+    endTimeMs: 318_639,
+    script: "ぜひ行ってみてください。",
+    startTimeMs: 311_919,
+  },
+] as const satisfies readonly PrivateTranscriptSegment[];
+
+const START_RESPONSE = {
+  attempt_id: ATTEMPT_ID,
+  attempt_number: 1,
+  audio_url: "https://www.youtube.com/watch?v=PPw-mI8P4os",
+  content_id: CONTENT_ID,
+  segments: PRIVATE_TRANSCRIPT.map((segment, segmentIndex) => ({
+    end_time_ms: segment.endTimeMs,
+    segment_index: segmentIndex,
+    start_time_ms: segment.startTimeMs,
+  })),
+  total_segments: PRIVATE_TRANSCRIPT.length,
+} satisfies DictationStartResponse;
+
+const CONTENT_DETAIL = {
+  audio_url: "https://www.youtube.com/watch?v=PPw-mI8P4os",
+  content_type: "shadowing_dictation",
+  description:
+    "In this video, you can practice everyday Japanese through a simple story about camping. The sentences are short, clear, and easy to follow, so this video is great for beginners and lower-intermediate learners.",
+  difficulty: "N5",
+  duration_seconds: 318.639,
+  id: CONTENT_ID,
+  prompts: PRIVATE_TRANSCRIPT.map((segment, segmentIndex) => ({
+    blank_index: segmentIndex + 1,
+    end_time_ms: segment.endTimeMs,
+    prompt: `___ (${segmentIndex + 1})`,
+    start_time_ms: segment.startTimeMs,
+  })),
+  published_at: null,
+  title: "Camping | 5-minute Japanese Listening and Shadowing Practice",
+  topic: "Life",
+} satisfies DictationContentDetail;
+
+function normalizeDictationText(text: string): string {
+  return [...text]
+    .filter((character) => !/\s/u.test(character) && character !== "。" && character !== "、")
+    .join("");
 }
 
-export function getDictationPracticeLesson(lessonId: string): DictationPracticeLesson | undefined {
-  const content = getLearningContent(lessonId);
-  const script = DICTATION_PRACTICE_SCRIPTS[lessonId];
+export function getMockDictationContent(contentId: string): DictationContentDetail | undefined {
+  return contentId === CONTENT_ID ? CONTENT_DETAIL : undefined;
+}
 
-  if (!content || !script) {
+export function startMockDictationAttempt(contentId: string): DictationStartResponse | undefined {
+  if (contentId !== CONTENT_ID) {
     return undefined;
   }
 
-  const lessonIds = getLearningContentIds().filter((contentId) =>
-    Object.hasOwn(DICTATION_PRACTICE_SCRIPTS, contentId),
-  );
-  const lessonIndex = lessonIds.indexOf(lessonId);
-  const nextLessonId = lessonIndex >= 0 ? lessonIds.at(lessonIndex + 1) : undefined;
+  mockAttemptState.completedAt = undefined;
+  mockAttemptState.results.clear();
+  mockAttemptState.status = "in_progress";
+  return START_RESPONSE;
+}
+
+export function checkMockDictationSegment(
+  request: DictationPracticeRequest,
+): DictationSegmentCheckResponse | undefined {
+  if (request.attempt_id !== ATTEMPT_ID || mockAttemptState.status !== "in_progress") {
+    return undefined;
+  }
+
+  const transcriptSegment = PRIVATE_TRANSCRIPT.at(request.segment_index);
+  if (!transcriptSegment || request.segment_index < 0) {
+    return undefined;
+  }
+
+  const result = {
+    correct_script: transcriptSegment.script,
+    is_correct:
+      normalizeDictationText(request.user_answer) ===
+      normalizeDictationText(transcriptSegment.script),
+    is_last_segment: request.segment_index === PRIVATE_TRANSCRIPT.length - 1,
+    segment_index: request.segment_index,
+    user_answer: request.user_answer,
+  };
+  mockAttemptState.results.set(request.segment_index, result);
+  return result;
+}
+
+export function completeMockDictationAttempt(
+  attemptId: string,
+): DictationCompleteResponse | undefined {
+  if (attemptId !== ATTEMPT_ID || mockAttemptState.status !== "in_progress") {
+    return undefined;
+  }
+
+  const correctCount = [...mockAttemptState.results.values()].filter(
+    (result) => result.is_correct,
+  ).length;
+  const completedAt = new Date().toISOString();
+
+  mockAttemptState.completedAt = completedAt;
+  mockAttemptState.status = "completed";
 
   return {
-    audioDurationSeconds: content.audioDurationMs / 1000,
-    blanks: script.answers.map((_, index) => ({
-      blankIndex: index + 1,
-    })),
-    difficulty: content.difficulty,
-    exerciseType: script.exerciseType,
-    id: content.id,
-    instruction: script.instruction,
-    nextLessonId,
-    promptParts: script.template.split(/\{\{\d+\}\}/g),
-    title: content.title,
-    topic: content.topic,
+    attempt_id: ATTEMPT_ID,
+    completed_at: completedAt,
+    correct_count: correctCount,
+    earned_exp: MOCK_BASE_EXP,
+    score: Number(((correctCount * 100) / PRIVATE_TRANSCRIPT.length).toFixed(2)),
+    status: "completed",
+    total_count: PRIVATE_TRANSCRIPT.length,
   };
 }
 
-export function gradeDictationAttempt(
-  lessonId: string,
-  answers: DictationAnswerInput[],
-): DictationAttemptResult | undefined {
-  const script = DICTATION_PRACTICE_SCRIPTS[lessonId];
-
-  if (!script) {
+export function getMockDictationAttemptReview(
+  attemptId: string,
+): DictationAttemptReviewResponse | undefined {
+  if (attemptId !== ATTEMPT_ID) {
     return undefined;
   }
 
-  const answersByIndex = new Map(
-    answers.map((answer) => [answer.blankIndex, answer.userAnswer] as const),
-  );
-  const results = script.answers.map((answer, index) => {
-    const blankIndex = index + 1;
-    const userAnswer = answersByIndex.get(blankIndex) ?? "";
-    const acceptedAnswers = [answer.correctAnswer, ...(answer.acceptedAnswers ?? [])];
-    const normalizedUserAnswer = normalizeDictationAnswer(userAnswer);
-
-    return {
-      blankIndex,
-      correctAnswer: answer.correctAnswer,
-      explanation: answer.explanation,
-      isCorrect: acceptedAnswers.some(
-        (acceptedAnswer) => normalizeDictationAnswer(acceptedAnswer) === normalizedUserAnswer,
-      ),
-      userAnswer,
-    };
-  });
-  const correctCount = results.filter((result) => result.isCorrect).length;
-  const scorePercentage = Math.round((correctCount / results.length) * 100);
-  const isPassed = scorePercentage >= 70;
+  const details =
+    mockAttemptState.status === "completed"
+      ? PRIVATE_TRANSCRIPT.map((segment, segmentIndex) => {
+          const storedResult = mockAttemptState.results.get(segmentIndex);
+          return {
+            correct_script: storedResult?.correct_script ?? segment.script,
+            is_correct: storedResult?.is_correct ?? false,
+            segment_index: segmentIndex,
+            user_answer: storedResult?.user_answer ?? "",
+          };
+        })
+      : [...mockAttemptState.results.values()].sort(
+          (firstResult, secondResult) => firstResult.segment_index - secondResult.segment_index,
+        );
 
   return {
-    attemptId: crypto.randomUUID(),
-    correctCount,
-    expEarned: isPassed ? 10 : 0,
-    fullTranscript: getFullTranscript(script),
-    isPassed,
-    lessonId,
-    results,
-    scorePercentage,
-    totalQuestions: results.length,
-    translation: script.translation,
+    attempt_id: ATTEMPT_ID,
+    details,
+    earned_exp: mockAttemptState.status === "completed" ? MOCK_BASE_EXP : 0,
+    score:
+      mockAttemptState.status === "completed"
+        ? Number(
+            (
+              ([...mockAttemptState.results.values()].filter((result) => result.is_correct).length *
+                100) /
+              PRIVATE_TRANSCRIPT.length
+            ).toFixed(2),
+          )
+        : null,
+    status: mockAttemptState.status,
+  };
+}
+
+export function getMockDictationInProgressAttempt(contentId: string):
+  | {
+      attempt: DictationStartResponse;
+      checkedCount: number;
+      results: Record<number, DictationSegmentCheckResponse>;
+    }
+  | undefined {
+  if (contentId !== CONTENT_ID || mockAttemptState.status !== "in_progress") {
+    return undefined;
+  }
+
+  return {
+    attempt: START_RESPONSE,
+    checkedCount: mockAttemptState.results.size,
+    results: Object.fromEntries(mockAttemptState.results.entries()),
   };
 }

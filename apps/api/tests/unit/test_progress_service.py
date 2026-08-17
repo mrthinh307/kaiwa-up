@@ -6,8 +6,13 @@ from unittest.mock import AsyncMock
 import pytest
 
 from app.models.attempt import ExerciseAttempt
-from app.models.enums import AttemptStatus, ContentType
-from app.repositories.progress import AttemptDetailRow, AttemptHistoryRow, ProgressRepository
+from app.models.enums import AttemptStatus, ContentType, JlptLevel
+from app.repositories.progress import (
+    AttemptDetailRow,
+    AttemptHistoryRow,
+    InProgressLessonRow,
+    ProgressRepository,
+)
 from app.services.progress import ProgressService
 
 
@@ -21,16 +26,63 @@ async def test_summary_counts_merged_shadowing_dictation_content() -> None:
             ContentType.LISTENING_TRANSLATION: 1,
         },
     )
+    repository.get_in_progress_lessons.return_value = [
+        InProgressLessonRow(
+            id=uuid.uuid4(),
+            content_id=uuid.uuid4(),
+            content_title="Ongoing lesson",
+            content_type=ContentType.REFLEX,
+            difficulty=JlptLevel.N4,
+            attempt_number=2,
+        )
+    ]
 
     summary = await ProgressService(repository).get_summary(uuid.uuid4())
 
-    assert summary.model_dump() == {
+    assert summary.model_dump(mode="json") == {
         "shadowing_dictation_completed": 3,
         "reflex_completed": 0,
         "listening_translation_completed": 1,
         "total_completed_attempts": 4,
         "total_attempts": 5,
+        "in_progress_lessons": [
+            {
+                "id": str(summary.in_progress_lessons[0].id),
+                "content_id": str(summary.in_progress_lessons[0].content_id),
+                "content_title": "Ongoing lesson",
+                "content_type": "reflex",
+                "difficulty": "N4",
+                "attempt_number": 2,
+            }
+        ],
     }
+
+
+@pytest.mark.asyncio
+async def test_list_attempts_forwards_status_and_search_query() -> None:
+    repository = AsyncMock(spec=ProgressRepository)
+    repository.list_attempts.return_value = ([], 0)
+    user_id = uuid.uuid4()
+
+    await ProgressService(repository).list_attempts(
+        user_id,
+        content_type=ContentType.SHADOWING_DICTATION,
+        content_id=None,
+        status=AttemptStatus.IN_PROGRESS,
+        search_query="weather",
+        page=2,
+        page_size=10,
+    )
+
+    repository.list_attempts.assert_awaited_once_with(
+        user_id,
+        content_type=ContentType.SHADOWING_DICTATION,
+        content_id=None,
+        status=AttemptStatus.IN_PROGRESS,
+        search_query="weather",
+        limit=10,
+        offset=10,
+    )
 
 
 @pytest.mark.asyncio
@@ -56,6 +108,8 @@ async def test_list_attempts_converts_decimal_score_to_float() -> None:
         uuid.uuid4(),
         content_type=None,
         content_id=None,
+        status=None,
+        search_query=None,
         page=1,
         page_size=20,
     )

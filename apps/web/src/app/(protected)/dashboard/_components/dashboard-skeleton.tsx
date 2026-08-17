@@ -5,12 +5,6 @@ export function DashboardSkeleton() {
     <div aria-busy="true" aria-label="Loading dashboard" className="space-y-10" role="status">
       <span className="sr-only">Loading dashboard…</span>
 
-      <div className="border-b-4 border-border pb-8">
-        <Skeleton className="h-8 w-48 border-2 bg-main/40 shadow-shadow" />
-        <Skeleton className="mt-6 h-12 w-full max-w-[720px] border-2" />
-        <Skeleton className="mt-5 h-7 w-full max-w-[660px] border-2" />
-      </div>
-
       <div className="grid gap-6 lg:grid-cols-[minmax(320px,0.9fr)_minmax(0,1.4fr)]">
         <Skeleton className="h-[430px] border-4 bg-main/40 shadow-shadow" />
         <Skeleton className="h-[430px] border-4 bg-secondary-background shadow-shadow" />

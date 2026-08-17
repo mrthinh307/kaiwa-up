@@ -1,4 +1,6 @@
 import uuid
+from datetime import datetime
+from decimal import Decimal
 from typing import NamedTuple
 
 from sqlalchemy import func, select
@@ -6,6 +8,7 @@ from sqlalchemy import func, select
 from app.models.attempt import ExerciseAttempt
 from app.models.content import LearningContent
 from app.models.enums import AttemptStatus, ContentStatus, ContentType
+from app.models.gamification import XpTransaction
 from app.models.user import User
 from app.repositories.base import BaseRepository
 
@@ -13,6 +16,12 @@ from app.repositories.base import BaseRepository
 class DictationAttemptRow(NamedTuple):
     attempt: ExerciseAttempt
     content: LearningContent
+
+
+class DictationReviewRow(NamedTuple):
+    attempt: ExerciseAttempt
+    content: LearningContent
+    earned_exp: int | None
 
 
 class DictationRepository(BaseRepository):
@@ -84,3 +93,40 @@ class DictationRepository(BaseRepository):
     ) -> None:
         attempt.answer_payload = answer_payload
         await self.session.flush()
+
+    async def complete_attempt(
+        self,
+        attempt: ExerciseAttempt,
+        *,
+        score: Decimal,
+        correct_count: int,
+        total_count: int,
+        completed_at: datetime,
+    ) -> None:
+        attempt.status = AttemptStatus.COMPLETED
+        attempt.score = score
+        attempt.correct_count = correct_count
+        attempt.total_count = total_count
+        attempt.submitted_at = completed_at
+        attempt.completed_at = completed_at
+        await self.session.flush()
+
+    async def get_attempt_for_review(
+        self,
+        attempt_id: uuid.UUID,
+    ) -> DictationReviewRow | None:
+        result = (
+            await self.session.execute(
+                select(ExerciseAttempt, LearningContent, XpTransaction.amount)
+                .join(LearningContent, LearningContent.id == ExerciseAttempt.content_id)
+                .outerjoin(XpTransaction, XpTransaction.attempt_id == ExerciseAttempt.id)
+                .where(ExerciseAttempt.id == attempt_id)
+            )
+        ).first()
+        if result is None:
+            return None
+        return DictationReviewRow(
+            attempt=result[0],
+            content=result[1],
+            earned_exp=result[2],
+        )

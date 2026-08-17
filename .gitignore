@@ -17,6 +17,7 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 .venv/
+storage/
 
 # IDE and operating system
 .idea/
@@ -25,3 +26,5 @@ Thumbs.db
 
 .codegraph/
 .env
+
+.pnpm-store/

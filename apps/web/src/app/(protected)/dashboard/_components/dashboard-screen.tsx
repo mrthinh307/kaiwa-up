@@ -1,4 +1,4 @@
-import type { DashboardViewModel } from "../_utils/dashboard-mock-adapter";
+import type { DashboardViewModel } from "../_utils/dashboard-api-adapter";
 
 import { DashboardAttemptHistory } from "./dashboard-attempt-history";
 import { DashboardInProgressLessons } from "./dashboard-in-progress-lessons";

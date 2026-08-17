@@ -7,11 +7,12 @@ import { Button } from "@/components/ui/button";
 import {
   type PracticeCatalogViewModel,
   type PracticeLearningStatus,
-} from "@/lib/practice-catalog-mock";
+} from "@/lib/practice-catalog-api";
 import { cn } from "@/lib/utils";
 
 import { PracticeCatalogFilterSheet } from "./practice-catalog-filter-sheet";
 import { PracticeCatalogPagination } from "./practice-catalog-pagination";
+import { PracticeCatalogPaginationScroll } from "./practice-catalog-pagination-scroll";
 import { PracticeCatalogSearch } from "./practice-catalog-search";
 import { PracticeLessonCard } from "./practice-lesson-card";
 import { PracticePreviewProvider } from "./practice-preview-provider";
@@ -43,7 +44,12 @@ export function PracticeCatalog({
     : "";
 
   return (
-    <section aria-labelledby="lessons-catalog-heading">
+    <section
+      aria-labelledby="lessons-catalog-heading"
+      className="scroll-mt-24"
+      id="lessons-catalog"
+    >
+      <PracticeCatalogPaginationScroll page={catalog.page} targetId="lessons-catalog" />
       <div className="grid gap-5 rounded-base border-4 border-border bg-background p-5 shadow-shadow sm:p-7 lg:grid-cols-[minmax(180px,0.7fr)_minmax(0,1.6fr)] lg:items-end">
         <div>
           <h2 className="text-2xl sm:text-3xl" id="lessons-catalog-heading">
@@ -60,6 +66,7 @@ export function PracticeCatalog({
         <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
           <PracticeCatalogSearch
             basePath="/lessons"
+            hash="lessons-catalog-heading"
             id="lessons-search"
             initialQuery={searchQuery}
             key={searchQuery}
@@ -103,6 +110,7 @@ export function PracticeCatalog({
           <PracticeCatalogPagination
             ariaLabel="Lesson catalog pages"
             basePath="/lessons"
+            hash="lessons-catalog-heading"
             page={catalog.page}
             pages={catalog.pages}
             params={{

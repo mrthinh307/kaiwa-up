@@ -5,8 +5,6 @@ from uuid import UUID
 import httpx
 import pytest
 import pytest_asyncio
-from app.repositories.leaderboard import LeaderboardRepository
-from app.services.leaderboard import LeaderboardService
 from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,6 +12,8 @@ from app.api.dependencies.auth import get_current_user
 from app.main import app
 from app.models.gamification import WeeklyLeaderboardEntry, XpTransaction
 from app.models.user import User
+from app.repositories.leaderboard import LeaderboardRepository
+from app.services.leaderboard import LeaderboardService
 from app.utils.datetime_utils import week_start_for
 
 LEADERBOARD_PATH = "/api/v1/leaderboard/weekly"

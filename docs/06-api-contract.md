@@ -418,7 +418,7 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
     "type": "shadowing",
     "difficulty": "N4",
     "topic": "Business",
-    "audio_url": "https://res.cloudinary.com/kaiwaup/audio/lesson_01.mp3",
+    "audio_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
     "duration_seconds": 45,
     "created_at": "2026-08-01T00:00:00.000Z"
   }
@@ -465,7 +465,8 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
 ---
 
 #### `GET /api/v1/shadowing/lessons/{lesson_id}`
-* **Mục đích**: Lấy chi tiết bài luyện Shadowing bao gồm audio Cloudinary và transcript tiếng Nhật (dành cho chế độ bật/tắt văn bản).
+* **Mục đích**: Lấy chi tiết bài luyện Shadowing gồm URL video YouTube dùng làm nguồn audio và
+  transcript tiếng Nhật.
 * **Yêu cầu xác thực**: Bearer Token
 * **Request Headers**: `Authorization: Bearer <jwt_access_token>`
 * **Path Parameters**:
@@ -477,7 +478,7 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
   {
     "id": "987e6543-e89b-12d3-a456-426614174999",
     "title": "Hội thoại mua sắm",
-    "audio_url": "https://res.cloudinary.com/kaiwaup/audio/shadow_01.mp3",
+    "audio_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
     "duration_seconds": 30,
     "japanese_text": "いらっしゃいませ。何をお探しですか？",
     "romaji_text": "Irasshaimase. Nani wo osagashi desu ka?",
@@ -574,7 +575,7 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
   {
     "id": "770e8400-e29b-41d4-a716-446655440111",
     "title": "Nghe điền từ: Thời tiết hôm nay",
-    "audio_url": "https://res.cloudinary.com/kaiwaup/audio/dict_01.mp3",
+    "audio_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
     "script": "きょうは ___ (1) ですね。あしたは ___ (2) がふるでしょう。",
     "difficulty": "N5"
   }
@@ -668,62 +669,87 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
 
 ---
 
-#### `POST /api/v1/dictation/lessons/{lesson_id}/submit`
-* **Mục đích**: Nộp câu trả lời Dictation theo thứ tự ô trống. Backend đối chiếu với transcript
-  nguồn của `learning_contents`, lưu câu trả lời vào `exercise_attempts.answer_payload` (JSONB),
-  tính điểm và cấp `base_exp` đúng một lần khi attempt hoàn thành.
-* **Yêu cầu xác thực**: Bearer Token
+#### `POST /api/v1/dictation/complete`
+* **Mục đích**: Đóng attempt sau khi người dùng hoàn thành các segment hoặc chọn nộp sớm. Backend
+  tính điểm dựa trên toàn bộ số segment, cập nhật attempt và cấp `base_exp` trong cùng một DB
+  transaction. Segment chưa được kiểm tra khi nộp sớm được tính là chưa đúng.
+* **Yêu cầu xác thực**: Bearer Token; attempt phải thuộc user hiện tại.
 * **Request Headers**: `Authorization: Bearer <jwt_access_token>`, `Content-Type: application/json`
-* **Path Parameters**:
-  * `lesson_id` (string, UUID): ID bài Dictation
+* **Path Parameters**: Không
 * **Query Parameters**: Không
 * **Request Body Schema**:
   ```json
   {
-    "answers": [
-      { "blank_index": 1, "user_answer": "いいてんき" },
-      { "blank_index": 2, "user_answer": "あめ" }
-    ]
+    "attempt_id": "01912345-6789-7abc-def0-123456789abc"
   }
   ```
 * **Response Schema (200 OK)**:
   ```json
   {
-    "attempt_id": "880e8400-e29b-41d4-a716-446655440222",
-    "lesson_id": "770e8400-e29b-41d4-a716-446655440111",
-    "total_questions": 2,
+    "attempt_id": "01912345-6789-7abc-def0-123456789abc",
+    "status": "completed",
+    "score": 100.0,
     "correct_count": 2,
-    "score_percentage": 100.0,
-    "is_passed": true,
-    "exp_earned": 10,
-    "results": [
+    "total_count": 2,
+    "earned_exp": 50,
+    "completed_at": "2026-08-13T11:30:00Z"
+  }
+  ```
+* **Quy tắc transaction và idempotency**:
+  * Cập nhật attempt, tạo `xp_transactions` và cập nhật `user_progress.total_exp` cùng commit hoặc
+    cùng rollback.
+  * Khóa attempt trong lúc complete; attempt không còn `in_progress` bị từ chối để không cấp EXP
+    lần hai.
+  * UNIQUE `xp_transactions.attempt_id` là lớp bảo vệ cuối cùng chống ghi sổ EXP trùng.
+* **Status Codes & Error Responses**:
+  * `200 OK`: Attempt được hoàn tất và EXP được cấp thành công.
+  * `401 Unauthorized` (`code`: `unauthorized`): Chưa đăng nhập.
+  * `403 Forbidden` (`code`: `forbidden`): Attempt không thuộc user hiện tại.
+  * `404 Not Found` (`code`: `not_found`): Không tìm thấy Dictation attempt.
+  * `409 Conflict` (`code`: `dictation_attempt_not_in_progress`): Attempt đã hoàn tất.
+
+---
+
+#### `GET /api/v1/dictation/attempts/{attempt_id}`
+* **Mục đích**: Xem lại các câu trả lời đã được kiểm tra, đáp án chuẩn và kết quả của một Dictation
+  attempt. Attempt đã hoàn tất trả đủ mọi segment; segment bị bỏ qua khi nộp sớm có
+  `user_answer = ""`, `is_correct = false`. Attempt đang làm dở có `score = null`,
+  `earned_exp = 0` và chỉ trả các segment đã được kiểm tra để không lộ đáp án còn lại.
+* **Yêu cầu xác thực**: Bearer Token; attempt phải thuộc user hiện tại.
+* **Request Headers**: `Authorization: Bearer <jwt_access_token>`
+* **Path Parameters**:
+  * `attempt_id` (string, UUID): ID lượt làm Dictation
+* **Query Parameters**: Không
+* **Request Body**: Không
+* **Response Schema (200 OK)**:
+  ```json
+  {
+    "attempt_id": "01912345-6789-7abc-def0-123456789abc",
+    "status": "completed",
+    "score": 100.0,
+    "earned_exp": 50,
+    "details": [
       {
-        "blank_index": 1,
-        "user_answer": "いいてんき",
-        "correct_answer": "いいてんき",
-        "is_correct": true
-      },
-      {
-        "blank_index": 2,
-        "user_answer": "あめ",
-        "correct_answer": "あめ",
+        "segment_index": 0,
+        "user_answer": "明日の会議の資料ですが",
+        "correct_script": "明日の会議の資料ですが、",
         "is_correct": true
       }
-    ],
-    "full_transcript": "きょうはいいてんきですね。あしたがあめがふるでしょう。"
+    ]
   }
   ```
 * **Status Codes & Error Responses**:
-  * `200 OK`: Chấm bài và trả kết quả thành công.
-  * `404 Not Found` (`code`: `not_found`): Bài học không tồn tại.
-  * `422 Unprocessable Entity` (`code`: `validation_error`): Danh sách câu trả lời thiếu câu hỏi.
+  * `200 OK`: Trả thông tin review thành công.
+  * `401 Unauthorized` (`code`: `unauthorized`): Chưa đăng nhập.
+  * `403 Forbidden` (`code`: `forbidden`): Attempt không thuộc user hiện tại.
+  * `404 Not Found` (`code`: `not_found`): Không tìm thấy Dictation attempt.
 
 ---
 
 ### 3.7. Progress / Attempt Module (P0)
 
 #### `GET /api/v1/progress/summary`
-* **Mục đích**: Xem tổng quan chỉ số học tập (tổng bài học đã hoàn thành, số lượt luyện tập).
+* **Mục đích**: Xem tổng quan chỉ số học tập (tổng bài đã hoàn thành, tổng lượt luyện tập, các bài đang làm dở).
 * **Yêu cầu xác thực**: Bearer Token
 * **Request Headers**: `Authorization: Bearer <jwt_access_token>`
 * **Path Parameters**: Không
@@ -732,11 +758,21 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
 * **Response Schema (200 OK)**:
   ```json
   {
-    "shadowing_completed": 12,
-    "dictation_completed": 8,
+    "shadowing_dictation_completed": 12,
     "reflex_completed": 5,
-    "total_lessons_completed": 25,
-    "total_practice_time_minutes": 140
+    "listening_translation_completed": 3,
+    "total_completed_attempts": 20,
+    "total_attempts": 31,
+    "in_progress_lessons": [
+      {
+        "id": "880e8400-e29b-41d4-a716-446655440222",
+        "content_id": "770e8400-e29b-41d4-a716-446655440111",
+        "content_title": "Thời tiết hôm nay",
+        "content_type": "shadowing_dictation",
+        "difficulty": "N4",
+        "attempt_number": 1
+      }
+    ]
   }
   ```
 * **Status Codes & Error Responses**:
@@ -751,9 +787,12 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
 * **Request Headers**: `Authorization: Bearer <jwt_access_token>`
 * **Path Parameters**: Không
 * **Query Parameters**:
-  * `type` (optional, string): `shadowing` | `dictation` | `reflex` | `listening_translation`
+  * `content_type` (optional, string): `shadowing_dictation` | `reflex` | `listening_translation`
+  * `content_id` (optional, string, UUID): Lọc theo nội dung cụ thể
+  * `q` (optional, string, tối đa 100 ký tự): Tìm kiếm theo tiêu đề bài học (không phân biệt hoa thường)
+  * `status` (optional, string): `in_progress` | `completed`
   * `page` (optional, integer, default: `1`)
-  * `page_size` (optional, integer, default: `20`)
+  * `page_size` (optional, integer, default: `20`, tối đa `100`)
 * **Request Body**: Không
 * **Response Schema (200 OK)**:
   ```json
@@ -761,12 +800,12 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
     "items": [
       {
         "id": "880e8400-e29b-41d4-a716-446655440222",
-        "lesson_id": "770e8400-e29b-41d4-a716-446655440111",
-        "lesson_title": "Nghe điền từ: Thời tiết hôm nay",
-        "lesson_type": "dictation",
+        "content_id": "770e8400-e29b-41d4-a716-446655440111",
+        "content_title": "Nghe điền từ: Thời tiết hôm nay",
+        "content_type": "shadowing_dictation",
+        "attempt_number": 1,
         "status": "completed",
         "score": 100.0,
-        "exp_earned": 10,
         "completed_at": "2026-08-06T14:42:00.000Z"
       }
     ],
@@ -778,6 +817,8 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
   ```
 * **Status Codes & Error Responses**:
   * `200 OK`: Lấy lịch sử thành công.
+  * `401 Unauthorized` (`code`: `unauthorized`): Chưa đăng nhập.
+  * `422 Unprocessable Entity` (`code`: `validation_error`): Tham số filter hoặc pagination không hợp lệ.
 
 ---
 
@@ -1025,7 +1066,7 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
   {
     "id": "330e8400-e29b-41d4-a716-446655440333",
     "title": "Phản xạ câu hỏi: Điểm hẹn",
-    "audio_url": "https://res.cloudinary.com/kaiwaup/audio/reflex_01.mp3",
+    "audio_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
     "prompt_ja": "どこで会いましょうか？",
     "scenario_ja": "待ち合わせ場所について",
     "response_start_limit_seconds": 3
@@ -1173,7 +1214,7 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
   {
     "id": "660e8400-e29b-41d4-a716-446655440666",
     "title": "Nghe hiểu ý chính: Đặt bàn ăn",
-    "audio_url": "https://res.cloudinary.com/kaiwaup/audio/trans_01.mp3",
+    "audio_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
     "transcript_ja": "4人で7時に予約したいですが、いいですか。",
     "reference_translation_vi": "Tôi muốn đặt bàn cho 4 người lúc 7 giờ, được không?"
   }
@@ -1402,7 +1443,8 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
 * **Tổng số API Endpoints được quy định**: 31 endpoints.
 
 ### 4.2. Giả định (Assumptions Made)
-1. **Cloudinary Audio Delivery**: URL audio bài học được cung cấp trực tiếp từ Cloudinary trong response metadata bài học mà không qua backend proxy.
+1. **YouTube Audio Delivery**: `audio_url` là URL video YouTube được trả trong metadata bài học.
+   Frontend phát bằng YouTube player; backend không proxy luồng media.
 2. **User Audio Lifecycle**: Audio do người dùng ghi âm được gửi bằng `multipart/form-data` và lưu
    trong private object storage khi nghiệp vụ cần giữ lại. PostgreSQL chỉ lưu metadata và
    `storage_key` trong `recordings`, không lưu BLOB hoặc public URL.

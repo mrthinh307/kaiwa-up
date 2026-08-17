@@ -3,7 +3,7 @@ from typing import NamedTuple
 
 from sqlalchemy.exc import IntegrityError
 
-from app.exceptions import ForbiddenError, NotFoundError
+from app.exceptions.gamification import AttemptForbiddenError, AttemptNotFoundError
 from app.models.enums import AttemptStatus, ContentType
 from app.repositories.gamification import GamificationRepository
 from app.schemas.gamification import ExpHistoryItem, GamificationProfileResponse
@@ -27,11 +27,36 @@ class GamificationService:
         user_id: uuid.UUID,
         attempt_id: uuid.UUID,
     ) -> XpAwardResult:
+        try:
+            result = await self.award_experience_in_transaction(
+                user_id=user_id,
+                attempt_id=attempt_id,
+            )
+            await self.repository.session.commit()
+        except IntegrityError:
+            await self.repository.session.rollback()
+            refreshed = await self.repository.get_or_create_user_progress(user_id)
+            return XpAwardResult(
+                awarded=False,
+                amount=0,
+                total_exp=refreshed.total_exp,
+                level=refreshed.current_level,
+            )
+        return result
+
+    async def award_experience_in_transaction(
+        self,
+        *,
+        user_id: uuid.UUID,
+        attempt_id: uuid.UUID,
+    ) -> XpAwardResult:
+        """Award EXP without committing so a parent use case can own the transaction."""
+
         attempt = await self.repository.get_attempt_for_reward(attempt_id)
         if attempt is None:
-            raise NotFoundError()
+            raise AttemptNotFoundError()
         if attempt.user_id != user_id:
-            raise ForbiddenError()
+            raise AttemptForbiddenError()
 
         if attempt.status != AttemptStatus.COMPLETED:
             progress = await self.repository.get_or_create_user_progress(user_id)
@@ -52,25 +77,14 @@ class GamificationService:
 
         amount = attempt.base_exp
         reason = self._build_reason(attempt.content_type, attempt.content_title)
-        try:
-            await self.repository.insert_transaction(
-                user_id=user_id,
-                attempt_id=attempt_id,
-                amount=amount,
-                reason=reason,
-            )
-            progress.total_exp += amount
-            progress.current_level = level_for_total_exp(progress.total_exp)
-            await self.repository.session.commit()
-        except IntegrityError:
-            await self.repository.session.rollback()
-            refreshed = await self.repository.get_or_create_user_progress(user_id)
-            return XpAwardResult(
-                awarded=False,
-                amount=0,
-                total_exp=refreshed.total_exp,
-                level=refreshed.current_level,
-            )
+        await self.repository.insert_transaction(
+            user_id=user_id,
+            attempt_id=attempt_id,
+            amount=amount,
+            reason=reason,
+        )
+        progress.total_exp += amount
+        progress.current_level = level_for_total_exp(progress.total_exp)
 
         return XpAwardResult(
             awarded=True,

@@ -1,7 +1,7 @@
 -include .env
 export
 
-.PHONY: help install dev lint typecheck install-web dev-web build-web lint-web typecheck-web install-api dev-api lint-api typecheck-api test-api generate-api-client migrate-api migrate-api-test
+.PHONY: help install dev lint typecheck install-web dev-web build-web lint-web typecheck-web install-api dev-api lint-api typecheck-api test-api generate-api-client migrate-api migrate-api-test seed seed-clean seed-youtube
 
 help:
 	@echo "Available commands:"
@@ -86,3 +86,6 @@ seed:
 
 seed-clean:
 	cd apps/api && python -m scripts.seed_data --clean
+
+seed-youtube:
+	cd apps/api && uv run python -m scripts.seed_data --youtube-only

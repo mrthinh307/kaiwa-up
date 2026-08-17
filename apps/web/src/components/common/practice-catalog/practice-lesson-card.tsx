@@ -1,6 +1,6 @@
 import { Tag } from "lucide-react";
 
-import type { PracticeCatalogLesson } from "@/lib/practice-catalog-mock";
+import type { PracticeCatalogLesson } from "@/lib/practice-catalog-api";
 
 import { formatPracticeDuration } from "./practice-catalog-formatters";
 import { PracticeModeAction } from "./practice-mode-action";

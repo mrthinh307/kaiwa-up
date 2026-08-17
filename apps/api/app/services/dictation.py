@@ -1,4 +1,5 @@
 import uuid
+from decimal import ROUND_HALF_UP, Decimal
 
 from pydantic import ValidationError
 
@@ -6,18 +7,25 @@ from app.exceptions import ForbiddenError, NotFoundError
 from app.exceptions.dictation import (
     DictationAttemptNotInProgressError,
     DictationContentUnavailableError,
+    DictationExperienceAlreadyAwardedError,
     DictationInvalidSegmentIndexError,
 )
 from app.models.content import LearningContent
 from app.models.enums import AttemptStatus, ContentType
 from app.repositories.dictation import DictationRepository
+from app.repositories.gamification import GamificationRepository
 from app.schemas.dictation import (
     DictationAnswerPayload,
+    DictationAttemptReviewResponse,
+    DictationCompleteResponse,
     DictationSegmentCheckResponse,
     DictationSegmentItem,
+    DictationSegmentReview,
     DictationStartResponse,
     DictationTranscriptSegment,
 )
+from app.services.gamification import GamificationService
+from app.utils.datetime_utils import utc_now
 
 IGNORED_DICTATION_CHARACTERS = frozenset({"。", "、"})
 
@@ -27,6 +35,12 @@ def normalize_dictation_text(text: str) -> str:
         character
         for character in text
         if not character.isspace() and character not in IGNORED_DICTATION_CHARACTERS
+    )
+
+
+def calculate_dictation_score(*, correct_count: int, total_count: int) -> Decimal:
+    return (Decimal(correct_count) * Decimal(100) / Decimal(total_count)).quantize(
+        Decimal("0.01"), rounding=ROUND_HALF_UP
     )
 
 
@@ -137,6 +151,128 @@ class DictationService:
             raise
 
         return result
+
+    async def complete_attempt(
+        self,
+        *,
+        user_id: uuid.UUID,
+        attempt_id: uuid.UUID,
+    ) -> DictationCompleteResponse:
+        try:
+            row = await self.repository.get_attempt_for_update(attempt_id)
+            if row is None or row.content.content_type != ContentType.SHADOWING_DICTATION:
+                raise NotFoundError("Dictation attempt not found")
+            if row.attempt.user_id != user_id:
+                raise ForbiddenError()
+            if row.attempt.status != AttemptStatus.IN_PROGRESS:
+                raise DictationAttemptNotInProgressError()
+
+            transcript_segments = self._transcript_segments(row.content)
+            total_count = len(transcript_segments)
+            answer_payload = DictationAnswerPayload.model_validate(row.attempt.answer_payload or {})
+            results_by_index = {
+                result.segment_index: result
+                for result in answer_payload.segments
+                if 0 <= result.segment_index < total_count
+            }
+            correct_count = sum(result.is_correct for result in results_by_index.values())
+            score = calculate_dictation_score(
+                correct_count=correct_count,
+                total_count=total_count,
+            )
+            completed_at = utc_now()
+            await self.repository.complete_attempt(
+                row.attempt,
+                score=score,
+                correct_count=correct_count,
+                total_count=total_count,
+                completed_at=completed_at,
+            )
+
+            gamification_service = GamificationService(
+                GamificationRepository(self.repository.session)
+            )
+            award = await gamification_service.award_experience_in_transaction(
+                user_id=user_id,
+                attempt_id=attempt_id,
+            )
+            if not award.awarded:
+                raise DictationExperienceAlreadyAwardedError()
+
+            await self.repository.session.commit()
+        except Exception:
+            await self.repository.session.rollback()
+            raise
+
+        return DictationCompleteResponse(
+            attempt_id=row.attempt.id,
+            status=row.attempt.status,
+            score=float(score),
+            correct_count=correct_count,
+            total_count=total_count,
+            earned_exp=award.amount,
+            completed_at=completed_at,
+        )
+
+    async def get_attempt_review(
+        self,
+        *,
+        user_id: uuid.UUID,
+        attempt_id: uuid.UUID,
+    ) -> DictationAttemptReviewResponse:
+        row = await self.repository.get_attempt_for_review(attempt_id)
+        if row is None or row.content.content_type != ContentType.SHADOWING_DICTATION:
+            raise NotFoundError("Dictation attempt not found")
+        if row.attempt.user_id != user_id:
+            raise ForbiddenError()
+
+        answer_payload = DictationAnswerPayload.model_validate(row.attempt.answer_payload or {})
+        stored_results_by_index = {
+            result.segment_index: result for result in answer_payload.segments
+        }
+        if row.attempt.status == AttemptStatus.COMPLETED:
+            transcript_segments = self._transcript_segments(row.content)
+            details = [
+                DictationSegmentReview(
+                    segment_index=index,
+                    user_answer=(
+                        stored_results_by_index[index].user_answer
+                        if index in stored_results_by_index
+                        else ""
+                    ),
+                    correct_script=(
+                        stored_results_by_index[index].correct_script
+                        if index in stored_results_by_index
+                        else segment.script
+                    ),
+                    is_correct=(
+                        stored_results_by_index[index].is_correct
+                        if index in stored_results_by_index
+                        else False
+                    ),
+                )
+                for index, segment in enumerate(transcript_segments)
+            ]
+        else:
+            details = [
+                DictationSegmentReview(
+                    segment_index=result.segment_index,
+                    user_answer=result.user_answer,
+                    correct_script=result.correct_script,
+                    is_correct=result.is_correct,
+                )
+                for result in sorted(
+                    answer_payload.segments,
+                    key=lambda result: result.segment_index,
+                )
+            ]
+        return DictationAttemptReviewResponse(
+            attempt_id=row.attempt.id,
+            status=row.attempt.status,
+            score=float(row.attempt.score) if row.attempt.score is not None else None,
+            earned_exp=row.earned_exp or 0,
+            details=details,
+        )
 
     @staticmethod
     def _transcript_segments(content: LearningContent) -> list[DictationTranscriptSegment]:

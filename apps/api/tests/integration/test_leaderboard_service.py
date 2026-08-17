@@ -3,13 +3,13 @@ from datetime import UTC, datetime
 
 import pytest
 import pytest_asyncio
-from app.repositories.leaderboard import LeaderboardRepository
-from app.services.leaderboard import LeaderboardService
 from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.gamification import WeeklyLeaderboardEntry, XpTransaction
 from app.models.user import User
+from app.repositories.leaderboard import LeaderboardRepository
+from app.services.leaderboard import LeaderboardService
 
 
 async def create_user(session: AsyncSession, *, email: str, display_name: str) -> User:

@@ -24,6 +24,9 @@ class Settings(BaseSettings):
     REFRESH_COOKIE_SECURE: bool = False
     REFRESH_COOKIE_SAMESITE: Literal["lax", "strict", "none"] = "lax"
 
+    leaderboard_rebuild_interval_hours: int = 1
+    leaderboard_rebuild_enabled: bool = True
+
     ai_provider: Literal["fake", "openai", "gemini"] = "fake"
     ai_fallback_provider: str | None = None
     ai_llm_model: str | None = None

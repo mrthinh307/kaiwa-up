@@ -14,13 +14,22 @@ from app.exceptions.auth import (
     InvalidCredentialsException,
     UnauthorizedException,
 )
-from app.exceptions.base import AppError, ForbiddenError, NotFoundError, UnauthorizedError
+from app.exceptions.base import AppError, ForbiddenError, NotFoundError
 from app.exceptions.dictation import (
     DictationAttemptNotInProgressError,
     DictationContentUnavailableError,
+    DictationExperienceAlreadyAwardedError,
     DictationInvalidSegmentIndexError,
 )
 from app.exceptions.handlers import register_exception_handlers
+from app.exceptions.learning_content import (
+    InvalidYouTubeUrlError,
+    LearningContentAlreadyExistsError,
+    LearningContentAlreadyPublishedError,
+    LearningContentNotReadyError,
+    TranscriptNotFoundError,
+    TranscriptProviderError,
+)
 
 __all__ = [
     "AiInvalidResponseError",
@@ -32,13 +41,19 @@ __all__ = [
     "AppError",
     "DictationAttemptNotInProgressError",
     "DictationContentUnavailableError",
+    "DictationExperienceAlreadyAwardedError",
     "DictationInvalidSegmentIndexError",
     "EmailAlreadyExistsException",
     "ForbiddenError",
     "ForbiddenException",
     "InvalidCredentialsException",
+    "InvalidYouTubeUrlError",
+    "LearningContentAlreadyExistsError",
+    "LearningContentAlreadyPublishedError",
+    "LearningContentNotReadyError",
     "NotFoundError",
-    "UnauthorizedError",
+    "TranscriptNotFoundError",
+    "TranscriptProviderError",
     "UnauthorizedException",
     "register_exception_handlers",
 ]

@@ -3,7 +3,7 @@ import { History } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
-import type { DashboardViewModel } from "../_utils/dashboard-mock-adapter";
+import type { DashboardViewModel } from "../_utils/dashboard-api-adapter";
 
 import {
   formatDashboardDateTime,
@@ -26,6 +26,9 @@ export function DashboardAttemptHistory({
     attemptHistory.total === 0 ? 0 : (attemptHistory.page - 1) * attemptHistory.pageSize + 1;
   const resultEnd = Math.min(attemptHistory.page * attemptHistory.pageSize, attemptHistory.total);
   const activeFilterLabels = [
+    attemptHistory.selectedMode
+      ? getDashboardPracticeModeMetadata(attemptHistory.selectedMode).label
+      : null,
     attemptHistory.selectedStatus
       ? getDashboardAttemptStatusMetadata(attemptHistory.selectedStatus).label
       : null,
@@ -63,6 +66,7 @@ export function DashboardAttemptHistory({
         </div>
 
         <DashboardAttemptFilters
+          mode={attemptHistory.selectedMode}
           searchQuery={attemptHistory.searchQuery}
           selectedStatus={attemptHistory.selectedStatus}
         />
@@ -163,6 +167,7 @@ export function DashboardAttemptHistory({
           </div>
 
           <DashboardAttemptPagination
+            mode={attemptHistory.selectedMode}
             page={attemptHistory.page}
             pages={attemptHistory.pages}
             searchQuery={attemptHistory.searchQuery}
@@ -171,8 +176,9 @@ export function DashboardAttemptHistory({
         </>
       ) : (
         <DashboardEmptyState
-          selectedStatus={attemptHistory.selectedStatus}
+          mode={attemptHistory.selectedMode}
           searchQuery={attemptHistory.searchQuery}
+          selectedStatus={attemptHistory.selectedStatus}
           totalAttempts={totalAttempts}
         />
       )}

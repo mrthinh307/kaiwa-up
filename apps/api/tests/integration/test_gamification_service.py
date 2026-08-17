@@ -1,11 +1,12 @@
 import uuid
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.exceptions import ForbiddenError, NotFoundError
+from app.exceptions.gamification import AttemptForbiddenError, AttemptNotFoundError
 from app.models.attempt import ExerciseAttempt
 from app.models.content import LearningContent
 from app.models.enums import AttemptStatus, ContentStatus, ContentType, JlptLevel
@@ -80,12 +81,13 @@ async def count_transactions(session: AsyncSession, attempt_id: uuid.UUID) -> in
 @pytest.mark.asyncio
 async def test_award_grants_base_exp_and_updates_total(
     db_session: AsyncSession,
+    unique_value: Callable[[str], str],
 ) -> None:
-    user = await create_user(session=db_session, email="a@example.com")
+    user = await create_user(session=db_session, email=f"{unique_value('user-a')}@example.com")
     content = await create_content(
         session=db_session,
         content_type=ContentType.SHADOWING_DICTATION,
-        slug="dictation",
+        slug=unique_value("dictation"),
         title="Thời tiết hôm nay",
         base_exp=50,
     )
@@ -113,12 +115,13 @@ async def test_award_grants_base_exp_and_updates_total(
 @pytest.mark.asyncio
 async def test_award_is_idempotent_for_same_attempt(
     db_session: AsyncSession,
+    unique_value: Callable[[str], str],
 ) -> None:
-    user = await create_user(session=db_session, email="a@example.com")
+    user = await create_user(session=db_session, email=f"{unique_value('user-a')}@example.com")
     content = await create_content(
         session=db_session,
         content_type=ContentType.SHADOWING_DICTATION,
-        slug="shadowing",
+        slug=unique_value("shadowing"),
         title="Chào hỏi công sở",
         base_exp=50,
     )
@@ -138,12 +141,13 @@ async def test_award_is_idempotent_for_same_attempt(
 @pytest.mark.asyncio
 async def test_award_does_not_grant_for_incomplete_attempt(
     db_session: AsyncSession,
+    unique_value: Callable[[str], str],
 ) -> None:
-    user = await create_user(session=db_session, email="a@example.com")
+    user = await create_user(session=db_session, email=f"{unique_value('user-a')}@example.com")
     content = await create_content(
         session=db_session,
         content_type=ContentType.REFLEX,
-        slug="reflex",
+        slug=unique_value("reflex"),
         title="Điểm hẹn",
         base_exp=50,
     )
@@ -168,19 +172,20 @@ async def test_award_does_not_grant_for_incomplete_attempt(
 @pytest.mark.asyncio
 async def test_award_raises_forbidden_for_other_user(
     db_session: AsyncSession,
+    unique_value: Callable[[str], str],
 ) -> None:
-    owner = await create_user(session=db_session, email="a@example.com")
-    requester = await create_user(session=db_session, email="b@example.com")
+    owner = await create_user(session=db_session, email=f"{unique_value('user-a')}@example.com")
+    requester = await create_user(session=db_session, email=f"{unique_value('user-b')}@example.com")
     content = await create_content(
         session=db_session,
         content_type=ContentType.SHADOWING_DICTATION,
-        slug="dictation",
+        slug=unique_value("dictation"),
         title="Thời tiết hôm nay",
         base_exp=50,
     )
     attempt = await create_attempt(session=db_session, user_id=owner.id, content_id=content.id)
 
-    with pytest.raises(ForbiddenError):
+    with pytest.raises(AttemptForbiddenError):
         await make_service(db_session).award_experience(
             user_id=requester.id,
             attempt_id=attempt.id,
@@ -190,10 +195,11 @@ async def test_award_raises_forbidden_for_other_user(
 @pytest.mark.asyncio
 async def test_award_raises_not_found_for_unknown_attempt(
     db_session: AsyncSession,
+    unique_value: Callable[[str], str],
 ) -> None:
-    user = await create_user(session=db_session, email="a@example.com")
+    user = await create_user(session=db_session, email=f"{unique_value('user-a')}@example.com")
 
-    with pytest.raises(NotFoundError):
+    with pytest.raises(AttemptNotFoundError):
         await make_service(db_session).award_experience(
             user_id=user.id,
             attempt_id=uuid.uuid4(),
@@ -203,19 +209,20 @@ async def test_award_raises_not_found_for_unknown_attempt(
 @pytest.mark.asyncio
 async def test_award_increases_level_at_threshold(
     db_session: AsyncSession,
+    unique_value: Callable[[str], str],
 ) -> None:
-    user = await create_user(session=db_session, email="a@example.com")
+    user = await create_user(session=db_session, email=f"{unique_value('user-a')}@example.com")
     content_a = await create_content(
         session=db_session,
         content_type=ContentType.SHADOWING_DICTATION,
-        slug="a",
+        slug=unique_value("content-a"),
         title="Bài A",
         base_exp=100,
     )
     content_b = await create_content(
         session=db_session,
         content_type=ContentType.SHADOWING_DICTATION,
-        slug="b",
+        slug=unique_value("content-b"),
         title="Bài B",
         base_exp=150,
     )
@@ -235,19 +242,20 @@ async def test_award_increases_level_at_threshold(
 @pytest.mark.asyncio
 async def test_profile_returns_contract_fields_with_history(
     db_session: AsyncSession,
+    unique_value: Callable[[str], str],
 ) -> None:
-    user = await create_user(session=db_session, email="a@example.com")
+    user = await create_user(session=db_session, email=f"{unique_value('user-a')}@example.com")
     content_a = await create_content(
         session=db_session,
         content_type=ContentType.SHADOWING_DICTATION,
-        slug="a",
+        slug=unique_value("content-a"),
         title="Thời tiết hôm nay",
         base_exp=100,
     )
     content_b = await create_content(
         session=db_session,
         content_type=ContentType.SHADOWING_DICTATION,
-        slug="b",
+        slug=unique_value("content-b"),
         title="Chào hỏi",
         base_exp=50,
     )
@@ -273,8 +281,9 @@ async def test_profile_returns_contract_fields_with_history(
 @pytest.mark.asyncio
 async def test_profile_recent_history_respects_limit(
     db_session: AsyncSession,
+    unique_value: Callable[[str], str],
 ) -> None:
-    user = await create_user(session=db_session, email="a@example.com")
+    user = await create_user(session=db_session, email=f"{unique_value('user-a')}@example.com")
     for index in range(25):
         transaction = XpTransaction(
             user_id=user.id,

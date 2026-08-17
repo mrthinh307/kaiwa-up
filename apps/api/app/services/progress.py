@@ -1,13 +1,14 @@
 import math
 import uuid
 
-from app.exceptions import ForbiddenError, NotFoundError
-from app.models.enums import ContentType
-from app.repositories.progress import AttemptHistoryRow, ProgressRepository
+from app.exceptions.progress import AttemptForbiddenError, AttemptNotFoundError
+from app.models.enums import AttemptStatus, ContentType
+from app.repositories.progress import AttemptHistoryRow, InProgressLessonRow, ProgressRepository
 from app.schemas.pagination import PaginatedResponse
 from app.schemas.progress import (
     ProgressAttemptDetail,
     ProgressAttemptItem,
+    ProgressInProgressLesson,
     ProgressSummaryResponse,
 )
 
@@ -18,6 +19,7 @@ class ProgressService:
 
     async def get_summary(self, user_id: uuid.UUID) -> ProgressSummaryResponse:
         total_attempts, completed_by_type = await self.repository.get_summary(user_id)
+        in_progress_lessons = await self.repository.get_in_progress_lessons(user_id)
 
         def completed(content_type: ContentType) -> int:
             return completed_by_type.get(content_type, 0)
@@ -28,6 +30,9 @@ class ProgressService:
             listening_translation_completed=completed(ContentType.LISTENING_TRANSLATION),
             total_completed_attempts=sum(completed_by_type.values()),
             total_attempts=total_attempts,
+            in_progress_lessons=[
+                self._to_in_progress_lesson(lesson) for lesson in in_progress_lessons
+            ],
         )
 
     async def list_attempts(
@@ -36,6 +41,8 @@ class ProgressService:
         *,
         content_type: ContentType | None,
         content_id: uuid.UUID | None,
+        status: AttemptStatus | None,
+        search_query: str | None,
         page: int,
         page_size: int,
     ) -> PaginatedResponse[ProgressAttemptItem]:
@@ -43,6 +50,8 @@ class ProgressService:
             user_id,
             content_type=content_type,
             content_id=content_id,
+            status=status,
+            search_query=search_query,
             limit=page_size,
             offset=(page - 1) * page_size,
         )
@@ -61,10 +70,10 @@ class ProgressService:
     ) -> ProgressAttemptDetail:
         row = await self.repository.get_attempt_detail(attempt_id)
         if row is None:
-            raise NotFoundError()
+            raise AttemptNotFoundError()
         attempt = row.attempt
         if attempt.user_id != user_id:
-            raise ForbiddenError()
+            raise AttemptForbiddenError()
         return ProgressAttemptDetail(
             id=attempt.id,
             content_id=attempt.content_id,
@@ -74,6 +83,17 @@ class ProgressService:
             score=float(attempt.score) if attempt.score is not None else None,
             answer_payload=attempt.answer_payload,
             completed_at=attempt.completed_at,
+        )
+
+    @staticmethod
+    def _to_in_progress_lesson(lesson: InProgressLessonRow) -> ProgressInProgressLesson:
+        return ProgressInProgressLesson(
+            id=lesson.id,
+            content_id=lesson.content_id,
+            content_title=lesson.content_title,
+            content_type=lesson.content_type,
+            difficulty=lesson.difficulty,
+            attempt_number=lesson.attempt_number,
         )
 
     @staticmethod

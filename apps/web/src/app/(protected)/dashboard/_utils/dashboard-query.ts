@@ -1,21 +1,29 @@
-import type { DashboardAttemptStatus } from "./dashboard-mock-adapter";
+import type { DashboardAttemptStatus, DashboardPracticeMode } from "./dashboard-api-adapter";
+
+const DASHBOARD_PRACTICE_MODES = [
+  "shadowing_dictation",
+  "reflex",
+  "listening_translation",
+] as const satisfies readonly DashboardPracticeMode[];
 
 const DASHBOARD_ATTEMPT_STATUSES = ["completed", "in_progress"] as const;
-const DASHBOARD_PREVIEW_STATES = ["empty", "error", "loading"] as const;
-
-export type DashboardPreviewState = (typeof DASHBOARD_PREVIEW_STATES)[number];
 
 export function buildDashboardHref({
+  mode,
   page,
   searchQuery,
   status,
 }: {
+  mode?: DashboardPracticeMode;
   page?: number;
   searchQuery?: string;
   status?: DashboardAttemptStatus;
 } = {}): string {
   const searchParams = new URLSearchParams();
 
+  if (mode) {
+    searchParams.set("mode", mode);
+  }
   if (page && page > 1) {
     searchParams.set("page", String(page));
   }
@@ -47,14 +55,14 @@ export function parseDashboardPage(value: string | undefined): number {
   return Number.isSafeInteger(parsedPage) && parsedPage > 0 ? parsedPage : 1;
 }
 
+export function parseDashboardPracticeMode(
+  value: string | undefined,
+): DashboardPracticeMode | undefined {
+  return DASHBOARD_PRACTICE_MODES.find((practiceMode) => practiceMode === value);
+}
+
 export function parseDashboardSearchQuery(value: string | undefined): string | undefined {
   const normalizedQuery = value?.trim().replace(/\s+/g, " ");
 
   return normalizedQuery ? normalizedQuery.slice(0, 100) : undefined;
-}
-
-export function parseDashboardPreviewState(
-  value: string | undefined,
-): DashboardPreviewState | undefined {
-  return DASHBOARD_PREVIEW_STATES.find((previewState) => previewState === value);
 }

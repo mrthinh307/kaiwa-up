@@ -16,7 +16,7 @@ import {
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 
-import type { DashboardViewModel } from "../_utils/dashboard-mock-adapter";
+import type { DashboardViewModel } from "../_utils/dashboard-api-adapter";
 
 import { getDashboardPracticeModeMetadata } from "../_utils/dashboard-formatters";
 
@@ -113,18 +113,10 @@ export function DashboardInProgressLessons({
                     return (
                       <CarouselItem
                         aria-label={`${index + 1} of ${lessons.length}`}
-                        className="pt-2 pr-2 pb-2 pl-3 sm:pl-4 md:basis-1/2 xl:basis-1/3 2xl:basis-1/4"
+                        className="pt-2 pr-2 pb-2 pl-3 sm:pl-4 md:basis-1/2 2xl:basis-1/3"
                         key={lesson.id}
                       >
                         <article className="relative flex h-full min-h-48 cursor-pointer flex-col rounded-base border-2 border-border bg-background p-5 shadow-shadow motion-safe:transition-transform motion-safe:hover:-translate-y-1 sm:p-6">
-                          {/* <span
-                            aria-label={`Attempt number ${lesson.attemptNumber}`}
-                            className="absolute top-4 right-4 inline-flex items-center gap-1.5 rounded-base border-2 border-border bg-secondary-background px-2 py-1 text-sm font-heading shadow-shadow sm:top-5 sm:right-5"
-                            title={`Attempt ${lesson.attemptNumber}`}
-                          >
-                            <History aria-hidden="true" className="size-4" />
-                            <span>{lesson.attemptNumber}</span>
-                          </span> */}
                           <div className="flex justify-between items-center gap-4">
                             <div className="flex flex-wrap gap-2">
                               <Badge
@@ -145,7 +137,7 @@ export function DashboardInProgressLessons({
                               <span>{lesson.attemptNumber}</span>
                             </div>
                           </div>
-                          <h3 className="mt-4 text-xl leading-snug sm:text-2xl">
+                          <h3 className="mt-4 text-xl leading-snug line-clamp-3">
                             {lesson.contentTitle}
                           </h3>
                         </article>
