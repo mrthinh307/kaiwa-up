@@ -1,6 +1,7 @@
 from functools import lru_cache
 from typing import Literal
 
+from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -22,6 +23,30 @@ class Settings(BaseSettings):
     REFRESH_COOKIE_NAME: str = "refresh_token"
     REFRESH_COOKIE_SECURE: bool = False
     REFRESH_COOKIE_SAMESITE: Literal["lax", "strict", "none"] = "lax"
+
+    ai_provider: Literal["fake", "openai", "gemini"] = "fake"
+    ai_fallback_provider: str | None = None
+    ai_llm_model: str | None = None
+    ai_stt_model: str | None = None
+    ai_temperature: float = 0.2
+    ai_top_p: float = 1.0
+    ai_max_output_tokens: int = 1000
+    ai_stt_timeout_seconds: float | None = None
+    ai_reflex_timeout_seconds: float | None = None
+    ai_translation_timeout_seconds: float | None = None
+    ai_tutor_timeout_seconds: float | None = None
+    ai_openai_api_key: SecretStr | None = None
+    ai_openai_base_url: str = "https://api.openai.com/v1"
+    ai_openai_llm_model: str = "gpt-4o-mini"
+    ai_openai_stt_model: str = "whisper-1"
+    ai_gemini_api_key: SecretStr | None = None
+    ai_gemini_base_url: str = "https://generativelanguage.googleapis.com"
+    ai_gemini_llm_model: str = "gemini-1.5-flash"
+    ai_gemini_stt_model: str = "gemini-1.5-flash"
+    ai_timeout_seconds: float = 30.0
+    ai_max_retries: int = 2
+    ai_retry_backoff_seconds: float = 0.5
+    ai_max_retry_backoff_seconds: float = 8.0
 
     model_config = SettingsConfigDict(
         env_file=".env",
