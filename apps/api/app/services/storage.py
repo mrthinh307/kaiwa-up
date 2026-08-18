@@ -52,7 +52,7 @@ class StorageService:
                 recording_id = uuid.uuid4()
                 public_id = f"{recording_id}"
                 folder_prefix = getattr(settings, "CLOUDINARY_FOLDER", "kaiwa-up") or "kaiwa-up"
-                folder = f"{folder_prefix}/recordings/{user_id}/{attempt_id}"
+                folder = f"{folder_prefix}/shadowing_user_recordings/{user_id}/{attempt_id}"
 
                 # Audio in Cloudinary uses the video resource type
                 result = cloudinary.uploader.upload(
