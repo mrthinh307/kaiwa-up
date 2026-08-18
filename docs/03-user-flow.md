@@ -394,22 +394,23 @@ flowchart TD
     D --> E{Muốn nghe lại?}
 
     E -- Có --> C
-    E -- Không --> F{Loại bài tập}
+    E -- Không --> F[Nhập bản dịch tiếng Việt dạng free-text]
 
-    F -- Nhập bản dịch --> G[Nhập ý chính bằng tiếng Việt]
-    F -- Chọn đáp án --> H[Chọn câu có nghĩa tương đương]
+    F --> G[Nộp bản dịch]
+    G --> H[Hệ thống lưu bản dịch]
+    H --> I[AI đánh giá mức độ truyền tải đúng ý]
 
-    G --> I[Nộp câu trả lời]
-    H --> I
+    I --> J{AI đánh giá thành công?}
 
-    I --> J[Hệ thống kiểm tra]
+    J -- Không --> K[Hiển thị lỗi và cho phép thử lại]
+    K --> I
 
-    J --> K[Hiển thị đáp án hoặc nội dung tham khảo]
-    K --> L[Hiển thị giải thích]
+    J -- Có --> L[Hiển thị điểm, ý đúng, ý thiếu và gợi ý]
+    L --> M[Hiển thị bản dịch tham khảo]
 
-    L --> M[Lưu kết quả]
-    M --> N[Cộng EXP]
-    N --> O[Cập nhật tiến độ]
+    M --> N[Lưu kết quả và hoàn thành attempt]
+    N --> O[Cộng EXP một lần]
+    O --> P[Cập nhật tiến độ]
 ```
 
 ---

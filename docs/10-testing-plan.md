@@ -15,7 +15,7 @@ Hệ thống tập trung xử lý logic phức tạp ở Backend (được xây 
 
 ### 1.2. Các tính năng phụ (Secondary Features - Ưu tiên thấp hơn)
 1. **AI Tutor 1-1:** Luyện hội thoại trực tiếp với AI (bằng giọng nói/văn bản).
-2. **Nghe và dịch:** Nghe hội thoại và dịch ý chính sang tiếng Việt hoặc chọn đáp án tương đương.
+2. **Nghe và dịch:** Nghe hội thoại, nhập bản dịch tiếng Việt dạng free-text và nhận đánh giá theo ý nghĩa từ AI.
 
 ---
 

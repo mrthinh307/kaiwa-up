@@ -543,12 +543,9 @@ Hệ thống hỗ trợ:
 
 ### FR-TRANS-02 — Trả lời bằng bản dịch
 
-Hệ thống hỗ trợ một hoặc nhiều hình thức:
+Người dùng bắt buộc nhập bản dịch hoặc ý chính bằng tiếng Việt dạng free-text.
 
-* Người dùng nhập ý chính bằng tiếng Việt.
-* Người dùng chọn câu tiếng Việt có ý nghĩa tương đương.
-
-Hình thức bài tập cụ thể sẽ được xác định trong giai đoạn thiết kế.
+Hệ thống không cung cấp quiz hoặc lựa chọn trắc nghiệm thay cho việc nhập bản dịch.
 
 ---
 
@@ -556,9 +553,9 @@ Hình thức bài tập cụ thể sẽ được xác định trong giai đoạn
 
 Sau khi nộp bài, hệ thống phải:
 
-* Hiển thị đáp án hoặc nội dung tham khảo.
-* Hiển thị kết quả đúng hoặc sai đối với câu hỏi lựa chọn.
-* Hiển thị giải thích nếu có.
+* Dùng AI đánh giá mức độ truyền tải đúng ý, không yêu cầu khớp từng từ.
+* Hiển thị điểm, ý đúng, ý thiếu và gợi ý cải thiện.
+* Hiển thị bản dịch tham khảo.
 * Lưu kết quả học tập.
 
 ---
