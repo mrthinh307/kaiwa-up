@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { PracticeCatalogFilterSheet } from "./practice-catalog-filter-sheet";
 import { PracticeCatalogPagination } from "./practice-catalog-pagination";
 import { PracticeCatalogPaginationScroll } from "./practice-catalog-pagination-scroll";
+import { PracticeCatalogProgressProvider } from "./practice-catalog-progress-provider";
 import { PracticeCatalogSearch } from "./practice-catalog-search";
 import { PracticeLessonCard } from "./practice-lesson-card";
 import { PracticePreviewProvider } from "./practice-preview-provider";
@@ -89,24 +90,26 @@ export function PracticeCatalog({
 
       {hasLessons ? (
         <>
-          <PracticePreviewProvider>
-            <ul
-              className={cn(
-                "mt-4 grid border-l-2 border-t-2 border-border md:grid-cols-2 xl:grid-cols-3",
-                catalog.items.length === 1 && "md:w-1/2 md:grid-cols-1 xl:w-1/3 xl:grid-cols-1",
-                catalog.items.length === 2 && "xl:w-2/3 xl:grid-cols-2",
-              )}
-            >
-              {catalog.items.map((lesson, lessonIndex) => (
-                <li className="flex border-b-2 border-r-2 border-border" key={lesson.id}>
-                  <PracticeLessonCard
-                    lesson={lesson}
-                    shouldLoadPreviewEagerly={lessonIndex === 0}
-                  />
-                </li>
-              ))}
-            </ul>
-          </PracticePreviewProvider>
+          <PracticeCatalogProgressProvider>
+            <PracticePreviewProvider>
+              <ul
+                className={cn(
+                  "mt-4 grid border-l-2 border-t-2 border-border md:grid-cols-2 xl:grid-cols-3",
+                  catalog.items.length === 1 && "md:w-1/2 md:grid-cols-1 xl:w-1/3 xl:grid-cols-1",
+                  catalog.items.length === 2 && "xl:w-2/3 xl:grid-cols-2",
+                )}
+              >
+                {catalog.items.map((lesson, lessonIndex) => (
+                  <li className="flex border-b-2 border-r-2 border-border" key={lesson.id}>
+                    <PracticeLessonCard
+                      lesson={lesson}
+                      shouldLoadPreviewEagerly={lessonIndex === 0}
+                    />
+                  </li>
+                ))}
+              </ul>
+            </PracticePreviewProvider>
+          </PracticeCatalogProgressProvider>
           <PracticeCatalogPagination
             ariaLabel="Lesson catalog pages"
             basePath="/lessons"
