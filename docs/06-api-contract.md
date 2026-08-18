@@ -617,6 +617,47 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
 
 ---
 
+#### `GET /api/v1/dictation/{content_id}/in-progress`
+* **Mục đích**: Khôi phục attempt Dictation `in_progress` mới nhất của user cho nội dung đã chọn.
+  Response trả metadata audio/segment và các segment đã kiểm tra; không trả script của segment chưa
+  kiểm tra.
+* **Yêu cầu xác thực**: Bearer Token
+* **Request Headers**: `Authorization: Bearer <jwt_access_token>`
+* **Path Parameters**:
+  * `content_id` (string, UUID): ID nội dung `shadowing_dictation` đã publish
+* **Query Parameters**: Không
+* **Request Body**: Không
+* **Response Schema (200 OK)**:
+  ```json
+  {
+    "attempt_id": "01912345-6789-7abc-def0-123456789abc",
+    "content_id": "01912345-6789-7abc-def0-987654321xyz",
+    "attempt_number": 1,
+    "audio_url": "https://res.cloudinary.com/kaiwaup/audio/dictation_01.mp3",
+    "total_segments": 2,
+    "segments": [
+      { "segment_index": 0, "start_time_ms": 0, "end_time_ms": 12000 },
+      { "segment_index": 1, "start_time_ms": 12000, "end_time_ms": 25000 }
+    ],
+    "checked_segments": [
+      {
+        "segment_index": 0,
+        "is_correct": true,
+        "user_answer": "明日の会議の資料ですが",
+        "correct_script": "明日の会議の資料ですが、",
+        "is_last_segment": false
+      }
+    ]
+  }
+  ```
+* **Status Codes & Error Responses**:
+  * `200 OK`: Attempt đang làm dở được trả thành công.
+  * `401 Unauthorized` (`code`: `unauthorized`): Chưa đăng nhập.
+  * `404 Not Found` (`code`: `not_found`): User không có attempt đang làm dở cho nội dung này.
+  * `409 Conflict` (`code`: `dictation_content_unavailable`): Nội dung thiếu audio hoặc segment hợp lệ.
+
+---
+
 #### `POST /api/v1/dictation/segments/check`
 * **Mục đích**: Chuẩn hóa và kiểm tra ngay câu trả lời của một segment trong attempt đang thực hiện,
   sau đó lưu kết quả tăng dần vào `exercise_attempts.answer_payload`. Endpoint không hoàn tất attempt,

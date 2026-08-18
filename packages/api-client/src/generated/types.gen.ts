@@ -190,6 +190,40 @@ export type DictationPromptSegment = {
 };
 
 /**
+ * DictationResumeResponse
+ */
+export type DictationResumeResponse = {
+  /**
+   * Attempt Id
+   */
+  attempt_id: string;
+  /**
+   * Content Id
+   */
+  content_id: string;
+  /**
+   * Attempt Number
+   */
+  attempt_number: number;
+  /**
+   * Audio Url
+   */
+  audio_url: string;
+  /**
+   * Total Segments
+   */
+  total_segments: number;
+  /**
+   * Segments
+   */
+  segments: Array<DictationSegmentItem>;
+  /**
+   * Checked Segments
+   */
+  checked_segments?: Array<DictationSegmentCheckResponse>;
+};
+
+/**
  * DictationSegmentCheckRequest
  */
 export type DictationSegmentCheckRequest = {
@@ -1580,6 +1614,52 @@ export type GetShadowingRecordingPlaybackResponses = {
 export type GetShadowingRecordingPlaybackResponse =
   GetShadowingRecordingPlaybackResponses[keyof GetShadowingRecordingPlaybackResponses];
 
+export type GetInProgressDictationAttemptData = {
+  body?: never;
+  path: {
+    /**
+     * Content Id
+     *
+     * Published dictation content ID
+     */
+    content_id: string;
+  };
+  query?: never;
+  url: "/api/v1/dictation/{content_id}/in-progress";
+};
+
+export type GetInProgressDictationAttemptErrors = {
+  /**
+   * Unauthorized
+   */
+  401: ErrorResponse;
+  /**
+   * Not Found
+   */
+  404: ErrorResponse;
+  /**
+   * Conflict
+   */
+  409: ErrorResponse;
+  /**
+   * Unprocessable Content
+   */
+  422: ErrorResponse;
+};
+
+export type GetInProgressDictationAttemptError =
+  GetInProgressDictationAttemptErrors[keyof GetInProgressDictationAttemptErrors];
+
+export type GetInProgressDictationAttemptResponses = {
+  /**
+   * Successful Response
+   */
+  200: DictationResumeResponse;
+};
+
+export type GetInProgressDictationAttemptResponse =
+  GetInProgressDictationAttemptResponses[keyof GetInProgressDictationAttemptResponses];
+
 export type CheckDictationSegmentData = {
   body: DictationSegmentCheckRequest;
   path?: never;
@@ -1609,7 +1689,7 @@ export type CheckDictationSegmentErrors = {
    */
   409: ErrorResponse;
   /**
-   * Unprocessable Entity
+   * Unprocessable Content
    */
   422: ErrorResponse;
 };

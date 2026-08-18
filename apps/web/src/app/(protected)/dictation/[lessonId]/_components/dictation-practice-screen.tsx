@@ -39,17 +39,20 @@ export function DictationPracticeScreen({ content }: DictationPracticeScreenProp
     handleNext,
     handlePrevious,
     handleReplay,
+    handleRestore,
     handleReview,
     handleStart,
     handleSubmit,
     hasPlayedActiveSegment,
     isChecking,
     isCompleting,
+    isRestoring,
     isSessionReviewed: _isSessionReviewed,
     isStarting,
     playbackRequest,
     results,
     review,
+    restoreError,
     selectSegment,
     startError,
     storedResultCount,
@@ -79,8 +82,11 @@ export function DictationPracticeScreen({ content }: DictationPracticeScreenProp
       <div className="scroll-mt-24" id="dictation-practice-screen">
         <DictationStartPanel
           content={content}
+          isRestoring={isRestoring}
           isStarting={isStarting}
+          onRestore={handleRestore}
           onStart={handleStart}
+          restoreError={restoreError}
           startError={startError}
         />
       </div>

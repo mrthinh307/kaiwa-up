@@ -50,6 +50,10 @@ class DictationSegmentCheckResponse(BaseModel):
     is_last_segment: bool
 
 
+class DictationResumeResponse(DictationStartResponse):
+    checked_segments: list[DictationSegmentCheckResponse] = Field(default_factory=list)
+
+
 class DictationAnswerPayload(BaseModel):
     """Internal validated representation of incremental Dictation answers."""
 

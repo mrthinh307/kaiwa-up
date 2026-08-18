@@ -24,8 +24,11 @@ export type DictationKeyboardShortcut = {
 
 export type DictationStartPanelProps = {
   content: DictationPracticeContent;
+  isRestoring: boolean;
   isStarting: boolean;
+  onRestore: () => void;
   onStart: () => void;
+  restoreError?: string;
   startError?: string;
 };
 

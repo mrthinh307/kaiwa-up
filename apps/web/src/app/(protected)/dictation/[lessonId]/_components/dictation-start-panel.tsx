@@ -9,6 +9,7 @@ import {
   Layers3,
   LoaderCircle,
   PlayCircle,
+  RotateCcw,
   Tag,
   Video,
   VideoOff,
@@ -29,8 +30,11 @@ import { formatDictationDuration, getYouTubeVideoId } from "../../_utils/dictati
 
 export function DictationStartPanel({
   content,
+  isRestoring,
   isStarting,
+  onRestore,
   onStart,
+  restoreError,
   startError,
 }: DictationStartPanelProps) {
   const youtubeVideoId = useMemo(
@@ -214,20 +218,37 @@ export function DictationStartPanel({
                 <AlertDescription>{startError}</AlertDescription>
               </Alert>
             ) : null}
+            {restoreError ? (
+              <Alert variant="destructive">
+                <AlertCircle aria-hidden="true" />
+                <AlertTitle>Unable to restore saved attempt</AlertTitle>
+                <AlertDescription>{restoreError}</AlertDescription>
+              </Alert>
+            ) : null}
           </div>
 
           <div className="space-y-3 p-5 pt-0 sm:p-6 sm:pt-0">
             <Button
               className="min-h-12 w-full font-heading text-base"
-              disabled={isStarting || content.prompts.length === 0}
-              onClick={onStart}
+              disabled={isRestoring || isStarting || content.prompts.length === 0}
+              onClick={restoreError ? onRestore : onStart}
               size="lg"
               type="button"
             >
-              {isStarting ? (
+              {isRestoring ? (
+                <>
+                  <LoaderCircle aria-hidden="true" className="animate-spin" />
+                  Checking saved attempt...
+                </>
+              ) : isStarting ? (
                 <>
                   <LoaderCircle aria-hidden="true" className="animate-spin" />
                   Creating attempt...
+                </>
+              ) : restoreError ? (
+                <>
+                  <RotateCcw aria-hidden="true" />
+                  Try restoring again
                 </>
               ) : (
                 <>

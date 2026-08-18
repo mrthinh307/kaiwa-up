@@ -3,6 +3,7 @@
 import type {
   DictationAttemptReviewResponse,
   DictationCompleteResponse,
+  DictationResumeResponse,
   DictationSegmentCheckResponse,
   DictationStartResponse,
 } from "@kaiwa-app/api-client";
@@ -15,6 +16,7 @@ import {
   checkDictationSegment,
   completeDictationAttempt,
   getDictationAttempt,
+  getInProgressDictationAttempt,
   startDictationAttempt,
 } from "@/lib/api-client";
 import { parseApiFailure } from "@/lib/api-errors";
@@ -34,11 +36,13 @@ export function useDictationPractice({ content }: UseDictationPracticeProps) {
   const [completion, setCompletion] = useState<DictationCompleteResponse>();
   const [isChecking, setIsChecking] = useState(false);
   const [isCompleting, setIsCompleting] = useState(false);
+  const [isRestoring, setIsRestoring] = useState(true);
   const [isStarting, setIsStarting] = useState(false);
   const [playbackRequest, setPlaybackRequest] = useState(0);
   const [playedSegments, setPlayedSegments] = useState<Set<number>>(() => new Set());
   const [results, setResults] = useState<Record<number, DictationSegmentCheckResponse>>({});
   const [review, setReview] = useState<DictationAttemptReviewResponse>();
+  const [restoreError, setRestoreError] = useState<string>();
   const [startError, setStartError] = useState<string>();
   const [submitError, setSubmitError] = useState<string>();
 
@@ -74,6 +78,67 @@ export function useDictationPractice({ content }: UseDictationPracticeProps) {
     });
   }, []);
 
+  const hydrateAttempt = useCallback((response: DictationResumeResponse) => {
+    const restoredAnswers: Record<number, string> = {};
+    const restoredResults: Record<number, DictationSegmentCheckResponse> = {};
+    for (const result of response.checked_segments ?? []) {
+      restoredAnswers[result.segment_index] = result.user_answer;
+      restoredResults[result.segment_index] = result;
+    }
+    const firstUncheckedPosition = response.segments.findIndex(
+      (segment) => restoredResults[segment.segment_index] === undefined,
+    );
+
+    setActiveSegmentIndex(firstUncheckedPosition >= 0 ? firstUncheckedPosition : 0);
+    setAnswers(restoredAnswers);
+    setAttempt(response);
+    setCompleteError(undefined);
+    setCompletion(undefined);
+    setPlayedSegments(new Set());
+    setPlaybackRequest(0);
+    setResults(restoredResults);
+    setReview(undefined);
+    setSubmitError(undefined);
+  }, []);
+
+  const handleRestore = useCallback(async () => {
+    setIsRestoring(true);
+    setRestoreError(undefined);
+
+    try {
+      const response = await protectedRequest(() =>
+        getInProgressDictationAttempt({ path: { content_id: content.id } }),
+      );
+      if (response.data) {
+        hydrateAttempt(response.data);
+        return;
+      }
+
+      const failure = parseApiFailure(response);
+      if (failure.status !== 404) {
+        setRestoreError(
+          failure.status === undefined
+            ? "The service could not restore your saved attempt. Please try again."
+            : failure.message,
+        );
+      }
+    } catch {
+      setRestoreError("The service could not restore your saved attempt. Please try again.");
+    } finally {
+      setIsRestoring(false);
+    }
+  }, [content.id, hydrateAttempt, protectedRequest]);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      void handleRestore();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [handleRestore]);
+
   useEffect(() => {
     if (!attempt) {
       return;
@@ -99,12 +164,13 @@ export function useDictationPractice({ content }: UseDictationPracticeProps) {
   }, [activeSegment]);
 
   const handleStart = async () => {
-    if (isStarting) {
+    if (isRestoring || isStarting) {
       return;
     }
 
     setIsStarting(true);
     setStartError(undefined);
+    setRestoreError(undefined);
 
     try {
       const response = await protectedRequest(() =>
@@ -232,7 +298,12 @@ export function useDictationPractice({ content }: UseDictationPracticeProps) {
         completeDictationAttempt({ body: { attempt_id: attempt.attempt_id } }),
       );
       if (!response.data) {
-        setCompleteError(parseApiFailure(response).message);
+        const failure = parseApiFailure(response);
+        setCompleteError(
+          failure.status === undefined
+            ? "The service could not complete this attempt. Your checked answers are still saved; try again."
+            : failure.message,
+        );
         return;
       }
 
@@ -243,7 +314,9 @@ export function useDictationPractice({ content }: UseDictationPracticeProps) {
         setCompleteError("Your attempt was saved, but its review could not be loaded. Try again.");
       }
     } catch {
-      setCompleteError("We could not complete this attempt. Please try again.");
+      setCompleteError(
+        "The service could not complete this attempt. Your checked answers are still saved; try again.",
+      );
     } finally {
       setIsCompleting(false);
     }
@@ -293,16 +366,19 @@ export function useDictationPractice({ content }: UseDictationPracticeProps) {
     },
     hasPlayedActiveSegment: activeSegment ? playedSegments.has(activeSegment.segment_index) : false,
     handleReplay,
+    handleRestore,
     handleReview,
     handleStart,
     handleSubmit,
     isChecking,
     isCompleting,
+    isRestoring,
     isSessionReviewed,
     isStarting,
     playbackRequest,
     results,
     review,
+    restoreError,
     selectSegment,
     startError,
     storedResultCount,

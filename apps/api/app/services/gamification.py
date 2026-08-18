@@ -9,6 +9,8 @@ from app.repositories.gamification import GamificationRepository
 from app.schemas.gamification import ExpHistoryItem, GamificationProfileResponse
 from app.services.leveling import level_for_total_exp, minimum_exp_for_level
 
+XP_TRANSACTION_REASON_MAX_LENGTH = 100
+
 
 class XpAwardResult(NamedTuple):
     awarded: bool
@@ -127,4 +129,5 @@ class GamificationService:
     @staticmethod
     def _build_reason(content_type: ContentType, content_title: str) -> str:
         display_name = content_type.value.replace("_", " ").title()
-        return f"Hoàn thành {display_name}: {content_title}"
+        reason = f"Hoàn thành {display_name}: {content_title}"
+        return reason[:XP_TRANSACTION_REASON_MAX_LENGTH]

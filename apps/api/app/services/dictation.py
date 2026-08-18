@@ -18,6 +18,7 @@ from app.schemas.dictation import (
     DictationAnswerPayload,
     DictationAttemptReviewResponse,
     DictationCompleteResponse,
+    DictationResumeResponse,
     DictationSegmentCheckResponse,
     DictationSegmentItem,
     DictationSegmentReview,
@@ -92,6 +93,44 @@ class DictationService:
                 )
                 for index, segment in enumerate(transcript_segments)
             ],
+        )
+
+    async def resume_attempt(
+        self,
+        *,
+        user_id: uuid.UUID,
+        content_id: uuid.UUID,
+    ) -> DictationResumeResponse:
+        row = await self.repository.get_latest_in_progress_attempt(
+            user_id=user_id,
+            content_id=content_id,
+        )
+        if row is None:
+            raise NotFoundError("In-progress Dictation attempt not found")
+
+        transcript_segments = self._transcript_segments(row.content)
+        if not row.content.audio_url:
+            raise DictationContentUnavailableError()
+
+        answer_payload = DictationAnswerPayload.model_validate(row.attempt.answer_payload or {})
+        return DictationResumeResponse(
+            attempt_id=row.attempt.id,
+            content_id=row.content.id,
+            attempt_number=row.attempt.attempt_number,
+            audio_url=row.content.audio_url,
+            total_segments=len(transcript_segments),
+            segments=[
+                DictationSegmentItem(
+                    segment_index=index,
+                    start_time_ms=segment.start_time_ms,
+                    end_time_ms=segment.end_time_ms,
+                )
+                for index, segment in enumerate(transcript_segments)
+            ],
+            checked_segments=sorted(
+                answer_payload.segments,
+                key=lambda result: result.segment_index,
+            ),
         )
 
     async def check_segment(
