@@ -16,7 +16,7 @@ import {
   VideoOff,
   XCircle,
 } from "lucide-react";
-import { useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -83,39 +83,67 @@ export function DictationWorkstation({
 }: DictationWorkstationProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const scheduledPlaybackTimeoutRef = useRef<number | null>(null);
+  const shouldContinuePlaybackRef = useRef(false);
+  const previousAutoPlayEnabledRef = useRef(autoPlayOnSegmentChange);
   const previousSegmentIndexRef = useRef(activeSegment.segment_index);
   const lastPlaybackRequestRef = useRef(playbackRequest);
 
   const youtubeVideoId = useMemo(() => getYouTubeVideoId(audioUrl), [audioUrl]);
-  const startSeconds = Math.floor(activeSegment.start_time_ms / 1_000);
-  const endSeconds = Math.ceil(activeSegment.end_time_ms / 1_000);
-  const embedUrl = youtubeVideoId
-    ? `https://www.youtube-nocookie.com/embed/${youtubeVideoId}?start=${startSeconds}&end=${endSeconds}&autoplay=${hasPlayedActiveSegment ? 1 : 0}&controls=1&rel=0&playsinline=1`
-    : undefined;
-  const isAudioOnlyYouTube = Boolean(embedUrl && !showVideo);
+
+  const clearScheduledPlayback = useCallback(() => {
+    if (scheduledPlaybackTimeoutRef.current === null) {
+      return;
+    }
+
+    window.clearTimeout(scheduledPlaybackTimeoutRef.current);
+    scheduledPlaybackTimeoutRef.current = null;
+  }, []);
+
+  const schedulePlayback = useCallback(() => {
+    clearScheduledPlayback();
+    scheduledPlaybackTimeoutRef.current = window.setTimeout(() => {
+      scheduledPlaybackTimeoutRef.current = null;
+      onReplay();
+    }, autoPlayDelayMs);
+  }, [autoPlayDelayMs, clearScheduledPlayback, onReplay]);
+
+  useEffect(() => clearScheduledPlayback, [clearScheduledPlayback]);
+
+  useEffect(() => {
+    const wasAutoPlayEnabled = previousAutoPlayEnabledRef.current;
+    previousAutoPlayEnabledRef.current = autoPlayOnSegmentChange;
+
+    if (!autoPlayOnSegmentChange) {
+      shouldContinuePlaybackRef.current = false;
+      clearScheduledPlayback();
+      return;
+    }
+
+    if (!wasAutoPlayEnabled) {
+      schedulePlayback();
+    }
+  }, [autoPlayOnSegmentChange, clearScheduledPlayback, schedulePlayback]);
 
   useEffect(() => {
     const hasSegmentChanged = previousSegmentIndexRef.current !== activeSegment.segment_index;
     previousSegmentIndexRef.current = activeSegment.segment_index;
 
-    if (!hasSegmentChanged || !autoPlayOnSegmentChange || hasPlayedActiveSegment) {
+    if (!hasSegmentChanged || !autoPlayOnSegmentChange || shouldContinuePlaybackRef.current) {
       return;
     }
 
-    const timeoutId = window.setTimeout(() => {
-      onReplay();
-    }, autoPlayDelayMs);
+    schedulePlayback();
+  }, [activeSegment.segment_index, autoPlayOnSegmentChange, schedulePlayback]);
 
-    return () => {
-      window.clearTimeout(timeoutId);
-    };
-  }, [
-    activeSegment.segment_index,
-    autoPlayDelayMs,
-    autoPlayOnSegmentChange,
-    hasPlayedActiveSegment,
-    onReplay,
-  ]);
+  useEffect(() => {
+    if (!shouldContinuePlaybackRef.current) {
+      return;
+    }
+
+    shouldContinuePlaybackRef.current = false;
+    schedulePlayback();
+  }, [activeSegment.segment_index, schedulePlayback]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -156,6 +184,20 @@ export function DictationWorkstation({
   const handleReplayClick = () => {
     onReplay();
   };
+
+  const handlePlaybackEnded = useCallback(() => {
+    if (!autoPlayOnSegmentChange || isLastSegment) {
+      return;
+    }
+
+    shouldContinuePlaybackRef.current = true;
+    onNext();
+  }, [autoPlayOnSegmentChange, isLastSegment, onNext]);
+
+  const handlePlaybackStop = useCallback(() => {
+    shouldContinuePlaybackRef.current = false;
+    clearScheduledPlayback();
+  }, [clearScheduledPlayback]);
 
   const hasAnswer = Boolean(activeAnswer.trim());
   const isChecked = Boolean(activeResult);
@@ -218,31 +260,23 @@ export function DictationWorkstation({
         </div>
 
         {/* 2. Embedded Video Player */}
-        {embedUrl ? (
-          showVideo ? (
-            <div className="relative aspect-video w-full overflow-hidden bg-black">
-              <iframe
-                allow="autoplay; encrypted-media; picture-in-picture"
-                allowFullScreen
-                className="absolute inset-0 size-full border-0"
-                key={`${activeSegment.segment_index}-${playbackRequest}`}
-                src={embedUrl}
-                title={`${lessonTitle}, segment ${activeSegment.segment_index + 1}`}
-              />
-            </div>
-          ) : (
-            <SegmentAudioPlayer
-              endTimeMs={activeSegment.end_time_ms}
-              hasPlayedActiveSegment={hasPlayedActiveSegment}
-              lessonTitle={lessonTitle}
-              onReplay={handleReplayClick}
-              playbackRequest={playbackRequest}
-              segmentIndex={activeSegment.segment_index}
-              startTimeMs={activeSegment.start_time_ms}
-              key={activeSegment.segment_index}
-              youtubeVideoId={youtubeVideoId ?? ""}
-            />
-          )
+        {youtubeVideoId ? (
+          <SegmentAudioPlayer
+            autoPlayDelayMs={autoPlayDelayMs}
+            canContinuePlayback={!isLastSegment}
+            endTimeMs={activeSegment.end_time_ms}
+            hasPlayedActiveSegment={hasPlayedActiveSegment}
+            isAutoPlayEnabled={autoPlayOnSegmentChange}
+            lessonTitle={lessonTitle}
+            onEnded={handlePlaybackEnded}
+            onReplay={handleReplayClick}
+            onStop={handlePlaybackStop}
+            playbackRequest={playbackRequest}
+            segmentIndex={activeSegment.segment_index}
+            showVideo={showVideo}
+            startTimeMs={activeSegment.start_time_ms}
+            youtubeVideoId={youtubeVideoId}
+          />
         ) : audioUrl ? (
           <div className="flex min-h-24 items-center justify-center bg-secondary-background p-4 sm:p-5">
             <audio
@@ -251,6 +285,7 @@ export function DictationWorkstation({
               onTimeUpdate={(event) => {
                 if (event.currentTarget.currentTime * 1_000 >= activeSegment.end_time_ms) {
                   event.currentTarget.pause();
+                  handlePlaybackEnded();
                 }
               }}
               ref={audioRef}
@@ -265,7 +300,7 @@ export function DictationWorkstation({
         )}
 
         {/* 3. Audio Controls & Shortcut Bar */}
-        {!isAudioOnlyYouTube ? (
+        {!youtubeVideoId ? (
           <SegmentPlaybackBar
             hasPlayedActiveSegment={hasPlayedActiveSegment}
             onReplay={handleReplayClick}
@@ -305,7 +340,7 @@ export function DictationWorkstation({
             className="mt-2.5 flex flex-wrap items-center justify-between gap-1 text-[11px] text-foreground/60 sm:text-xs"
             id="dictation-answer-help"
           >
-            <span>Punctuation (「。」「、」) and spaces do not affect comparison.</span>
+            <span>Punctuation and spaces do not affect comparison.</span>
             <span>{activeAnswer.length}/500</span>
           </div>
         </div>

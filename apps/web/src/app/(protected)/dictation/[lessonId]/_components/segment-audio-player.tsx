@@ -13,12 +13,18 @@ const PLAYBACK_RATES = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2] as const;
 const YOUTUBE_ORIGIN = "https://www.youtube-nocookie.com";
 
 type SegmentAudioPlayerProps = {
+  autoPlayDelayMs: number;
+  canContinuePlayback: boolean;
   endTimeMs: number;
   hasPlayedActiveSegment: boolean;
+  isAutoPlayEnabled: boolean;
   lessonTitle: string;
+  onEnded: () => void;
   onReplay: () => void;
+  onStop: () => void;
   playbackRequest: number;
   segmentIndex: number;
+  showVideo?: boolean;
   startTimeMs: number;
   youtubeVideoId: string;
 };
@@ -44,16 +50,25 @@ function postYouTubeCommand(iframe: HTMLIFrameElement | null, command: YouTubeCo
 }
 
 export function SegmentAudioPlayer({
+  autoPlayDelayMs,
+  canContinuePlayback,
   endTimeMs,
   hasPlayedActiveSegment,
+  isAutoPlayEnabled,
   lessonTitle,
+  onEnded,
   onReplay,
+  onStop,
   playbackRequest,
   segmentIndex,
+  showVideo = false,
   startTimeMs,
   youtubeVideoId,
 }: SegmentAudioPlayerProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const isIframeLoadedRef = useRef(false);
+  const previousEndSecondsRef = useRef(endTimeMs / 1_000);
+  const previousSegmentIndexRef = useRef(segmentIndex);
   const previousPlaybackRequestRef = useRef(playbackRequest);
   const pendingPlayRef = useRef(false);
   const hasReachedEndRef = useRef(false);
@@ -63,7 +78,7 @@ export function SegmentAudioPlayer({
 
   const startSeconds = startTimeMs / 1_000;
   const durationSeconds = Math.max((endTimeMs - startTimeMs) / 1_000, 0.1);
-  const embedUrl = `https://www.youtube-nocookie.com/embed/${youtubeVideoId}?start=${Math.floor(startSeconds)}&end=${Math.ceil(endTimeMs / 1_000)}&autoplay=0&controls=0&enablejsapi=1&rel=0&playsinline=1`;
+  const embedUrl = `https://www.youtube-nocookie.com/embed/${youtubeVideoId}?autoplay=0&controls=0&disablekb=1&enablejsapi=1&rel=0&playsinline=1`;
 
   const sendCommand = useCallback((command: YouTubeCommand) => {
     postYouTubeCommand(iframeRef.current, command);
@@ -73,6 +88,13 @@ export function SegmentAudioPlayer({
     (timeSeconds: number) => {
       pendingPlayRef.current = true;
       hasReachedEndRef.current = false;
+      if (!isIframeLoadedRef.current) {
+        setIsPlaying(false);
+        return;
+      }
+
+      pendingPlayRef.current = false;
+      setIsPlaying(true);
       sendCommand({ args: [startSeconds + timeSeconds, true], func: "seekTo" });
       sendCommand({ func: "setPlaybackRate", args: [playbackRate] });
       sendCommand({ func: "playVideo" });
@@ -81,17 +103,20 @@ export function SegmentAudioPlayer({
   );
 
   const handleIframeLoad = () => {
-    if (!pendingPlayRef.current) {
-      return;
-    }
+    isIframeLoadedRef.current = true;
 
     window.setTimeout(() => {
-      pendingPlayRef.current = false;
-      requestPlayback(currentTime);
+      sendCommand({ func: "pauseVideo" });
+      sendCommand({ args: [startSeconds + currentTime, true], func: "seekTo" });
+      sendCommand({ args: [playbackRate], func: "setPlaybackRate" });
+
+      if (pendingPlayRef.current) {
+        requestPlayback(currentTime);
+      }
     }, 100);
   };
 
-  const handlePlayPause = () => {
+  const handlePlayPause = useCallback(() => {
     if (isPlaying) {
       pendingPlayRef.current = false;
       setIsPlaying(false);
@@ -101,7 +126,6 @@ export function SegmentAudioPlayer({
 
     const nextTime = currentTime >= durationSeconds ? 0 : currentTime;
     setCurrentTime(nextTime);
-    setIsPlaying(true);
 
     if (!hasPlayedActiveSegment) {
       onReplay();
@@ -109,11 +133,20 @@ export function SegmentAudioPlayer({
     }
 
     requestPlayback(nextTime);
-  };
+  }, [
+    currentTime,
+    durationSeconds,
+    hasPlayedActiveSegment,
+    isPlaying,
+    onReplay,
+    requestPlayback,
+    sendCommand,
+  ]);
 
   const handleStop = () => {
     pendingPlayRef.current = false;
     hasReachedEndRef.current = false;
+    onStop();
     setCurrentTime(0);
     setIsPlaying(false);
     sendCommand({ func: "pauseVideo" });
@@ -123,9 +156,52 @@ export function SegmentAudioPlayer({
   const handleReplayRequest = useCallback(() => {
     hasReachedEndRef.current = false;
     setCurrentTime(0);
-    setIsPlaying(true);
     requestPlayback(0);
   }, [requestPlayback]);
+
+  useEffect(() => {
+    if (previousSegmentIndexRef.current === segmentIndex) {
+      return;
+    }
+
+    const previousEndSeconds = previousEndSecondsRef.current;
+    previousEndSecondsRef.current = endTimeMs / 1_000;
+    previousSegmentIndexRef.current = segmentIndex;
+    pendingPlayRef.current = false;
+    hasReachedEndRef.current = false;
+    setCurrentTime(0);
+
+    if (!isIframeLoadedRef.current) {
+      const timeoutId = window.setTimeout(() => setIsPlaying(false), 0);
+      return () => {
+        window.clearTimeout(timeoutId);
+      };
+    }
+
+    if (isAutoPlayEnabled && autoPlayDelayMs === 0 && isPlaying) {
+      const isAdjacentSegment = Math.abs(startSeconds - previousEndSeconds) <= 0.35;
+      if (!isAdjacentSegment) {
+        sendCommand({ args: [startSeconds, true], func: "seekTo" });
+      }
+      sendCommand({ func: "playVideo" });
+      return;
+    }
+
+    sendCommand({ func: "pauseVideo" });
+    sendCommand({ args: [startSeconds, true], func: "seekTo" });
+    const timeoutId = window.setTimeout(() => setIsPlaying(false), 0);
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [
+    autoPlayDelayMs,
+    endTimeMs,
+    isAutoPlayEnabled,
+    isPlaying,
+    segmentIndex,
+    sendCommand,
+    startSeconds,
+  ]);
 
   const handleSeek = (values: number[]) => {
     const nextTime = values[0];
@@ -158,8 +234,38 @@ export function SegmentAudioPlayer({
     }
 
     previousPlaybackRequestRef.current = playbackRequest;
-    handleReplayRequest();
+    if (playbackRequest === 0) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(handleReplayRequest, 0);
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
   }, [handleReplayRequest, playbackRequest]);
+
+  useEffect(() => {
+    const handleSpacebar = (event: KeyboardEvent) => {
+      if (
+        event.code !== "Space" ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.altKey ||
+        event.isComposing ||
+        event.repeat
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+      handlePlayPause();
+    };
+
+    window.addEventListener("keydown", handleSpacebar);
+    return () => {
+      window.removeEventListener("keydown", handleSpacebar);
+    };
+  }, [handlePlayPause]);
 
   useEffect(() => {
     if (!isPlaying) {
@@ -173,8 +279,13 @@ export function SegmentAudioPlayer({
         if (nextTime >= durationSeconds && !hasReachedEndRef.current) {
           hasReachedEndRef.current = true;
           window.setTimeout(() => {
-            setIsPlaying(false);
-            sendCommand({ func: "pauseVideo" });
+            const shouldContinueWithoutDelay =
+              isAutoPlayEnabled && canContinuePlayback && autoPlayDelayMs === 0;
+            if (!shouldContinueWithoutDelay) {
+              setIsPlaying(false);
+              sendCommand({ func: "pauseVideo" });
+            }
+            onEnded();
           }, 0);
         }
 
@@ -185,28 +296,48 @@ export function SegmentAudioPlayer({
     return () => {
       window.clearInterval(intervalId);
     };
-  }, [durationSeconds, isPlaying, playbackRate, sendCommand]);
+  }, [
+    autoPlayDelayMs,
+    canContinuePlayback,
+    durationSeconds,
+    isAutoPlayEnabled,
+    isPlaying,
+    onEnded,
+    playbackRate,
+    sendCommand,
+  ]);
 
   return (
     <section
-      aria-label="Audio-only segment player"
-      className="border-b-2 border-border bg-secondary-background p-4 sm:p-6"
+      aria-label={showVideo ? "Video segment player" : "Audio-only segment player"}
+      className={cn("border-b-2 border-border bg-secondary-background", !showVideo && "p-4 sm:p-6")}
     >
-      <div className="sr-only">
+      <div
+        className={showVideo ? "relative aspect-video w-full overflow-hidden bg-black" : "sr-only"}
+      >
         <iframe
           allow="autoplay; encrypted-media; picture-in-picture"
-          aria-hidden="true"
-          className="size-px border-0"
-          key={segmentIndex}
+          allowFullScreen={showVideo}
+          aria-hidden={showVideo ? undefined : true}
+          className={
+            showVideo
+              ? "pointer-events-none absolute inset-0 size-full border-0"
+              : "size-px border-0"
+          }
           onLoad={handleIframeLoad}
           ref={iframeRef}
           src={embedUrl}
-          tabIndex={-1}
-          title={`${lessonTitle}, audio-only segment ${segmentIndex + 1}`}
+          tabIndex={showVideo ? undefined : -1}
+          title={`${lessonTitle}, segment ${segmentIndex + 1}`}
         />
       </div>
 
-      <div className="rounded-base border-2 border-border bg-background p-4 shadow-xs sm:p-5">
+      <div
+        className={cn(
+          "bg-background p-4 sm:p-5",
+          showVideo ? "border-t-2 border-border" : "rounded-base border-2 border-border shadow-xs",
+        )}
+      >
         <div className="flex items-center gap-3">
           <div className="flex size-10 shrink-0 items-center justify-center rounded-full border-2 border-border bg-main text-main-foreground shadow-xs">
             {isPlaying ? (
@@ -218,7 +349,9 @@ export function SegmentAudioPlayer({
 
           <div className="min-w-0 flex-1">
             <div className="flex items-center justify-between gap-3">
-              <p className="truncate font-heading text-sm">Audio-only mode</p>
+              <p className="truncate font-heading text-sm">
+                {showVideo ? "Segment playback" : "Audio-only mode"}
+              </p>
               <span className="shrink-0 font-mono text-[11px] tabular-nums text-foreground/60">
                 {formatPlayerTime(currentTime)} / {formatPlayerTime(durationSeconds)}
               </span>

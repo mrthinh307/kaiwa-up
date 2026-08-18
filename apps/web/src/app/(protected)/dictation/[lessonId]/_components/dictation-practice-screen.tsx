@@ -69,7 +69,7 @@ export function DictationPracticeScreen({ content }: DictationPracticeScreenProp
     updateShowCorrectAnswer,
   } = useDictationSettings();
 
-  // Global practice keyboard shortcuts (Ctrl+Space for replay, Ctrl+←/→ for navigation)
+  // Navigation/replay shortcuts; plain Space is handled by the active media player.
   usePracticeShortcuts({
     disabled: !attempt || Boolean(completion),
     onNext: handleNext,
