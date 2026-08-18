@@ -85,7 +85,7 @@ export function DictationWorkstation({
   const audioRef = useRef<HTMLAudioElement>(null);
   const scheduledPlaybackTimeoutRef = useRef<number | null>(null);
   const shouldContinuePlaybackRef = useRef(false);
-  const previousAutoPlayEnabledRef = useRef(autoPlayOnSegmentChange);
+  const previousAutoPlayEnabledRef = useRef(false);
   const previousSegmentIndexRef = useRef(activeSegment.segment_index);
   const lastPlaybackRequestRef = useRef(playbackRequest);
 

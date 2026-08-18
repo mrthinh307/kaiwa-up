@@ -10,7 +10,14 @@ import { cn } from "@/lib/utils";
 import { formatDictationTimestamp } from "../../_utils/dictation-formatters";
 
 const PLAYBACK_RATES = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2] as const;
-const YOUTUBE_ORIGIN = "https://www.youtube-nocookie.com";
+const YOUTUBE_IFRAME_API_SCRIPT_ID = "youtube-iframe-api";
+const YOUTUBE_IFRAME_API_URL = "https://www.youtube.com/iframe_api";
+const YOUTUBE_PLAYER_STATE = {
+  ended: 0,
+  paused: 2,
+  playing: 1,
+  videoCued: 5,
+} as const;
 
 type SegmentAudioPlayerProps = {
   autoPlayDelayMs: number;
@@ -29,10 +36,43 @@ type SegmentAudioPlayerProps = {
   youtubeVideoId: string;
 };
 
-type YouTubeCommand = {
-  args?: Array<boolean | number>;
-  func: "pauseVideo" | "playVideo" | "seekTo" | "setPlaybackRate";
+type YouTubePlayer = {
+  destroy: () => void;
+  getCurrentTime: () => number;
+  pauseVideo: () => void;
+  playVideo: () => void;
+  seekTo: (seconds: number, allowSeekAhead: boolean) => void;
+  setPlaybackRate: (rate: number) => void;
 };
+
+type YouTubePlayerEvent = {
+  target: YouTubePlayer;
+};
+
+type YouTubePlayerStateEvent = YouTubePlayerEvent & {
+  data: number;
+};
+
+type YouTubeApi = {
+  Player: new (
+    element: HTMLIFrameElement,
+    options: {
+      events: {
+        onReady: (event: YouTubePlayerEvent) => void;
+        onStateChange: (event: YouTubePlayerStateEvent) => void;
+      };
+    },
+  ) => YouTubePlayer;
+};
+
+declare global {
+  interface Window {
+    YT?: YouTubeApi;
+    onYouTubeIframeAPIReady?: () => void;
+  }
+}
+
+let youtubeApiPromise: Promise<YouTubeApi> | undefined;
 
 function formatPlayerTime(seconds: number): string {
   const roundedSeconds = Math.max(0, Math.floor(seconds));
@@ -42,11 +82,48 @@ function formatPlayerTime(seconds: number): string {
   return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
 }
 
-function postYouTubeCommand(iframe: HTMLIFrameElement | null, command: YouTubeCommand) {
-  iframe?.contentWindow?.postMessage(
-    JSON.stringify({ event: "command", ...command }),
-    YOUTUBE_ORIGIN,
-  );
+function loadYouTubeIframeApi(): Promise<YouTubeApi> {
+  if (window.YT?.Player) {
+    return Promise.resolve(window.YT);
+  }
+
+  if (youtubeApiPromise) {
+    return youtubeApiPromise;
+  }
+
+  youtubeApiPromise = new Promise<YouTubeApi>((resolve, reject) => {
+    const resolveApi = () => {
+      if (window.YT?.Player) {
+        resolve(window.YT);
+      }
+    };
+    const rejectApi = () => {
+      youtubeApiPromise = undefined;
+      reject(new Error("YouTube IFrame API failed to load"));
+    };
+    const previousReadyCallback = window.onYouTubeIframeAPIReady;
+
+    window.onYouTubeIframeAPIReady = () => {
+      previousReadyCallback?.();
+      resolveApi();
+    };
+
+    const existingScript = document.getElementById(YOUTUBE_IFRAME_API_SCRIPT_ID);
+    if (existingScript) {
+      existingScript.addEventListener("load", resolveApi, { once: true });
+      existingScript.addEventListener("error", rejectApi, { once: true });
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.async = true;
+    script.id = YOUTUBE_IFRAME_API_SCRIPT_ID;
+    script.onerror = rejectApi;
+    script.src = YOUTUBE_IFRAME_API_URL;
+    document.head.append(script);
+  });
+
+  return youtubeApiPromise;
 }
 
 export function SegmentAudioPlayer({
@@ -66,12 +143,17 @@ export function SegmentAudioPlayer({
   youtubeVideoId,
 }: SegmentAudioPlayerProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const isIframeLoadedRef = useRef(false);
+  const playerRef = useRef<YouTubePlayer | null>(null);
+  const isPlayerReadyRef = useRef(false);
   const previousEndSecondsRef = useRef(endTimeMs / 1_000);
   const previousSegmentIndexRef = useRef(segmentIndex);
   const previousPlaybackRequestRef = useRef(playbackRequest);
   const pendingPlayRef = useRef(false);
   const hasReachedEndRef = useRef(false);
+  const currentTimeRef = useRef(0);
+  const endSecondsRef = useRef(endTimeMs / 1_000);
+  const playbackRateRef = useRef(1);
+  const startSecondsRef = useRef(startTimeMs / 1_000);
   const [currentTime, setCurrentTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackRate, setPlaybackRate] = useState<number>(1);
@@ -80,47 +162,102 @@ export function SegmentAudioPlayer({
   const durationSeconds = Math.max((endTimeMs - startTimeMs) / 1_000, 0.1);
   const embedUrl = `https://www.youtube-nocookie.com/embed/${youtubeVideoId}?autoplay=0&controls=0&disablekb=1&enablejsapi=1&rel=0&playsinline=1`;
 
-  const sendCommand = useCallback((command: YouTubeCommand) => {
-    postYouTubeCommand(iframeRef.current, command);
+  useEffect(() => {
+    currentTimeRef.current = currentTime;
+    endSecondsRef.current = endTimeMs / 1_000;
+    playbackRateRef.current = playbackRate;
+    startSecondsRef.current = startSeconds;
+  }, [currentTime, endTimeMs, playbackRate, startSeconds]);
+
+  const requestPlayback = useCallback((timeSeconds: number) => {
+    pendingPlayRef.current = true;
+    hasReachedEndRef.current = false;
+    const player = playerRef.current;
+    if (!isPlayerReadyRef.current || !player) {
+      setIsPlaying(false);
+      return;
+    }
+
+    pendingPlayRef.current = false;
+    player.seekTo(startSecondsRef.current + timeSeconds, true);
+    player.setPlaybackRate(playbackRateRef.current);
+    player.playVideo();
   }, []);
 
-  const requestPlayback = useCallback(
-    (timeSeconds: number) => {
-      pendingPlayRef.current = true;
-      hasReachedEndRef.current = false;
-      if (!isIframeLoadedRef.current) {
-        setIsPlaying(false);
-        return;
-      }
+  useEffect(() => {
+    let isDisposed = false;
 
-      pendingPlayRef.current = false;
-      setIsPlaying(true);
-      sendCommand({ args: [startSeconds + timeSeconds, true], func: "seekTo" });
-      sendCommand({ func: "setPlaybackRate", args: [playbackRate] });
-      sendCommand({ func: "playVideo" });
-    },
-    [playbackRate, sendCommand, startSeconds],
-  );
+    void loadYouTubeIframeApi()
+      .then((youtubeApi) => {
+        const iframe = iframeRef.current;
+        if (isDisposed || !iframe) {
+          return;
+        }
 
-  const handleIframeLoad = () => {
-    isIframeLoadedRef.current = true;
+        playerRef.current = new youtubeApi.Player(iframe, {
+          events: {
+            onReady: ({ target }) => {
+              if (isDisposed) {
+                return;
+              }
 
-    window.setTimeout(() => {
-      sendCommand({ func: "pauseVideo" });
-      sendCommand({ args: [startSeconds + currentTime, true], func: "seekTo" });
-      sendCommand({ args: [playbackRate], func: "setPlaybackRate" });
+              isPlayerReadyRef.current = true;
+              target.pauseVideo();
+              target.seekTo(startSecondsRef.current + currentTimeRef.current, true);
+              target.setPlaybackRate(playbackRateRef.current);
 
-      if (pendingPlayRef.current) {
-        requestPlayback(currentTime);
-      }
-    }, 100);
-  };
+              if (pendingPlayRef.current) {
+                requestPlayback(currentTimeRef.current);
+              }
+            },
+            onStateChange: ({ data, target }) => {
+              if (isDisposed) {
+                return;
+              }
+
+              if (data === YOUTUBE_PLAYER_STATE.playing) {
+                const absoluteTime = target.getCurrentTime();
+                if (
+                  absoluteTime < startSecondsRef.current - 0.35 ||
+                  absoluteTime >= endSecondsRef.current
+                ) {
+                  target.seekTo(startSecondsRef.current + currentTimeRef.current, true);
+                }
+                setIsPlaying(true);
+                return;
+              }
+
+              if (
+                data === YOUTUBE_PLAYER_STATE.ended ||
+                data === YOUTUBE_PLAYER_STATE.paused ||
+                data === YOUTUBE_PLAYER_STATE.videoCued
+              ) {
+                setIsPlaying(false);
+              }
+            },
+          },
+        });
+      })
+      .catch(() => {
+        if (!isDisposed) {
+          pendingPlayRef.current = false;
+          setIsPlaying(false);
+        }
+      });
+
+    return () => {
+      isDisposed = true;
+      isPlayerReadyRef.current = false;
+      playerRef.current?.destroy();
+      playerRef.current = null;
+    };
+  }, [requestPlayback, youtubeVideoId]);
 
   const handlePlayPause = useCallback(() => {
     if (isPlaying) {
       pendingPlayRef.current = false;
       setIsPlaying(false);
-      sendCommand({ func: "pauseVideo" });
+      playerRef.current?.pauseVideo();
       return;
     }
 
@@ -133,15 +270,7 @@ export function SegmentAudioPlayer({
     }
 
     requestPlayback(nextTime);
-  }, [
-    currentTime,
-    durationSeconds,
-    hasPlayedActiveSegment,
-    isPlaying,
-    onReplay,
-    requestPlayback,
-    sendCommand,
-  ]);
+  }, [currentTime, durationSeconds, hasPlayedActiveSegment, isPlaying, onReplay, requestPlayback]);
 
   const handleStop = () => {
     pendingPlayRef.current = false;
@@ -149,8 +278,8 @@ export function SegmentAudioPlayer({
     onStop();
     setCurrentTime(0);
     setIsPlaying(false);
-    sendCommand({ func: "pauseVideo" });
-    sendCommand({ args: [startSeconds, true], func: "seekTo" });
+    playerRef.current?.pauseVideo();
+    playerRef.current?.seekTo(startSeconds, true);
   };
 
   const handleReplayRequest = useCallback(() => {
@@ -171,7 +300,7 @@ export function SegmentAudioPlayer({
     hasReachedEndRef.current = false;
     setCurrentTime(0);
 
-    if (!isIframeLoadedRef.current) {
+    if (!isPlayerReadyRef.current || !playerRef.current) {
       const timeoutId = window.setTimeout(() => setIsPlaying(false), 0);
       return () => {
         window.clearTimeout(timeoutId);
@@ -181,27 +310,19 @@ export function SegmentAudioPlayer({
     if (isAutoPlayEnabled && autoPlayDelayMs === 0 && isPlaying) {
       const isAdjacentSegment = Math.abs(startSeconds - previousEndSeconds) <= 0.35;
       if (!isAdjacentSegment) {
-        sendCommand({ args: [startSeconds, true], func: "seekTo" });
+        playerRef.current.seekTo(startSeconds, true);
       }
-      sendCommand({ func: "playVideo" });
+      playerRef.current.playVideo();
       return;
     }
 
-    sendCommand({ func: "pauseVideo" });
-    sendCommand({ args: [startSeconds, true], func: "seekTo" });
+    playerRef.current.pauseVideo();
+    playerRef.current.seekTo(startSeconds, true);
     const timeoutId = window.setTimeout(() => setIsPlaying(false), 0);
     return () => {
       window.clearTimeout(timeoutId);
     };
-  }, [
-    autoPlayDelayMs,
-    endTimeMs,
-    isAutoPlayEnabled,
-    isPlaying,
-    segmentIndex,
-    sendCommand,
-    startSeconds,
-  ]);
+  }, [autoPlayDelayMs, endTimeMs, isAutoPlayEnabled, isPlaying, segmentIndex, startSeconds]);
 
   const handleSeek = (values: number[]) => {
     const nextTime = values[0];
@@ -213,9 +334,9 @@ export function SegmentAudioPlayer({
     setCurrentTime(nextTime);
     if (nextTime >= durationSeconds) {
       setIsPlaying(false);
-      sendCommand({ func: "pauseVideo" });
+      playerRef.current?.pauseVideo();
     }
-    sendCommand({ args: [startSeconds + nextTime, true], func: "seekTo" });
+    playerRef.current?.seekTo(startSeconds + nextTime, true);
   };
 
   const handlePlaybackRateChange = () => {
@@ -225,7 +346,7 @@ export function SegmentAudioPlayer({
     const nextRate = PLAYBACK_RATES[(currentRateIndex + 1) % PLAYBACK_RATES.length] ?? 1;
 
     setPlaybackRate(nextRate);
-    sendCommand({ args: [nextRate], func: "setPlaybackRate" });
+    playerRef.current?.setPlaybackRate(nextRate);
   };
 
   useEffect(() => {
@@ -273,24 +394,24 @@ export function SegmentAudioPlayer({
     }
 
     const intervalId = window.setInterval(() => {
-      setCurrentTime((previousTime) => {
-        const nextTime = Math.min(previousTime + 0.1 * playbackRate, durationSeconds);
+      const absoluteTime = playerRef.current?.getCurrentTime();
+      if (typeof absoluteTime !== "number" || !Number.isFinite(absoluteTime)) {
+        return;
+      }
 
-        if (nextTime >= durationSeconds && !hasReachedEndRef.current) {
-          hasReachedEndRef.current = true;
-          window.setTimeout(() => {
-            const shouldContinueWithoutDelay =
-              isAutoPlayEnabled && canContinuePlayback && autoPlayDelayMs === 0;
-            if (!shouldContinueWithoutDelay) {
-              setIsPlaying(false);
-              sendCommand({ func: "pauseVideo" });
-            }
-            onEnded();
-          }, 0);
+      const nextTime = Math.min(Math.max(absoluteTime - startSeconds, 0), durationSeconds);
+      setCurrentTime(nextTime);
+
+      if (nextTime >= durationSeconds && !hasReachedEndRef.current) {
+        hasReachedEndRef.current = true;
+        const shouldContinueWithoutDelay =
+          isAutoPlayEnabled && canContinuePlayback && autoPlayDelayMs === 0;
+        if (!shouldContinueWithoutDelay) {
+          setIsPlaying(false);
+          playerRef.current?.pauseVideo();
         }
-
-        return nextTime;
-      });
+        onEnded();
+      }
     }, 100);
 
     return () => {
@@ -303,8 +424,7 @@ export function SegmentAudioPlayer({
     isAutoPlayEnabled,
     isPlaying,
     onEnded,
-    playbackRate,
-    sendCommand,
+    startSeconds,
   ]);
 
   return (
@@ -324,7 +444,6 @@ export function SegmentAudioPlayer({
               ? "pointer-events-none absolute inset-0 size-full border-0"
               : "size-px border-0"
           }
-          onLoad={handleIframeLoad}
           ref={iframeRef}
           src={embedUrl}
           tabIndex={showVideo ? undefined : -1}
