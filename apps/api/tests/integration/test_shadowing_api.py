@@ -81,7 +81,9 @@ async def test_record_segment_creates_attempt_automatically(
     assert res_data["segment_id"] == "0"
     assert "recording_id" in res_data
     assert "attempt_id" in res_data
-    assert res_data["storage_key"].startswith("recordings/")
+    assert res_data["storage_key"].startswith("recordings/") or res_data["storage_key"].startswith(
+        "http"
+    )
 
     # Verify ExerciseAttempt created in DB
     attempt = await db_session.scalar(
@@ -211,7 +213,9 @@ async def test_get_recording_playback_owner_success(
     data = response.json()
     assert data["recording_id"] == recording_id
     assert "playback_url" in data
-    assert data["playback_url"].startswith("/static/recordings/")
+    assert data["playback_url"].startswith("/static/recordings/") or data[
+        "playback_url"
+    ].startswith("http")
 
 
 @pytest.mark.asyncio

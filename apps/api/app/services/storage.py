@@ -20,8 +20,13 @@ class StorageService:
 
         self._has_cloudinary = False
         if settings.CLOUDINARY_URL:
-            cloudinary.config(cloudinary_url=settings.CLOUDINARY_URL)
-            self._has_cloudinary = True
+            import os
+
+            os.environ["CLOUDINARY_URL"] = settings.CLOUDINARY_URL
+            cloudinary.reset_config()
+            cfg = cloudinary.config()
+            if cfg.cloud_name and cfg.api_key:
+                self._has_cloudinary = True
         elif (
             settings.CLOUDINARY_CLOUD_NAME
             and settings.CLOUDINARY_API_KEY
@@ -49,15 +54,16 @@ class StorageService:
 
         if self._has_cloudinary:
             try:
+                import io
+
                 recording_id = uuid.uuid4()
                 public_id = f"{recording_id}"
                 folder_prefix = getattr(settings, "CLOUDINARY_FOLDER", "kaiwa-up") or "kaiwa-up"
                 folder = f"{folder_prefix}/shadowing_user_recordings/{user_id}/{attempt_id}"
 
-                # Audio in Cloudinary uses the video resource type
                 result = cloudinary.uploader.upload(
-                    content,
-                    resource_type="video",
+                    io.BytesIO(content),
+                    resource_type="auto",
                     folder=folder,
                     public_id=public_id,
                     overwrite=True,
