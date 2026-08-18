@@ -41,7 +41,7 @@ export function ShadowingScreen({ lesson }: ShadowingScreenProps) {
 
       if (audioBlob) {
         const audioFile = new File([audioBlob], "recording.webm", { type: "audio/webm" });
-        const segmentId = lesson.transcript && lesson.transcript.length > 0 ? "seg_001" : "0";
+        const segmentId = "0";
 
         const response = await recordShadowingSegment({
           body: {

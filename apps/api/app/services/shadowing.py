@@ -131,24 +131,9 @@ class ShadowingService:
         if not transcript_ja:
             return False
 
-        for idx, item in enumerate(transcript_ja):
-            if isinstance(item, dict):
-                item_id = item.get("id") or item.get("segment_id")
-                if item_id is not None and str(item_id) == segment_id:
-                    return True
+        try:
+            index = int(segment_id)
+        except ValueError:
+            return False
 
-                if segment_id in (str(idx), str(idx + 1)):
-                    return True
-
-                if segment_id.lower() in (
-                    f"seg_{idx}",
-                    f"seg_{idx:03d}",
-                    f"seg_{idx + 1}",
-                    f"seg_{idx + 1:03d}",
-                ):
-                    return True
-
-                if str(item.get("start_time_ms")) == segment_id:
-                    return True
-
-        return False
+        return 0 <= index < len(transcript_ja)
