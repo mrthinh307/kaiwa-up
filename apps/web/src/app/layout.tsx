@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { DM_Sans, Noto_Sans_JP } from "next/font/google";
+import { Noto_Sans_JP, Space_Grotesk } from "next/font/google";
 
 import { ThemeProvider } from "@/components/common/theme/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
@@ -8,9 +8,9 @@ import { AuthProvider } from "@/providers/auth-provider";
 
 import "./globals.css";
 
-const dmSans = DM_Sans({
-  variable: "--font-dm-sans",
-  subsets: ["latin"],
+const spaceGrotesk = Space_Grotesk({
+  variable: "--font-space-grotesk",
+  subsets: ["latin", "latin-ext", "vietnamese"],
   display: "swap",
 });
 
@@ -35,7 +35,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${dmSans.variable} ${notoSansJp.variable} h-full scroll-smooth antialiased`}
+      className={`${spaceGrotesk.variable} ${notoSansJp.variable} h-full scroll-smooth antialiased`}
       suppressHydrationWarning
     >
       <body suppressHydrationWarning className="flex min-h-full flex-col">
