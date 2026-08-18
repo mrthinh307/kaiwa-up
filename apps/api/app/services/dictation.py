@@ -1,3 +1,4 @@
+import unicodedata
 import uuid
 from decimal import ROUND_HALF_UP, Decimal
 
@@ -28,14 +29,12 @@ from app.schemas.dictation import (
 from app.services.gamification import GamificationService
 from app.utils.datetime_utils import utc_now
 
-IGNORED_DICTATION_CHARACTERS = frozenset({"。", "、"})
-
 
 def normalize_dictation_text(text: str) -> str:
     return "".join(
         character
         for character in text
-        if not character.isspace() and character not in IGNORED_DICTATION_CHARACTERS
+        if not character.isspace() and not unicodedata.category(character).startswith("P")
     )
 
 
@@ -43,6 +42,22 @@ def calculate_dictation_score(*, correct_count: int, total_count: int) -> Decima
     return (Decimal(correct_count) * Decimal(100) / Decimal(total_count)).quantize(
         Decimal("0.01"), rounding=ROUND_HALF_UP
     )
+
+
+def calculate_dictation_exp(*, answered_count: int, total_count: int) -> int:
+    if answered_count <= 0:
+        return 0
+
+    completion_percentage = Decimal(min(answered_count, total_count)) * 100 / Decimal(total_count)
+    if completion_percentage < 5:
+        return 5
+    if completion_percentage < 25:
+        return 15
+    if completion_percentage < 50:
+        return 25
+    if completion_percentage < 75:
+        return 40
+    return 50
 
 
 class DictationService:
@@ -228,15 +243,25 @@ class DictationService:
                 completed_at=completed_at,
             )
 
-            gamification_service = GamificationService(
-                GamificationRepository(self.repository.session)
+            answered_count = sum(
+                bool(result.user_answer.strip()) for result in results_by_index.values()
             )
-            award = await gamification_service.award_experience_in_transaction(
-                user_id=user_id,
-                attempt_id=attempt_id,
+            earned_exp = calculate_dictation_exp(
+                answered_count=answered_count,
+                total_count=total_count,
             )
-            if not award.awarded:
-                raise DictationExperienceAlreadyAwardedError()
+            if earned_exp > 0:
+                gamification_service = GamificationService(
+                    GamificationRepository(self.repository.session)
+                )
+                award = await gamification_service.award_experience_in_transaction(
+                    user_id=user_id,
+                    attempt_id=attempt_id,
+                    reward_amount=earned_exp,
+                )
+                if not award.awarded:
+                    raise DictationExperienceAlreadyAwardedError()
+                earned_exp = award.amount
 
             await self.repository.session.commit()
         except Exception:
@@ -249,7 +274,7 @@ class DictationService:
             score=float(score),
             correct_count=correct_count,
             total_count=total_count,
-            earned_exp=award.amount,
+            earned_exp=earned_exp,
             completed_at=completed_at,
         )
 

@@ -51,6 +51,7 @@ class GamificationService:
         *,
         user_id: uuid.UUID,
         attempt_id: uuid.UUID,
+        reward_amount: int | None = None,
     ) -> XpAwardResult:
         """Award EXP without committing so a parent use case can own the transaction."""
 
@@ -77,7 +78,9 @@ class GamificationService:
                 level=progress.current_level,
             )
 
-        amount = attempt.base_exp
+        amount = reward_amount if reward_amount is not None else attempt.base_exp
+        if amount <= 0:
+            raise ValueError("EXP reward amount must be positive")
         reason = self._build_reason(attempt.content_type, attempt.content_title)
         await self.repository.insert_transaction(
             user_id=user_id,
