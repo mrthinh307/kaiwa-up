@@ -71,6 +71,14 @@ class TutorScenarioSeed(TypedDict):
     display_order: int
 
 
+class AchievementSeed(TypedDict):
+    code: str
+    name: str
+    description: str
+    icon_url: str
+    criteria: dict[str, object]
+
+
 YOUTUBE_LESSONS: tuple[YouTubeLessonSeed, ...] = (
     {
         "youtube_url": "https://www.youtube.com/watch?v=GfkM7xF8orE",
@@ -427,6 +435,82 @@ TUTOR_SCENARIOS: tuple[TutorScenarioSeed, ...] = (
         "display_order": 100,
     },
 )
+
+
+ACHIEVEMENTS: tuple[AchievementSeed, ...] = (
+    {
+        "code": "first_lesson",
+        "name": "A Fresh Start",
+        "description": "Complete your first lesson",
+        "icon_url": (
+            "https://res.cloudinary.com/pje4ce0j/image/upload/"
+            "v1787028506/kaiwa-up/badge/first_lesson.png"
+        ),
+        "criteria": {"type": "completed_count", "target": 1},
+    },
+    {
+        "code": "shadow_master_1",
+        "name": "Shadowing Master I",
+        "description": "Complete 5 shadowing exercises",
+        "icon_url": (
+            "https://res.cloudinary.com/pje4ce0j/image/upload/"
+            "v1787028522/kaiwa-up/badge/shadow_master_1.png"
+        ),
+        "criteria": {"type": "shadowing_count", "target": 5},
+    },
+    {
+        "code": "dictation_pro",
+        "name": "Dictation Pro",
+        "description": "Achieve a perfect score in one dictation exercise",
+        "icon_url": (
+            "https://res.cloudinary.com/pje4ce0j/image/upload/"
+            "v1787028528/kaiwa-up/badge/dictation_pro.png"
+        ),
+        "criteria": {"type": "dictation_score", "target": 100},
+    },
+    {
+        "code": "reflex_king",
+        "name": "Reflex King",
+        "description": "Answer a reflex exercise in under 2 seconds",
+        "icon_url": (
+            "https://res.cloudinary.com/pje4ce0j/image/upload/"
+            "v1787028534/kaiwa-up/badge/reflex_king.png"
+        ),
+        "criteria": {"type": "reflex_speed", "max_seconds": 2},
+    },
+)
+
+
+async def seed_achievements(session: AsyncSession) -> tuple[list[Achievement], int]:
+    """Create or update the achievement catalog idempotently."""
+    seeded_achievements: list[Achievement] = []
+    created_count = 0
+
+    for achievement_seed in ACHIEVEMENTS:
+        achievement_query = select(Achievement).where(Achievement.code == achievement_seed["code"])
+        achievement = (await session.execute(achievement_query)).scalar_one_or_none()
+        if achievement is None:
+            achievement = Achievement(**achievement_seed)
+            session.add(achievement)
+            created_count += 1
+
+        achievement.name = achievement_seed["name"]
+        achievement.description = achievement_seed["description"]
+        achievement.icon_url = achievement_seed["icon_url"]
+        achievement.criteria = achievement_seed["criteria"]
+        achievement.is_active = True
+        await session.flush()
+        seeded_achievements.append(achievement)
+
+    return seeded_achievements, created_count
+
+
+async def seed_achievement_data() -> dict[str, int]:
+    """Seed only the achievement badge catalog."""
+    async with AsyncSessionLocal() as session:
+        seeded_achievements, _ = await seed_achievements(session)
+        await session.commit()
+        return {"achievements": len(seeded_achievements)}
 
 
 async def seed_youtube_lessons(session: AsyncSession) -> list[LearningContent]:
@@ -801,50 +885,8 @@ async def seed_data(clean: bool = False) -> dict[str, int]:
         # ==========================================
         # 3. SEED ACHIEVEMENTS
         # ==========================================
-        achievements_data = [
-            {
-                "code": "first_lesson",
-                "name": "A Fresh Start",
-                "description": "Complete your first lesson",
-                "icon_url": "https://res.cloudinary.com/kaiwaup/image/upload/v1/badges/first.png",
-                "criteria": {"type": "completed_count", "target": 1},
-            },
-            {
-                "code": "shadow_master_1",
-                "name": "Shadowing Master I",
-                "description": "Complete 5 shadowing exercises",
-                "icon_url": "https://res.cloudinary.com/kaiwaup/image/upload/v1/badges/shadow1.png",
-                "criteria": {"type": "shadowing_count", "target": 5},
-            },
-            {
-                "code": "dictation_pro",
-                "name": "Dictation Pro",
-                "description": "Achieve a perfect score in one dictation exercise",
-                "icon_url": "https://res.cloudinary.com/kaiwaup/image/upload/v1/badges/dictation.png",
-                "criteria": {"type": "dictation_score", "target": 100},
-            },
-            {
-                "code": "reflex_king",
-                "name": "Reflex King",
-                "description": "Answer a reflex exercise in under 2 seconds",
-                "icon_url": "https://res.cloudinary.com/kaiwaup/image/upload/v1/badges/reflex.png",
-                "criteria": {"type": "reflex_speed", "max_seconds": 2},
-            },
-        ]
-
-        for ach in achievements_data:
-            achievement_query = select(Achievement).where(Achievement.code == ach["code"])
-            existing_achievement = (await session.execute(achievement_query)).scalar_one_or_none()
-            if not existing_achievement:
-                session.add(Achievement(**ach))
-                stats["achievements"] += 1
-            elif (
-                existing_achievement.name != ach["name"]
-                or existing_achievement.description != ach["description"]
-            ):
-                existing_achievement.name = ach["name"]
-                existing_achievement.description = ach["description"]
-                await session.flush()
+        _, achievement_count = await seed_achievements(session)
+        stats["achievements"] = achievement_count
 
         # ==========================================
         # 4. SEED LEARNING CONTENTS & EXERCISES
@@ -960,6 +1002,11 @@ def main() -> None:
         action="store_true",
         help="Seed only the current Tutor scenario catalog",
     )
+    parser.add_argument(
+        "--badge-only",
+        action="store_true",
+        help="Seed only the achievement badge catalog",
+    )
     args = parser.parse_args()
 
     selected_modes = sum(
@@ -969,6 +1016,7 @@ def main() -> None:
             args.reflex_only,
             args.translation_only,
             args.tutor_scenarios_only,
+            args.badge_only,
         )
     )
     if selected_modes > 1:
@@ -982,6 +1030,8 @@ def main() -> None:
         stats = asyncio.run(seed_translation_data())
     elif args.tutor_scenarios_only:
         stats = asyncio.run(seed_tutor_scenarios_data())
+    elif args.badge_only:
+        stats = asyncio.run(seed_achievement_data())
     elif args.youtube_only:
         stats = asyncio.run(seed_youtube_data())
     else:

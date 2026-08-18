@@ -3,18 +3,54 @@ from sqlalchemy import func, select
 from app.models.attempt import ExerciseAttempt
 from app.models.content import LearningContent, ReflexExercise, TranslationExercise
 from app.models.enums import AttemptStatus, ContentStatus, ContentType, JlptLevel, UserRole
-from app.models.gamification import XpTransaction
+from app.models.gamification import Achievement, XpTransaction
 from app.models.tutor import TutorScenario
 from app.models.user import User
 from scripts.seed_data import (
+    ACHIEVEMENTS,
     REFLEX_LESSONS,
     TRANSLATION_LESSONS,
     TUTOR_SCENARIOS,
+    seed_achievements,
     seed_reflex_lessons,
     seed_translation_lessons,
     seed_tutor_scenarios,
     seed_xp_transactions,
 )
+
+
+async def test_seed_achievements_updates_catalog_without_duplicates(db_session) -> None:
+    first_achievement = ACHIEVEMENTS[0]
+    db_session.add(
+        Achievement(
+            code=first_achievement["code"],
+            name="Legacy achievement",
+            description="Legacy description",
+            icon_url="https://example.com/legacy.png",
+            criteria={"type": "legacy"},
+            is_active=False,
+        )
+    )
+    await db_session.flush()
+
+    seeded_achievements, created_count = await seed_achievements(db_session)
+    seeded_again, created_again = await seed_achievements(db_session)
+    achievement_count = await db_session.scalar(select(func.count()).select_from(Achievement))
+
+    assert created_count == len(ACHIEVEMENTS) - 1
+    assert created_again == 0
+    assert len(seeded_achievements) == len(ACHIEVEMENTS)
+    assert len(seeded_again) == len(ACHIEVEMENTS)
+    assert achievement_count == len(ACHIEVEMENTS)
+
+    achievements_by_code = {achievement.code: achievement for achievement in seeded_again}
+    for achievement_seed in ACHIEVEMENTS:
+        achievement = achievements_by_code[achievement_seed["code"]]
+        assert achievement.name == achievement_seed["name"]
+        assert achievement.description == achievement_seed["description"]
+        assert achievement.icon_url == achievement_seed["icon_url"]
+        assert achievement.criteria == achievement_seed["criteria"]
+        assert achievement.is_active
 
 
 async def test_seed_reflex_lessons_replaces_legacy_catalog_without_duplicates(db_session) -> None:
