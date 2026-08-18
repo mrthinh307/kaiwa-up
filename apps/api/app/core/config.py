@@ -26,6 +26,12 @@ class Settings(BaseSettings):
     leaderboard_rebuild_interval_hours: int = 1
     leaderboard_rebuild_enabled: bool = True
 
+    STORAGE_DIR: str = "storage"
+    CLOUDINARY_CLOUD_NAME: str | None = None
+    CLOUDINARY_API_KEY: str | None = None
+    CLOUDINARY_API_SECRET: str | None = None
+    CLOUDINARY_URL: str | None = None
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

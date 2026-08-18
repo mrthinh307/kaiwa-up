@@ -1,5 +1,8 @@
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.api.router import router as api_router
 from app.core import configure_logging, settings
@@ -24,6 +27,11 @@ def create_app() -> FastAPI:
     )
     register_exception_handlers(application)
     application.include_router(api_router)
+
+    storage_path = Path(settings.STORAGE_DIR)
+    storage_path.mkdir(parents=True, exist_ok=True)
+    application.mount("/static", StaticFiles(directory=str(storage_path)), name="static")
+
     return application
 
 

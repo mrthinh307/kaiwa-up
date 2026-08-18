@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const YOUTUBE_ORIGIN = "https://www.youtube-nocookie.com";
 
+export type PlaybackStatus = "IDLE" | "PLAYING_SEGMENT" | "PAUSED_AT_BOUNDARY" | "PAUSED_MANUAL";
+
 type YouTubeCommand = {
   args?: Array<boolean | number>;
   func: "pauseVideo" | "playVideo" | "seekTo" | "setPlaybackRate";
@@ -25,21 +27,37 @@ export function getYouTubeVideoId(audioUrl: string): string | null {
   return null;
 }
 
-export function useAudioPlayer(src: string, initialDuration = 0) {
+export interface UseAudioPlayerOptions {
+  autoPlay?: boolean;
+  segments?: Array<{ end_time_ms: number; start_time_ms: number }>;
+}
+
+export function useAudioPlayer(src: string, initialDuration = 0, options?: UseAudioPlayerOptions) {
   const youtubeVideoId = useMemo(() => getYouTubeVideoId(src), [src]);
   const isYouTube = Boolean(youtubeVideoId);
+
+  const autoPlay = options?.autoPlay ?? false;
+  const segments = useMemo(() => options?.segments ?? [], [options?.segments]);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const hasReachedEndRef = useRef(false);
+  const stopBoundarySecondsRef = useRef<number | null>(null);
 
-  const [isPlaying, setIsPlaying] = useState(false);
+  const [playbackStatus, setPlaybackStatus] = useState<PlaybackStatus>("IDLE");
+  const playbackStatusRef = useRef<PlaybackStatus>("IDLE");
+
+  useEffect(() => {
+    playbackStatusRef.current = playbackStatus;
+  }, [playbackStatus]);
+
   const [currentTime, setCurrentTime] = useState(0);
   const [audioDuration, setAudioDuration] = useState(0);
   const [playbackRate, setPlaybackRate] = useState(1);
   const [hasError, setHasError] = useState(false);
 
   const duration = audioDuration > 0 ? audioDuration : initialDuration;
+  const isPlaying = playbackStatus === "PLAYING_SEGMENT";
 
   const sendYouTubeCommand = useCallback((command: YouTubeCommand) => {
     iframeRef.current?.contentWindow?.postMessage(
@@ -55,7 +73,234 @@ export function useAudioPlayer(src: string, initialDuration = 0) {
     );
   }, []);
 
-  // Synchronize bi-directional state from YouTube IFrame events
+  const executePlay = useCallback(
+    (startSeconds?: number) => {
+      if (isYouTube) {
+        hasReachedEndRef.current = false;
+        if (typeof startSeconds === "number") {
+          sendYouTubeCommand({ args: [startSeconds, true], func: "seekTo" });
+        }
+        sendYouTubeCommand({ args: [playbackRate], func: "setPlaybackRate" });
+        sendYouTubeCommand({ func: "playVideo" });
+        return;
+      }
+
+      if (!audioRef.current) return;
+      if (typeof startSeconds === "number") {
+        audioRef.current.currentTime = startSeconds;
+      }
+      audioRef.current
+        .play()
+        .then(() => setHasError(false))
+        .catch(() => setHasError(true));
+    },
+    [isYouTube, playbackRate, sendYouTubeCommand],
+  );
+
+  const executePause = useCallback(() => {
+    if (isYouTube) {
+      sendYouTubeCommand({ func: "pauseVideo" });
+      return;
+    }
+
+    if (!audioRef.current) return;
+    audioRef.current.pause();
+  }, [isYouTube, sendYouTubeCommand]);
+
+  const findSegmentAtTime = useCallback(
+    (timeSeconds: number) => {
+      const timeMs = Math.round(timeSeconds * 1000);
+      return segments.find((s) => timeMs >= s.start_time_ms && timeMs < s.end_time_ms) ?? null;
+    },
+    [segments],
+  );
+
+  const findSegmentIndexAtTime = useCallback(
+    (timeSeconds: number) => {
+      const timeMs = Math.round(timeSeconds * 1000);
+      return segments.findIndex((s) => timeMs >= s.start_time_ms && timeMs < s.end_time_ms);
+    },
+    [segments],
+  );
+
+  const checkAndHandleBoundary = useCallback(
+    (timeSeconds: number): boolean => {
+      if (autoPlay) return false;
+      if (playbackStatusRef.current !== "PLAYING_SEGMENT") return false;
+      if (segments.length === 0) return false;
+
+      let boundary = stopBoundarySecondsRef.current;
+      if (boundary === null) {
+        const curSeg = findSegmentAtTime(timeSeconds);
+        if (curSeg) {
+          boundary = curSeg.end_time_ms / 1000;
+          stopBoundarySecondsRef.current = boundary;
+        }
+      }
+
+      if (boundary !== null && timeSeconds >= boundary - 0.05) {
+        executePause();
+        setCurrentTime(boundary);
+        setPlaybackStatus("PAUSED_AT_BOUNDARY");
+        return true;
+      }
+      return false;
+    },
+    [autoPlay, executePause, findSegmentAtTime, segments.length],
+  );
+
+  const startPlayback = useCallback(
+    (startTime?: number, customStopBoundary?: number | null) => {
+      const targetTime = typeof startTime === "number" ? startTime : currentTime;
+      setCurrentTime(targetTime);
+
+      if (autoPlay) {
+        stopBoundarySecondsRef.current = null;
+      } else if (customStopBoundary !== undefined) {
+        stopBoundarySecondsRef.current = customStopBoundary;
+      } else {
+        const seg = findSegmentAtTime(targetTime);
+        stopBoundarySecondsRef.current = seg ? seg.end_time_ms / 1000 : null;
+      }
+
+      setPlaybackStatus("PLAYING_SEGMENT");
+      executePlay(targetTime);
+    },
+    [autoPlay, currentTime, executePlay, findSegmentAtTime],
+  );
+
+  const togglePlay = useCallback(() => {
+    const status = playbackStatusRef.current;
+
+    if (status === "PLAYING_SEGMENT") {
+      executePause();
+      setPlaybackStatus("PAUSED_MANUAL");
+      stopBoundarySecondsRef.current = null;
+      return;
+    }
+
+    if (status === "PAUSED_AT_BOUNDARY") {
+      // Boundary auto-advance on resume
+      const curIdx = findSegmentIndexAtTime(currentTime - 0.05);
+      if (curIdx >= 0 && curIdx < segments.length - 1) {
+        const nextSeg = segments[curIdx + 1];
+        if (nextSeg) {
+          const nextStart = nextSeg.start_time_ms / 1000;
+          const nextStop = autoPlay ? null : nextSeg.end_time_ms / 1000;
+          startPlayback(nextStart, nextStop);
+          return;
+        }
+      }
+      // If at the end of last segment, replay from first
+      if (segments.length > 0) {
+        const firstSeg = segments[0];
+        if (firstSeg) {
+          const firstStart = firstSeg.start_time_ms / 1000;
+          const firstStop = autoPlay ? null : firstSeg.end_time_ms / 1000;
+          startPlayback(firstStart, firstStop);
+          return;
+        }
+      }
+    }
+
+    // From PAUSED_MANUAL or IDLE: check if at segment boundary
+    const curSeg = findSegmentAtTime(currentTime);
+    if (curSeg && currentTime >= curSeg.end_time_ms / 1000 - 0.05 && !autoPlay) {
+      const curIdx = findSegmentIndexAtTime(currentTime);
+      if (curIdx >= 0 && curIdx < segments.length - 1) {
+        const nextSeg = segments[curIdx + 1];
+        if (nextSeg) {
+          startPlayback(nextSeg.start_time_ms / 1000, nextSeg.end_time_ms / 1000);
+          return;
+        }
+      }
+    }
+
+    startPlayback();
+  }, [
+    autoPlay,
+    currentTime,
+    executePause,
+    findSegmentAtTime,
+    findSegmentIndexAtTime,
+    segments,
+    startPlayback,
+  ]);
+
+  const playSegment = useCallback(
+    (startSeconds: number, stopSeconds: number | null = null) => {
+      const targetStop = autoPlay
+        ? null
+        : stopSeconds !== null
+          ? stopSeconds
+          : (findSegmentAtTime(startSeconds)?.end_time_ms ?? 0) / 1000 || null;
+      startPlayback(startSeconds, targetStop);
+    },
+    [autoPlay, findSegmentAtTime, startPlayback],
+  );
+
+  const playFrom = useCallback(
+    (time: number) => {
+      playSegment(time, null);
+    },
+    [playSegment],
+  );
+
+  const pause = useCallback(() => {
+    stopBoundarySecondsRef.current = null;
+    executePause();
+    setPlaybackStatus("PAUSED_MANUAL");
+  }, [executePause]);
+
+  const play = useCallback(() => {
+    togglePlay();
+  }, [togglePlay]);
+
+  const setStopAtSeconds = useCallback((stopSeconds: number | null) => {
+    stopBoundarySecondsRef.current = stopSeconds;
+  }, []);
+
+  const seek = useCallback(
+    (time: number) => {
+      setCurrentTime(time);
+      if (isYouTube) {
+        hasReachedEndRef.current = duration > 0 && time >= duration;
+        sendYouTubeCommand({ args: [time, true], func: "seekTo" });
+        if (duration > 0 && time >= duration) {
+          executePause();
+          setPlaybackStatus("IDLE");
+        }
+      } else if (audioRef.current) {
+        audioRef.current.currentTime = time;
+      }
+
+      if (playbackStatusRef.current === "PLAYING_SEGMENT" && !autoPlay) {
+        const curSeg = findSegmentAtTime(time);
+        stopBoundarySecondsRef.current = curSeg ? curSeg.end_time_ms / 1000 : null;
+      } else if (playbackStatusRef.current !== "PLAYING_SEGMENT") {
+        setPlaybackStatus("PAUSED_MANUAL");
+        stopBoundarySecondsRef.current = null;
+      }
+    },
+    [autoPlay, duration, executePause, findSegmentAtTime, isYouTube, sendYouTubeCommand],
+  );
+
+  const changePlaybackRate = useCallback(
+    (rate: number) => {
+      setPlaybackRate(rate);
+      if (isYouTube) {
+        sendYouTubeCommand({ args: [rate], func: "setPlaybackRate" });
+        return;
+      }
+
+      if (audioRef.current) {
+        audioRef.current.playbackRate = rate;
+      }
+    },
+    [isYouTube, sendYouTubeCommand],
+  );
+
+  // Synchronize normalized state from YouTube IFrame events
   useEffect(() => {
     if (!isYouTube) return;
 
@@ -98,41 +343,46 @@ export function useAudioPlayer(src: string, initialDuration = 0) {
       if (payload.event === "onStateChange") {
         const state = payload.info;
         if (state === 1) {
-          // Playing
-          setIsPlaying(true);
+          // Video is playing
+          if (playbackStatusRef.current === "PAUSED_AT_BOUNDARY") {
+            // Clicking directly inside YouTube iframe while at boundary triggers auto-advance
+            togglePlay();
+            return;
+          }
+          if (playbackStatusRef.current !== "PLAYING_SEGMENT") {
+            setPlaybackStatus("PLAYING_SEGMENT");
+          }
           hasReachedEndRef.current = false;
         } else if (state === 2) {
-          // Paused
-          setIsPlaying(false);
+          // Video paused
+          if (playbackStatusRef.current === "PLAYING_SEGMENT") {
+            setPlaybackStatus("PAUSED_MANUAL");
+          }
         } else if (state === 0) {
-          // Ended
-          setIsPlaying(false);
+          // Video ended
+          setPlaybackStatus("IDLE");
           setCurrentTime(0);
           hasReachedEndRef.current = true;
+          stopBoundarySecondsRef.current = null;
         }
       } else if (payload.event === "infoDelivery" || payload.event === "initialDelivery") {
         const info = payload.info;
         if (info && typeof info === "object") {
           if (typeof info.currentTime === "number") {
-            setCurrentTime(info.currentTime);
+            const time = info.currentTime;
+            if (playbackStatusRef.current === "PAUSED_AT_BOUNDARY") {
+              return;
+            }
+            if (checkAndHandleBoundary(time)) {
+              return;
+            }
+            setCurrentTime(time);
           }
           if (typeof info.duration === "number" && info.duration > 0) {
             setAudioDuration(info.duration);
           }
           if (typeof info.playbackRate === "number") {
             setPlaybackRate(info.playbackRate);
-          }
-          if (typeof info.playerState === "number") {
-            if (info.playerState === 1) {
-              setIsPlaying(true);
-              hasReachedEndRef.current = false;
-            } else if (info.playerState === 2) {
-              setIsPlaying(false);
-            } else if (info.playerState === 0) {
-              setIsPlaying(false);
-              setCurrentTime(0);
-              hasReachedEndRef.current = true;
-            }
           }
         }
       }
@@ -151,7 +401,7 @@ export function useAudioPlayer(src: string, initialDuration = 0) {
       window.removeEventListener("message", handleMessage);
       window.clearTimeout(timer);
     };
-  }, [isYouTube]);
+  }, [checkAndHandleBoundary, isYouTube, togglePlay]);
 
   // HTML5 audio handler for direct audio files
   useEffect(() => {
@@ -167,17 +417,22 @@ export function useAudioPlayer(src: string, initialDuration = 0) {
     };
 
     const handleTimeUpdate = () => {
+      if (checkAndHandleBoundary(audio.currentTime)) {
+        return;
+      }
       setCurrentTime(audio.currentTime);
     };
 
     const handleEnded = () => {
-      setIsPlaying(false);
+      setPlaybackStatus("IDLE");
       setCurrentTime(0);
+      stopBoundarySecondsRef.current = null;
     };
 
     const handleError = () => {
       setHasError(true);
-      setIsPlaying(false);
+      setPlaybackStatus("IDLE");
+      stopBoundarySecondsRef.current = null;
     };
 
     audio.addEventListener("loadedmetadata", handleLoadedMetadata);
@@ -192,21 +447,27 @@ export function useAudioPlayer(src: string, initialDuration = 0) {
       audio.removeEventListener("ended", handleEnded);
       audio.removeEventListener("error", handleError);
     };
-  }, [initialDuration, isYouTube, playbackRate, src]);
+  }, [checkAndHandleBoundary, initialDuration, isYouTube, playbackRate, src]);
 
   // YouTube progress tracking timer for smooth interpolated updates
   useEffect(() => {
-    if (!isYouTube || !isPlaying) return;
+    if (!isYouTube || playbackStatus !== "PLAYING_SEGMENT") return;
 
     const intervalId = window.setInterval(() => {
+      if (playbackStatusRef.current !== "PLAYING_SEGMENT") return;
+
       setCurrentTime((prevTime) => {
         const maxDuration = duration > 0 ? duration : 9999;
         const nextTime = Math.min(prevTime + 0.1 * playbackRate, maxDuration);
 
+        if (checkAndHandleBoundary(nextTime)) {
+          return stopBoundarySecondsRef.current ?? nextTime;
+        }
+
         if (duration > 0 && nextTime >= duration && !hasReachedEndRef.current) {
           hasReachedEndRef.current = true;
-          setIsPlaying(false);
-          sendYouTubeCommand({ func: "pauseVideo" });
+          executePause();
+          setPlaybackStatus("IDLE");
         }
 
         return nextTime;
@@ -216,71 +477,7 @@ export function useAudioPlayer(src: string, initialDuration = 0) {
     return () => {
       window.clearInterval(intervalId);
     };
-  }, [duration, isPlaying, isYouTube, playbackRate, sendYouTubeCommand]);
-
-  const togglePlay = useCallback(() => {
-    if (isYouTube) {
-      if (isPlaying) {
-        setIsPlaying(false);
-        sendYouTubeCommand({ func: "pauseVideo" });
-      } else {
-        hasReachedEndRef.current = false;
-        const nextTime = duration > 0 && currentTime >= duration ? 0 : currentTime;
-        setCurrentTime(nextTime);
-        setIsPlaying(true);
-        sendYouTubeCommand({ args: [nextTime, true], func: "seekTo" });
-        sendYouTubeCommand({ args: [playbackRate], func: "setPlaybackRate" });
-        sendYouTubeCommand({ func: "playVideo" });
-      }
-      return;
-    }
-
-    if (!audioRef.current) return;
-
-    if (isPlaying) {
-      audioRef.current.pause();
-      setIsPlaying(false);
-    } else {
-      audioRef.current
-        .play()
-        .then(() => setIsPlaying(true))
-        .catch(() => setHasError(true));
-    }
-  }, [currentTime, duration, isPlaying, isYouTube, playbackRate, sendYouTubeCommand]);
-
-  const seek = useCallback(
-    (time: number) => {
-      setCurrentTime(time);
-      if (isYouTube) {
-        hasReachedEndRef.current = duration > 0 && time >= duration;
-        sendYouTubeCommand({ args: [time, true], func: "seekTo" });
-        if (duration > 0 && time >= duration) {
-          setIsPlaying(false);
-          sendYouTubeCommand({ func: "pauseVideo" });
-        }
-        return;
-      }
-
-      if (!audioRef.current) return;
-      audioRef.current.currentTime = time;
-    },
-    [duration, isYouTube, sendYouTubeCommand],
-  );
-
-  const changePlaybackRate = useCallback(
-    (rate: number) => {
-      setPlaybackRate(rate);
-      if (isYouTube) {
-        sendYouTubeCommand({ args: [rate], func: "setPlaybackRate" });
-        return;
-      }
-
-      if (audioRef.current) {
-        audioRef.current.playbackRate = rate;
-      }
-    },
-    [isYouTube, sendYouTubeCommand],
-  );
+  }, [checkAndHandleBoundary, duration, executePause, isYouTube, playbackRate, playbackStatus]);
 
   return {
     changePlaybackRate,
@@ -291,8 +488,14 @@ export function useAudioPlayer(src: string, initialDuration = 0) {
     iframeRef,
     isPlaying,
     isYouTube,
+    pause,
+    play,
     playbackRate,
+    playbackStatus,
+    playFrom,
+    playSegment,
     seek,
+    setStopAtSeconds,
     togglePlay,
     youtubeVideoId,
   };

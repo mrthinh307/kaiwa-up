@@ -1,6 +1,14 @@
 "use client";
 
-import { AlertCircle, Headphones, Pause, Play, RotateCcw } from "lucide-react";
+import {
+  AlertCircle,
+  Headphones,
+  Pause,
+  Play,
+  RotateCcw,
+  SkipBack,
+  SkipForward,
+} from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -11,6 +19,11 @@ import { type AudioPlayerState, useAudioPlayer } from "../_hooks/use-audio-playe
 interface AudioPlayerCardProps {
   audioUrl: string;
   durationSeconds?: number | null;
+  hasNextSegment?: boolean;
+  hasPreviousSegment?: boolean;
+  onNextSegment?: () => void;
+  onPreviousSegment?: () => void;
+  onTogglePlay?: () => void;
   player?: AudioPlayerState;
   showVideo?: boolean;
 }
@@ -25,6 +38,11 @@ function formatTime(seconds: number): string {
 export function AudioPlayerCard({
   audioUrl,
   durationSeconds,
+  hasNextSegment = false,
+  hasPreviousSegment = false,
+  onNextSegment,
+  onPreviousSegment,
+  onTogglePlay,
   player: externalPlayer,
   showVideo = false,
 }: AudioPlayerCardProps) {
@@ -110,17 +128,47 @@ export function AudioPlayerCard({
         </Alert>
       ) : (
         <div className="mt-6 flex flex-col gap-4">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-3">
+            {onPreviousSegment && (
+              <Button
+                aria-label="Previous segment"
+                className="size-10 sm:size-11 shrink-0"
+                disabled={!hasPreviousSegment}
+                onClick={onPreviousSegment}
+                size="icon"
+                variant="neutral"
+              >
+                <SkipBack className="size-4 sm:size-5" />
+              </Button>
+            )}
+
             <Button
               aria-label={isPlaying ? "Pause lesson audio" : "Play lesson audio"}
-              className="size-14 rounded-base text-main-foreground shrink-0"
-              onClick={togglePlay}
+              className="size-12 sm:size-14 rounded-base text-main-foreground shrink-0"
+              onClick={onTogglePlay ?? togglePlay}
               size="icon"
             >
-              {isPlaying ? <Pause className="size-6" /> : <Play className="ml-0.5 size-6" />}
+              {isPlaying ? (
+                <Pause className="size-5 sm:size-6" />
+              ) : (
+                <Play className="ml-0.5 size-5 sm:size-6" />
+              )}
             </Button>
 
-            <div className="flex flex-1 flex-col gap-2">
+            {onNextSegment && (
+              <Button
+                aria-label="Next segment"
+                className="size-10 sm:size-11 shrink-0"
+                disabled={!hasNextSegment}
+                onClick={onNextSegment}
+                size="icon"
+                variant="neutral"
+              >
+                <SkipForward className="size-4 sm:size-5" />
+              </Button>
+            )}
+
+            <div className="flex flex-1 flex-col gap-2 min-w-0">
               <Slider
                 aria-label="Audio playback seek"
                 max={duration || 100}

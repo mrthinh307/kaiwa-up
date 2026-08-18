@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { recordShadowingSegment } from "@/lib/api-client";
@@ -23,9 +23,59 @@ export function ShadowingScreen({ lesson }: ShadowingScreenProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [result, setResult] = useState<ShadowingResult | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showVideo, setShowVideo] = useState(false);
+  const [showVideo, setShowVideo] = useState(true);
+  const [autoPlayOnSegmentChange, setAutoPlayOnSegmentChange] = useState(false);
+  const [autoPlayDelaySeconds, setAutoPlayDelaySeconds] = useState(0.5);
 
-  const player = useAudioPlayer(lesson.audio_url ?? "", lesson.duration_seconds ?? 0);
+  const transcriptSegments = useMemo(
+    () => (Array.isArray(lesson.transcript) ? lesson.transcript : []),
+    [lesson.transcript],
+  );
+
+  const player = useAudioPlayer(lesson.audio_url ?? "", lesson.duration_seconds ?? 0, {
+    autoPlay: autoPlayOnSegmentChange,
+    segments: transcriptSegments,
+  });
+
+  const currentTimeMs = player.currentTime * 1000;
+
+  const activeSegmentIndex = transcriptSegments.findIndex(
+    (seg) => currentTimeMs >= seg.start_time_ms && currentTimeMs < seg.end_time_ms,
+  );
+
+  const hasPreviousSegment = activeSegmentIndex > 0;
+  const hasNextSegment =
+    activeSegmentIndex >= 0 && activeSegmentIndex < transcriptSegments.length - 1;
+
+  const handlePlaySegment = (index: number) => {
+    const seg = transcriptSegments[index];
+    if (!seg) return;
+    player.playSegment(seg.start_time_ms / 1000);
+  };
+
+  const handlePreviousSegment = () => {
+    const currentIndex = activeSegmentIndex >= 0 ? activeSegmentIndex : 0;
+    if (currentIndex > 0) {
+      handlePlaySegment(currentIndex - 1);
+    } else {
+      handlePlaySegment(0);
+    }
+  };
+
+  const handleNextSegment = () => {
+    const currentIndex = activeSegmentIndex >= 0 ? activeSegmentIndex : -1;
+    if (currentIndex < transcriptSegments.length - 1) {
+      handlePlaySegment(currentIndex + 1);
+    }
+  };
+
+  const handleAutoPlayChange = (enabled: boolean) => {
+    setAutoPlayOnSegmentChange(enabled);
+  };
+
+  const handleTogglePlay = () => {
+    player.togglePlay();
+  };
 
   const handleComplete = async ({
     audioBlob,
@@ -92,7 +142,16 @@ export function ShadowingScreen({ lesson }: ShadowingScreenProps) {
     <div className="space-y-6">
       <ShadowingHeader
         difficulty={lesson.difficulty ?? "N4"}
-        settings={<ShadowingSettingsSheet onShowVideoChange={setShowVideo} showVideo={showVideo} />}
+        settings={
+          <ShadowingSettingsSheet
+            autoPlayDelaySeconds={autoPlayDelaySeconds}
+            autoPlayOnSegmentChange={autoPlayOnSegmentChange}
+            onAutoPlayDelayChange={setAutoPlayDelaySeconds}
+            onAutoPlayOnSegmentChange={handleAutoPlayChange}
+            onShowVideoChange={setShowVideo}
+            showVideo={showVideo}
+          />
+        }
         title={lesson.title}
       />
 
@@ -102,6 +161,11 @@ export function ShadowingScreen({ lesson }: ShadowingScreenProps) {
           <AudioPlayerCard
             audioUrl={lesson.audio_url ?? ""}
             durationSeconds={lesson.duration_seconds}
+            hasNextSegment={hasNextSegment}
+            hasPreviousSegment={hasPreviousSegment}
+            onNextSegment={handleNextSegment}
+            onPreviousSegment={handlePreviousSegment}
+            onTogglePlay={handleTogglePlay}
             player={player}
             showVideo={showVideo}
           />
@@ -112,9 +176,16 @@ export function ShadowingScreen({ lesson }: ShadowingScreenProps) {
         {/* Right Side: Synchronized Scrollable Transcript */}
         <div className="lg:col-span-5">
           <TranscriptCard
-            currentTimeMs={player.currentTime * 1000}
-            onSeekSegment={(startMs) => player.seek(startMs / 1000)}
-            transcript={lesson.transcript ?? []}
+            currentTimeMs={currentTimeMs}
+            onSeekSegment={(startMs) => {
+              const idx = transcriptSegments.findIndex((s) => s.start_time_ms === startMs);
+              if (idx >= 0) {
+                handlePlaySegment(idx);
+              } else {
+                player.playSegment(startMs / 1000, autoPlayOnSegmentChange ? null : null);
+              }
+            }}
+            transcript={transcriptSegments}
           />
         </div>
       </div>
