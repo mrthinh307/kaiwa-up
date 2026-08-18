@@ -1,17 +1,27 @@
 "use client";
 
+import type { ShadowingAttemptReviewResponse } from "@kaiwa-app/api-client";
+
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
-import { recordShadowingSegment } from "@/lib/api-client";
+import {
+  getShadowingAttemptReview,
+  recordShadowingSegment,
+  submitShadowingAttempt,
+} from "@/lib/api-client";
 
-import type { ShadowingLesson, ShadowingResult } from "../_validations/shadowing-schemas";
+import type {
+  ShadowingLesson,
+  ShadowingResult as ShadowingResultType,
+} from "../_validations/shadowing-schemas";
 
 import { useAudioPlayer } from "../_hooks/use-audio-player";
 import { AudioPlayerCard } from "./audio-player-card";
 import { CompletionModal } from "./completion-modal";
 import { RecorderCard } from "./recorder-card";
 import { ShadowingHeader } from "./shadowing-header";
+import { ShadowingResult } from "./shadowing-result";
 import { ShadowingSettingsSheet } from "./shadowing-settings-sheet";
 import { TranscriptCard } from "./transcript-card";
 
@@ -21,7 +31,9 @@ interface ShadowingScreenProps {
 
 export function ShadowingScreen({ lesson }: ShadowingScreenProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [result, setResult] = useState<ShadowingResult | null>(null);
+  const [result, setResult] = useState<ShadowingResultType | null>(null);
+  const [review, setReview] = useState<ShadowingAttemptReviewResponse | null>(null);
+  const [isReviewMode, setIsReviewMode] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showVideo, setShowVideo] = useState(true);
   const [autoPlayOnSegmentChange, setAutoPlayOnSegmentChange] = useState(false);
@@ -88,10 +100,11 @@ export function ShadowingScreen({ lesson }: ShadowingScreenProps) {
     try {
       let attemptId = `attempt-${Date.now()}`;
       let recordingId: string | undefined;
+      let expEarned = 50;
 
       if (audioBlob) {
         const audioFile = new File([audioBlob], "recording.webm", { type: "audio/webm" });
-        const segmentId = "0";
+        const segmentId = String(activeSegmentIndex >= 0 ? activeSegmentIndex : 0);
 
         const response = await recordShadowingSegment({
           body: {
@@ -106,6 +119,29 @@ export function ShadowingScreen({ lesson }: ShadowingScreenProps) {
         if (response.data) {
           attemptId = response.data.attempt_id;
           recordingId = response.data.recording_id;
+
+          const submitRes = await submitShadowingAttempt({
+            body: {
+              attempt_id: attemptId,
+              replay_count: 0,
+            },
+            path: {
+              content_id: lesson.id,
+            },
+          });
+
+          if (submitRes.data) {
+            expEarned = submitRes.data.xp_earned;
+          }
+
+          const reviewRes = await getShadowingAttemptReview({
+            path: {
+              attempt_id: attemptId,
+            },
+          });
+          if (reviewRes.data) {
+            setReview(reviewRes.data);
+          }
         } else if (response.error) {
           const errorMsg =
             typeof response.error === "object" && "message" in response.error
@@ -118,7 +154,7 @@ export function ShadowingScreen({ lesson }: ShadowingScreenProps) {
       setResult({
         attempt_id: attemptId,
         duration_seconds: Math.round(durationMs / 1000),
-        exp_earned: 50,
+        exp_earned: expEarned,
         practice_mode: "shadowing",
         recording_id: recordingId,
         status: "completed",
@@ -136,7 +172,13 @@ export function ShadowingScreen({ lesson }: ShadowingScreenProps) {
   const handleRetry = () => {
     setIsModalOpen(false);
     setResult(null);
+    setReview(null);
+    setIsReviewMode(false);
   };
+
+  if (isReviewMode && review) {
+    return <ShadowingResult onPracticeAgain={handleRetry} review={review} />;
+  }
 
   return (
     <div className="space-y-6">
@@ -194,6 +236,7 @@ export function ShadowingScreen({ lesson }: ShadowingScreenProps) {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onRetry={handleRetry}
+        onReview={() => setIsReviewMode(true)}
         result={result}
       />
     </div>

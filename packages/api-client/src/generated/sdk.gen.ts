@@ -39,6 +39,9 @@ import type {
   GetProgressAttemptResponses,
   GetProgressSummaryData,
   GetProgressSummaryResponses,
+  GetShadowingAttemptReviewData,
+  GetShadowingAttemptReviewErrors,
+  GetShadowingAttemptReviewResponses,
   GetShadowingContentData,
   GetShadowingContentErrors,
   GetShadowingContentResponses,
@@ -80,6 +83,9 @@ import type {
   StartDictationAttemptData,
   StartDictationAttemptErrors,
   StartDictationAttemptResponses,
+  SubmitShadowingAttemptData,
+  SubmitShadowingAttemptErrors,
+  SubmitShadowingAttemptResponses,
   UpdateMeData,
   UpdateMeErrors,
   UpdateMeResponses,
@@ -292,6 +298,46 @@ export const recordShadowingSegment = <ThrowOnError extends boolean = false>(
       "Content-Type": null,
       ...options.headers,
     },
+  });
+
+/**
+ * Submit and finalize a shadowing attempt
+ */
+export const submitShadowingAttempt = <ThrowOnError extends boolean = false>(
+  options: Options<SubmitShadowingAttemptData, ThrowOnError>,
+): RequestResult<SubmitShadowingAttemptResponses, SubmitShadowingAttemptErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    SubmitShadowingAttemptResponses,
+    SubmitShadowingAttemptErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/api/v1/shadowing/{content_id}/submit",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Review a Shadowing attempt with segment recordings
+ */
+export const getShadowingAttemptReview = <ThrowOnError extends boolean = false>(
+  options: Options<GetShadowingAttemptReviewData, ThrowOnError>,
+): RequestResult<
+  GetShadowingAttemptReviewResponses,
+  GetShadowingAttemptReviewErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    GetShadowingAttemptReviewResponses,
+    GetShadowingAttemptReviewErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/api/v1/shadowing/attempts/{attempt_id}/review",
+    ...options,
   });
 
 /**

@@ -19,10 +19,17 @@ interface CompletionModalProps {
   isOpen: boolean;
   onClose: () => void;
   onRetry: () => void;
+  onReview?: () => void;
   result: ShadowingResult | null;
 }
 
-export function CompletionModal({ isOpen, onClose, onRetry, result }: CompletionModalProps) {
+export function CompletionModal({
+  isOpen,
+  onClose,
+  onRetry,
+  onReview,
+  result,
+}: CompletionModalProps) {
   if (!result) return null;
 
   return (
@@ -53,12 +60,24 @@ export function CompletionModal({ isOpen, onClose, onRetry, result }: Completion
         </div>
 
         <DialogFooter className="flex flex-col sm:flex-row gap-2">
+          {onReview && (
+            <Button
+              className="gap-2"
+              onClick={() => {
+                onClose();
+                onReview();
+              }}
+              variant="default"
+            >
+              Review Attempt
+            </Button>
+          )}
           <Button className="gap-2" onClick={onRetry} variant="neutral">
             <RotateCcw className="size-4" />
             Practice Again
           </Button>
-          <Button asChild className="gap-2">
-            <Link href="/dashboard">Return to Dashboard</Link>
+          <Button asChild className="gap-2" variant="neutral">
+            <Link href="/shadowing">Back to Lessons</Link>
           </Button>
         </DialogFooter>
       </DialogContent>

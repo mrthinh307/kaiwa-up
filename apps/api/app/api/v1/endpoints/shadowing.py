@@ -8,8 +8,11 @@ from app.api.dependencies.database import DatabaseSession
 from app.repositories.recording import RecordingRepository
 from app.schemas.error import ErrorResponse
 from app.schemas.shadowing import (
+    ShadowingAttemptReviewResponse,
     ShadowingRecordingPlaybackResponse,
     ShadowingRecordSegmentResponse,
+    ShadowingSubmitRequest,
+    ShadowingSubmitResponse,
 )
 from app.services.shadowing import ShadowingService
 
@@ -43,6 +46,57 @@ async def record_segment(
         content_id=content_id,
         segment_id=segment_id,
         audio_file=audio_file,
+        attempt_id=attempt_id,
+    )
+
+
+@router.post(
+    "/{content_id}/submit",
+    operation_id="submitShadowingAttempt",
+    response_model=ShadowingSubmitResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Submit and finalize a shadowing attempt",
+    responses={
+        status.HTTP_400_BAD_REQUEST: {"model": ErrorResponse},
+        status.HTTP_401_UNAUTHORIZED: {"model": ErrorResponse},
+        status.HTTP_403_FORBIDDEN: {"model": ErrorResponse},
+        status.HTTP_404_NOT_FOUND: {"model": ErrorResponse},
+    },
+)
+async def submit_attempt(
+    content_id: Annotated[uuid.UUID, Path(description="Published shadowing content ID")],
+    payload: ShadowingSubmitRequest,
+    current_user: CurrentUser,
+    session: DatabaseSession,
+) -> ShadowingSubmitResponse:
+    service = ShadowingService(RecordingRepository(session))
+    return await service.submit_attempt(
+        user_id=current_user.id,
+        content_id=content_id,
+        attempt_id=payload.attempt_id,
+        replay_count=payload.replay_count,
+    )
+
+
+@router.get(
+    "/attempts/{attempt_id}/review",
+    operation_id="getShadowingAttemptReview",
+    response_model=ShadowingAttemptReviewResponse,
+    summary="Review a Shadowing attempt with segment recordings",
+    responses={
+        status.HTTP_401_UNAUTHORIZED: {"model": ErrorResponse},
+        status.HTTP_403_FORBIDDEN: {"model": ErrorResponse},
+        status.HTTP_404_NOT_FOUND: {"model": ErrorResponse},
+    },
+)
+async def get_attempt_review(
+    attempt_id: Annotated[uuid.UUID, Path(description="Shadowing attempt ID")],
+    current_user: CurrentUser,
+    session: DatabaseSession,
+) -> ShadowingAttemptReviewResponse:
+    service = ShadowingService(RecordingRepository(session))
+    return await service.get_attempt_review(
+        user_id=current_user.id,
         attempt_id=attempt_id,
     )
 

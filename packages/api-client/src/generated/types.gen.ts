@@ -853,6 +853,57 @@ export type RegisterRequest = {
 };
 
 /**
+ * ShadowingAttemptReviewResponse
+ */
+export type ShadowingAttemptReviewResponse = {
+  /**
+   * Attempt Id
+   */
+  attempt_id: string;
+  /**
+   * Content Id
+   */
+  content_id: string;
+  /**
+   * Title
+   */
+  title: string;
+  /**
+   * Difficulty
+   */
+  difficulty: string;
+  /**
+   * Audio Url
+   */
+  audio_url?: string | null;
+  status: AttemptStatus;
+  /**
+   * Score
+   */
+  score?: number | null;
+  /**
+   * Earned Exp
+   */
+  earned_exp?: number;
+  /**
+   * Completed At
+   */
+  completed_at?: string | null;
+  /**
+   * Total Segments
+   */
+  total_segments: number;
+  /**
+   * Completed Segments
+   */
+  completed_segments: number;
+  /**
+   * Segments
+   */
+  segments: Array<ShadowingSegmentReviewItem>;
+};
+
+/**
  * ShadowingContentDetail
  */
 export type ShadowingContentDetail = {
@@ -942,6 +993,112 @@ export type ShadowingRecordingPlaybackResponse = {
    * Created At
    */
   created_at: string;
+};
+
+/**
+ * ShadowingSegmentReviewItem
+ */
+export type ShadowingSegmentReviewItem = {
+  /**
+   * Segment Index
+   */
+  segment_index: number;
+  /**
+   * Script
+   */
+  script: string;
+  /**
+   * Start Time Ms
+   */
+  start_time_ms?: number;
+  /**
+   * End Time Ms
+   */
+  end_time_ms?: number;
+  /**
+   * Recorded
+   */
+  recorded: boolean;
+  /**
+   * Recording Id
+   */
+  recording_id?: string | null;
+  /**
+   * Playback Url
+   */
+  playback_url?: string | null;
+  /**
+   * Duration Seconds
+   */
+  duration_seconds?: number | null;
+};
+
+/**
+ * ShadowingSubmitRequest
+ */
+export type ShadowingSubmitRequest = {
+  /**
+   * Attempt Id
+   */
+  attempt_id: string;
+  /**
+   * Replay Count
+   */
+  replay_count?: number;
+};
+
+/**
+ * ShadowingSubmitResponse
+ */
+export type ShadowingSubmitResponse = {
+  /**
+   * Attempt Id
+   */
+  attempt_id: string;
+  status: AttemptStatus;
+  /**
+   * Score
+   */
+  score: number;
+  /**
+   * Xp Earned
+   */
+  xp_earned: number;
+  /**
+   * Content Type
+   */
+  content_type?: string;
+  /**
+   * Difficulty
+   */
+  difficulty: string;
+  /**
+   * Message
+   */
+  message?: string;
+  user_progress: ShadowingUserProgressSummary;
+  /**
+   * Completed At
+   */
+  completed_at: string;
+};
+
+/**
+ * ShadowingUserProgressSummary
+ */
+export type ShadowingUserProgressSummary = {
+  /**
+   * Total Exp
+   */
+  total_exp: number;
+  /**
+   * Current Level
+   */
+  current_level: number;
+  /**
+   * Exp To Next Level
+   */
+  exp_to_next_level: number;
 };
 
 /**
@@ -1534,6 +1691,102 @@ export type RecordShadowingSegmentResponses = {
 export type RecordShadowingSegmentResponse =
   RecordShadowingSegmentResponses[keyof RecordShadowingSegmentResponses];
 
+export type SubmitShadowingAttemptData = {
+  body: ShadowingSubmitRequest;
+  path: {
+    /**
+     * Content Id
+     *
+     * Published shadowing content ID
+     */
+    content_id: string;
+  };
+  query?: never;
+  url: "/api/v1/shadowing/{content_id}/submit";
+};
+
+export type SubmitShadowingAttemptErrors = {
+  /**
+   * Bad Request
+   */
+  400: ErrorResponse;
+  /**
+   * Unauthorized
+   */
+  401: ErrorResponse;
+  /**
+   * Forbidden
+   */
+  403: ErrorResponse;
+  /**
+   * Not Found
+   */
+  404: ErrorResponse;
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SubmitShadowingAttemptError =
+  SubmitShadowingAttemptErrors[keyof SubmitShadowingAttemptErrors];
+
+export type SubmitShadowingAttemptResponses = {
+  /**
+   * Successful Response
+   */
+  200: ShadowingSubmitResponse;
+};
+
+export type SubmitShadowingAttemptResponse =
+  SubmitShadowingAttemptResponses[keyof SubmitShadowingAttemptResponses];
+
+export type GetShadowingAttemptReviewData = {
+  body?: never;
+  path: {
+    /**
+     * Attempt Id
+     *
+     * Shadowing attempt ID
+     */
+    attempt_id: string;
+  };
+  query?: never;
+  url: "/api/v1/shadowing/attempts/{attempt_id}/review";
+};
+
+export type GetShadowingAttemptReviewErrors = {
+  /**
+   * Unauthorized
+   */
+  401: ErrorResponse;
+  /**
+   * Forbidden
+   */
+  403: ErrorResponse;
+  /**
+   * Not Found
+   */
+  404: ErrorResponse;
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetShadowingAttemptReviewError =
+  GetShadowingAttemptReviewErrors[keyof GetShadowingAttemptReviewErrors];
+
+export type GetShadowingAttemptReviewResponses = {
+  /**
+   * Successful Response
+   */
+  200: ShadowingAttemptReviewResponse;
+};
+
+export type GetShadowingAttemptReviewResponse =
+  GetShadowingAttemptReviewResponses[keyof GetShadowingAttemptReviewResponses];
+
 export type GetShadowingRecordingPlaybackData = {
   body?: never;
   path: {
@@ -1609,7 +1862,7 @@ export type CheckDictationSegmentErrors = {
    */
   409: ErrorResponse;
   /**
-   * Unprocessable Entity
+   * Unprocessable Content
    */
   422: ErrorResponse;
 };
