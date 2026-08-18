@@ -1,8 +1,10 @@
-"""OpenAI provider adapter for the AI Gateway."""
+"""OpenAI-compatible provider adapter for the AI Gateway.
 
-from collections.abc import Awaitable, Callable
+Serves any API that follows the OpenAI-compatible REST shape (OpenAI, Groq, ...);
+a provider is just a base_url + api_key + models configured in settings.
+"""
+
 from dataclasses import dataclass, field
-from typing import TypeVar
 
 import httpx
 
@@ -15,31 +17,23 @@ from app.integrations.ai.base import (
     response_json_mapping,
 )
 from app.integrations.ai.contracts import (
-    EvaluationResult,
     TranscriptionResult,
-    TutorReply,
-    parse_evaluation_result,
     parse_transcription_result,
-    parse_tutor_reply,
 )
-from app.integrations.ai.prompts import (
-    build_reflex_eval_prompt,
-    build_translation_eval_prompt,
-    build_tutor_messages,
-)
-
-T = TypeVar("T")
+from app.integrations.ai.providers.base import BaseAiGateway
 
 
 @dataclass(frozen=True)
 class OpenAiProviderConfig(AiProviderConfig):
-    """OpenAI-specific settings layered on the shared AI provider config."""
+    """OpenAI-compatible settings layered on the shared AI provider config."""
 
     response_format: dict[str, object] = field(default_factory=lambda: {"type": "json_object"})
 
 
-class OpenAiAiGateway:
-    """Adapter that talks to the OpenAI API over HTTP."""
+class OpenAiCompatibleAiGateway(BaseAiGateway):
+    """Adapter that talks to any OpenAI-compatible chat/transcription API over HTTP."""
+
+    _config: OpenAiProviderConfig
 
     def __init__(
         self, config: OpenAiProviderConfig, client: httpx.AsyncClient | None = None
@@ -98,37 +92,6 @@ class OpenAiAiGateway:
             language=language,
         )
 
-    async def evaluate_reflex(self, *, question: str, transcript: str) -> EvaluationResult:
-        prompt = build_reflex_eval_prompt(question=question, transcript=transcript)
-        content = await self._call("reflex", lambda: self._chat(prompt))
-        return parse_evaluation_result(content)
-
-    async def evaluate_translation(
-        self,
-        *,
-        source_text: str,
-        reference_translation: str,
-        user_translation: str,
-    ) -> EvaluationResult:
-        prompt = build_translation_eval_prompt(
-            source_text=source_text,
-            reference_translation=reference_translation,
-            user_translation=user_translation,
-        )
-        content = await self._call("translation", lambda: self._chat(prompt))
-        return parse_evaluation_result(content)
-
-    async def generate_tutor_reply(
-        self,
-        *,
-        messages: list[TutorMessage],
-        topic: str,
-        difficulty: str,
-    ) -> TutorReply:
-        prompt = build_tutor_messages(messages=messages, topic=topic, difficulty=difficulty)
-        content = await self._call("tutor", lambda: self._chat(prompt))
-        return parse_tutor_reply(content)
-
     async def _chat(self, messages: list[TutorMessage]) -> str:
         payload: dict[str, object] = {
             "model": self._config.llm_model,
@@ -146,7 +109,3 @@ class OpenAiAiGateway:
             raise_for_request_error(exc)
         raise_for_provider_error(response)
         return chat_content(response_json_mapping(response))
-
-    async def _call(self, capability: str, operation: Callable[[], Awaitable[T]]) -> T:
-        policy = self._config.retry_policy(timeout_seconds=self._config.timeout_for(capability))
-        return await policy.call(operation)

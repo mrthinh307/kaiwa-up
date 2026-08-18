@@ -1,4 +1,4 @@
-"""Speech-to-text prompt builder."""
+"""Builder prompt chuyển giọng nói thành văn bản (STT)."""
 
 from app.integrations.ai.prompts.common import (
     TRANSCRIPTION_JSON_SCHEMA,
@@ -7,11 +7,11 @@ from app.integrations.ai.prompts.common import (
 
 
 def build_stt_instruction(*, language: str, prompt_hint: str | None = None) -> str:
-    """Build the transcription instruction for a given language."""
+    """Xây dựng hướng dẫn phiên âm audio tiếng Nhật sang văn bản."""
     instruction = (
-        f"Transcribe the Japanese audio to text in language {language}. "
+        f"Chuyển âm thanh tiếng Nhật sang văn bản bằng ngôn ngữ {language}. "
         f"{build_json_instruction(TRANSCRIPTION_JSON_SCHEMA)}"
     )
     if prompt_hint:
-        instruction += f" Context hints: {prompt_hint}"
+        instruction += f" Gợi ý ngữ cảnh: {prompt_hint}"
     return instruction

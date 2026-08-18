@@ -80,6 +80,13 @@ class AiGateway(Protocol):
         transcript: str,
     ) -> EvaluationResult: ...
 
+    async def evaluate_shadowing(
+        self,
+        *,
+        reference_transcript: str,
+        user_transcript: str,
+    ) -> EvaluationResult: ...
+
     async def evaluate_translation(
         self,
         *,

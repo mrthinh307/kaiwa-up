@@ -1,15 +1,21 @@
 """Deterministic fake AI Gateway for local development and tests."""
 
+import json
+from collections.abc import Awaitable, Callable
+from typing import TypeVar
+
 from app.integrations.ai.base import TutorMessage
 from app.integrations.ai.contracts import (
-    EvaluationResult,
     TranscriptionResult,
     TranscriptionSegment,
     TutorReply,
 )
+from app.integrations.ai.providers.base import BaseAiGateway
+
+T = TypeVar("T")
 
 
-class FakeAiGateway:
+class FakeAiGateway(BaseAiGateway):
     """In-memory adapter that always succeeds with canned results."""
 
     async def transcribe(
@@ -34,26 +40,14 @@ class FakeAiGateway:
             ],
         )
 
-    async def evaluate_reflex(self, *, question: str, transcript: str) -> EvaluationResult:
-        return EvaluationResult(
-            score=100,
-            is_acceptable=True,
-            feedback="Perfect response.",
-            hints=[],
-        )
-
-    async def evaluate_translation(
-        self,
-        *,
-        source_text: str,
-        reference_translation: str,
-        user_translation: str,
-    ) -> EvaluationResult:
-        return EvaluationResult(
-            score=100,
-            is_acceptable=True,
-            feedback="Perfect translation.",
-            hints=[],
+    async def _chat(self, messages: list[TutorMessage]) -> str:
+        return json.dumps(
+            {
+                "score": 100,
+                "is_acceptable": True,
+                "feedback": "Perfect response.",
+                "hints": [],
+            }
         )
 
     async def generate_tutor_reply(
@@ -69,3 +63,6 @@ class FakeAiGateway:
             hints=[],
             follow_up_question="Bạn muốn luyện phần nào tiếp theo?",
         )
+
+    async def _call(self, capability: str, operation: Callable[[], Awaitable[T]]) -> T:
+        return await operation()

@@ -988,25 +988,37 @@ AI Gateway nằm trong `apps/api/app/integrations/ai/`, chia theo chức năng:
 
 ```text
 integrations/ai/
-├── __init__.py          # export public + FallbackAiGateway + build_ai_gateway(settings)
-├── base.py              # interface chung AiGateway (STT, Reflex, Translation, Tutor) + AiProviderConfig + HTTP helpers
+├── __init__.py          # export public + FallbackAiGateway + RoutedAiGateway + build_ai_gateway(settings)
+├── base.py              # interface chung AiGateway (STT, Reflex, Shadowing, Translation, Tutor) + AiProviderConfig + HTTP helpers
 ├── contracts.py         # contract chuẩn hóa: transcript, score, feedback, correction, hints + parser
 ├── policy.py            # timeout, retry giới hạn, backoff
 ├── prompts/             # prompt theo từng chức năng
 │   ├── common.py        # prompt chung: JSON schema chuẩn + persona + helper build_json_instruction
 │   ├── speech2text.py   # build_stt_instruction
 │   ├── reflex.py        # build_reflex_eval_prompt
+│   ├── shadowing.py     # build_shadowing_eval_prompt
 │   ├── translation.py   # build_translation_eval_prompt
 │   └── tutor.py         # build_tutor_messages
 └── providers/           # adapter provider (dùng httpx, không dùng SDK)
-    ├── openai.py        # OpenAiProviderConfig + OpenAiAiGateway
-    ├── gemini.py        # GeminiProviderConfig + GeminiAiGateway
+    ├── base.py          # BaseAiGateway: triển khai chung mọi LLM capability qua _chat/transcribe
+    ├── openai.py        # OpenAiProviderConfig + OpenAiCompatibleAiGateway (OpenAI, Groq, ...)
     └── fake.py          # FakeAiGateway cho dev/test
 ```
 
-- **Interface chung**: business module chỉ phụ thuộc protocol `AiGateway` (4 capability: `transcribe`,
-  `evaluate_reflex`, `evaluate_translation`, `generate_tutor_reply`); không biết provider cụ thể, không
-  lộ API key hay payload riêng của provider.
+- **Interface chung**: business module chỉ phụ thuộc protocol `AiGateway` (5 capability: `transcribe`,
+  `evaluate_reflex`, `evaluate_shadowing`, `evaluate_translation`, `generate_tutor_reply`); không biết
+  provider cụ thể, không lộ API key hay payload riêng của provider.
+- **Triển khai chung**: `providers/base.py` (`BaseAiGateway`) dùng chung mọi LLM capability
+  (reflex/shadowing/translation/tutor + timeout/retry qua `_call`); provider chỉ triển khai `_chat` và
+  `transcribe`. `FakeAiGateway` kế thừa base, chỉ override `_chat` (trả JSON mẫu), `transcribe`,
+  `generate_tutor_reply` và `_call` (chạy thẳng).
+- **Routing theo chức năng**: `build_ai_gateway(settings)` chia 3 lane — `tutor` (generate_tutor_reply),
+  `evaluate` (reflex/shadowing/translation), `stt` (transcribe). Mỗi lane có provider primary + fallback
+  riêng (`AI_<LANE>_PROVIDER` / `AI_<LANE>_FALLBACK_PROVIDERS`); lane rỗng hoặc `fake` dùng
+  `FakeAiGateway`. Cùng 1 provider cho cả 3 lane → trả adapter đơn, khác nhau → `RoutedAiGateway`.
+- **Provider theo dialect**: `OpenAiCompatibleAiGateway` phục vụ mọi API tương thích OpenAI (OpenAI,
+  Groq...); cắm dịch vụ mới chỉ cần thêm config `AI_<NAME>_*` + đăng ký trong `_provider_registry` —
+  không cần file adapter mới nếu cùng dialect. Không dùng Gemini/GeminiAiGateway nữa.
 - **Prompt chung** (`prompts/common.py`): các JSON schema chuẩn (transcription/evaluation/tutor),
   persona dùng chung và helper `build_json_instruction`; prompt riêng từng chức năng kế thừa từ đây để
   tránh trùng lặp schema.

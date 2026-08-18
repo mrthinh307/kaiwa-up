@@ -1,13 +1,15 @@
 """Provider adapters for the AI Gateway."""
 
+from app.integrations.ai.providers.base import BaseAiGateway
 from app.integrations.ai.providers.fake import FakeAiGateway
-from app.integrations.ai.providers.gemini import GeminiAiGateway, GeminiProviderConfig
-from app.integrations.ai.providers.openai import OpenAiAiGateway, OpenAiProviderConfig
+from app.integrations.ai.providers.openai import (
+    OpenAiCompatibleAiGateway,
+    OpenAiProviderConfig,
+)
 
 __all__ = [
+    "BaseAiGateway",
     "FakeAiGateway",
-    "GeminiAiGateway",
-    "GeminiProviderConfig",
-    "OpenAiAiGateway",
+    "OpenAiCompatibleAiGateway",
     "OpenAiProviderConfig",
 ]
