@@ -684,8 +684,9 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
     "is_last_segment": false
   }
   ```
-* **Quy tắc chuẩn hóa**: Loại bỏ mọi khoảng trắng và các dấu `。`, `、` trước khi so sánh
-  chính xác. Gửi lại cùng `segment_index` sẽ thay thế kết quả cũ, không tạo bản ghi trùng.
+* **Quy tắc chuẩn hóa**: Loại bỏ mọi khoảng trắng và dấu câu Unicode, gồm `。`, `、`, `.`, `,`,
+  `?`, `!`, `…` và các dấu ngoặc, trước khi so sánh chính xác. Gửi lại cùng `segment_index` sẽ thay
+  thế kết quả cũ, không tạo bản ghi trùng.
 * **Dữ liệu lưu trong `answer_payload`**:
   ```json
   {
@@ -712,8 +713,9 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
 
 #### `POST /api/v1/dictation/complete`
 * **Mục đích**: Đóng attempt sau khi người dùng hoàn thành các segment hoặc chọn nộp sớm. Backend
-  tính điểm dựa trên toàn bộ số segment, cập nhật attempt và cấp `base_exp` trong cùng một DB
-  transaction. Segment chưa được kiểm tra khi nộp sớm được tính là chưa đúng.
+  tính điểm dựa trên toàn bộ số segment, cập nhật attempt và cấp EXP theo tỷ lệ segment có câu trả
+  lời không rỗng trong cùng một DB transaction. Segment chưa được kiểm tra khi nộp sớm được tính là
+  chưa đúng; attempt chưa trả lời segment nào nhận `earned_exp = 0` và không tạo bút toán EXP.
 * **Yêu cầu xác thực**: Bearer Token; attempt phải thuộc user hiện tại.
 * **Request Headers**: `Authorization: Bearer <jwt_access_token>`, `Content-Type: application/json`
 * **Path Parameters**: Không
@@ -736,14 +738,24 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
     "completed_at": "2026-08-13T11:30:00Z"
   }
   ```
+* **Quy tắc EXP Dictation**: Tỷ lệ hoàn thành bằng số segment có câu trả lời không rỗng chia cho
+  tổng số segment.
+  * `0%`: `0 EXP`.
+  * Trên `0%` và dưới `5%`: `5 EXP`.
+  * Từ `5%` đến dưới `25%`: `15 EXP`.
+  * Từ `25%` đến dưới `50%`: `25 EXP`.
+  * Từ `50%` đến dưới `75%`: `40 EXP`.
+  * Từ `75%` đến `100%`: `50 EXP`.
 * **Quy tắc transaction và idempotency**:
   * Cập nhật attempt, tạo `xp_transactions` và cập nhật `user_progress.total_exp` cùng commit hoặc
     cùng rollback.
+  * Attempt không có segment nào chứa câu trả lời không rỗng vẫn được hoàn tất nhưng không tạo
+    `xp_transactions` và không thay đổi `user_progress.total_exp`.
   * Khóa attempt trong lúc complete; attempt không còn `in_progress` bị từ chối để không cấp EXP
     lần hai.
   * UNIQUE `xp_transactions.attempt_id` là lớp bảo vệ cuối cùng chống ghi sổ EXP trùng.
 * **Status Codes & Error Responses**:
-  * `200 OK`: Attempt được hoàn tất và EXP được cấp thành công.
+  * `200 OK`: Attempt được hoàn tất; response trả EXP đã cấp hoặc `0` nếu chưa trả lời segment nào.
   * `401 Unauthorized` (`code`: `unauthorized`): Chưa đăng nhập.
   * `403 Forbidden` (`code`: `forbidden`): Attempt không thuộc user hiện tại.
   * `404 Not Found` (`code`: `not_found`): Không tìm thấy Dictation attempt.

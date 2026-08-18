@@ -542,6 +542,12 @@ Quy tắc MVP:
 * Không tính lại số lần làm lại vào tỷ lệ hoàn thành ban đầu.
 * Tỷ lệ hoàn thành được tính dựa trên số câu đã được submit so với tổng số câu.
 * EXP được tính theo tỷ lệ hoàn thành và cơ chế riêng của Dictation.
+  * `0%`: `0 EXP`.
+  * Trên `0%` và dưới `5%`: `5 EXP`.
+  * Từ `5%` đến dưới `25%`: `15 EXP`.
+  * Từ `25%` đến dưới `50%`: `25 EXP`.
+  * Từ `50%` đến dưới `75%`: `40 EXP`.
+  * Từ `75%` trở lên: `50 EXP`.
 * Kết quả kiểm tra đáp án được lưu để hiển thị lại cho người dùng.
 
 ---
