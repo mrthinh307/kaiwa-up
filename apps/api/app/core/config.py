@@ -31,6 +31,7 @@ class Settings(BaseSettings):
     CLOUDINARY_API_KEY: str | None = None
     CLOUDINARY_API_SECRET: str | None = None
     CLOUDINARY_URL: str | None = None
+    CLOUDINARY_FOLDER: str = "kaiwa-up"
 
     model_config = SettingsConfigDict(
         env_file=".env",
