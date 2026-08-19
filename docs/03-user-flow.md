@@ -362,8 +362,7 @@ flowchart TD
     N --> O[Hiển thị phản hồi và gợi ý]
     O --> P{Tiếp tục hội thoại?}
     P -- Có --> H
-    P -- Không --> Q[POST complete]
-    Q --> R[Lưu lịch sử hội thoại]
+    P -- Không --> R[Lưu lịch sử hội thoại]
 ```
 
 ## 10.2. Luồng lỗi

@@ -429,7 +429,7 @@ POST /api/v1/ai-tutor/conversations
 GET /api/v1/ai-tutor/conversations
 GET /api/v1/ai-tutor/conversations/{conversation_id}
 POST /api/v1/ai-tutor/conversations/{conversation_id}/messages
-POST /api/v1/ai-tutor/conversations/{conversation_id}/complete
+DELETE /api/v1/ai-tutor/conversations/{conversation_id}
 ```
 
 - Tạo conversation từ topic/difficulty bắt buộc và scenario tùy chọn do user nhập.
@@ -439,12 +439,12 @@ POST /api/v1/ai-tutor/conversations/{conversation_id}/complete
 - Dùng `client_message_id` trên mỗi user message để retry không tạo duplicate.
 - Gửi context hội thoại có giới hạn sang AI Gateway.
 - Chuẩn hóa mỗi phản hồi AI gồm:
-  - Nội dung phản hồi.
-  - Câu hỏi tiếp theo.
+  - Nội dung phản hồi bằng tiếng Nhật.
+  - Bản dịch tiếng Việt của nội dung phản hồi.
   - Tối đa 3 gợi ý trả lời trong `feedback.answer_hints`.
   - Nghĩa tiếng Việt của từng gợi ý.
-  - Sửa lỗi ngữ pháp.
-  - Gợi ý cách diễn đạt tự nhiên.
+  - Giải thích sửa lỗi ngữ pháp bằng tiếng Việt.
+  - Giải thích cách diễn đạt tự nhiên bằng tiếng Việt.
 - Lưu gợi ý cùng message để có thể tải lại.
 - Kiểm tra ownership conversation.
 - Xử lý AI timeout mà không làm mất user message.
@@ -459,7 +459,7 @@ POST /api/v1/ai-tutor/conversations/{conversation_id}/complete
 - Gợi ý không quá dài và không bắt buộc người dùng sao chép nguyên câu.
 - Lịch sử message và hints được lưu đúng thứ tự.
 - Người dùng không truy cập được conversation của người khác.
-- Conversation đã complete không nhận message mới.
+- Refresh hoặc rời trang không làm mất lịch sử conversation.
 
 ---
 

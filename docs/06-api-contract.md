@@ -130,9 +130,8 @@ Mỗi AI question có tối đa 3 `TutorAnswerHintSchema`. Frontend chỉ điề
 ### TutorFeedbackSchema
 ```json
 {
-  "next_question": "金閣寺と清水寺、どちらに行きたいですか？",
-  "grammar_correction": "お寺を見ます -> お寺を見たいです",
-  "natural_expression_tip": "京都でお寺めぐりをしたいです。",
+  "grammar_correction": "Cụm 「お寺を見ます」 đang diễn tả hành động hiện tại. Để nói mong muốn, hãy dùng 「お寺を見たいです」.",
+  "natural_expression_tip": "Bạn có thể diễn đạt tự nhiên hơn bằng câu 「京都でお寺めぐりをしたいです」.",
   "answer_hints": [
     {
       "text": "金閣寺に行きたいです。",
@@ -142,20 +141,20 @@ Mỗi AI question có tối đa 3 `TutorAnswerHintSchema`. Frontend chỉ điề
 }
 ```
 
-`grammar_correction`, `natural_expression_tip` và `next_question` có thể là `null`. `answer_hints`
+`grammar_correction` và `natural_expression_tip` có thể là `null`. `answer_hints`
 luôn là array và rỗng khi AI không tạo gợi ý.
 
 ### TutorMessageSchema
 ```json
 {
   "id": "msg_03",
-  "sender": "ai",
-  "sequence_number": 3,
-  "text": "京都のお寺はとても綺麗ですよ！",
+    "sender": "ai",
+    "sequence_number": 3,
+    "text": "京都のお寺はとても綺麗ですよ！",
+    "text_vi": "Các ngôi chùa ở Kyoto rất đẹp!",
   "client_message_id": null,
   "created_at": "2026-08-06T14:51:05.000Z",
   "feedback": {
-    "next_question": null,
     "grammar_correction": null,
     "natural_expression_tip": null,
     "answer_hints": []
@@ -1494,9 +1493,9 @@ ra public contract.
       "sender": "ai",
       "sequence_number": 1,
       "text": "こんにちは！日本旅行について話しましょう。どこに行きたいですか？",
+      "text_vi": "Xin chào! Hãy cùng nói về chuyến du lịch Nhật Bản nhé. Bạn muốn đi đâu?",
       "created_at": "2026-08-06T14:50:00.000Z",
       "feedback": {
-        "next_question": "どこに行きたいですか？",
         "grammar_correction": null,
         "natural_expression_tip": null,
         "answer_hints": [
@@ -1575,9 +1574,9 @@ ra public contract.
         "sender": "ai",
         "sequence_number": 1,
         "text": "こんにちは！日本旅行について話しましょう。どこに行きたいですか？",
+        "text_vi": "Xin chào! Hãy cùng nói về chuyến du lịch Nhật Bản nhé. Bạn muốn đi đâu?",
         "created_at": "2026-08-06T14:50:00.000Z",
         "feedback": {
-          "next_question": "どこに行きたいですか？",
           "grammar_correction": null,
           "natural_expression_tip": null,
           "answer_hints": []
@@ -1588,6 +1587,7 @@ ra public contract.
         "sender": "user",
         "sequence_number": 2,
         "text": "京都に行きたいです。",
+        "text_vi": null,
         "client_message_id": "333e8400-e29b-41d4-a716-446655440333",
         "created_at": "2026-08-06T14:51:00.000Z",
         "feedback": null
@@ -1625,6 +1625,7 @@ ra public contract.
       "sender": "user",
       "sequence_number": 2,
       "text": "京都に行きたいです。お寺を見ます。",
+      "text_vi": null,
       "client_message_id": "333e8400-e29b-41d4-a716-446655440333",
       "created_at": "2026-08-06T14:51:00.000Z",
       "feedback": null
@@ -1634,11 +1635,11 @@ ra public contract.
       "sender": "ai",
       "sequence_number": 3,
       "text": "京都のお寺はとても綺麗ですよ！金閣寺や清水寺が有名です。どちらに行きたいですか？",
+      "text_vi": "Các ngôi chùa ở Kyoto rất đẹp! Kinkaku-ji và Kiyomizu-dera rất nổi tiếng. Bạn muốn đi đâu?",
       "created_at": "2026-08-06T14:51:05.000Z",
       "feedback": {
-        "next_question": "金閣寺と清水寺、どちらに行きたいですか？",
-        "grammar_correction": "お寺を見ます -> お寺を見たいです (Diễn đạt ý muốn tự nhiên hơn)",
-        "natural_expression_tip": "京都でお寺めぐりをしたいです (Tôi muốn đi tham quan các ngôi chùa ở Kyoto).",
+        "grammar_correction": "Cụm 「お寺を見ます」 đang diễn tả hành động hiện tại. Để nói mong muốn, hãy dùng 「お寺を見たいです」.",
+        "natural_expression_tip": "Bạn có thể diễn đạt tự nhiên hơn bằng câu 「京都でお寺めぐりをしたいです」.",
         "answer_hints": [
           {
             "text": "金閣寺に行きたいです。",
@@ -1660,28 +1661,19 @@ ra public contract.
 
 ---
 
-#### `POST /api/v1/ai-tutor/conversations/{conversation_id}/complete`
-* **Mục đích**: Đóng một conversation đang active và ghi nhận thời điểm kết thúc.
+#### `DELETE /api/v1/ai-tutor/conversations/{conversation_id}`
+* **Mục đích**: Xóa vĩnh viễn conversation của user hiện tại cùng toàn bộ message thuộc conversation.
 * **Yêu cầu xác thực**: Bearer Token
 * **Request Headers**: `Authorization: Bearer <jwt_access_token>`
 * **Path Parameters**:
   * `conversation_id` (string, UUID): ID phiên hội thoại
 * **Request Body**: Không
-* **Response Schema (200 OK)**:
-  ```json
-  {
-    "conversation_id": "111e8400-e29b-41d4-a716-446655440111",
-    "status": "completed",
-    "ended_at": "2026-08-06T14:55:00.000Z"
-  }
-  ```
+* **Response**: `204 No Content`
 * **Status Codes & Error Responses**:
-  * `200 OK`: Đóng conversation thành công; gọi lại endpoint là idempotent.
+  * `204 No Content`: Xóa thành công.
   * `401 Unauthorized` (`code`: `unauthorized`): Chưa đăng nhập.
   * `403 Forbidden` (`code`: `forbidden`): Không có quyền truy cập conversation.
   * `404 Not Found` (`code`: `not_found`): Conversation không tồn tại.
-
----
 
 ### 3.15. Pronunciation Analysis Module (P2)
 

@@ -201,6 +201,7 @@ erDiagram
         VARCHAR sender
         INTEGER sequence_number
         TEXT content
+        TEXT text_vi
         UUID client_message_id
         UUID recording_id FK
         JSONB feedback
@@ -497,9 +498,10 @@ gần nhất.
 | `sender` | VARCHAR(32) | Không | - | CHECK `tutor_sender` | Bên gửi trong storage: `USER` hoặc `AI`; API trả `user` hoặc `ai`. |
 | `sequence_number` | INTEGER | Không | - | UNIQUE cùng `session_id` | Vị trí tuyệt đối trong phiên, tránh phụ thuộc timestamp khi sắp thứ tự. |
 | `content` | TEXT | Không | - | - | Nội dung văn bản của lượt hội thoại. |
+| `text_vi` | TEXT | Có | - | - | Bản dịch tiếng Việt của AI message; NULL với user message và dữ liệu lịch sử chưa được dịch. |
 | `client_message_id` | UUID | Có | - | UNIQUE cùng `session_id` | Idempotency key của user message; AI message để NULL. |
 | `recording_id` | UUID | Có | - | FK `recordings.id` ON DELETE SET NULL | Bản ghi giọng nói đính kèm; giữ message nếu recording bị xóa. |
-| `feedback` | JSONB | Có | - | - | Object chuẩn hóa gồm `next_question`, correction, natural expression và tối đa 3 `answer_hints`. |
+| `feedback` | JSONB | Có | - | - | Object chuẩn hóa gồm correction, natural expression và tối đa 3 `answer_hints`. |
 | `created_at` | TIMESTAMPTZ | Không | `now()` | - | Thời điểm lưu tin nhắn. |
 
 UNIQUE `uq_tutor_messages_sequence` trên `(session_id, sequence_number)` ngăn hai message chiếm cùng
@@ -517,6 +519,7 @@ Phase 2 bổ sung UNIQUE `uq_tutor_messages_client_message_id` trên `(session_i
 - Recording có thể không thuộc attempt để hỗ trợ giọng nói trong AI Tutor. Khi recording bị xóa,
   tham chiếu từ evaluation/message được đặt NULL.
 - Tutor session lưu trực tiếp snapshot `topic`, `difficulty` và `scenario`; không có FK tới catalog.
+- Xóa một Tutor session cascade đến toàn bộ `tutor_messages` thuộc session đó.
 - Tạo attempt, chấm điểm, cấp EXP và cập nhật `user_progress` phải nằm trong một transaction do
   service quản lý.
 - Các enum được lưu bằng `VARCHAR` kèm CHECK constraint, không dùng PostgreSQL native enum.
@@ -554,6 +557,8 @@ Chuỗi migration hiện tại:
 7. `6d4f92a1c8e7`: khóa toàn vẹn số/enum, bảo toàn sổ cái EXP và chuẩn hóa độ khó Tutor.
 8. `a4c8d2e6f1b3`: thêm catalog Tutor scenario và liên kết nguồn scenario với phiên hội thoại.
 9. `c9f1b4e8d2a6`: thêm `client_message_id` và constraint idempotency cho Tutor message.
+10. `e4f6a8c2d1b3`: xóa key feedback `next_question` đã deprecated khỏi Tutor message.
+11. `f1a2b3c4d5e6`: thêm bản dịch tiếng Việt nullable cho Tutor message.
 
 Các lệnh chạy từ repository root:
 
