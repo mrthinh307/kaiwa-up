@@ -614,3 +614,57 @@ async def test_get_in_progress_shadowing_attempt_success(
     assert len(data["recorded_segments"]) == 1
     assert data["recorded_segments"][0]["segment_id"] == "0"
     assert data["total_attempts"] == 1
+
+
+@pytest.mark.asyncio
+async def test_record_continuous_and_submit_success(
+    client: httpx.AsyncClient, db_session: AsyncSession
+):
+    user = await create_test_user(db_session, email="continuous_shadowing@example.com")
+    content = await create_shadowing_content(db_session, slug="shadowing-continuous-test")
+    # Set audio_duration_ms on content
+    content.audio_duration_ms = 10000
+    await db_session.flush()
+    app.dependency_overrides[get_current_user] = lambda: user
+
+    # 1. Record continuous audio
+    audio_bytes = b"fake_continuous_audio_bytes" * 500
+    files = {"audio_file": ("continuous.webm", BytesIO(audio_bytes), "audio/webm")}
+    data = {"duration_seconds": 10}
+
+    res_record = await client.post(
+        f"/api/v1/shadowing/{content.id}/record-continuous",
+        files=files,
+        data=data,
+    )
+    assert res_record.status_code == 201
+    rec_data = res_record.json()
+    assert "recording_id" in rec_data
+    assert "attempt_id" in rec_data
+    attempt_id = rec_data["attempt_id"]
+
+    # 2. Check in-progress status shows continuous mode
+    res_in_prog = await client.get(f"/api/v1/shadowing/{content.id}/in-progress")
+    assert res_in_prog.status_code == 200
+    in_prog_data = res_in_prog.json()
+    assert in_prog_data["mode"] == "continuous"
+    assert in_prog_data["continuous_recording"] is not None
+
+    # 3. Submit attempt
+    res_submit = await client.post(
+        f"/api/v1/shadowing/{content.id}/submit",
+        json={"attempt_id": attempt_id, "replay_count": 0},
+    )
+    assert res_submit.status_code == 200
+    submit_data = res_submit.json()
+    assert submit_data["status"] == "completed"
+    assert submit_data["score"] == 100.0
+    assert submit_data["xp_earned"] == 50
+
+    # 4. Check review
+    res_review = await client.get(f"/api/v1/shadowing/attempts/{attempt_id}/review")
+    assert res_review.status_code == 200
+    rev_data = res_review.json()
+    assert rev_data["mode"] == "continuous"
+    assert rev_data["user_continuous_recording_url"] is not None
+    assert rev_data["user_continuous_duration_seconds"] == 10

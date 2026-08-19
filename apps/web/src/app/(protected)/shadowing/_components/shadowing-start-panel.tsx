@@ -5,24 +5,28 @@ import type { ShadowingContentDetail, ShadowingResumeResponse } from "@kaiwa-app
 import {
   ArrowLeft,
   Bookmark,
+  CheckCircle2,
   Clock3,
   History,
   Info,
   Layers3,
+  ListOrdered,
   LoaderCircle,
   PlayCircle,
+  Radio,
   RotateCcw,
   Tag,
   Video,
   VideoOff,
 } from "lucide-react";
 import Link from "next/link";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 import { PracticeMethodGuide } from "@/components/common/practice-catalog/practice-method-guide";
 import { ProtectedPageHeader } from "@/components/common/protected-route/protected-page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 import { SHADOWING_STEPS } from "../_constants/shadowing-constants";
 import { formatShadowingDuration, getYouTubeVideoId } from "../_utils/shadowing-formatters";
@@ -33,7 +37,7 @@ type ShadowingStartPanelProps = {
   isStarting: boolean;
   lesson: ShadowingContentDetail;
   onResume: () => void;
-  onStart: () => void;
+  onStart: (mode: "segmented" | "continuous") => void;
   totalAttempts: number;
 };
 
@@ -46,6 +50,11 @@ export function ShadowingStartPanel({
   onStart,
   totalAttempts,
 }: ShadowingStartPanelProps) {
+  const [userSelectedMode, setUserSelectedMode] = useState<"segmented" | "continuous" | null>(null);
+
+  const selectedMode =
+    userSelectedMode ?? (inProgressAttempt?.mode === "continuous" ? "continuous" : "segmented");
+
   const youtubeVideoId = useMemo(
     () => (lesson.audio_url ? getYouTubeVideoId(lesson.audio_url) : undefined),
     [lesson.audio_url],
@@ -125,7 +134,8 @@ export function ShadowingStartPanel({
           )}
           {inProgressAttempt && (
             <Badge className="gap-1.5 bg-chart-3 font-heading">
-              In progress (Attempt #{inProgressAttempt.attempt_number})
+              In progress ({inProgressAttempt.mode === "continuous" ? "Continuous" : "Segmented"} #
+              {inProgressAttempt.attempt_number})
             </Badge>
           )}
         </div>
@@ -187,12 +197,12 @@ export function ShadowingStartPanel({
           <div className="flex items-center gap-2 border-t-2 border-border/30 p-4 text-xs text-foreground/70 sm:p-5 sm:text-sm">
             <Info aria-hidden="true" className="size-4 shrink-0 text-foreground/60" />
             <p className="leading-relaxed">
-              You can watch or listen to the full lesson preview before you start.
+              You can watch or listen to the full lesson preview before starting.
             </p>
           </div>
         </section>
 
-        {/* Right Column: Practice Overview & Actions */}
+        {/* Right Column: Mode Selection & Practice Actions */}
         <section
           aria-labelledby="shadowing-actions-heading"
           className="overflow-hidden rounded-base border-4 border-border bg-secondary-background shadow-shadow lg:col-span-5"
@@ -205,8 +215,7 @@ export function ShadowingStartPanel({
               Shadowing Practice
             </h2>
             <p className="mt-1.5 text-xs leading-relaxed text-foreground/70 sm:text-sm">
-              Listen to each synchronized segment and record your voice in real time to train speech
-              reflexes.
+              Select your practice mode to train Japanese speech rhythm, pitch accent, and reflexes.
             </p>
           </div>
 
@@ -215,7 +224,7 @@ export function ShadowingStartPanel({
               <div className="rounded-base border-2 border-border bg-background p-3 text-center sm:p-3.5">
                 <dt className="flex items-center justify-center gap-1 text-[11px] font-heading tracking-wide uppercase text-foreground/60 sm:text-xs">
                   <Bookmark aria-hidden="true" className="size-3.5" />
-                  JLPT Level
+                  JLPT
                 </dt>
                 <dd className="mt-1 font-heading text-xl sm:text-2xl">{lesson.difficulty}</dd>
               </div>
@@ -237,11 +246,74 @@ export function ShadowingStartPanel({
               </div>
             </dl>
 
-            {inProgressAttempt && inProgressAttempt.recorded_segments.length > 0 && (
-              <div className="rounded-base border-2 border-border bg-background p-3.5 text-xs text-foreground/80 sm:text-sm">
+            {/* Practice Mode Selector Cards */}
+            <div className="space-y-2 pt-2">
+              <p className="text-xs font-heading uppercase tracking-wide text-foreground/70">
+                Choose Practice Mode
+              </p>
+
+              <div className="grid grid-cols-1 gap-2.5">
+                {/* Segment-by-segment option */}
+                <button
+                  className={cn(
+                    "flex flex-col text-left p-3.5 rounded-base border-2 border-border transition-all",
+                    selectedMode === "segmented"
+                      ? "bg-main/15 border-main shadow-shadow ring-2 ring-main/20"
+                      : "bg-background hover:bg-secondary-background",
+                  )}
+                  onClick={() => setUserSelectedMode("segmented")}
+                  type="button"
+                >
+                  <div className="flex items-center justify-between w-full">
+                    <div className="flex items-center gap-2 font-heading text-sm">
+                      <ListOrdered className="size-4 text-main" />
+                      <span>Segment by Segment</span>
+                    </div>
+                    {selectedMode === "segmented" && (
+                      <CheckCircle2 className="size-4 text-main fill-main/20" />
+                    )}
+                  </div>
+                  <p className="mt-1 text-xs text-foreground/75 leading-relaxed">
+                    Audio pauses at each boundary. Record and self-compare prompt by prompt.
+                  </p>
+                </button>
+
+                {/* Continuous option */}
+                <button
+                  className={cn(
+                    "flex flex-col text-left p-3.5 rounded-base border-2 border-border transition-all",
+                    selectedMode === "continuous"
+                      ? "bg-main/15 border-main shadow-shadow ring-2 ring-main/20"
+                      : "bg-background hover:bg-secondary-background",
+                  )}
+                  onClick={() => setUserSelectedMode("continuous")}
+                  type="button"
+                >
+                  <div className="flex items-center justify-between w-full">
+                    <div className="flex items-center gap-2 font-heading text-sm">
+                      <Radio className="size-4 text-chart-3" />
+                      <span>Continuous Shadowing</span>
+                    </div>
+                    {selectedMode === "continuous" && (
+                      <CheckCircle2 className="size-4 text-main fill-main/20" />
+                    )}
+                  </div>
+                  <p className="mt-1 text-xs text-foreground/75 leading-relaxed">
+                    Play the full material without interruptions. Record one complete voice take.
+                  </p>
+                </button>
+              </div>
+            </div>
+
+            {inProgressAttempt && (
+              <div className="rounded-base border-2 border-border bg-background p-3 text-xs text-foreground/80">
                 <p className="font-heading text-main">
-                  Saved attempt: {inProgressAttempt.recorded_segments.length} of {segmentCount}{" "}
-                  segments recorded.
+                  Saved attempt ({inProgressAttempt.mode}):{" "}
+                  {inProgressAttempt.mode === "continuous"
+                    ? inProgressAttempt.continuous_recording
+                      ? "Continuous audio recorded"
+                      : "Session started"
+                    : `${inProgressAttempt.recorded_segments?.length ?? 0} of ${segmentCount} segments recorded`}
                 </p>
               </div>
             )}
@@ -265,26 +337,27 @@ export function ShadowingStartPanel({
                   ) : (
                     <>
                       <RotateCcw aria-hidden="true" />
-                      Resume Attempt
+                      Resume Attempt (
+                      {inProgressAttempt.mode === "continuous" ? "Continuous" : "Segmented"})
                     </>
                   )}
                 </Button>
                 <Button
                   className="w-full font-heading"
                   disabled={isRestoring || isStarting}
-                  onClick={onStart}
+                  onClick={() => onStart(selectedMode)}
                   size="sm"
                   type="button"
                   variant="neutral"
                 >
-                  Start new attempt instead
+                  Start new {selectedMode} attempt instead
                 </Button>
               </div>
             ) : (
               <Button
                 className="min-h-12 w-full font-heading text-base"
                 disabled={isRestoring || isStarting || segmentCount === 0}
-                onClick={onStart}
+                onClick={() => onStart(selectedMode)}
                 size="lg"
                 type="button"
               >
@@ -301,7 +374,7 @@ export function ShadowingStartPanel({
                 ) : (
                   <>
                     <PlayCircle aria-hidden="true" />
-                    Start Shadowing Attempt
+                    Start {selectedMode === "continuous" ? "Continuous" : "Segmented"} Attempt
                   </>
                 )}
               </Button>

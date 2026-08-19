@@ -2,7 +2,15 @@
 
 import type { ReactNode } from "react";
 
-import { AlertTriangle, CheckCircle2, Flag, Headphones, LoaderCircle, Trophy } from "lucide-react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Flag,
+  Headphones,
+  LoaderCircle,
+  Radio,
+  Trophy,
+} from "lucide-react";
 import Link from "next/link";
 
 import { Badge } from "@/components/ui/badge";
@@ -19,9 +27,11 @@ import {
 } from "@/components/ui/dialog";
 
 type CompactShadowingToolbarProps = {
+  continuousDurationFormatted?: string;
   difficulty: string;
   isCompleting: boolean;
   lessonTitle: string;
+  mode?: "segmented" | "continuous";
   onComplete: () => void;
   recordedCount: number;
   settings?: ReactNode;
@@ -29,15 +39,18 @@ type CompactShadowingToolbarProps = {
 };
 
 export function CompactShadowingToolbar({
+  continuousDurationFormatted,
   difficulty,
   isCompleting,
   lessonTitle,
+  mode = "segmented",
   onComplete,
   recordedCount,
   settings,
   totalSegments,
 }: CompactShadowingToolbarProps) {
-  const isAllRecorded = recordedCount === totalSegments && totalSegments > 0;
+  const isContinuous = mode === "continuous";
+  const isAllRecorded = !isContinuous && recordedCount === totalSegments && totalSegments > 0;
   const unrecordedCount = Math.max(0, totalSegments - recordedCount);
 
   return (
@@ -57,7 +70,14 @@ export function CompactShadowingToolbar({
             JLPT {difficulty}
           </Badge>
           <Badge className="shrink-0 font-heading" variant="neutral">
-            {recordedCount}/{totalSegments} Recorded
+            {isContinuous ? (
+              <span className="inline-flex items-center gap-1">
+                <Radio className="size-3 text-chart-3" />
+                {continuousDurationFormatted ? `${continuousDurationFormatted}` : "Continuous"}
+              </span>
+            ) : (
+              `${recordedCount}/${totalSegments} Recorded`
+            )}
           </Badge>
           <div className="flex min-w-0 items-center gap-1.5">
             <Headphones aria-hidden="true" className="size-3.5 shrink-0 text-foreground/60" />
@@ -102,14 +122,14 @@ export function CompactShadowingToolbar({
               <DialogHeader>
                 <DialogTitle>Finish this attempt?</DialogTitle>
                 <DialogDescription className="leading-relaxed">
-                  You have recorded <strong>{recordedCount}</strong> of{" "}
-                  <strong>{totalSegments}</strong> segments. Completing now will calculate your
-                  score and EXP based only on completed recordings.
+                  {isContinuous
+                    ? "Completing now will calculate your score and EXP based on your continuous practice duration."
+                    : `You have recorded ${recordedCount} of ${totalSegments} segments. Completing now will calculate your score and EXP based only on completed recordings.`}
                 </DialogDescription>
               </DialogHeader>
 
               <div className="space-y-2.5 rounded-base border-2 border-border bg-secondary-background p-4 text-xs leading-relaxed sm:text-sm">
-                {unrecordedCount > 0 ? (
+                {!isContinuous && unrecordedCount > 0 ? (
                   <p className="flex items-start gap-2 text-foreground/80">
                     <AlertTriangle
                       aria-hidden="true"
@@ -125,7 +145,11 @@ export function CompactShadowingToolbar({
                 ) : (
                   <p className="flex items-start gap-2 text-foreground/80">
                     <CheckCircle2 aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-main" />
-                    <span>All segments have been recorded.</span>
+                    <span>
+                      {isContinuous
+                        ? "Your continuous recording session will be saved and reviewed."
+                        : "All segments have been recorded."}
+                    </span>
                   </p>
                 )}
               </div>

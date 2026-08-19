@@ -1,3 +1,4 @@
+import contextlib
 import uuid
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
@@ -18,6 +19,9 @@ from app.repositories.gamification import GamificationRepository
 from app.repositories.recording import RecordingRepository
 from app.schemas.shadowing import (
     ShadowingAttemptReviewResponse,
+    ShadowingContinuousRecordingSummary,
+    ShadowingMode,
+    ShadowingRecordContinuousResponse,
     ShadowingRecordedSegmentSummary,
     ShadowingRecordingPlaybackResponse,
     ShadowingRecordSegmentResponse,
@@ -139,6 +143,7 @@ class ShadowingService:
                 "duration_ms": duration_seconds * 1000,
             }
             new_payload = dict(attempt.answer_payload or {})
+            new_payload["mode"] = ShadowingMode.SEGMENTED.value
             new_payload["segments"] = list(segments_by_id.values())
             await self.repository.update_answer_payload(attempt, new_payload)
 
@@ -153,6 +158,91 @@ class ShadowingService:
             segment_id=segment_id,
             storage_key=recording.storage_key,
             duration_seconds=duration_seconds,
+            created_at=recording.created_at,
+        )
+
+    async def record_continuous(
+        self,
+        *,
+        user_id: uuid.UUID,
+        content_id: uuid.UUID,
+        audio_file: UploadFile,
+        duration_seconds: int | None = None,
+        attempt_id: uuid.UUID | None = None,
+    ) -> ShadowingRecordContinuousResponse:
+        content = await self.repository.get_shadowing_content(content_id)
+        if content is None:
+            raise ShadowingContentNotFoundError()
+
+        file_content = await audio_file.read()
+        await audio_file.seek(0)
+
+        if not file_content:
+            raise ShadowingInvalidAudioError()
+        if len(file_content) > MAX_AUDIO_SIZE_BYTES:
+            raise ShadowingAudioTooLargeError()
+
+        try:
+            attempt: ExerciseAttempt
+            if attempt_id is None:
+                await self.repository.lock_user(user_id)
+                attempt_number = await self.repository.get_next_attempt_number(
+                    user_id=user_id,
+                    content_id=content_id,
+                )
+                attempt = await self.repository.create_attempt(
+                    user_id=user_id,
+                    content_id=content_id,
+                    attempt_number=attempt_number,
+                )
+            else:
+                existing_attempt = await self.repository.get_attempt(attempt_id)
+                if existing_attempt is None or existing_attempt.content_id != content_id:
+                    raise NotFoundError("Attempt not found")
+                if existing_attempt.user_id != user_id:
+                    raise ForbiddenError()
+                attempt = existing_attempt
+
+            storage_key, file_duration_seconds = await self.storage_service.save_audio(
+                user_id=user_id,
+                attempt_id=attempt.id,
+                file=audio_file,
+            )
+
+            actual_duration_seconds = (
+                duration_seconds
+                if duration_seconds is not None and duration_seconds > 0
+                else file_duration_seconds
+            )
+
+            recording = await self.repository.create_recording(
+                user_id=user_id,
+                attempt_id=attempt.id,
+                storage_key=storage_key,
+                duration_ms=actual_duration_seconds * 1000,
+                mime_type=audio_file.content_type,
+            )
+
+            new_payload = dict(attempt.answer_payload or {})
+            new_payload["mode"] = ShadowingMode.CONTINUOUS.value
+            new_payload["continuous_recording"] = {
+                "recording_id": str(recording.id),
+                "storage_key": storage_key,
+                "duration_seconds": actual_duration_seconds,
+                "duration_ms": actual_duration_seconds * 1000,
+            }
+            await self.repository.update_answer_payload(attempt, new_payload)
+
+            await self.repository.session.commit()
+        except Exception:
+            await self.repository.session.rollback()
+            raise
+
+        return ShadowingRecordContinuousResponse(
+            recording_id=recording.id,
+            attempt_id=attempt.id,
+            storage_key=recording.storage_key,
+            duration_seconds=actual_duration_seconds,
             created_at=recording.created_at,
         )
 
@@ -228,24 +318,56 @@ class ShadowingService:
             total_count = len(transcript_segments)
             recordings = await self.repository.get_recordings_by_attempt(attempt_id)
 
-            raw_payload_segments = (attempt.answer_payload or {}).get("segments")
-            payload_segments = (
-                raw_payload_segments if isinstance(raw_payload_segments, list) else []
+            mode_str = (attempt.answer_payload or {}).get("mode")
+            is_continuous = (
+                mode_str == ShadowingMode.CONTINUOUS.value
+                or "continuous_recording" in (attempt.answer_payload or {})
             )
-            valid_segment_ids: set[str] = set()
-            for seg in payload_segments:
-                if isinstance(seg, dict):
-                    dur_s = seg.get("duration_seconds", 0)
-                    dur_ms = seg.get("duration_ms", 0)
-                    if dur_s >= 2 or dur_ms >= 2000:
-                        valid_segment_ids.add(str(seg.get("segment_id")))
 
-            if not valid_segment_ids and recordings:
-                for idx, rec in enumerate(recordings):
-                    if (rec.duration_ms or 0) >= 2000:
-                        valid_segment_ids.add(str(idx))
+            completed_count = 0
+            if is_continuous:
+                cont_data = (attempt.answer_payload or {}).get("continuous_recording", {})
+                rec_duration_sec = (
+                    float(cont_data.get("duration_seconds", 0))
+                    if isinstance(cont_data, dict)
+                    else 0.0
+                )
+                if rec_duration_sec <= 0 and recordings:
+                    rec_duration_sec = float((recordings[0].duration_ms or 0) / 1000)
 
-            completed_count = min(len(valid_segment_ids), total_count)
+                total_material_sec = float(
+                    (content.audio_duration_ms or (total_count * 5000)) / 1000.0
+                )
+                ratio = (
+                    min(1.0, rec_duration_sec / total_material_sec)
+                    if total_material_sec > 0
+                    else 0.0
+                )
+                completed_count = (
+                    min(total_count, round(ratio * total_count))
+                    if total_count > 0
+                    else (1 if rec_duration_sec >= 2 else 0)
+                )
+            else:
+                raw_payload_segments = (attempt.answer_payload or {}).get("segments")
+                payload_segments = (
+                    raw_payload_segments if isinstance(raw_payload_segments, list) else []
+                )
+                valid_segment_ids: set[str] = set()
+                for seg in payload_segments:
+                    if isinstance(seg, dict):
+                        dur_s = seg.get("duration_seconds", 0)
+                        dur_ms = seg.get("duration_ms", 0)
+                        if dur_s >= 2 or dur_ms >= 2000:
+                            valid_segment_ids.add(str(seg.get("segment_id")))
+
+                if not valid_segment_ids and recordings:
+                    for idx, rec in enumerate(recordings):
+                        if (rec.duration_ms or 0) >= 2000:
+                            valid_segment_ids.add(str(idx))
+
+                completed_count = min(len(valid_segment_ids), total_count)
+
             score = calculate_shadowing_score(
                 completed_count=completed_count, total_count=total_count
             )
@@ -334,6 +456,27 @@ class ShadowingService:
         total_count = len(transcript_segments)
         recordings = await self.repository.get_recordings_by_attempt(attempt_id)
 
+        mode_str = (attempt.answer_payload or {}).get("mode")
+        is_continuous = mode_str == ShadowingMode.CONTINUOUS.value or "continuous_recording" in (
+            attempt.answer_payload or {}
+        )
+
+        mode = ShadowingMode.CONTINUOUS if is_continuous else ShadowingMode.SEGMENTED
+        user_continuous_recording_url: str | None = None
+        user_continuous_duration_seconds: int | None = None
+
+        if is_continuous:
+            cont_data = (attempt.answer_payload or {}).get("continuous_recording", {})
+            storage_key = cont_data.get("storage_key") if isinstance(cont_data, dict) else None
+            if not storage_key and recordings:
+                storage_key = recordings[0].storage_key
+            if storage_key:
+                user_continuous_recording_url = self.storage_service.get_playback_url(storage_key)
+            if isinstance(cont_data, dict) and "duration_seconds" in cont_data:
+                user_continuous_duration_seconds = int(cont_data["duration_seconds"])
+            elif recordings:
+                user_continuous_duration_seconds = int((recordings[0].duration_ms or 0) // 1000)
+
         raw_payload_segments = (attempt.answer_payload or {}).get("segments")
         payload_segments = raw_payload_segments if isinstance(raw_payload_segments, list) else []
         payload_by_id = {
@@ -365,7 +508,7 @@ class ShadowingService:
             rec = None
             if rec_id_str and rec_id_str in recordings_by_id:
                 rec = recordings_by_id[rec_id_str]
-            elif index < len(recordings):
+            elif not is_continuous and index < len(recordings):
                 rec = recordings[index]
 
             is_recorded = False
@@ -373,7 +516,9 @@ class ShadowingService:
             playback_url = None
             duration_s = None
 
-            if rec is not None:
+            if is_continuous:
+                is_recorded = True
+            elif rec is not None:
                 is_recorded = True
                 rec_uuid = rec.id
                 playback_url = self.storage_service.get_playback_url(rec.storage_key)
@@ -406,11 +551,15 @@ class ShadowingService:
                 )
             )
 
+        if is_continuous:
+            completed_count = attempt.correct_count or total_count
+
         return ShadowingAttemptReviewResponse(
             attempt_id=attempt.id,
             content_id=content.id,
             title=content.title,
             difficulty=content.difficulty.value,
+            mode=mode,
             audio_url=content.audio_url,
             status=attempt.status,
             score=float(attempt.score) if attempt.score is not None else None,
@@ -418,6 +567,11 @@ class ShadowingService:
             completed_at=attempt.completed_at,
             total_segments=total_count,
             completed_segments=completed_count,
+            material_duration_seconds=float(content.audio_duration_ms / 1000.0)
+            if content.audio_duration_ms is not None
+            else None,
+            user_continuous_recording_url=user_continuous_recording_url,
+            user_continuous_duration_seconds=user_continuous_duration_seconds,
             segments=review_segments,
         )
 
@@ -443,6 +597,24 @@ class ShadowingService:
         transcript_segments = content.transcript_ja or []
         total_count = len(transcript_segments)
 
+        mode_str = (attempt.answer_payload or {}).get("mode")
+        is_continuous = mode_str == ShadowingMode.CONTINUOUS.value or "continuous_recording" in (
+            attempt.answer_payload or {}
+        )
+        mode = ShadowingMode.CONTINUOUS if is_continuous else ShadowingMode.SEGMENTED
+
+        continuous_summary: ShadowingContinuousRecordingSummary | None = None
+        if is_continuous:
+            cont_data = (attempt.answer_payload or {}).get("continuous_recording", {})
+            if isinstance(cont_data, dict) and "recording_id" in cont_data:
+                with contextlib.suppress(Exception):
+                    continuous_summary = ShadowingContinuousRecordingSummary(
+                        recording_id=uuid.UUID(str(cont_data["recording_id"])),
+                        storage_key=str(cont_data.get("storage_key", "")),
+                        duration_seconds=int(cont_data.get("duration_seconds", 0)),
+                        created_at=attempt.started_at,
+                    )
+
         raw_payload_segments = (attempt.answer_payload or {}).get("segments")
         payload_segments = raw_payload_segments if isinstance(raw_payload_segments, list) else []
 
@@ -467,8 +639,10 @@ class ShadowingService:
             attempt_id=attempt.id,
             content_id=content.id,
             attempt_number=attempt.attempt_number,
+            mode=mode,
             total_segments=total_count,
             recorded_segments=recorded_summaries,
+            continuous_recording=continuous_summary,
             total_attempts=total_attempts,
         )
 

@@ -789,6 +789,104 @@
         }
       }
     },
+    "/api/v1/shadowing/{content_id}/record-continuous": {
+      "post": {
+        "tags": ["Shadowing"],
+        "summary": "Upload audio recording for continuous full-material shadowing",
+        "operationId": "recordShadowingContinuous",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "content_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Published shadowing content ID",
+              "title": "Content Id"
+            },
+            "description": "Published shadowing content ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_recordShadowingContinuous"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShadowingRecordContinuousResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/shadowing/{content_id}/submit": {
       "post": {
         "tags": ["Shadowing"],
@@ -965,11 +1063,89 @@
         }
       }
     },
+    "/api/v1/shadowing/recordings/{recording_id}/playback": {
+      "get": {
+        "tags": ["Shadowing"],
+        "summary": "Get presigned or public playback URL for a user recording",
+        "operationId": "getShadowingRecordingPlayback",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "recording_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Recording ID",
+              "title": "Recording Id"
+            },
+            "description": "Recording ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShadowingRecordingPlaybackResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/shadowing/recordings/{recording_id}": {
       "get": {
         "tags": ["Shadowing"],
-        "summary": "Get playback URL for a user's recording",
-        "operationId": "getShadowingRecordingPlayback",
+        "summary": "Get presigned or public playback URL for a user recording",
+        "operationId": "getShadowingRecording",
         "security": [
           {
             "HTTPBearer": []
@@ -1818,6 +1994,44 @@
         "type": "string",
         "enum": ["in_progress", "completed"],
         "title": "AttemptStatus"
+      },
+      "Body_recordShadowingContinuous": {
+        "properties": {
+          "audio_file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "Audio File",
+            "description": "User continuous audio recording file"
+          },
+          "attempt_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attempt Id",
+            "description": "Optional attempt ID"
+          },
+          "duration_seconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Seconds",
+            "description": "Optional continuous duration in seconds"
+          }
+        },
+        "type": "object",
+        "required": ["audio_file"],
+        "title": "Body_recordShadowingContinuous"
       },
       "Body_recordShadowingSegment": {
         "properties": {
@@ -3238,6 +3452,10 @@
             "type": "string",
             "title": "Difficulty"
           },
+          "mode": {
+            "$ref": "#/components/schemas/ShadowingMode",
+            "default": "segmented"
+          },
           "audio_url": {
             "anyOf": [
               {
@@ -3287,6 +3505,39 @@
           "completed_segments": {
             "type": "integer",
             "title": "Completed Segments"
+          },
+          "material_duration_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Material Duration Seconds"
+          },
+          "user_continuous_recording_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Continuous Recording Url"
+          },
+          "user_continuous_duration_seconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Continuous Duration Seconds"
           },
           "segments": {
             "items": {
@@ -3394,6 +3645,79 @@
         "type": "object",
         "required": ["id", "title", "content_type", "difficulty", "transcript"],
         "title": "ShadowingContentDetail"
+      },
+      "ShadowingContinuousRecordingSummary": {
+        "properties": {
+          "recording_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Recording Id"
+          },
+          "storage_key": {
+            "type": "string",
+            "title": "Storage Key"
+          },
+          "duration_seconds": {
+            "type": "integer",
+            "title": "Duration Seconds"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": ["recording_id", "storage_key", "duration_seconds"],
+        "title": "ShadowingContinuousRecordingSummary"
+      },
+      "ShadowingMode": {
+        "type": "string",
+        "enum": ["segmented", "continuous"],
+        "title": "ShadowingMode"
+      },
+      "ShadowingRecordContinuousResponse": {
+        "properties": {
+          "recording_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Recording Id"
+          },
+          "attempt_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Attempt Id"
+          },
+          "storage_key": {
+            "type": "string",
+            "title": "Storage Key"
+          },
+          "duration_seconds": {
+            "type": "integer",
+            "title": "Duration Seconds"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "recording_id",
+          "attempt_id",
+          "storage_key",
+          "duration_seconds",
+          "created_at"
+        ],
+        "title": "ShadowingRecordContinuousResponse"
       },
       "ShadowingRecordSegmentResponse": {
         "properties": {
@@ -3512,6 +3836,10 @@
             "type": "integer",
             "title": "Attempt Number"
           },
+          "mode": {
+            "$ref": "#/components/schemas/ShadowingMode",
+            "default": "segmented"
+          },
           "total_segments": {
             "type": "integer",
             "title": "Total Segments"
@@ -3522,6 +3850,16 @@
             },
             "type": "array",
             "title": "Recorded Segments"
+          },
+          "continuous_recording": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ShadowingContinuousRecordingSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "total_attempts": {
             "type": "integer",
@@ -3534,8 +3872,7 @@
           "attempt_id",
           "content_id",
           "attempt_number",
-          "total_segments",
-          "recorded_segments"
+          "total_segments"
         ],
         "title": "ShadowingResumeResponse"
       },

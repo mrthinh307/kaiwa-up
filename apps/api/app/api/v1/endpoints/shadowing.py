@@ -9,6 +9,7 @@ from app.repositories.recording import RecordingRepository
 from app.schemas.error import ErrorResponse
 from app.schemas.shadowing import (
     ShadowingAttemptReviewResponse,
+    ShadowingRecordContinuousResponse,
     ShadowingRecordingPlaybackResponse,
     ShadowingRecordSegmentResponse,
     ShadowingResumeResponse,
@@ -72,6 +73,39 @@ async def record_segment(
 
 
 @router.post(
+    "/{content_id}/record-continuous",
+    operation_id="recordShadowingContinuous",
+    response_model=ShadowingRecordContinuousResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Upload audio recording for continuous full-material shadowing",
+    responses={
+        status.HTTP_400_BAD_REQUEST: {"model": ErrorResponse},
+        status.HTTP_401_UNAUTHORIZED: {"model": ErrorResponse},
+        status.HTTP_403_FORBIDDEN: {"model": ErrorResponse},
+        status.HTTP_404_NOT_FOUND: {"model": ErrorResponse},
+    },
+)
+async def record_continuous(
+    content_id: Annotated[uuid.UUID, Path(description="Published shadowing content ID")],
+    audio_file: Annotated[UploadFile, File(description="User continuous audio recording file")],
+    current_user: CurrentUser,
+    session: DatabaseSession,
+    attempt_id: Annotated[uuid.UUID | None, Form(description="Optional attempt ID")] = None,
+    duration_seconds: Annotated[
+        int | None, Form(description="Optional continuous duration in seconds")
+    ] = None,
+) -> ShadowingRecordContinuousResponse:
+    service = ShadowingService(RecordingRepository(session))
+    return await service.record_continuous(
+        user_id=current_user.id,
+        content_id=content_id,
+        audio_file=audio_file,
+        duration_seconds=duration_seconds,
+        attempt_id=attempt_id,
+    )
+
+
+@router.post(
     "/{content_id}/submit",
     operation_id="submitShadowingAttempt",
     response_model=ShadowingSubmitResponse,
@@ -124,9 +158,20 @@ async def get_attempt_review(
 
 @router.get(
     "/recordings/{recording_id}",
+    operation_id="getShadowingRecording",
+    response_model=ShadowingRecordingPlaybackResponse,
+    summary="Get presigned or public playback URL for a user recording",
+    responses={
+        status.HTTP_401_UNAUTHORIZED: {"model": ErrorResponse},
+        status.HTTP_403_FORBIDDEN: {"model": ErrorResponse},
+        status.HTTP_404_NOT_FOUND: {"model": ErrorResponse},
+    },
+)
+@router.get(
+    "/recordings/{recording_id}/playback",
     operation_id="getShadowingRecordingPlayback",
     response_model=ShadowingRecordingPlaybackResponse,
-    summary="Get playback URL for a user's recording",
+    summary="Get presigned or public playback URL for a user recording",
     responses={
         status.HTTP_401_UNAUTHORIZED: {"model": ErrorResponse},
         status.HTTP_403_FORBIDDEN: {"model": ErrorResponse},

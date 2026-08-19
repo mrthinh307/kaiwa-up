@@ -11,16 +11,31 @@ import {
   RefreshCw,
   Square,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
-import { useVoiceRecorder } from "../_hooks/use-voice-recorder";
+import { type RecorderStatus, useVoiceRecorder } from "../_hooks/use-voice-recorder";
 
-interface RecorderCardProps {
+export interface RecorderCardHandle {
+  startRecording: () => void;
+  status: RecorderStatus;
+  stopRecording: () => void;
+  toggleRecording: () => void;
+}
+
+export interface RecorderCardProps {
+  isRecorded?: boolean;
   isSubmitting?: boolean;
-  onComplete: (data: { audioBlob: Blob | null; durationMs: number }) => void;
+  mode?: "segmented" | "continuous";
+  onComplete: (data: { audioBlob: Blob | null; durationMs: number; segmentIndex?: number }) => void;
+  savedAudioUrl?: string;
+  savedDurationSeconds?: number;
+  segmentIndex?: number;
+  segmentScript?: string;
+  totalSegments?: number;
 }
 
 function formatDuration(seconds: number): string {
@@ -29,7 +44,20 @@ function formatDuration(seconds: number): string {
   return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
 }
 
-export function RecorderCard({ isSubmitting = false, onComplete }: RecorderCardProps) {
+export const RecorderCard = forwardRef<RecorderCardHandle, RecorderCardProps>(function RecorderCard(
+  {
+    isRecorded = false,
+    isSubmitting = false,
+    mode = "segmented",
+    onComplete,
+    savedAudioUrl,
+    savedDurationSeconds = 0,
+    segmentIndex = 0,
+    segmentScript,
+    totalSegments,
+  },
+  ref,
+) {
   const {
     audioBlob,
     audioUrl,
@@ -41,14 +69,40 @@ export function RecorderCard({ isSubmitting = false, onComplete }: RecorderCardP
     stopRecording,
   } = useVoiceRecorder();
 
+  const isContinuous = mode === "continuous";
   const [isPlayingSelf, setIsPlayingSelf] = useState(false);
+  const [isReRecording, setIsReRecording] = useState(false);
   const selfAudioRef = useRef<HTMLAudioElement | null>(null);
   const lastSubmittedBlobRef = useRef<Blob | null>(null);
 
-  useEffect(() => {
-    if (!audioUrl) return;
+  const effectiveAudioUrl = audioUrl || savedAudioUrl;
 
-    const audio = new Audio(audioUrl);
+  useImperativeHandle(
+    ref,
+    () => ({
+      startRecording: () => {
+        setIsReRecording(false);
+        startRecording();
+      },
+      status,
+      stopRecording,
+      toggleRecording: () => {
+        if (status === "recording") {
+          stopRecording();
+        } else {
+          setIsReRecording(false);
+          startRecording();
+        }
+      },
+    }),
+    [startRecording, status, stopRecording],
+  );
+
+  // Clean and synchronize audio player when effectiveAudioUrl changes
+  useEffect(() => {
+    if (!effectiveAudioUrl) return;
+
+    const audio = new Audio(effectiveAudioUrl);
     selfAudioRef.current = audio;
 
     const handleEnded = () => setIsPlayingSelf(false);
@@ -58,20 +112,26 @@ export function RecorderCard({ isSubmitting = false, onComplete }: RecorderCardP
       audio.pause();
       audio.removeEventListener("ended", handleEnded);
     };
-  }, [audioUrl]);
+  }, [effectiveAudioUrl]);
 
-  // When recording completes with a new audioBlob, automatically upload the segment recording
+  // When recording completes with a new audioBlob, automatically upload the recording
   useEffect(() => {
     if (status === "recorded" && audioBlob && audioBlob !== lastSubmittedBlobRef.current) {
       lastSubmittedBlobRef.current = audioBlob;
+      setIsReRecording(false);
       onComplete({
         audioBlob,
         durationMs: Math.max(recordingTime * 1000, 1000),
+        segmentIndex,
       });
     }
-  }, [audioBlob, onComplete, recordingTime, status]);
+  }, [audioBlob, onComplete, recordingTime, segmentIndex, status]);
 
   const togglePlaySelf = () => {
+    if (!selfAudioRef.current && effectiveAudioUrl) {
+      selfAudioRef.current = new Audio(effectiveAudioUrl);
+      selfAudioRef.current.addEventListener("ended", () => setIsPlayingSelf(false));
+    }
     if (!selfAudioRef.current) return;
 
     if (isPlayingSelf) {
@@ -87,33 +147,60 @@ export function RecorderCard({ isSubmitting = false, onComplete }: RecorderCardP
 
   const handleReset = () => {
     lastSubmittedBlobRef.current = null;
+    setIsReRecording(true);
     resetRecording();
   };
 
+  const hasCompletedRecording =
+    !isReRecording &&
+    (status === "recorded" || (isRecorded && (savedDurationSeconds > 0 || Boolean(savedAudioUrl))));
+
+  const displayDuration =
+    status === "recorded" ? recordingTime : savedDurationSeconds || recordingTime;
+
   return (
-    <div className="rounded-base border-2 border-border bg-secondary-background p-6 shadow-shadow">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 font-heading text-lg">
+    <div className="rounded-base border-2 border-border bg-secondary-background p-5 sm:p-6 shadow-shadow">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b-2 border-border/40 pb-4">
+        <div className="flex items-center gap-2 font-heading text-base sm:text-lg">
           <Mic className="size-5 text-main" />
-          <span>Your Recording & Self-Comparison</span>
+          <span>
+            {isContinuous ? "Continuous Voice Shadowing" : `Segment #${segmentIndex + 1} Recording`}
+          </span>
+          {!isContinuous && totalSegments && (
+            <Badge className="font-heading text-xs" variant="neutral">
+              {segmentIndex + 1} / {totalSegments}
+            </Badge>
+          )}
         </div>
 
-        {status === "recorded" && (
-          <span className="inline-flex items-center gap-1 text-xs font-heading text-success">
+        {hasCompletedRecording && (
+          <span className="inline-flex items-center gap-1.5 text-xs font-heading text-success">
             {isSubmitting ? (
               <>
                 <LoaderCircle className="size-4 animate-spin text-main" />
-                Saving...
+                <span>Saving recording...</span>
               </>
             ) : (
               <>
                 <CheckCircle2 className="size-4" />
-                Recorded ({formatDuration(recordingTime)})
+                <span>Recorded ({formatDuration(displayDuration)})</span>
               </>
             )}
           </span>
         )}
       </div>
+
+      {/* Target script prompt to shadow (Segmented mode only) */}
+      {!isContinuous && segmentScript && (
+        <div className="my-4 rounded-base border-2 border-border bg-background p-4">
+          <p className="text-xs font-heading uppercase text-foreground/60 mb-1">
+            Target Japanese Speech
+          </p>
+          <p className="font-heading text-lg sm:text-xl leading-relaxed text-foreground">
+            {segmentScript}
+          </p>
+        </div>
+      )}
 
       {status === "permission_denied" && (
         <Alert className="mt-4" variant="destructive">
@@ -134,19 +221,7 @@ export function RecorderCard({ isSubmitting = false, onComplete }: RecorderCardP
         </Alert>
       )}
 
-      <div className="mt-6 flex flex-col items-center justify-center rounded-base border-2 border-border bg-background p-6 text-center">
-        {status === "idle" && (
-          <div className="space-y-4">
-            <p className="text-sm text-foreground/75">
-              Click the button below to start recording your voice for this segment.
-            </p>
-            <Button className="gap-2 font-heading" onClick={startRecording} size="lg">
-              <Mic className="size-5" />
-              Start Recording
-            </Button>
-          </div>
-        )}
-
+      <div className="mt-4 flex flex-col items-center justify-center rounded-base border-2 border-border bg-background p-6 text-center">
         {status === "requesting_permission" && (
           <div className="space-y-2 py-4">
             <p className="animate-pulse font-heading text-base">
@@ -165,19 +240,22 @@ export function RecorderCard({ isSubmitting = false, onComplete }: RecorderCardP
                 <span className="absolute inline-flex size-full animate-ping rounded-full bg-destructive opacity-75" />
                 <span className="relative inline-flex size-4 rounded-full bg-destructive" />
               </span>
-              <span className="font-mono text-2xl font-bold tracking-wider">
+              <span className="font-mono text-2xl font-bold tracking-wider text-destructive">
                 {formatDuration(recordingTime)}
               </span>
             </div>
 
             <p className="text-xs text-foreground/70">
-              Recording in progress... Speak along with the Japanese text.
+              {isContinuous
+                ? "Recording continuously... Shadow along with the lesson audio. (Press R to stop)"
+                : `Recording Segment #${segmentIndex + 1}... Speak the sentence clearly. (Press R to stop)`}
             </p>
 
             <Button
-              className="gap-2 bg-destructive text-destructive-foreground font-heading"
+              className="gap-2 bg-destructive text-destructive-foreground font-heading shadow-shadow hover:bg-destructive/90"
               onClick={stopRecording}
-              variant="neutral"
+              size="lg"
+              type="button"
             >
               <Square className="size-4 fill-current" />
               Stop Recording
@@ -185,15 +263,17 @@ export function RecorderCard({ isSubmitting = false, onComplete }: RecorderCardP
           </div>
         )}
 
-        {status === "recorded" && (
+        {hasCompletedRecording && status !== "recording" && (
           <div className="w-full space-y-4">
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 rounded-base border-2 border-border bg-secondary-background p-4">
               <div className="flex items-center gap-3">
                 <Button
                   aria-label={isPlayingSelf ? "Pause your recording" : "Play your recording"}
                   className="size-12 shrink-0 text-main-foreground"
+                  disabled={!effectiveAudioUrl}
                   onClick={togglePlaySelf}
                   size="icon"
+                  type="button"
                 >
                   {isPlayingSelf ? (
                     <Pause className="size-5" />
@@ -202,9 +282,13 @@ export function RecorderCard({ isSubmitting = false, onComplete }: RecorderCardP
                   )}
                 </Button>
                 <div className="text-left">
-                  <p className="font-heading text-sm">Listen to Your Voice</p>
+                  <p className="font-heading text-sm">
+                    {isContinuous
+                      ? "Listen to Continuous Recording"
+                      : `Listen to Segment #${segmentIndex + 1} Voice`}
+                  </p>
                   <p className="font-mono text-xs text-foreground/70">
-                    Duration: {formatDuration(recordingTime)}
+                    Duration: {formatDuration(displayDuration)}
                   </p>
                 </div>
               </div>
@@ -213,12 +297,34 @@ export function RecorderCard({ isSubmitting = false, onComplete }: RecorderCardP
                 className="gap-1.5 text-xs font-heading"
                 onClick={handleReset}
                 size="sm"
+                type="button"
                 variant="neutral"
               >
                 <RefreshCw className="size-3.5" />
                 Re-record
               </Button>
             </div>
+          </div>
+        )}
+
+        {!hasCompletedRecording && status === "idle" && (
+          <div className="space-y-3">
+            <p className="text-xs sm:text-sm text-foreground/75 leading-relaxed">
+              {isContinuous
+                ? "Click below (or press R) to start your continuous shadowing recording."
+                : `Speak aloud and shadow segment #${segmentIndex + 1}. Press R to toggle recording.`}
+            </p>
+            <Button
+              className="gap-2 font-heading"
+              onClick={() => {
+                setIsReRecording(false);
+                startRecording();
+              }}
+              size="lg"
+            >
+              <Mic className="size-5" />
+              {isContinuous ? "Start Continuous Recording" : `Record Segment #${segmentIndex + 1}`}
+            </Button>
           </div>
         )}
 
@@ -233,4 +339,4 @@ export function RecorderCard({ isSubmitting = false, onComplete }: RecorderCardP
       </div>
     </div>
   );
-}
+});

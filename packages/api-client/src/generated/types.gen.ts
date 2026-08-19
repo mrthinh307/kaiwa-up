@@ -30,6 +30,30 @@ export type AccessTokenResponse = {
 export type AttemptStatus = "in_progress" | "completed";
 
 /**
+ * Body_recordShadowingContinuous
+ */
+export type BodyRecordShadowingContinuous = {
+  /**
+   * Audio File
+   *
+   * User continuous audio recording file
+   */
+  audio_file: Blob | File;
+  /**
+   * Attempt Id
+   *
+   * Optional attempt ID
+   */
+  attempt_id?: string | null;
+  /**
+   * Duration Seconds
+   *
+   * Optional continuous duration in seconds
+   */
+  duration_seconds?: number | null;
+};
+
+/**
  * Body_recordShadowingSegment
  */
 export type BodyRecordShadowingSegment = {
@@ -906,6 +930,7 @@ export type ShadowingAttemptReviewResponse = {
    * Difficulty
    */
   difficulty: string;
+  mode?: ShadowingMode;
   /**
    * Audio Url
    */
@@ -931,6 +956,18 @@ export type ShadowingAttemptReviewResponse = {
    * Completed Segments
    */
   completed_segments: number;
+  /**
+   * Material Duration Seconds
+   */
+  material_duration_seconds?: number | null;
+  /**
+   * User Continuous Recording Url
+   */
+  user_continuous_recording_url?: string | null;
+  /**
+   * User Continuous Duration Seconds
+   */
+  user_continuous_duration_seconds?: number | null;
   /**
    * Segments
    */
@@ -975,6 +1012,59 @@ export type ShadowingContentDetail = {
    * Transcript
    */
   transcript: Array<TranscriptSegment>;
+};
+
+/**
+ * ShadowingContinuousRecordingSummary
+ */
+export type ShadowingContinuousRecordingSummary = {
+  /**
+   * Recording Id
+   */
+  recording_id: string;
+  /**
+   * Storage Key
+   */
+  storage_key: string;
+  /**
+   * Duration Seconds
+   */
+  duration_seconds: number;
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+};
+
+/**
+ * ShadowingMode
+ */
+export type ShadowingMode = "segmented" | "continuous";
+
+/**
+ * ShadowingRecordContinuousResponse
+ */
+export type ShadowingRecordContinuousResponse = {
+  /**
+   * Recording Id
+   */
+  recording_id: string;
+  /**
+   * Attempt Id
+   */
+  attempt_id: string;
+  /**
+   * Storage Key
+   */
+  storage_key: string;
+  /**
+   * Duration Seconds
+   */
+  duration_seconds: number;
+  /**
+   * Created At
+   */
+  created_at: string;
 };
 
 /**
@@ -1067,6 +1157,7 @@ export type ShadowingResumeResponse = {
    * Attempt Number
    */
   attempt_number: number;
+  mode?: ShadowingMode;
   /**
    * Total Segments
    */
@@ -1074,7 +1165,8 @@ export type ShadowingResumeResponse = {
   /**
    * Recorded Segments
    */
-  recorded_segments: Array<ShadowingRecordedSegmentSummary>;
+  recorded_segments?: Array<ShadowingRecordedSegmentSummary>;
+  continuous_recording?: ShadowingContinuousRecordingSummary | null;
   /**
    * Total Attempts
    */
@@ -1819,6 +1911,56 @@ export type RecordShadowingSegmentResponses = {
 export type RecordShadowingSegmentResponse =
   RecordShadowingSegmentResponses[keyof RecordShadowingSegmentResponses];
 
+export type RecordShadowingContinuousData = {
+  body: BodyRecordShadowingContinuous;
+  path: {
+    /**
+     * Content Id
+     *
+     * Published shadowing content ID
+     */
+    content_id: string;
+  };
+  query?: never;
+  url: "/api/v1/shadowing/{content_id}/record-continuous";
+};
+
+export type RecordShadowingContinuousErrors = {
+  /**
+   * Bad Request
+   */
+  400: ErrorResponse;
+  /**
+   * Unauthorized
+   */
+  401: ErrorResponse;
+  /**
+   * Forbidden
+   */
+  403: ErrorResponse;
+  /**
+   * Not Found
+   */
+  404: ErrorResponse;
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RecordShadowingContinuousError =
+  RecordShadowingContinuousErrors[keyof RecordShadowingContinuousErrors];
+
+export type RecordShadowingContinuousResponses = {
+  /**
+   * Successful Response
+   */
+  201: ShadowingRecordContinuousResponse;
+};
+
+export type RecordShadowingContinuousResponse =
+  RecordShadowingContinuousResponses[keyof RecordShadowingContinuousResponses];
+
 export type SubmitShadowingAttemptData = {
   body: ShadowingSubmitRequest;
   path: {
@@ -1926,7 +2068,7 @@ export type GetShadowingRecordingPlaybackData = {
     recording_id: string;
   };
   query?: never;
-  url: "/api/v1/shadowing/recordings/{recording_id}";
+  url: "/api/v1/shadowing/recordings/{recording_id}/playback";
 };
 
 export type GetShadowingRecordingPlaybackErrors = {
@@ -1960,6 +2102,52 @@ export type GetShadowingRecordingPlaybackResponses = {
 
 export type GetShadowingRecordingPlaybackResponse =
   GetShadowingRecordingPlaybackResponses[keyof GetShadowingRecordingPlaybackResponses];
+
+export type GetShadowingRecordingData = {
+  body?: never;
+  path: {
+    /**
+     * Recording Id
+     *
+     * Recording ID
+     */
+    recording_id: string;
+  };
+  query?: never;
+  url: "/api/v1/shadowing/recordings/{recording_id}";
+};
+
+export type GetShadowingRecordingErrors = {
+  /**
+   * Unauthorized
+   */
+  401: ErrorResponse;
+  /**
+   * Forbidden
+   */
+  403: ErrorResponse;
+  /**
+   * Not Found
+   */
+  404: ErrorResponse;
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetShadowingRecordingError =
+  GetShadowingRecordingErrors[keyof GetShadowingRecordingErrors];
+
+export type GetShadowingRecordingResponses = {
+  /**
+   * Successful Response
+   */
+  200: ShadowingRecordingPlaybackResponse;
+};
+
+export type GetShadowingRecordingResponse =
+  GetShadowingRecordingResponses[keyof GetShadowingRecordingResponses];
 
 export type GetInProgressDictationAttemptData = {
   body?: never;

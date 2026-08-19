@@ -28,6 +28,7 @@ interface AudioPlayerCardProps {
   durationSeconds?: number | null;
   hasNextSegment?: boolean;
   hasPreviousSegment?: boolean;
+  mode?: "segmented" | "continuous";
   onNextSegment?: () => void;
   onPreviousSegment?: () => void;
   onTogglePlay?: () => void;
@@ -47,6 +48,7 @@ export function AudioPlayerCard({
   durationSeconds,
   hasNextSegment = false,
   hasPreviousSegment = false,
+  mode = "segmented",
   onNextSegment,
   onPreviousSegment,
   onTogglePlay,
@@ -55,6 +57,8 @@ export function AudioPlayerCard({
 }: AudioPlayerCardProps) {
   const internalPlayer = useAudioPlayer(audioUrl, durationSeconds ?? 0);
   const player = externalPlayer ?? internalPlayer;
+
+  const isContinuous = mode === "continuous";
 
   const {
     changePlaybackRate,
@@ -84,7 +88,7 @@ export function AudioPlayerCard({
   };
 
   return (
-    <div className="rounded-base border-2 border-border bg-secondary-background p-6 shadow-shadow">
+    <div className="rounded-base border-2 border-border bg-secondary-background p-5 sm:p-6 shadow-shadow">
       {isYouTube &&
         youtubeVideoId &&
         (showVideo ? (
@@ -115,7 +119,7 @@ export function AudioPlayerCard({
         ))}
 
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 font-heading text-lg">
+        <div className="flex items-center gap-2 font-heading text-base sm:text-lg">
           <Headphones className="size-5 text-main" />
           <span>Original Lesson Audio</span>
         </div>
@@ -205,13 +209,14 @@ export function AudioPlayerCard({
       ) : (
         <div className="mt-6 flex flex-col gap-4">
           <div className="flex items-center gap-2 sm:gap-3">
-            {onPreviousSegment && (
+            {!isContinuous && onPreviousSegment && (
               <Button
-                aria-label="Previous segment"
+                aria-label="Previous segment (←)"
                 className="size-10 shrink-0 sm:size-11"
                 disabled={!hasPreviousSegment}
                 onClick={onPreviousSegment}
                 size="icon"
+                title="Previous segment (←)"
                 variant="neutral"
               >
                 <SkipBack className="size-4 sm:size-5" />
@@ -219,10 +224,11 @@ export function AudioPlayerCard({
             )}
 
             <Button
-              aria-label={isPlaying ? "Pause lesson audio" : "Play lesson audio"}
+              aria-label={isPlaying ? "Pause lesson audio (Space)" : "Play lesson audio (Space)"}
               className="size-12 shrink-0 rounded-base text-main-foreground sm:size-14"
               onClick={onTogglePlay ?? togglePlay}
               size="icon"
+              title={isPlaying ? "Pause (Space)" : "Play (Space)"}
             >
               {isPlaying ? (
                 <Pause className="size-5 sm:size-6" />
@@ -231,13 +237,14 @@ export function AudioPlayerCard({
               )}
             </Button>
 
-            {onNextSegment && (
+            {!isContinuous && onNextSegment && (
               <Button
-                aria-label="Next segment"
+                aria-label="Next segment (→)"
                 className="size-10 shrink-0 sm:size-11"
                 disabled={!hasNextSegment}
                 onClick={onNextSegment}
                 size="icon"
+                title="Next segment (→)"
                 variant="neutral"
               >
                 <SkipForward className="size-4 sm:size-5" />
