@@ -1631,6 +1631,232 @@
         }
       }
     },
+    "/api/v1/reflex/lessons": {
+      "get": {
+        "tags": ["Reflex"],
+        "summary": "List Reflex Lessons",
+        "operationId": "listReflexLessons",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ReflexLessonItem"
+                  },
+                  "type": "array",
+                  "title": "Response Listreflexlessons"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/reflex/lessons/{lesson_id}": {
+      "get": {
+        "tags": ["Reflex"],
+        "summary": "Get Reflex Lesson",
+        "operationId": "getReflexLesson",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "lesson_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Lesson Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReflexLessonDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reflex/lessons/{lesson_id}/evaluate": {
+      "post": {
+        "tags": ["Reflex"],
+        "summary": "Evaluate Reflex Lesson",
+        "operationId": "evaluateReflexLesson",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "lesson_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Lesson Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_evaluateReflexLesson"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReflexEvaluationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Content Too Large"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/review/due": {
+      "get": {
+        "tags": ["Review"],
+        "summary": "List Due Reviews",
+        "operationId": "listDueReviews",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ReviewScheduleItem"
+                  },
+                  "type": "array",
+                  "title": "Response Listduereviews"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/review/schedule": {
+      "get": {
+        "tags": ["Review"],
+        "summary": "List Review Schedule",
+        "operationId": "listReviewSchedule",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ReviewScheduleItem"
+                  },
+                  "type": "array",
+                  "title": "Response Listreviewschedule"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/auth/register": {
       "post": {
         "tags": ["Auth"],
@@ -1994,6 +2220,23 @@
         "type": "string",
         "enum": ["in_progress", "completed"],
         "title": "AttemptStatus"
+      },
+      "Body_evaluateReflexLesson": {
+        "properties": {
+          "audio_file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "Audio File"
+          },
+          "response_start_ms": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Response Start Ms"
+          }
+        },
+        "type": "object",
+        "required": ["audio_file", "response_start_ms"],
+        "title": "Body_evaluateReflexLesson"
       },
       "Body_recordShadowingContinuous": {
         "properties": {
@@ -3382,6 +3625,227 @@
         "required": ["status", "timestamp", "app_name", "database"],
         "title": "ReadinessResponse"
       },
+      "ReflexEvaluationResponse": {
+        "properties": {
+          "attempt_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Attempt Id"
+          },
+          "evaluation_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Evaluation Id"
+          },
+          "transcript": {
+            "type": "string",
+            "title": "Transcript"
+          },
+          "score": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Score"
+          },
+          "is_on_time": {
+            "type": "boolean",
+            "title": "Is On Time"
+          },
+          "feedback": {
+            "type": "string",
+            "title": "Feedback"
+          },
+          "corrections": {
+            "items": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Corrections"
+          },
+          "hints": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Hints"
+          },
+          "earned_exp": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Earned Exp"
+          },
+          "review_due_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Review Due At"
+          },
+          "review_interval_days": {
+            "type": "integer",
+            "title": "Review Interval Days"
+          }
+        },
+        "type": "object",
+        "required": [
+          "attempt_id",
+          "evaluation_id",
+          "transcript",
+          "score",
+          "is_on_time",
+          "feedback",
+          "corrections",
+          "hints",
+          "earned_exp",
+          "review_due_at",
+          "review_interval_days"
+        ],
+        "title": "ReflexEvaluationResponse"
+      },
+      "ReflexLessonDetail": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "topic": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Topic"
+          },
+          "difficulty": {
+            "$ref": "#/components/schemas/JlptLevel"
+          },
+          "audio_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Audio Url"
+          },
+          "prompt_ja": {
+            "type": "string",
+            "title": "Prompt Ja"
+          },
+          "response_start_limit_ms": {
+            "type": "integer",
+            "title": "Response Start Limit Ms"
+          },
+          "scenario_ja": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scenario Ja"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "difficulty",
+          "prompt_ja",
+          "response_start_limit_ms"
+        ],
+        "title": "ReflexLessonDetail"
+      },
+      "ReflexLessonItem": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "topic": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Topic"
+          },
+          "difficulty": {
+            "$ref": "#/components/schemas/JlptLevel"
+          },
+          "audio_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Audio Url"
+          },
+          "prompt_ja": {
+            "type": "string",
+            "title": "Prompt Ja"
+          },
+          "response_start_limit_ms": {
+            "type": "integer",
+            "title": "Response Start Limit Ms"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "difficulty",
+          "prompt_ja",
+          "response_start_limit_ms"
+        ],
+        "title": "ReflexLessonItem"
+      },
       "RefreshSessionResponse": {
         "properties": {
           "access_token": {
@@ -3431,6 +3895,58 @@
         "required": ["email", "password", "name"],
         "title": "RegisterRequest",
         "description": "Payload for registering a new user."
+      },
+      "ReviewScheduleItem": {
+        "properties": {
+          "content_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Content Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "due_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Due At"
+          },
+          "interval_days": {
+            "type": "integer",
+            "title": "Interval Days"
+          },
+          "ease_factor": {
+            "type": "number",
+            "title": "Ease Factor"
+          },
+          "repetitions": {
+            "type": "integer",
+            "title": "Repetitions"
+          },
+          "last_attempt_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Attempt Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "content_id",
+          "title",
+          "due_at",
+          "interval_days",
+          "ease_factor",
+          "repetitions"
+        ],
+        "title": "ReviewScheduleItem"
       },
       "ShadowingAttemptReviewResponse": {
         "properties": {

@@ -19,6 +19,9 @@ import type {
   CreateLearningContentFromYouTubeData,
   CreateLearningContentFromYouTubeErrors,
   CreateLearningContentFromYouTubeResponses,
+  EvaluateReflexLessonData,
+  EvaluateReflexLessonErrors,
+  EvaluateReflexLessonResponses,
   GetDictationAttemptData,
   GetDictationAttemptErrors,
   GetDictationAttemptResponses,
@@ -45,6 +48,9 @@ import type {
   GetProgressAttemptResponses,
   GetProgressSummaryData,
   GetProgressSummaryResponses,
+  GetReflexLessonData,
+  GetReflexLessonErrors,
+  GetReflexLessonResponses,
   GetShadowingAttemptReviewData,
   GetShadowingAttemptReviewErrors,
   GetShadowingAttemptReviewResponses,
@@ -62,12 +68,18 @@ import type {
   GetWeeklyLeaderboardResponses,
   HealthCheckData,
   HealthCheckResponses,
+  ListDueReviewsData,
+  ListDueReviewsResponses,
   ListLearningContentsData,
   ListLearningContentsErrors,
   ListLearningContentsResponses,
   ListProgressAttemptsData,
   ListProgressAttemptsErrors,
   ListProgressAttemptsResponses,
+  ListReflexLessonsData,
+  ListReflexLessonsResponses,
+  ListReviewScheduleData,
+  ListReviewScheduleResponses,
   LoginData,
   LoginErrors,
   LoginResponses,
@@ -522,6 +534,75 @@ export const startDictationAttempt = <ThrowOnError extends boolean = false>(
   >({
     security: [{ scheme: "bearer", type: "http" }],
     url: "/api/v1/dictation/{content_id}/start",
+    ...options,
+  });
+
+/**
+ * List Reflex Lessons
+ */
+export const listReflexLessons = <ThrowOnError extends boolean = false>(
+  options?: Options<ListReflexLessonsData, ThrowOnError>,
+): RequestResult<ListReflexLessonsResponses, unknown, ThrowOnError> =>
+  (options?.client ?? client).get<ListReflexLessonsResponses, unknown, ThrowOnError>({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/api/v1/reflex/lessons",
+    ...options,
+  });
+
+/**
+ * Get Reflex Lesson
+ */
+export const getReflexLesson = <ThrowOnError extends boolean = false>(
+  options: Options<GetReflexLessonData, ThrowOnError>,
+): RequestResult<GetReflexLessonResponses, GetReflexLessonErrors, ThrowOnError> =>
+  (options.client ?? client).get<GetReflexLessonResponses, GetReflexLessonErrors, ThrowOnError>({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/api/v1/reflex/lessons/{lesson_id}",
+    ...options,
+  });
+
+/**
+ * Evaluate Reflex Lesson
+ */
+export const evaluateReflexLesson = <ThrowOnError extends boolean = false>(
+  options: Options<EvaluateReflexLessonData, ThrowOnError>,
+): RequestResult<EvaluateReflexLessonResponses, EvaluateReflexLessonErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    EvaluateReflexLessonResponses,
+    EvaluateReflexLessonErrors,
+    ThrowOnError
+  >({
+    ...formDataBodySerializer,
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/api/v1/reflex/lessons/{lesson_id}/evaluate",
+    ...options,
+    headers: {
+      "Content-Type": null,
+      ...options.headers,
+    },
+  });
+
+/**
+ * List Due Reviews
+ */
+export const listDueReviews = <ThrowOnError extends boolean = false>(
+  options?: Options<ListDueReviewsData, ThrowOnError>,
+): RequestResult<ListDueReviewsResponses, unknown, ThrowOnError> =>
+  (options?.client ?? client).get<ListDueReviewsResponses, unknown, ThrowOnError>({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/api/v1/review/due",
+    ...options,
+  });
+
+/**
+ * List Review Schedule
+ */
+export const listReviewSchedule = <ThrowOnError extends boolean = false>(
+  options?: Options<ListReviewScheduleData, ThrowOnError>,
+): RequestResult<ListReviewScheduleResponses, unknown, ThrowOnError> =>
+  (options?.client ?? client).get<ListReviewScheduleResponses, unknown, ThrowOnError>({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/api/v1/review/schedule",
     ...options,
   });
 
