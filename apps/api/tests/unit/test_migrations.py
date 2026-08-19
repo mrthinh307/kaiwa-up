@@ -88,3 +88,39 @@ def test_tutor_catalog_removal_migration_requires_context_snapshots() -> None:
     assert operations.alter_column.call_args_list[1].kwargs["nullable"] is False
     operations.drop_column.assert_called_once_with("tutor_sessions", "scenario_id")
     operations.drop_table.assert_called_once_with("tutor_scenarios")
+
+
+def test_tutor_feedback_migration_removes_deprecated_next_question() -> None:
+    migration_path = (
+        Path(__file__).resolve().parents[2]
+        / "alembic"
+        / "versions"
+        / "e4f6a8c2d1b3_remove_next_question_feedback.py"
+    )
+    migration = runpy.run_path(str(migration_path))
+    operations = MagicMock()
+
+    with patch.dict(migration["upgrade"].__globals__, {"op": operations}):
+        migration["upgrade"]()
+
+    statement = operations.execute.call_args.args[0].text
+    assert "feedback = feedback - 'next_question'" in statement
+    assert "feedback ? 'next_question'" in statement
+
+
+def test_tutor_message_translation_migration_adds_nullable_text_vi() -> None:
+    migration_path = (
+        Path(__file__).resolve().parents[2]
+        / "alembic"
+        / "versions"
+        / "f1a2b3c4d5e6_add_tutor_message_text_vi.py"
+    )
+    migration = runpy.run_path(str(migration_path))
+    operations = MagicMock()
+
+    with patch.dict(migration["upgrade"].__globals__, {"op": operations}):
+        migration["upgrade"]()
+
+    column = operations.add_column.call_args.args[1]
+    assert column.name == "text_vi"
+    assert column.nullable is True

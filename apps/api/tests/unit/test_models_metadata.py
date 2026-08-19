@@ -221,3 +221,10 @@ def test_tutor_message_client_message_id_is_nullable() -> None:
 
     assert messages.columns["client_message_id"].nullable
     assert messages.columns["client_message_id"].type.__class__.__name__ == "Uuid"
+
+
+def test_tutor_message_text_vi_is_nullable_for_legacy_and_user_messages() -> None:
+    messages = Base.metadata.tables["tutor_messages"]
+
+    assert messages.columns["text_vi"].nullable
+    assert messages.columns["text_vi"].type.__class__.__name__ == "Text"

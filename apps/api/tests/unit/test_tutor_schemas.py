@@ -7,7 +7,6 @@ from pydantic import ValidationError
 from app.models.enums import JlptLevel, TutorSender
 from app.schemas.tutor import (
     TutorAnswerHintResponse,
-    TutorConversationCompleteResponse,
     TutorConversationCreateRequest,
     TutorConversationDetailResponse,
     TutorFeedbackResponse,
@@ -81,9 +80,9 @@ def test_message_response_serializes_public_sender_and_feedback_contract() -> No
         sender=TutorSender.AI,
         sequence_number=1,
         text="こんにちは！",
+        text_vi="Xin chào!",
         created_at=datetime(2026, 8, 19, tzinfo=UTC),
         feedback=TutorFeedbackResponse(
-            next_question="どこに行きたいですか？",
             answer_hints=[
                 TutorAnswerHintResponse(
                     text="京都に行きたいです。",
@@ -96,28 +95,21 @@ def test_message_response_serializes_public_sender_and_feedback_contract() -> No
     payload = message.model_dump(mode="json")
 
     assert payload["sender"] == "ai"
+    assert payload["text_vi"] == "Xin chào!"
     assert payload["feedback"]["answer_hints"][0] == {
         "text": "京都に行きたいです。",
         "meaning_vi": "Tôi muốn đi Kyoto.",
     }
 
 
-def test_conversation_detail_and_complete_response_validate_status() -> None:
-    conversation_id = uuid.uuid4()
+def test_conversation_detail_response_validates_status() -> None:
     now = datetime(2026, 8, 19, tzinfo=UTC)
     detail = TutorConversationDetailResponse(
-        conversation_id=conversation_id,
+        conversation_id=uuid.uuid4(),
         topic="Du lịch Nhật Bản",
         difficulty=JlptLevel.N3,
         status="active",
         started_at=now,
     )
-    completed = TutorConversationCompleteResponse(
-        conversation_id=conversation_id,
-        status="completed",
-        ended_at=now,
-    )
-
     assert detail.messages == []
     assert detail.ended_at is None
-    assert completed.status == "completed"

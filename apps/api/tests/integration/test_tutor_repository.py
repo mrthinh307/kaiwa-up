@@ -1,6 +1,6 @@
 import uuid
 from collections.abc import Callable
-from datetime import UTC, datetime
+from datetime import UTC
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -125,24 +125,3 @@ async def test_list_sessions_is_scoped_and_returns_last_message_projection(
     assert rows[0].session.id == session_a.id
     assert rows[0].last_message_text == "Latest for A"
     assert rows[0].updated_at.tzinfo == UTC
-
-
-@pytest.mark.asyncio
-async def test_complete_session_updates_status_and_end_time(
-    db_session: AsyncSession,
-    unique_email: Callable[[str], str],
-) -> None:
-    user = await create_user(db_session, email=unique_email("complete"))
-    repository = TutorRepository(db_session)
-    tutor_session = await repository.create_session(
-        user_id=user.id,
-        topic="Giao tiếp",
-        difficulty=JlptLevel.N4,
-        scenario=None,
-    )
-    ended_at = datetime(2026, 8, 19, 10, 0, tzinfo=UTC)
-
-    completed = await repository.complete_session(tutor_session, ended_at=ended_at)
-
-    assert completed.status == "completed"
-    assert completed.ended_at == ended_at

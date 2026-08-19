@@ -45,6 +45,7 @@ EVALUATION_JSON = json.dumps(
 TUTOR_JSON = json.dumps(
     {
         "message": "Nice! Let's continue.",
+        "text_vi": "Tốt lắm! Chúng ta tiếp tục nhé.",
         "corrections": [],
         "natural_expression_tip": "京都で旅行について話しましょう。",
         "answer_hints": [
@@ -53,7 +54,6 @@ TUTOR_JSON = json.dumps(
                 "meaning_vi": "Tôi muốn đi Kyoto.",
             }
         ],
-        "follow_up_question": "Want to try another?",
     }
 )
 
@@ -182,7 +182,9 @@ async def test_fake_ai_gateway_succeeds_for_all_capabilities() -> None:
     )
     assert tutor.message == "こんにちは！次は何を練習しましょうか？"
     assert tutor.answer_hints[0].meaning_vi == "Tôi muốn nói về du lịch."
-    assert tutor.natural_expression_tip == "次は何を練習したいですか？"
+    assert tutor.natural_expression_tip == (
+        "Cách hỏi tự nhiên hơn để hỏi người học muốn luyện chủ đề nào tiếp theo."
+    )
 
 
 def test_ai_gateway_is_a_runtime_checkable_protocol() -> None:
@@ -349,10 +351,10 @@ async def test_openai_generate_tutor_reply_success(openai_gateway: _GatewayFacto
     )
 
     assert result.message == "Nice! Let's continue."
+    assert result.text_vi == "Tốt lắm! Chúng ta tiếp tục nhé."
     assert result.answer_hints[0].text == "京都に行きたいです。"
     assert result.answer_hints[0].meaning_vi == "Tôi muốn đi Kyoto."
     assert result.natural_expression_tip == "京都で旅行について話しましょう。"
-    assert result.follow_up_question == "Want to try another?"
 
 
 def test_tutor_prompt_includes_scenario_and_language_contract() -> None:
@@ -368,8 +370,22 @@ def test_tutor_prompt_includes_scenario_and_language_contract() -> None:
     assert "<topic>Du lịch</topic>" in prompt.content
     assert "Hỏi bạn về kế hoạch đi Kyoto" in prompt.content
     assert "bằng tiếng Nhật" in prompt.content
+    assert "bằng tiếng Việt" in prompt.content
+    assert "Không giải thích bằng tiếng Nhật" in prompt.content
     assert '"answer_hints"' in prompt.content
     assert '"meaning_vi"' in prompt.content
+
+
+def test_tutor_opening_prompt_includes_user_query_for_provider_compatibility() -> None:
+    messages = build_tutor_messages(
+        messages=[],
+        topic="Gặp nhau buổi sáng",
+        difficulty="N5",
+        scenario="Đồng nghiệp gặp nhau tại công ty",
+    )
+
+    assert messages[-1].role == "user"
+    assert "会話を始めてください" in messages[-1].content
 
 
 def test_tutor_prompt_escapes_user_context_delimiters() -> None:
@@ -479,11 +495,13 @@ def test_provider_registry_builds_groq_with_openai_compatible_adapter() -> None:
             ai_eval_provider="groq",
             ai_stt_provider="groq",
             ai_groq_api_key="k",
+            ai_groq_llm_model="qwen/qwen3.6-27b",
             _env_file=None,
         )
     )
 
     assert isinstance(gateway, OpenAiCompatibleAiGateway)
+    assert gateway._config.reasoning_effort == "none"
 
 
 def _openai_config() -> OpenAiProviderConfig:

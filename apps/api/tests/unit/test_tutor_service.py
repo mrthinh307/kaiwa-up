@@ -97,6 +97,7 @@ def make_message(
     sender: TutorSender,
     sequence_number: int,
     content: str,
+    text_vi: str | None = None,
     client_message_id: uuid.UUID | None = None,
     feedback: dict[str, object] | None = None,
 ) -> TutorMessage:
@@ -106,6 +107,7 @@ def make_message(
         sender=sender,
         sequence_number=sequence_number,
         content=content,
+        text_vi=text_vi,
         client_message_id=client_message_id,
         created_at=NOW,
         feedback=feedback,
@@ -114,9 +116,10 @@ def make_message(
 
 def ai_feedback() -> dict[str, object]:
     return {
-        "next_question": "次は何を練習したいですか？",
         "grammar_correction": None,
-        "natural_expression_tip": "次は何を練習したいですか？",
+        "natural_expression_tip": (
+            "Cách diễn đạt tự nhiên hơn để hỏi người học muốn luyện gì tiếp theo."
+        ),
         "answer_hints": [
             {
                 "text": "旅行について話したいです。",
@@ -137,6 +140,7 @@ async def test_create_conversation_uses_user_context_and_persists_opening_messag
         sender=TutorSender.AI,
         sequence_number=1,
         content="こんにちは！",
+        text_vi="Xin chào!",
         feedback=ai_feedback(),
     )
     repository = make_repository()
@@ -158,6 +162,7 @@ async def test_create_conversation_uses_user_context_and_persists_opening_messag
     assert response.initial_message.feedback.answer_hints[0].meaning_vi == (
         "Tôi muốn nói về du lịch."
     )
+    assert response.initial_message.text_vi == "Xin chào!"
     assert gateway.calls[0]["scenario"] == scenario
     repository.create_session.assert_awaited_once_with(
         user_id=user_id,
@@ -191,6 +196,7 @@ async def test_send_message_commits_user_before_gateway_and_maps_ai_feedback() -
         sender=TutorSender.AI,
         sequence_number=3,
         content="いいですね！",
+        text_vi="Tốt lắm!",
         feedback=ai_feedback(),
     )
     repository = make_repository()
@@ -214,7 +220,10 @@ async def test_send_message_commits_user_before_gateway_and_maps_ai_feedback() -
     assert response.user_message.id == user_message.id
     assert response.ai_reply.id == ai_message.id
     assert response.ai_reply.feedback is not None
-    assert response.ai_reply.feedback.natural_expression_tip == ("次は何を練習したいですか？")
+    assert response.ai_reply.feedback.natural_expression_tip == (
+        "Cách diễn đạt tự nhiên hơn để hỏi người học muốn luyện gì tiếp theo."
+    )
+    assert response.ai_reply.text_vi == "Tốt lắm!"
     assert gateway.calls[0]["messages"][0].role == "assistant"
     assert gateway.calls[0]["messages"][1].role == "user"
     assert repository.session.commit.await_count == 3
@@ -351,24 +360,18 @@ async def test_send_message_rejects_new_turn_while_previous_response_is_pending(
 
 
 @pytest.mark.asyncio
-async def test_complete_conversation_is_idempotent() -> None:
+async def test_delete_conversation_deletes_owned_session() -> None:
     user_id = uuid.uuid4()
     tutor_session = make_session(user_id=user_id)
-    completed_session = make_session(user_id=user_id, status="completed")
-    completed_session.id = tutor_session.id
-    completed_session.ended_at = NOW
     repository = make_repository()
     repository.get_session_for_update.return_value = tutor_session
-    repository.complete_session.return_value = completed_session
 
-    response = await TutorService(repository, RecordingTutorGateway()).complete_conversation(
+    await TutorService(repository, RecordingTutorGateway()).delete_conversation(
         user_id=user_id,
         conversation_id=tutor_session.id,
     )
 
-    assert response.status == "completed"
-    assert response.ended_at == NOW
-    repository.complete_session.assert_awaited_once()
+    repository.delete_session.assert_awaited_once_with(tutor_session)
     repository.session.commit.assert_awaited_once()
 
 

@@ -82,6 +82,7 @@ async def test_ai_tutor_end_to_end_flow_and_idempotent_retry(
     assert conversation["scenario"] == "Hỏi bạn về kế hoạch đi Kyoto."
     assert "scenario_id" not in conversation
     assert conversation["initial_message"]["sequence_number"] == 1
+    assert conversation["initial_message"]["text_vi"]
     assert conversation["initial_message"]["feedback"]["answer_hints"]
 
     client_message_id = str(uuid.uuid4())
@@ -99,6 +100,8 @@ async def test_ai_tutor_end_to_end_flow_and_idempotent_retry(
     assert first_result["user_message"]["sequence_number"] == 2
     assert first_result["ai_reply"]["sequence_number"] == 3
     assert first_result["user_message"]["client_message_id"] == client_message_id
+    assert first_result["user_message"]["text_vi"] is None
+    assert first_result["ai_reply"]["text_vi"]
 
     retry_response = await client.post(
         f"{CONVERSATIONS_PATH}/{conversation_id}/messages",
@@ -123,16 +126,12 @@ async def test_ai_tutor_end_to_end_flow_and_idempotent_retry(
     assert list_response.json()["total_items"] == 1
     assert list_response.json()["items"][0]["last_message_text"] == first_result["ai_reply"]["text"]
 
-    complete_response = await client.post(f"{CONVERSATIONS_PATH}/{conversation_id}/complete")
-    assert complete_response.status_code == 200
-    assert complete_response.json()["status"] == "completed"
+    delete_response = await client.delete(f"{CONVERSATIONS_PATH}/{conversation_id}")
+    assert delete_response.status_code == 204
 
-    after_complete = await client.post(
-        f"{CONVERSATIONS_PATH}/{conversation_id}/messages",
-        json={"text": "もう一度話しましょう。", "client_message_id": str(uuid.uuid4())},
-    )
-    assert after_complete.status_code == 409
-    assert after_complete.json()["error"]["code"] == "tutor_conversation_completed"
+    deleted_detail_response = await client.get(f"{CONVERSATIONS_PATH}/{conversation_id}")
+    assert deleted_detail_response.status_code == 404
+    assert (await client.get(CONVERSATIONS_PATH)).json()["total_items"] == 0
 
 
 @pytest.mark.asyncio
@@ -166,11 +165,10 @@ async def test_ai_tutor_rejects_cross_user_access(
         f"{CONVERSATIONS_PATH}/{conversation_id}/messages",
         json={"text": "こんにちは", "client_message_id": str(uuid.uuid4())},
     )
-    complete_response = await client.post(f"{CONVERSATIONS_PATH}/{conversation_id}/complete")
-
+    delete_response = await client.delete(f"{CONVERSATIONS_PATH}/{conversation_id}")
     assert get_response.status_code == 403
     assert send_response.status_code == 403
-    assert complete_response.status_code == 403
+    assert delete_response.status_code == 403
     assert get_response.json()["error"]["code"] == "forbidden"
 
 
@@ -218,7 +216,6 @@ async def test_ai_tutor_openapi_contains_all_five_operations() -> None:
         "/api/v1/ai-tutor/conversations",
         "/api/v1/ai-tutor/conversations/{conversation_id}",
         "/api/v1/ai-tutor/conversations/{conversation_id}/messages",
-        "/api/v1/ai-tutor/conversations/{conversation_id}/complete",
     }
 
     assert expected_paths <= paths.keys()
@@ -235,7 +232,7 @@ async def test_ai_tutor_openapi_contains_all_five_operations() -> None:
         "listTutorConversations",
         "getTutorConversation",
         "sendTutorMessage",
-        "completeTutorConversation",
+        "deleteTutorConversation",
     }
     for path in expected_paths:
         for operation in paths[path].values():
