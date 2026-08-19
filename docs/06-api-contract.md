@@ -431,46 +431,12 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
 
 ### 3.5. Shadowing Module (P0)
 
-#### `GET /api/v1/shadowing/lessons`
-* **Mục đích**: Lấy danh sách chuyên biệt các bài luyện Shadowing.
-* **Yêu cầu xác thực**: Bearer Token
-* **Request Headers**: `Authorization: Bearer <jwt_access_token>`
-* **Path Parameters**: Không
-* **Query Parameters**:
-  * `difficulty` (optional, string): `N5`–`N1`
-  * `page` (optional, integer, default: `1`)
-  * `page_size` (optional, integer, default: `20`)
-* **Request Body**: Không
-* **Response Schema (200 OK)**:
-  ```json
-  {
-    "items": [
-      {
-        "id": "987e6543-e89b-12d3-a456-426614174999",
-        "title": "Hội thoại mua sắm",
-        "difficulty": "N5",
-        "duration_seconds": 30,
-        "is_completed": false
-      }
-    ],
-    "total_items": 1,
-    "page": 1,
-    "page_size": 20,
-    "total_pages": 1
-  }
-  ```
-* **Status Codes & Error Responses**:
-  * `200 OK`: Lấy danh sách bài Shadowing thành công.
-
----
-
-#### `GET /api/v1/shadowing/lessons/{lesson_id}`
-* **Mục đích**: Lấy chi tiết bài luyện Shadowing gồm URL video YouTube dùng làm nguồn audio và
-  transcript tiếng Nhật.
+#### `GET /api/v1/shadowing/{content_id}`
+* **Mục đích**: Lấy chi tiết bài luyện Shadowing gồm thông tin bài học, URL audio/video và danh sách các câu/segment transcript tiếng Nhật có mốc thời gian (`start_time_ms`, `end_time_ms`).
 * **Yêu cầu xác thực**: Bearer Token
 * **Request Headers**: `Authorization: Bearer <jwt_access_token>`
 * **Path Parameters**:
-  * `lesson_id` (string, UUID): ID bài Shadowing
+  * `content_id` (string, UUID): ID nội dung bài học Shadowing (`learning_contents.id`)
 * **Query Parameters**: Không
 * **Request Body**: Không
 * **Response Schema (200 OK)**:
@@ -478,14 +444,22 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
   {
     "id": "987e6543-e89b-12d3-a456-426614174999",
     "title": "Hội thoại mua sắm",
+    "difficulty": "N5",
     "audio_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
     "duration_seconds": 30,
-    "japanese_text": "いらっしゃいませ。何をお探しですか？",
-    "romaji_text": "Irasshaimase. Nani wo osagashi desu ka?",
-    "vietnamese_translation": "Xin chào quý khách. Bạn đang tìm gì thế?",
-    "transcript_timestamps": [
-      { "start": 0.0, "end": 1.5, "text": "いらっしゃいませ。" },
-      { "start": 1.6, "end": 3.0, "text": "何をお探しですか？" }
+    "transcript": [
+      {
+        "start_time_ms": 0,
+        "end_time_ms": 1500,
+        "script": "いらっしゃいませ。",
+        "speaker": "A"
+      },
+      {
+        "start_time_ms": 1600,
+        "end_time_ms": 3000,
+        "script": "何をお探しですか？",
+        "speaker": "A"
+      }
     ]
   }
   ```
@@ -495,35 +469,165 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
 
 ---
 
-#### `POST /api/v1/shadowing/lessons/{lesson_id}/attempts`
-* **Mục đích**: Nộp lượt thực hiện bài Shadowing (có thể kèm file audio ghi âm tạm thời để chấm điểm AI hoặc xác nhận hoàn thành bài tự so sánh). Tự động ghi nhận hoàn thành bài và nhận 15 EXP.
+#### `GET /api/v1/shadowing/{content_id}/in-progress`
+* **Mục đích**: Kiểm tra và lấy thông tin phiên luyện tập đang dang dở (`status: "in_progress"`) để người dùng có thể tiếp tục làm bài (Resume) hoặc xem tổng số lần đã thử.
 * **Yêu cầu xác thực**: Bearer Token
-* **Request Headers**: `Authorization: Bearer <jwt_access_token>`, `Content-Type: multipart/form-data`
+* **Request Headers**: `Authorization: Bearer <jwt_access_token>`
 * **Path Parameters**:
-  * `lesson_id` (string, UUID): ID bài Shadowing
+  * `content_id` (string, UUID): ID nội dung bài học
 * **Query Parameters**: Không
-* **Request Body Schema (Form Data)**:
-  * `audio_file` (optional, file): File ghi âm dạng `webm` / `wav` / `mp3`.
-  * `self_evaluation_passed` (required, boolean): `true` nếu người dùng xác nhận đã tự so sánh và hoàn thành.
-* **Response Schema (201 Created)**:
+* **Request Body**: Không
+* **Response Schema (200 OK)**:
   ```json
   {
     "attempt_id": "550e8400-e29b-41d4-a716-446655440000",
-    "lesson_id": "987e6543-e89b-12d3-a456-426614174999",
-    "status": "completed",
-    "exp_earned": 15,
-    "ai_feedback": {
-      "similarity_score": 85.5,
-      "feedback_text": "Phát âm khá mượt mà, lưu ý phát âm âm ngắt ở câu đầu.",
-      "mispronounced_words": ["お探し"]
-    },
-    "completed_at": "2026-08-06T14:40:00.000Z"
+    "mode": "segmented",
+    "recorded_segments": [
+      {
+        "segment_id": "0",
+        "recording_id": "aa0e8400-e29b-41d4-a716-446655440001",
+        "storage_key": "shadowing/user_id/attempt_id/seg_0.webm",
+        "duration_seconds": 2,
+        "created_at": "2026-08-19T10:00:00Z"
+      }
+    ],
+    "continuous_recording": null,
+    "total_attempts": 2
   }
   ```
 * **Status Codes & Error Responses**:
-  * `201 Created`: Nộp bài thành công và nhận thưởng EXP.
-  * `400 Bad Request` (`code`: `bad_request`): Định dạng file ghi âm không hỗ trợ.
-  * `404 Not Found` (`code`: `not_found`): Bài học không tồn tại.
+  * `200 OK`: Lấy phiên đang làm dở thành công (hoặc trả `null`/404 nếu không có phiên in-progress).
+  * `404 Not Found` (`code`: `not_found`): Không tìm thấy bài học.
+
+---
+
+#### `POST /api/v1/shadowing/{content_id}/record-segment`
+* **Mục đích**: Tải lên file ghi âm cho một segment cụ thể trong chế độ Luyện từng câu (Segment-by-Segment). Lưu bản ghi vào bảng `recordings` và cập nhật payload attempt.
+* **Yêu cầu xác thực**: Bearer Token
+* **Request Headers**: `Authorization: Bearer <jwt_access_token>`, `Content-Type: multipart/form-data`
+* **Path Parameters**:
+  * `content_id` (string, UUID): ID bài học
+* **Request Body Schema (Form Data)**:
+  * `audio_file` (required, file): File âm thanh ghi âm (`webm`, `wav`, `mp3`, `m4a`, `ogg`).
+  * `segment_id` (required, string): ID hoặc chỉ số câu (vd: `"0"`, `"1"`).
+  * `attempt_id` (optional, string, UUID): ID attempt nếu tiếp tục phiên hiện có.
+* **Response Schema (200 OK)**:
+  ```json
+  {
+    "attempt_id": "550e8400-e29b-41d4-a716-446655440000",
+    "segment_id": "0",
+    "recording_id": "aa0e8400-e29b-41d4-a716-446655440001",
+    "duration_seconds": 2,
+    "recorded_segments_count": 1,
+    "total_segments": 5,
+    "is_completed": false
+  }
+  ```
+* **Status Codes & Error Responses**:
+  * `200 OK`: Ghi âm segment thành công.
+  * `400 Bad Request` (`code`: `bad_request`): Định dạng file không hợp lệ hoặc thiếu dữ liệu.
+  * `404 Not Found` (`code`: `not_found`): Bài học hoặc attempt không tồn tại.
+
+---
+
+#### `POST /api/v1/shadowing/{content_id}/record-continuous`
+* **Mục đích**: Tải lên file ghi âm cho toàn bộ buổi luyện tập trong chế độ Đọc liên tục (Continuous Shadowing).
+* **Yêu cầu xác thực**: Bearer Token
+* **Request Headers**: `Authorization: Bearer <jwt_access_token>`, `Content-Type: multipart/form-data`
+* **Path Parameters**:
+  * `content_id` (string, UUID): ID bài học
+* **Request Body Schema (Form Data)**:
+  * `audio_file` (required, file): File âm thanh ghi âm buổi luyện tập.
+  * `duration_seconds` (optional, integer): Thời lượng ghi âm thực tế tính bằng giây.
+  * `attempt_id` (optional, string, UUID): ID attempt nếu tiếp tục phiên hiện có.
+* **Response Schema (200 OK)**:
+  ```json
+  {
+    "attempt_id": "550e8400-e29b-41d4-a716-446655440000",
+    "recording_id": "bb0e8400-e29b-41d4-a716-446655440002",
+    "duration_seconds": 30,
+    "is_completed": true
+  }
+  ```
+* **Status Codes & Error Responses**:
+  * `200 OK`: Ghi âm liên tục thành công.
+  * `400 Bad Request` (`code`: `bad_request`): File không hợp lệ.
+  * `404 Not Found` (`code`: `not_found`): Không tìm thấy bài học.
+
+---
+
+#### `POST /api/v1/shadowing/{content_id}/submit`
+* **Mục đích**: Hoàn thành và nộp kết quả bài luyện Shadowing. Tính điểm (theo tỷ lệ câu hoặc thời lượng thực hành), cộng thưởng EXP và lưu lịch sử làm bài.
+* **Yêu cầu xác thực**: Bearer Token
+* **Request Headers**: `Authorization: Bearer <jwt_access_token>`, `Content-Type: application/json`
+* **Path Parameters**:
+  * `content_id` (string, UUID): ID bài học
+* **Request Body Schema (JSON)**:
+  ```json
+  {
+    "attempt_id": "550e8400-e29b-41d4-a716-446655440000",
+    "replay_count": 0
+  }
+  ```
+* **Response Schema (200 OK)**:
+  ```json
+  {
+    "attempt_id": "550e8400-e29b-41d4-a716-446655440000",
+    "status": "completed",
+    "score": 100.0,
+    "earned_exp": 15,
+    "total_exp": 350,
+    "level": 3,
+    "is_first_completion": true
+  }
+  ```
+* **Status Codes & Error Responses**:
+  * `200 OK`: Nộp bài thành công và cộng điểm EXP.
+  * `400 Bad Request` (`code`: `bad_request`): Attempt đã nộp hoặc không có bản ghi âm.
+  * `404 Not Found` (`code`: `not_found`): Không tìm thấy bài học hoặc attempt.
+
+---
+
+#### `GET /api/v1/shadowing/attempts/{attempt_id}/review`
+* **Mục đích**: Lấy dữ liệu chi tiết màn hình kết quả/ôn tập (Review) của bài Shadowing đã nộp, gồm audio gốc, bản ghi âm của người dùng và danh sách so sánh từng câu.
+* **Yêu cầu xác thực**: Bearer Token
+* **Request Headers**: `Authorization: Bearer <jwt_access_token>`
+* **Path Parameters**:
+  * `attempt_id` (string, UUID): ID attempt cần xem lại
+* **Query Parameters**: Không
+* **Request Body**: Không
+* **Response Schema (200 OK)**:
+  ```json
+  {
+    "attempt_id": "550e8400-e29b-41d4-a716-446655440000",
+    "content_id": "987e6543-e89b-12d3-a456-426614174999",
+    "title": "Hội thoại mua sắm",
+    "difficulty": "N5",
+    "mode": "segmented",
+    "score": 100.0,
+    "earned_exp": 15,
+    "completed_segments": 5,
+    "total_segments": 5,
+    "audio_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    "user_continuous_recording_url": null,
+    "user_continuous_duration_seconds": null,
+    "segments": [
+      {
+        "segment_index": 0,
+        "script": "いらっしゃいませ。",
+        "start_time_ms": 0,
+        "end_time_ms": 1500,
+        "recorded": true,
+        "recording_id": "aa0e8400-e29b-41d4-a716-446655440001",
+        "duration_seconds": 2,
+        "playback_url": "http://localhost:8000/api/v1/media/recordings/aa0e8400-e29b-41d4-a716-446655440001"
+      }
+    ]
+  }
+  ```
+* **Status Codes & Error Responses**:
+  * `200 OK`: Lấy thông tin review thành công.
+  * `404 Not Found` (`code`: `not_found`): Không tìm thấy attempt.
 
 ---
 
