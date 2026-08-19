@@ -2399,6 +2399,75 @@
             "description": "Unprocessable Content"
           }
         }
+      },
+      "delete": {
+        "tags": ["AI Tutor"],
+        "summary": "Delete an AI Tutor conversation",
+        "operationId": "deleteTutorConversation",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "AI Tutor conversation ID",
+              "title": "Conversation Id"
+            },
+            "description": "AI Tutor conversation ID"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          }
+        }
       }
     },
     "/api/v1/ai-tutor/conversations/{conversation_id}/messages": {
@@ -2505,84 +2574,6 @@
               }
             },
             "description": "Service Unavailable"
-          }
-        }
-      }
-    },
-    "/api/v1/ai-tutor/conversations/{conversation_id}/complete": {
-      "post": {
-        "tags": ["AI Tutor"],
-        "summary": "Complete an AI Tutor conversation",
-        "operationId": "completeTutorConversation",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "conversation_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "description": "AI Tutor conversation ID",
-              "title": "Conversation Id"
-            },
-            "description": "AI Tutor conversation ID"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TutorConversationCompleteResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unauthorized"
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Forbidden"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Not Found"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unprocessable Content"
           }
         }
       }
@@ -4982,29 +4973,6 @@
         "title": "TutorAnswerHintResponse",
         "description": "A short answer suggestion and its Vietnamese meaning."
       },
-      "TutorConversationCompleteResponse": {
-        "properties": {
-          "conversation_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Conversation Id"
-          },
-          "status": {
-            "type": "string",
-            "const": "completed",
-            "title": "Status"
-          },
-          "ended_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Ended At"
-          }
-        },
-        "type": "object",
-        "required": ["conversation_id", "status", "ended_at"],
-        "title": "TutorConversationCompleteResponse",
-        "description": "Response returned when a conversation is completed."
-      },
       "TutorConversationCreateRequest": {
         "properties": {
           "topic": {
@@ -5247,18 +5215,6 @@
       },
       "TutorFeedbackResponse": {
         "properties": {
-          "next_question": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 2000
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Next Question"
-          },
           "grammar_correction": {
             "anyOf": [
               {
@@ -5351,6 +5307,18 @@
             "maxLength": 2000,
             "minLength": 1,
             "title": "Text"
+          },
+          "text_vi": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text Vi"
           },
           "client_message_id": {
             "anyOf": [

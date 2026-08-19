@@ -1488,26 +1488,6 @@ export type TutorAnswerHintResponse = {
 };
 
 /**
- * TutorConversationCompleteResponse
- *
- * Response returned when a conversation is completed.
- */
-export type TutorConversationCompleteResponse = {
-  /**
-   * Conversation Id
-   */
-  conversation_id: string;
-  /**
-   * Status
-   */
-  status: "completed";
-  /**
-   * Ended At
-   */
-  ended_at: string;
-};
-
-/**
  * TutorConversationCreateRequest
  *
  * User-provided context for a free-form Tutor conversation.
@@ -1655,10 +1635,6 @@ export type TutorConversationListResponse = {
  */
 export type TutorFeedbackResponse = {
   /**
-   * Next Question
-   */
-  next_question?: string | null;
-  /**
    * Grammar Correction
    */
   grammar_correction?: string | null;
@@ -1717,6 +1693,10 @@ export type TutorMessageResponse = {
    * Text
    */
   text: string;
+  /**
+   * Text Vi
+   */
+  text_vi?: string | null;
   /**
    * Client Message Id
    */
@@ -3219,6 +3199,52 @@ export type CreateTutorConversationResponses = {
 export type CreateTutorConversationResponse =
   CreateTutorConversationResponses[keyof CreateTutorConversationResponses];
 
+export type DeleteTutorConversationData = {
+  body?: never;
+  path: {
+    /**
+     * Conversation Id
+     *
+     * AI Tutor conversation ID
+     */
+    conversation_id: string;
+  };
+  query?: never;
+  url: "/api/v1/ai-tutor/conversations/{conversation_id}";
+};
+
+export type DeleteTutorConversationErrors = {
+  /**
+   * Unauthorized
+   */
+  401: ErrorResponse;
+  /**
+   * Forbidden
+   */
+  403: ErrorResponse;
+  /**
+   * Not Found
+   */
+  404: ErrorResponse;
+  /**
+   * Unprocessable Content
+   */
+  422: ErrorResponse;
+};
+
+export type DeleteTutorConversationError =
+  DeleteTutorConversationErrors[keyof DeleteTutorConversationErrors];
+
+export type DeleteTutorConversationResponses = {
+  /**
+   * Successful Response
+   */
+  204: void;
+};
+
+export type DeleteTutorConversationResponse =
+  DeleteTutorConversationResponses[keyof DeleteTutorConversationResponses];
+
 export type GetTutorConversationData = {
   body?: never;
   path: {
@@ -3316,49 +3342,3 @@ export type SendTutorMessageResponses = {
 };
 
 export type SendTutorMessageResponse = SendTutorMessageResponses[keyof SendTutorMessageResponses];
-
-export type CompleteTutorConversationData = {
-  body?: never;
-  path: {
-    /**
-     * Conversation Id
-     *
-     * AI Tutor conversation ID
-     */
-    conversation_id: string;
-  };
-  query?: never;
-  url: "/api/v1/ai-tutor/conversations/{conversation_id}/complete";
-};
-
-export type CompleteTutorConversationErrors = {
-  /**
-   * Unauthorized
-   */
-  401: ErrorResponse;
-  /**
-   * Forbidden
-   */
-  403: ErrorResponse;
-  /**
-   * Not Found
-   */
-  404: ErrorResponse;
-  /**
-   * Unprocessable Content
-   */
-  422: ErrorResponse;
-};
-
-export type CompleteTutorConversationError =
-  CompleteTutorConversationErrors[keyof CompleteTutorConversationErrors];
-
-export type CompleteTutorConversationResponses = {
-  /**
-   * Successful Response
-   */
-  200: TutorConversationCompleteResponse;
-};
-
-export type CompleteTutorConversationResponse =
-  CompleteTutorConversationResponses[keyof CompleteTutorConversationResponses];

@@ -16,9 +16,6 @@ import type {
   CompleteDictationAttemptData,
   CompleteDictationAttemptErrors,
   CompleteDictationAttemptResponses,
-  CompleteTutorConversationData,
-  CompleteTutorConversationErrors,
-  CompleteTutorConversationResponses,
   CreateLearningContentFromYouTubeData,
   CreateLearningContentFromYouTubeErrors,
   CreateLearningContentFromYouTubeResponses,
@@ -28,6 +25,9 @@ import type {
   CreateTutorConversationData,
   CreateTutorConversationErrors,
   CreateTutorConversationResponses,
+  DeleteTutorConversationData,
+  DeleteTutorConversationErrors,
+  DeleteTutorConversationResponses,
   GetDictationAttemptData,
   GetDictationAttemptErrors,
   GetDictationAttemptResponses,
@@ -766,6 +766,22 @@ export const createTutorConversation = <ThrowOnError extends boolean = false>(
   });
 
 /**
+ * Delete an AI Tutor conversation
+ */
+export const deleteTutorConversation = <ThrowOnError extends boolean = false>(
+  options: Options<DeleteTutorConversationData, ThrowOnError>,
+): RequestResult<DeleteTutorConversationResponses, DeleteTutorConversationErrors, ThrowOnError> =>
+  (options.client ?? client).delete<
+    DeleteTutorConversationResponses,
+    DeleteTutorConversationErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/api/v1/ai-tutor/conversations/{conversation_id}",
+    ...options,
+  });
+
+/**
  * Get an AI Tutor conversation and its ordered messages
  */
 export const getTutorConversation = <ThrowOnError extends boolean = false>(
@@ -795,24 +811,4 @@ export const sendTutorMessage = <ThrowOnError extends boolean = false>(
       "Content-Type": "application/json",
       ...options.headers,
     },
-  });
-
-/**
- * Complete an AI Tutor conversation
- */
-export const completeTutorConversation = <ThrowOnError extends boolean = false>(
-  options: Options<CompleteTutorConversationData, ThrowOnError>,
-): RequestResult<
-  CompleteTutorConversationResponses,
-  CompleteTutorConversationErrors,
-  ThrowOnError
-> =>
-  (options.client ?? client).post<
-    CompleteTutorConversationResponses,
-    CompleteTutorConversationErrors,
-    ThrowOnError
-  >({
-    security: [{ scheme: "bearer", type: "http" }],
-    url: "/api/v1/ai-tutor/conversations/{conversation_id}/complete",
-    ...options,
   });
