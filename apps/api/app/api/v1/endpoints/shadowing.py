@@ -8,12 +8,37 @@ from app.api.dependencies.database import DatabaseSession
 from app.repositories.recording import RecordingRepository
 from app.schemas.error import ErrorResponse
 from app.schemas.shadowing import (
+    ShadowingAttemptReviewResponse,
+    ShadowingRecordContinuousResponse,
     ShadowingRecordingPlaybackResponse,
     ShadowingRecordSegmentResponse,
+    ShadowingResumeResponse,
+    ShadowingSubmitRequest,
+    ShadowingSubmitResponse,
 )
 from app.services.shadowing import ShadowingService
 
 router = APIRouter(prefix="/shadowing", tags=["Shadowing"])
+
+
+@router.get(
+    "/{content_id}/in-progress",
+    operation_id="getInProgressShadowingAttempt",
+    response_model=ShadowingResumeResponse,
+    summary="Resume the latest in-progress Shadowing attempt",
+    responses={
+        status.HTTP_401_UNAUTHORIZED: {"model": ErrorResponse},
+        status.HTTP_404_NOT_FOUND: {"model": ErrorResponse},
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {"model": ErrorResponse},
+    },
+)
+async def get_in_progress_shadowing_attempt(
+    content_id: Annotated[uuid.UUID, Path(description="Published shadowing content ID")],
+    current_user: CurrentUser,
+    session: DatabaseSession,
+) -> ShadowingResumeResponse:
+    service = ShadowingService(RecordingRepository(session))
+    return await service.get_in_progress_attempt(user_id=current_user.id, content_id=content_id)
 
 
 @router.post(
@@ -47,11 +72,106 @@ async def record_segment(
     )
 
 
+@router.post(
+    "/{content_id}/record-continuous",
+    operation_id="recordShadowingContinuous",
+    response_model=ShadowingRecordContinuousResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Upload audio recording for continuous full-material shadowing",
+    responses={
+        status.HTTP_400_BAD_REQUEST: {"model": ErrorResponse},
+        status.HTTP_401_UNAUTHORIZED: {"model": ErrorResponse},
+        status.HTTP_403_FORBIDDEN: {"model": ErrorResponse},
+        status.HTTP_404_NOT_FOUND: {"model": ErrorResponse},
+    },
+)
+async def record_continuous(
+    content_id: Annotated[uuid.UUID, Path(description="Published shadowing content ID")],
+    audio_file: Annotated[UploadFile, File(description="User continuous audio recording file")],
+    current_user: CurrentUser,
+    session: DatabaseSession,
+    attempt_id: Annotated[uuid.UUID | None, Form(description="Optional attempt ID")] = None,
+    duration_seconds: Annotated[
+        int | None, Form(description="Optional continuous duration in seconds")
+    ] = None,
+) -> ShadowingRecordContinuousResponse:
+    service = ShadowingService(RecordingRepository(session))
+    return await service.record_continuous(
+        user_id=current_user.id,
+        content_id=content_id,
+        audio_file=audio_file,
+        duration_seconds=duration_seconds,
+        attempt_id=attempt_id,
+    )
+
+
+@router.post(
+    "/{content_id}/submit",
+    operation_id="submitShadowingAttempt",
+    response_model=ShadowingSubmitResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Submit and finalize a shadowing attempt",
+    responses={
+        status.HTTP_400_BAD_REQUEST: {"model": ErrorResponse},
+        status.HTTP_401_UNAUTHORIZED: {"model": ErrorResponse},
+        status.HTTP_403_FORBIDDEN: {"model": ErrorResponse},
+        status.HTTP_404_NOT_FOUND: {"model": ErrorResponse},
+    },
+)
+async def submit_attempt(
+    content_id: Annotated[uuid.UUID, Path(description="Published shadowing content ID")],
+    payload: ShadowingSubmitRequest,
+    current_user: CurrentUser,
+    session: DatabaseSession,
+) -> ShadowingSubmitResponse:
+    service = ShadowingService(RecordingRepository(session))
+    return await service.submit_attempt(
+        user_id=current_user.id,
+        content_id=content_id,
+        attempt_id=payload.attempt_id,
+        replay_count=payload.replay_count,
+    )
+
+
+@router.get(
+    "/attempts/{attempt_id}/review",
+    operation_id="getShadowingAttemptReview",
+    response_model=ShadowingAttemptReviewResponse,
+    summary="Review a Shadowing attempt with segment recordings",
+    responses={
+        status.HTTP_401_UNAUTHORIZED: {"model": ErrorResponse},
+        status.HTTP_403_FORBIDDEN: {"model": ErrorResponse},
+        status.HTTP_404_NOT_FOUND: {"model": ErrorResponse},
+    },
+)
+async def get_attempt_review(
+    attempt_id: Annotated[uuid.UUID, Path(description="Shadowing attempt ID")],
+    current_user: CurrentUser,
+    session: DatabaseSession,
+) -> ShadowingAttemptReviewResponse:
+    service = ShadowingService(RecordingRepository(session))
+    return await service.get_attempt_review(
+        user_id=current_user.id,
+        attempt_id=attempt_id,
+    )
+
+
 @router.get(
     "/recordings/{recording_id}",
+    operation_id="getShadowingRecording",
+    response_model=ShadowingRecordingPlaybackResponse,
+    summary="Get presigned or public playback URL for a user recording",
+    responses={
+        status.HTTP_401_UNAUTHORIZED: {"model": ErrorResponse},
+        status.HTTP_403_FORBIDDEN: {"model": ErrorResponse},
+        status.HTTP_404_NOT_FOUND: {"model": ErrorResponse},
+    },
+)
+@router.get(
+    "/recordings/{recording_id}/playback",
     operation_id="getShadowingRecordingPlayback",
     response_model=ShadowingRecordingPlaybackResponse,
-    summary="Get playback URL for a user's recording",
+    summary="Get presigned or public playback URL for a user recording",
     responses={
         status.HTTP_401_UNAUTHORIZED: {"model": ErrorResponse},
         status.HTTP_403_FORBIDDEN: {"model": ErrorResponse},

@@ -34,6 +34,9 @@ import type {
   GetInProgressDictationAttemptData,
   GetInProgressDictationAttemptErrors,
   GetInProgressDictationAttemptResponses,
+  GetInProgressShadowingAttemptData,
+  GetInProgressShadowingAttemptErrors,
+  GetInProgressShadowingAttemptResponses,
   GetLearningContentData,
   GetLearningContentErrors,
   GetLearningContentResponses,
@@ -48,12 +51,18 @@ import type {
   GetReflexLessonData,
   GetReflexLessonErrors,
   GetReflexLessonResponses,
+  GetShadowingAttemptReviewData,
+  GetShadowingAttemptReviewErrors,
+  GetShadowingAttemptReviewResponses,
   GetShadowingContentData,
   GetShadowingContentErrors,
   GetShadowingContentResponses,
+  GetShadowingRecordingData,
+  GetShadowingRecordingErrors,
   GetShadowingRecordingPlaybackData,
   GetShadowingRecordingPlaybackErrors,
   GetShadowingRecordingPlaybackResponses,
+  GetShadowingRecordingResponses,
   GetWeeklyLeaderboardData,
   GetWeeklyLeaderboardErrors,
   GetWeeklyLeaderboardResponses,
@@ -83,6 +92,9 @@ import type {
   ReadinessCheckData,
   ReadinessCheckErrors,
   ReadinessCheckResponses,
+  RecordShadowingContinuousData,
+  RecordShadowingContinuousErrors,
+  RecordShadowingContinuousResponses,
   RecordShadowingSegmentData,
   RecordShadowingSegmentErrors,
   RecordShadowingSegmentResponses,
@@ -95,6 +107,9 @@ import type {
   StartDictationAttemptData,
   StartDictationAttemptErrors,
   StartDictationAttemptResponses,
+  SubmitShadowingAttemptData,
+  SubmitShadowingAttemptErrors,
+  SubmitShadowingAttemptResponses,
   UpdateMeData,
   UpdateMeErrors,
   UpdateMeResponses,
@@ -289,6 +304,26 @@ export const getGamificationProfile = <ThrowOnError extends boolean = false>(
   });
 
 /**
+ * Resume the latest in-progress Shadowing attempt
+ */
+export const getInProgressShadowingAttempt = <ThrowOnError extends boolean = false>(
+  options: Options<GetInProgressShadowingAttemptData, ThrowOnError>,
+): RequestResult<
+  GetInProgressShadowingAttemptResponses,
+  GetInProgressShadowingAttemptErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    GetInProgressShadowingAttemptResponses,
+    GetInProgressShadowingAttemptErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/api/v1/shadowing/{content_id}/in-progress",
+    ...options,
+  });
+
+/**
  * Upload audio recording for a shadowing segment
  */
 export const recordShadowingSegment = <ThrowOnError extends boolean = false>(
@@ -310,7 +345,72 @@ export const recordShadowingSegment = <ThrowOnError extends boolean = false>(
   });
 
 /**
- * Get playback URL for a user's recording
+ * Upload audio recording for continuous full-material shadowing
+ */
+export const recordShadowingContinuous = <ThrowOnError extends boolean = false>(
+  options: Options<RecordShadowingContinuousData, ThrowOnError>,
+): RequestResult<
+  RecordShadowingContinuousResponses,
+  RecordShadowingContinuousErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).post<
+    RecordShadowingContinuousResponses,
+    RecordShadowingContinuousErrors,
+    ThrowOnError
+  >({
+    ...formDataBodySerializer,
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/api/v1/shadowing/{content_id}/record-continuous",
+    ...options,
+    headers: {
+      "Content-Type": null,
+      ...options.headers,
+    },
+  });
+
+/**
+ * Submit and finalize a shadowing attempt
+ */
+export const submitShadowingAttempt = <ThrowOnError extends boolean = false>(
+  options: Options<SubmitShadowingAttemptData, ThrowOnError>,
+): RequestResult<SubmitShadowingAttemptResponses, SubmitShadowingAttemptErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    SubmitShadowingAttemptResponses,
+    SubmitShadowingAttemptErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/api/v1/shadowing/{content_id}/submit",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Review a Shadowing attempt with segment recordings
+ */
+export const getShadowingAttemptReview = <ThrowOnError extends boolean = false>(
+  options: Options<GetShadowingAttemptReviewData, ThrowOnError>,
+): RequestResult<
+  GetShadowingAttemptReviewResponses,
+  GetShadowingAttemptReviewErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    GetShadowingAttemptReviewResponses,
+    GetShadowingAttemptReviewErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/api/v1/shadowing/attempts/{attempt_id}/review",
+    ...options,
+  });
+
+/**
+ * Get presigned or public playback URL for a user recording
  */
 export const getShadowingRecordingPlayback = <ThrowOnError extends boolean = false>(
   options: Options<GetShadowingRecordingPlaybackData, ThrowOnError>,
@@ -322,6 +422,22 @@ export const getShadowingRecordingPlayback = <ThrowOnError extends boolean = fal
   (options.client ?? client).get<
     GetShadowingRecordingPlaybackResponses,
     GetShadowingRecordingPlaybackErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/api/v1/shadowing/recordings/{recording_id}/playback",
+    ...options,
+  });
+
+/**
+ * Get presigned or public playback URL for a user recording
+ */
+export const getShadowingRecording = <ThrowOnError extends boolean = false>(
+  options: Options<GetShadowingRecordingData, ThrowOnError>,
+): RequestResult<GetShadowingRecordingResponses, GetShadowingRecordingErrors, ThrowOnError> =>
+  (options.client ?? client).get<
+    GetShadowingRecordingResponses,
+    GetShadowingRecordingErrors,
     ThrowOnError
   >({
     security: [{ scheme: "bearer", type: "http" }],

@@ -10,25 +10,27 @@ import { getProgressSummary, listProgressAttempts } from "@/lib/api-client";
 const ATTEMPT_HISTORY_PAGE_SIZE = 100;
 
 type PracticeCatalogProgressContextValue = {
+  attemptCounts: ReadonlyMap<string, number>;
   dictationAttemptCounts: ReadonlyMap<string, number>;
+  inProgressContentIds: ReadonlySet<string>;
   inProgressDictationContentIds: ReadonlySet<string>;
   isLoading: boolean;
 };
 
 const PracticeCatalogProgressContext = createContext<PracticeCatalogProgressContextValue>({
+  attemptCounts: new Map(),
   dictationAttemptCounts: new Map(),
+  inProgressContentIds: new Set(),
   inProgressDictationContentIds: new Set(),
   isLoading: false,
 });
 
 export function PracticeCatalogProgressProvider({ children }: { children: ReactNode }) {
   const { protectedRequest } = useAuth();
-  const [dictationAttemptCounts, setDictationAttemptCounts] = useState<ReadonlyMap<string, number>>(
-    () => new Map(),
+  const [attemptCounts, setAttemptCounts] = useState<ReadonlyMap<string, number>>(() => new Map());
+  const [inProgressContentIds, setInProgressContentIds] = useState<ReadonlySet<string>>(
+    () => new Set(),
   );
-  const [inProgressDictationContentIds, setInProgressDictationContentIds] = useState<
-    ReadonlySet<string>
-  >(() => new Set());
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -41,7 +43,7 @@ export function PracticeCatalogProgressProvider({ children }: { children: ReactN
           throw new Error("Progress summary is unavailable");
         }
 
-        const attemptCounts = new Map<string, number>();
+        const counts = new Map<string, number>();
         let page = 1;
         let totalPages = 1;
 
@@ -61,9 +63,9 @@ export function PracticeCatalogProgressProvider({ children }: { children: ReactN
             }
 
             for (const attempt of attemptsResponse.data.items) {
-              attemptCounts.set(
+              counts.set(
                 attempt.content_id,
-                Math.max(attemptCounts.get(attempt.content_id) ?? 0, attempt.attempt_number),
+                Math.max(counts.get(attempt.content_id) ?? 0, attempt.attempt_number),
               );
             }
 
@@ -71,15 +73,15 @@ export function PracticeCatalogProgressProvider({ children }: { children: ReactN
             page += 1;
           }
         } catch {
-          attemptCounts.clear();
+          counts.clear();
         }
 
         if (!isActive) {
           return;
         }
 
-        setDictationAttemptCounts(attemptCounts);
-        setInProgressDictationContentIds(
+        setAttemptCounts(counts);
+        setInProgressContentIds(
           new Set(
             (summaryResponse.data.in_progress_lessons ?? [])
               .filter((lesson) => lesson.content_type === "shadowing_dictation")
@@ -88,8 +90,8 @@ export function PracticeCatalogProgressProvider({ children }: { children: ReactN
         );
       } catch {
         if (isActive) {
-          setDictationAttemptCounts(new Map());
-          setInProgressDictationContentIds(new Set());
+          setAttemptCounts(new Map());
+          setInProgressContentIds(new Set());
         }
       } finally {
         if (isActive) {
@@ -107,7 +109,13 @@ export function PracticeCatalogProgressProvider({ children }: { children: ReactN
 
   return (
     <PracticeCatalogProgressContext.Provider
-      value={{ dictationAttemptCounts, inProgressDictationContentIds, isLoading }}
+      value={{
+        attemptCounts,
+        dictationAttemptCounts: attemptCounts,
+        inProgressContentIds,
+        inProgressDictationContentIds: inProgressContentIds,
+        isLoading,
+      }}
     >
       {children}
     </PracticeCatalogProgressContext.Provider>

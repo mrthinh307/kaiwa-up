@@ -347,31 +347,30 @@ Learning Content, Shadowing, Reflex và Listening & Translation sử dụng modu
 
 ### 6.6. Shadowing
 
-**Mục tiêu:** điều phối trải nghiệm nghe, đọc đuổi theo, ghi âm và so sánh.
+**Mục tiêu:** điều phối trải nghiệm nghe, đọc đuổi theo, ghi âm đa chế độ (Dual-Mode: Segment-by-Segment & Continuous), khôi phục phiên dở dang và tự so sánh giọng nói.
 
 Backend:
 
-- Lấy bài Shadowing đã publish từ Learning Content.
-- Xác thực quyền truy cập bài học.
-- Nhận audio người dùng dưới dạng file tạm khi cần đánh giá; không lưu tham chiếu bản ghi lâu dài.
-- Xác định điều kiện hoàn thành Shadowing cơ bản.
-- Gửi kết quả hoàn thành sang Progress/Attempt.
-- Với P1, yêu cầu AI Gateway đánh giá khi tính năng được bật; lỗi AI không làm mất khả năng tự so
-  sánh hoặc kết quả luyện cơ bản.
-- Với P2, có thể gọi Pronunciation Analysis để phân tích ngữ điệu, trọng âm, nhịp điệu và độ chính
-  xác từng âm.
+- Cung cấp API chi tiết bài học (`GET /{content_id}`) kèm transcript phân đoạn và API khôi phục phiên (`GET /{content_id}/in-progress`).
+- Hỗ trợ ghi âm từng câu (`POST /{content_id}/record-segment`) và ghi âm liên tục (`POST /{content_id}/record-continuous`).
+- Lưu trữ bản ghi âm người dùng lâu dài trên Storage Service và liên kết vào bảng `recordings` (`kind="SHADOWING"`, `attempt_id`, `storage_key`, `duration_seconds`).
+- Chấm điểm bài học và nộp bài (`POST /{content_id}/submit`):
+  - Chế độ Segment: Tính theo tỷ lệ câu hoàn thành (`completed_segments / total_segments * 100`).
+  - Chế độ Continuous: Tính theo tỷ lệ thời lượng thực hành (`duration / total_duration * 100`).
+  - Cấp thưởng EXP qua `GamificationService` (Base 15 EXP, First-time bonus +10 EXP, High-score bonus +5 EXP, trừ nhẹ khi nghe lại).
+- Cung cấp API Review (`GET /attempts/{attempt_id}/review`) sinh playback URL cho từng bản ghi âm và audio bài học gốc.
 
 Frontend:
 
-- Sở hữu route danh sách và chi tiết bài Shadowing.
-- Điều phối audio gốc, ẩn/hiện transcript, microphone, ghi âm và phát lại.
-- Giữ state phát/ghi âm cục bộ trong feature.
-- Hiển thị fallback tự so sánh khi AI không khả dụng.
+- Sở hữu route danh sách bài học và workstation Shadowing tại `apps/web/src/app/(protected)/shadowing/`.
+- Module hóa các component: `ShadowingStartPanel`, `CompactShadowingToolbar`, `AudioPlayerCard`, `RecorderCard`, `TranscriptCard`, `ShadowingSettingsSheet`, `ShadowingResult`.
+- Điều phối âm lượng thực tế của player (100% on-load) và đồng bộ highlight câu đang phát (`Speaking`) với video theo thời gian thực.
+- Hỗ trợ hệ thống phím tắt (`useShadowingShortcuts`): `Space` (Play/Pause), `R` (Toggle Record), `←` / `→` (Previous/Next Segment).
+- Màn hình Review 2 cột cuộn độc lập (`ScrollArea`) giúp người dùng nghe lại câu gốc và câu ghi âm để tự đối chiếu ngữ điệu.
 
-Sở hữu: rule hoàn thành và kết quả chuyên biệt của Shadowing. Attempt chung thuộc Progress; audio
-người dùng chỉ là file tạm do Media quản lý; lesson/transcript thuộc Learning Content.
+Sở hữu: rule thực hành kép, lưu trữ recording, tính điểm và review của Shadowing. Attempt chung thuộc Progress/`exercise_attempts`; audio bài học thuộc Learning Content.
 
-Phụ thuộc: Auth/User, Learning Content, Media/Storage, Progress/Attempt và AI Gateway ở P1.
+Phụ thuộc: Auth/User, Learning Content, Media/Storage, Progress/Attempt và Gamification.
 
 ### 6.7. Dictation
 

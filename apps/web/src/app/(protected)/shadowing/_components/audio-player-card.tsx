@@ -2,18 +2,25 @@
 
 import {
   AlertCircle,
+  Gauge,
   Headphones,
   Pause,
   Play,
   RotateCcw,
   SkipBack,
   SkipForward,
+  Volume1,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Slider } from "@/components/ui/slider";
+import { cn } from "@/lib/utils";
 
+import { PLAYBACK_RATES } from "../_constants/shadowing-constants";
 import { type AudioPlayerState, useAudioPlayer } from "../_hooks/use-audio-player";
 
 interface AudioPlayerCardProps {
@@ -21,6 +28,7 @@ interface AudioPlayerCardProps {
   durationSeconds?: number | null;
   hasNextSegment?: boolean;
   hasPreviousSegment?: boolean;
+  mode?: "segmented" | "continuous";
   onNextSegment?: () => void;
   onPreviousSegment?: () => void;
   onTogglePlay?: () => void;
@@ -40,6 +48,7 @@ export function AudioPlayerCard({
   durationSeconds,
   hasNextSegment = false,
   hasPreviousSegment = false,
+  mode = "segmented",
   onNextSegment,
   onPreviousSegment,
   onTogglePlay,
@@ -49,6 +58,8 @@ export function AudioPlayerCard({
   const internalPlayer = useAudioPlayer(audioUrl, durationSeconds ?? 0);
   const player = externalPlayer ?? internalPlayer;
 
+  const isContinuous = mode === "continuous";
+
   const {
     changePlaybackRate,
     currentTime,
@@ -56,29 +67,39 @@ export function AudioPlayerCard({
     handleIframeLoad,
     hasError,
     iframeRef,
+    isMuted,
     isPlaying,
     isYouTube,
     playbackRate,
     seek,
+    setVolume,
+    toggleMute,
     togglePlay,
+    volume,
     youtubeVideoId,
   } = player;
 
-  const speedOptions = [0.8, 1.0, 1.2];
+  const handlePlaybackRateChange = () => {
+    const currentRateIndex = PLAYBACK_RATES.indexOf(
+      playbackRate as (typeof PLAYBACK_RATES)[number],
+    );
+    const nextRate = PLAYBACK_RATES[(currentRateIndex + 1) % PLAYBACK_RATES.length] ?? 1;
+    changePlaybackRate(nextRate);
+  };
 
   return (
-    <div className="rounded-base border-2 border-border bg-secondary-background p-6 shadow-shadow">
+    <div className="rounded-base border-2 border-border bg-secondary-background p-5 sm:p-6 shadow-shadow">
       {isYouTube &&
         youtubeVideoId &&
         (showVideo ? (
-          <div className="relative aspect-video w-full overflow-hidden rounded-base border-2 border-border bg-black mb-6 shadow-xs">
+          <div className="relative mb-6 aspect-video w-full overflow-hidden rounded-base border-2 border-border bg-black shadow-xs">
             <iframe
               allow="autoplay; encrypted-media; picture-in-picture"
               allowFullScreen
-              className="absolute inset-0 size-full border-0"
+              className="pointer-events-none absolute inset-0 size-full border-0"
               onLoad={handleIframeLoad}
               ref={iframeRef}
-              src={`https://www.youtube-nocookie.com/embed/${youtubeVideoId}?enablejsapi=1&autoplay=0&controls=1&rel=0&playsinline=1`}
+              src={`https://www.youtube-nocookie.com/embed/${youtubeVideoId}?enablejsapi=1&autoplay=0&controls=0&rel=0&playsinline=1`}
               title="Shadowing lesson video"
             />
           </div>
@@ -98,23 +119,82 @@ export function AudioPlayerCard({
         ))}
 
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 font-heading text-lg">
+        <div className="flex items-center gap-2 font-heading text-base sm:text-lg">
           <Headphones className="size-5 text-main" />
           <span>Original Lesson Audio</span>
         </div>
 
-        <div className="flex items-center gap-1.5">
-          {speedOptions.map((rate) => (
-            <Button
-              className="h-8 px-2.5 text-xs"
-              key={rate}
-              onClick={() => changePlaybackRate(rate)}
-              size="sm"
-              variant={playbackRate === rate ? "default" : "neutral"}
-            >
-              {rate}x
-            </Button>
-          ))}
+        <div className="flex items-center gap-2">
+          {/* Volume Control Popover */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                aria-label={isMuted ? "Unmute audio" : "Adjust volume"}
+                className="size-8 gap-1.5 font-heading text-xs"
+                size="icon"
+                type="button"
+                variant="neutral"
+              >
+                {isMuted || volume === 0 ? (
+                  <VolumeX aria-hidden="true" className="size-4" />
+                ) : volume < 50 ? (
+                  <Volume1 aria-hidden="true" className="size-4" />
+                ) : (
+                  <Volume2 aria-hidden="true" className="size-4" />
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-48 p-3" side="bottom">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-xs font-heading">
+                  <span>Volume</span>
+                  <span>{isMuted ? "0%" : `${Math.round(volume)}%`}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    className="size-7 shrink-0"
+                    onClick={toggleMute}
+                    size="icon"
+                    type="button"
+                    variant="neutral"
+                  >
+                    {isMuted || volume === 0 ? (
+                      <VolumeX className="size-3.5" />
+                    ) : (
+                      <Volume2 className="size-3.5" />
+                    )}
+                  </Button>
+                  <Slider
+                    aria-label="Volume slider"
+                    max={100}
+                    min={0}
+                    onValueChange={(values) => {
+                      const val = values[0];
+                      if (typeof val === "number") setVolume(val);
+                    }}
+                    step={1}
+                    value={[isMuted ? 0 : volume]}
+                  />
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
+
+          {/* Playback Speed Cycling Button */}
+          <Button
+            aria-label={`Playback speed ${playbackRate}x. Change playback speed.`}
+            className={cn(
+              "min-w-16 gap-1.5 font-heading text-xs",
+              playbackRate !== 1 && "bg-secondary-background",
+            )}
+            onClick={handlePlaybackRateChange}
+            size="sm"
+            type="button"
+            variant="neutral"
+          >
+            <Gauge aria-hidden="true" className="size-3.5" />
+            {playbackRate}x
+          </Button>
         </div>
       </div>
 
@@ -129,13 +209,14 @@ export function AudioPlayerCard({
       ) : (
         <div className="mt-6 flex flex-col gap-4">
           <div className="flex items-center gap-2 sm:gap-3">
-            {onPreviousSegment && (
+            {!isContinuous && onPreviousSegment && (
               <Button
-                aria-label="Previous segment"
-                className="size-10 sm:size-11 shrink-0"
+                aria-label="Previous segment (←)"
+                className="size-10 shrink-0 sm:size-11"
                 disabled={!hasPreviousSegment}
                 onClick={onPreviousSegment}
                 size="icon"
+                title="Previous segment (←)"
                 variant="neutral"
               >
                 <SkipBack className="size-4 sm:size-5" />
@@ -143,10 +224,11 @@ export function AudioPlayerCard({
             )}
 
             <Button
-              aria-label={isPlaying ? "Pause lesson audio" : "Play lesson audio"}
-              className="size-12 sm:size-14 rounded-base text-main-foreground shrink-0"
+              aria-label={isPlaying ? "Pause lesson audio (Space)" : "Play lesson audio (Space)"}
+              className="size-12 shrink-0 rounded-base text-main-foreground sm:size-14"
               onClick={onTogglePlay ?? togglePlay}
               size="icon"
+              title={isPlaying ? "Pause (Space)" : "Play (Space)"}
             >
               {isPlaying ? (
                 <Pause className="size-5 sm:size-6" />
@@ -155,20 +237,21 @@ export function AudioPlayerCard({
               )}
             </Button>
 
-            {onNextSegment && (
+            {!isContinuous && onNextSegment && (
               <Button
-                aria-label="Next segment"
-                className="size-10 sm:size-11 shrink-0"
+                aria-label="Next segment (→)"
+                className="size-10 shrink-0 sm:size-11"
                 disabled={!hasNextSegment}
                 onClick={onNextSegment}
                 size="icon"
+                title="Next segment (→)"
                 variant="neutral"
               >
                 <SkipForward className="size-4 sm:size-5" />
               </Button>
             )}
 
-            <div className="flex flex-1 flex-col gap-2 min-w-0">
+            <div className="flex min-w-0 flex-1 flex-col gap-2">
               <Slider
                 aria-label="Audio playback seek"
                 max={duration || 100}

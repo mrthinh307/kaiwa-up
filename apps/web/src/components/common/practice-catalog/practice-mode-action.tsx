@@ -41,13 +41,9 @@ export function PracticeModeAction({
   variant = "default",
 }: PracticeModeActionProps) {
   const config = PRACTICE_MODE_CONFIG[progress.mode];
-  const { dictationAttemptCounts, inProgressDictationContentIds, isLoading } =
-    usePracticeCatalogProgress();
-  const isResumable = progress.mode === "dictation" && inProgressDictationContentIds.has(contentId);
-  const attemptCount =
-    progress.mode === "dictation"
-      ? Math.max(progress.attemptCount, dictationAttemptCounts.get(contentId) ?? 0)
-      : progress.attemptCount;
+  const { attemptCounts, inProgressContentIds, isLoading } = usePracticeCatalogProgress();
+  const isResumable = inProgressContentIds.has(contentId);
+  const attemptCount = Math.max(progress.attemptCount, attemptCounts.get(contentId) ?? 0);
   const hasAttempts = attemptCount > 0;
   const attemptLabel = `${attemptCount} ${attemptCount === 1 ? "attempt" : "attempts"}`;
   const actionLabel = isResumable
@@ -57,7 +53,7 @@ export function PracticeModeAction({
       : "Start lesson";
   const displayedProgress = isResumable
     ? "Resume"
-    : progress.mode === "dictation" && isLoading
+    : isLoading
       ? "Checking progress"
       : hasAttempts
         ? attemptLabel

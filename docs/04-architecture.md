@@ -443,58 +443,67 @@ sequenceDiagram
     participant FE as Next.js
     participant YT as YouTube
     participant BE as FastAPI
-    participant AI as AI Service
+    participant Storage as Local / Cloud Storage
     participant DB as Neon PostgreSQL
 
     U->>FE: Mở bài Shadowing
+    FE->>BE: GET /api/v1/shadowing/{content_id} & /in-progress
+    BE->>DB: Truy vấn learning_content & in-progress attempt
+    DB-->>BE: Dữ liệu bài học + transcript + in-progress state
+    BE-->>FE: Transcript, audio_url, và trạng thái attempt dở dang
 
-    FE->>BE: Lấy thông tin bài học
+    alt Chọn chế độ & Bắt đầu
+        U->>FE: Chọn Continuous hoặc Segment-by-Segment (hoặc Resume)
+        FE->>YT: Đồng bộ YouTube audio & volume (100%)
+    end
 
-    BE->>DB: Truy vấn bài học
+    alt Chế độ Segment-by-Segment
+        loop Từng câu (Segment)
+            U->>FE: Bấm Record Segment #i (hoặc phím R)
+            FE->>FE: Ghi âm giọng nói qua MediaRecorder
+            U->>FE: Bấm Stop Recording (hoặc phím R)
+            FE->>BE: POST /api/v1/shadowing/{content_id}/record-segment
+            BE->>Storage: Lưu file audio (storage_key)
+            BE->>DB: Lưu recordings (kind="SHADOWING") & cập nhật attempt payload
+            DB-->>BE: Recording đã lưu
+            BE-->>FE: Cập nhật trạng thái câu #i đã ghi âm
+        end
+    else Chế độ Continuous
+        U->>FE: Bấm Start Continuous Recording (hoặc phím R)
+        FE->>YT: Phát audio bài học từ đầu
+        FE->>FE: Ghi âm liên tục toàn bộ bài
+        U->>FE: Bấm Stop Recording (hoặc phím R)
+        FE->>BE: POST /api/v1/shadowing/{content_id}/record-continuous
+        BE->>Storage: Lưu file audio toàn bài
+        BE->>DB: Lưu recordings & cập nhật attempt payload
+        BE-->>FE: Lưu bản ghi liên tục thành công
+    end
 
-    DB-->>BE: Dữ liệu bài học
+    U->>FE: Bấm Finish / Hoàn thành bài
+    FE->>BE: POST /api/v1/shadowing/{content_id}/submit
+    BE->>BE: Tính điểm (theo tỷ lệ segment hoặc thời lượng continuous)
+    BE->>BE: Tính thưởng EXP (Base 15 EXP, First-time bonus +10, High-score bonus)
+    BE->>DB: Cập nhật status="completed", lưu xp_transactions
+    BE-->>FE: Kết quả điểm số, EXP nhận được
 
-    BE-->>FE: Transcript và audio_url
-
-    FE->>YT: Mở video bằng YouTube player
-
-    YT-->>FE: Media bài học
-
-    U->>FE: Bắt đầu ghi âm
-
-    U->>FE: Nhấn Stop Recording
-
-    FE->>FE: Kiểm tra thời lượng bản ghi
-
-    FE->>BE: Gửi audio tạm thời
-
-    BE->>AI: Chuyển audio thành text
-
-    AI-->>BE: Transcript người dùng
-
-    BE->>AI: Đánh giá mức độ khớp
-
-    AI-->>BE: Điểm và nhận xét
-
-    BE->>BE: Tính mức độ hoàn thành
-
-    BE->>BE: Tính EXP
-
-    BE->>DB: Lưu kết quả và EXP
-
-    BE-->>FE: Trả kết quả
-
-    FE-->>U: Hiển thị điểm và nhận xét
+    FE->>BE: GET /api/v1/shadowing/attempts/{attempt_id}/review
+    BE->>Storage: Sinh URL phát lại (playback_url) cho từng bản ghi
+    BE-->>FE: Dữ liệu Review (Audio gốc + Bản ghi người dùng theo từng câu/toàn bài)
+    FE-->>U: Hiển thị màn hình Review so sánh 2 cột cuộn mượt mà
 ```
 
-Quy tắc MVP:
+Quy tắc thực hành và chấm điểm Shadowing:
 
-* Một câu Shadowing được tính là hoàn thành khi người dùng nhấn **Stop Recording**.
-* Bản ghi phải có thời lượng lớn hơn **2 giây**.
-* Số câu hoàn thành được dùng để tính tỷ lệ hoàn thành.
-* EXP được tính theo cơ chế riêng của Shadowing.
-* Audio của người dùng chỉ được xử lý tạm thời và bị xóa sau khi hoàn thành xử lý.
-* Bản ghi vẫn có thể được giữ trong bộ nhớ trình duyệt để người dùng phát lại trong phiên hiện tại.
+* **Dual-Mode**:
+  * **Segment-by-Segment**: Người dùng chọn từng câu, nghe và ghi âm riêng cho từng segment. Điểm số = `(số câu đã ghi âm / tổng số câu) * 100`.
+  * **Continuous Shadowing**: Người dùng nghe và đọc đuổi liên tục từ đầu đến cuối một lần duy nhất. Điểm số = `min(100.0, (thời lượng ghi âm / tổng thời lượng bài học) * 100)`.
+* **Lưu trữ bản ghi**: Các bản ghi âm của người dùng được lưu trữ qua Storage Service và gắn liên kết với bảng `recordings` (loại `SHADOWING`, có `storage_key`, `duration_seconds`, `attempt_id`).
+* **Tính điểm và EXP**:
+  * EXP cơ bản: 15 EXP khi hoàn thành bài.
+  * Thưởng lần đầu hoàn thành: +10 EXP.
+  * Thưởng điểm cao (Score >= 80%): +5 EXP.
+  * Khấu trừ nghe lại (Replay penalty): Giảm dần nếu nghe lại nhiều lần.
+* **Màn hình Review**: Cung cấp giao diện so sánh 2 cột với danh sách câu cuộn độc lập (`ScrollArea`), cho phép nghe lại audio gốc và nghe lại từng đoạn giọng nói của người dùng để tự đối chiếu ngữ điệu.
 
 ---
 

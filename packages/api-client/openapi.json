@@ -623,6 +623,74 @@
         }
       }
     },
+    "/api/v1/shadowing/{content_id}/in-progress": {
+      "get": {
+        "tags": ["Shadowing"],
+        "summary": "Resume the latest in-progress Shadowing attempt",
+        "operationId": "getInProgressShadowingAttempt",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "content_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Published shadowing content ID",
+              "title": "Content Id"
+            },
+            "description": "Published shadowing content ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShadowingResumeResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          }
+        }
+      }
+    },
     "/api/v1/shadowing/{content_id}/record-segment": {
       "post": {
         "tags": ["Shadowing"],
@@ -721,11 +789,363 @@
         }
       }
     },
+    "/api/v1/shadowing/{content_id}/record-continuous": {
+      "post": {
+        "tags": ["Shadowing"],
+        "summary": "Upload audio recording for continuous full-material shadowing",
+        "operationId": "recordShadowingContinuous",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "content_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Published shadowing content ID",
+              "title": "Content Id"
+            },
+            "description": "Published shadowing content ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_recordShadowingContinuous"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShadowingRecordContinuousResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/shadowing/{content_id}/submit": {
+      "post": {
+        "tags": ["Shadowing"],
+        "summary": "Submit and finalize a shadowing attempt",
+        "operationId": "submitShadowingAttempt",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "content_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Published shadowing content ID",
+              "title": "Content Id"
+            },
+            "description": "Published shadowing content ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShadowingSubmitRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShadowingSubmitResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/shadowing/attempts/{attempt_id}/review": {
+      "get": {
+        "tags": ["Shadowing"],
+        "summary": "Review a Shadowing attempt with segment recordings",
+        "operationId": "getShadowingAttemptReview",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "attempt_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Shadowing attempt ID",
+              "title": "Attempt Id"
+            },
+            "description": "Shadowing attempt ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShadowingAttemptReviewResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/shadowing/recordings/{recording_id}/playback": {
+      "get": {
+        "tags": ["Shadowing"],
+        "summary": "Get presigned or public playback URL for a user recording",
+        "operationId": "getShadowingRecordingPlayback",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "recording_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Recording ID",
+              "title": "Recording Id"
+            },
+            "description": "Recording ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShadowingRecordingPlaybackResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/shadowing/recordings/{recording_id}": {
       "get": {
         "tags": ["Shadowing"],
-        "summary": "Get playback URL for a user's recording",
-        "operationId": "getShadowingRecordingPlayback",
+        "summary": "Get presigned or public playback URL for a user recording",
+        "operationId": "getShadowingRecording",
         "security": [
           {
             "HTTPBearer": []
@@ -1817,6 +2237,44 @@
         "type": "object",
         "required": ["audio_file", "response_start_ms"],
         "title": "Body_evaluateReflexLesson"
+      },
+      "Body_recordShadowingContinuous": {
+        "properties": {
+          "audio_file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "Audio File",
+            "description": "User continuous audio recording file"
+          },
+          "attempt_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attempt Id",
+            "description": "Optional attempt ID"
+          },
+          "duration_seconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Seconds",
+            "description": "Optional continuous duration in seconds"
+          }
+        },
+        "type": "object",
+        "required": ["audio_file"],
+        "title": "Body_recordShadowingContinuous"
       },
       "Body_recordShadowingSegment": {
         "properties": {
@@ -3490,6 +3948,134 @@
         ],
         "title": "ReviewScheduleItem"
       },
+      "ShadowingAttemptReviewResponse": {
+        "properties": {
+          "attempt_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Attempt Id"
+          },
+          "content_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Content Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "difficulty": {
+            "type": "string",
+            "title": "Difficulty"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/ShadowingMode",
+            "default": "segmented"
+          },
+          "audio_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Audio Url"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AttemptStatus"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          },
+          "earned_exp": {
+            "type": "integer",
+            "title": "Earned Exp",
+            "default": 0
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "total_segments": {
+            "type": "integer",
+            "title": "Total Segments"
+          },
+          "completed_segments": {
+            "type": "integer",
+            "title": "Completed Segments"
+          },
+          "material_duration_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Material Duration Seconds"
+          },
+          "user_continuous_recording_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Continuous Recording Url"
+          },
+          "user_continuous_duration_seconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Continuous Duration Seconds"
+          },
+          "segments": {
+            "items": {
+              "$ref": "#/components/schemas/ShadowingSegmentReviewItem"
+            },
+            "type": "array",
+            "title": "Segments"
+          }
+        },
+        "type": "object",
+        "required": [
+          "attempt_id",
+          "content_id",
+          "title",
+          "difficulty",
+          "status",
+          "total_segments",
+          "completed_segments",
+          "segments"
+        ],
+        "title": "ShadowingAttemptReviewResponse"
+      },
       "ShadowingContentDetail": {
         "properties": {
           "id": {
@@ -3576,6 +4162,79 @@
         "required": ["id", "title", "content_type", "difficulty", "transcript"],
         "title": "ShadowingContentDetail"
       },
+      "ShadowingContinuousRecordingSummary": {
+        "properties": {
+          "recording_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Recording Id"
+          },
+          "storage_key": {
+            "type": "string",
+            "title": "Storage Key"
+          },
+          "duration_seconds": {
+            "type": "integer",
+            "title": "Duration Seconds"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": ["recording_id", "storage_key", "duration_seconds"],
+        "title": "ShadowingContinuousRecordingSummary"
+      },
+      "ShadowingMode": {
+        "type": "string",
+        "enum": ["segmented", "continuous"],
+        "title": "ShadowingMode"
+      },
+      "ShadowingRecordContinuousResponse": {
+        "properties": {
+          "recording_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Recording Id"
+          },
+          "attempt_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Attempt Id"
+          },
+          "storage_key": {
+            "type": "string",
+            "title": "Storage Key"
+          },
+          "duration_seconds": {
+            "type": "integer",
+            "title": "Duration Seconds"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "recording_id",
+          "attempt_id",
+          "storage_key",
+          "duration_seconds",
+          "created_at"
+        ],
+        "title": "ShadowingRecordContinuousResponse"
+      },
       "ShadowingRecordSegmentResponse": {
         "properties": {
           "recording_id": {
@@ -3617,6 +4276,36 @@
         ],
         "title": "ShadowingRecordSegmentResponse"
       },
+      "ShadowingRecordedSegmentSummary": {
+        "properties": {
+          "segment_id": {
+            "type": "string",
+            "title": "Segment Id"
+          },
+          "recording_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Recording Id"
+          },
+          "duration_seconds": {
+            "type": "integer",
+            "title": "Duration Seconds"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "segment_id",
+          "recording_id",
+          "duration_seconds",
+          "created_at"
+        ],
+        "title": "ShadowingRecordedSegmentSummary"
+      },
       "ShadowingRecordingPlaybackResponse": {
         "properties": {
           "recording_id": {
@@ -3646,6 +4335,215 @@
           "created_at"
         ],
         "title": "ShadowingRecordingPlaybackResponse"
+      },
+      "ShadowingResumeResponse": {
+        "properties": {
+          "attempt_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Attempt Id"
+          },
+          "content_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Content Id"
+          },
+          "attempt_number": {
+            "type": "integer",
+            "title": "Attempt Number"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/ShadowingMode",
+            "default": "segmented"
+          },
+          "total_segments": {
+            "type": "integer",
+            "title": "Total Segments"
+          },
+          "recorded_segments": {
+            "items": {
+              "$ref": "#/components/schemas/ShadowingRecordedSegmentSummary"
+            },
+            "type": "array",
+            "title": "Recorded Segments"
+          },
+          "continuous_recording": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ShadowingContinuousRecordingSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "total_attempts": {
+            "type": "integer",
+            "title": "Total Attempts",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "attempt_id",
+          "content_id",
+          "attempt_number",
+          "total_segments"
+        ],
+        "title": "ShadowingResumeResponse"
+      },
+      "ShadowingSegmentReviewItem": {
+        "properties": {
+          "segment_index": {
+            "type": "integer",
+            "title": "Segment Index"
+          },
+          "script": {
+            "type": "string",
+            "title": "Script"
+          },
+          "start_time_ms": {
+            "type": "integer",
+            "title": "Start Time Ms",
+            "default": 0
+          },
+          "end_time_ms": {
+            "type": "integer",
+            "title": "End Time Ms",
+            "default": 0
+          },
+          "recorded": {
+            "type": "boolean",
+            "title": "Recorded"
+          },
+          "recording_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recording Id"
+          },
+          "playback_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Playback Url"
+          },
+          "duration_seconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Seconds"
+          }
+        },
+        "type": "object",
+        "required": ["segment_index", "script", "recorded"],
+        "title": "ShadowingSegmentReviewItem"
+      },
+      "ShadowingSubmitRequest": {
+        "properties": {
+          "attempt_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Attempt Id"
+          },
+          "replay_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Replay Count",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": ["attempt_id"],
+        "title": "ShadowingSubmitRequest"
+      },
+      "ShadowingSubmitResponse": {
+        "properties": {
+          "attempt_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Attempt Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AttemptStatus"
+          },
+          "score": {
+            "type": "number",
+            "title": "Score"
+          },
+          "xp_earned": {
+            "type": "integer",
+            "title": "Xp Earned"
+          },
+          "content_type": {
+            "type": "string",
+            "title": "Content Type",
+            "default": "shadowing"
+          },
+          "difficulty": {
+            "type": "string",
+            "title": "Difficulty"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "default": "B\u1ea1n \u0111\u00e3 ho\u00e0n th\u00e0nh b\u00e0i luy\u1ec7n."
+          },
+          "user_progress": {
+            "$ref": "#/components/schemas/ShadowingUserProgressSummary"
+          },
+          "completed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Completed At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "attempt_id",
+          "status",
+          "score",
+          "xp_earned",
+          "difficulty",
+          "user_progress",
+          "completed_at"
+        ],
+        "title": "ShadowingSubmitResponse"
+      },
+      "ShadowingUserProgressSummary": {
+        "properties": {
+          "total_exp": {
+            "type": "integer",
+            "title": "Total Exp"
+          },
+          "current_level": {
+            "type": "integer",
+            "title": "Current Level"
+          },
+          "exp_to_next_level": {
+            "type": "integer",
+            "title": "Exp To Next Level"
+          }
+        },
+        "type": "object",
+        "required": ["total_exp", "current_level", "exp_to_next_level"],
+        "title": "ShadowingUserProgressSummary"
       },
       "TranscriptSegment": {
         "properties": {

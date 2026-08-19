@@ -165,53 +165,61 @@ flowchart TD
 ```mermaid
 flowchart TD
     A[User mở danh sách bài Shadowing] --> B[Chọn bài học]
+    B --> C[Màn hình Preview / Bắt đầu bài học]
 
-    B --> C[Hiển thị thông tin bài học]
-    C --> D[Chọn hiển thị hoặc ẩn văn bản]
+    C --> D{Có phiên in-progress?}
+    D -- Có --> E[Nút Tiếp tục bài học - Resume]
+    D -- Không --> F[Chọn chế độ: Segment-by-Segment hoặc Continuous]
+    E --> G[Màn hình Workstation Shadowing]
+    F --> G
 
-    D --> E[Nhấn phát audio gốc]
-    E --> F[Nghe và đọc đuổi theo audio]
+    G --> H[Đồng bộ âm lượng & Audio/Video Player]
+    G --> I[Hiển thị / Ẩn Transcript tiếng Nhật]
 
-    F --> G[Nhấn bắt đầu ghi âm]
-    G --> H{Đã cấp quyền microphone?}
+    subgraph SegmentPractice [Chế độ Luyện từng câu]
+        G --> J1[Chọn câu cần luyện hoặc bấm Next/Prev]
+        J1 --> K1[Audio tự tua đến mốc thời gian của câu]
+        K1 --> L1[Bấm Ghi âm câu #i - phím R]
+        L1 --> M1[Đọc đuổi theo câu tiếng Nhật]
+        M1 --> N1[Bấm Dừng ghi âm - phím R]
+        N1 --> O1[Lưu bản ghi câu #i & nghe lại voice]
+    end
 
-    H -- Không --> I[Thông báo cần cấp quyền microphone]
-    I --> J[Người dùng cấp quyền]
-    J --> G
+    subgraph ContinuousPractice [Chế độ Đọc liên tục]
+        G --> J2[Bấm Bắt đầu ghi âm liên tục - phím R]
+        J2 --> K2[Video tự động phát toàn bộ bài]
+        K2 --> L2[Đọc đuổi liên tục theo video]
+        L2 --> M2[Bấm Dừng ghi âm - phím R]
+        M2 --> N2[Lưu bản ghi & nghe lại toàn bộ voice]
+    end
 
-    H -- Có --> K[Ghi âm giọng nói]
+    O1 --> P[Bấm Hoàn thành / Finish]
+    N2 --> P
 
-    K --> L[Nhấn kết thúc ghi âm]
-    L --> M[Lưu bản ghi âm]
+    P --> Q{Đã có bản ghi hợp lệ?}
+    Q -- Chưa --> R[Thông báo yêu cầu ghi âm trước khi hoàn thành]
+    Q -- Đã có --> S[POST /submit - Tính điểm & EXP]
 
-    M --> N[Phát lại audio gốc]
-    N --> O[Phát lại bản ghi âm]
-
-    O --> P{Có đánh giá AI?}
-
-    P -- Có --> Q[AI phân tích bản ghi]
-    Q --> R[Hiển thị nhận xét]
-
-    P -- Không --> S[Người dùng tự so sánh]
-
-    R --> T[Hoàn thành bài]
-    S --> T
-
-    T --> U[Lưu kết quả]
-    U --> V[Cộng EXP]
-    V --> W[Cập nhật tiến độ]
+    S --> T[Màn hình Review kết quả 2 cột]
+    T --> U[Nghe lại Audio gốc]
+    T --> V[Nghe lại Bản ghi âm của người dùng]
+    T --> W[Tự so sánh và nhận thưởng EXP]
+    T --> X[Luyện lại bài hoặc Quay lại danh sách]
 ```
 
-## 6.2. Luồng lỗi
+## 6.2. Các phím tắt hỗ trợ trong quá trình luyện tập
 
-* Audio không tải được.
-* Người dùng không cấp quyền microphone.
-* Trình duyệt không hỗ trợ ghi âm.
-* Ghi âm bị lỗi hoặc bị gián đoạn.
-* Không thể lưu bản ghi âm.
-* Dịch vụ AI không phản hồi.
+* `Space` / `Ctrl+Space` / `Cmd+Space`: Phát hoặc tạm dừng video / audio bài học.
+* `R` / `Alt+R`: Bật hoặc dừng ghi âm giọng nói (tự động bỏ qua khi đang gõ phím trong ô nhập liệu).
+* `→` / `Ctrl+→` / `Cmd+→`: Chuyển sang câu tiếp theo (chế độ Segment).
+* `←` / `Ctrl+←` / `Cmd+←`: Quay lại câu trước đó (chế độ Segment).
 
-Nếu AI gặp lỗi, hệ thống vẫn cho phép người dùng nghe lại audio gốc và bản ghi âm để tự so sánh.
+## 6.3. Luồng lỗi và xử lý ngoại lệ
+
+* **Audio không tải được**: Hiển thị cảnh báo lỗi tải audio; người dùng vẫn có thể ghi âm để tự luyện tập.
+* **Người dùng từ chối quyền microphone**: Hiển thị cảnh báo yêu cầu cấp quyền microphone trong trình duyệt kèm nút thử lại.
+* **Tải lên bản ghi thất bại**: Hiển thị Toast thông báo lỗi mạng; bản ghi được lưu tạm trong bộ nhớ cục bộ.
+* **Tiếp tục phiên đang dở**: Tự động khôi phục danh sách các câu đã ghi âm trước đó.
 
 ---
 
