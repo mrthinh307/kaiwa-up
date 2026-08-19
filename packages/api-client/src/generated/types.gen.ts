@@ -30,6 +30,20 @@ export type AccessTokenResponse = {
 export type AttemptStatus = "in_progress" | "completed";
 
 /**
+ * Body_evaluateReflexLesson
+ */
+export type BodyEvaluateReflexLesson = {
+  /**
+   * Audio File
+   */
+  audio_file: Blob | File;
+  /**
+   * Response Start Ms
+   */
+  response_start_ms: number;
+};
+
+/**
  * Body_recordShadowingSegment
  */
 export type BodyRecordShadowingSegment = {
@@ -846,6 +860,132 @@ export type ReadinessResponse = {
 };
 
 /**
+ * ReflexEvaluationResponse
+ */
+export type ReflexEvaluationResponse = {
+  /**
+   * Attempt Id
+   */
+  attempt_id: string;
+  /**
+   * Evaluation Id
+   */
+  evaluation_id: string;
+  /**
+   * Transcript
+   */
+  transcript: string;
+  /**
+   * Score
+   */
+  score: number;
+  /**
+   * Is On Time
+   */
+  is_on_time: boolean;
+  /**
+   * Feedback
+   */
+  feedback: string;
+  /**
+   * Corrections
+   */
+  corrections: Array<{
+    [key: string]: string;
+  }>;
+  /**
+   * Hints
+   */
+  hints: Array<string>;
+  /**
+   * Earned Exp
+   */
+  earned_exp: number;
+  /**
+   * Review Due At
+   */
+  review_due_at: string;
+  /**
+   * Review Interval Days
+   */
+  review_interval_days: number;
+};
+
+/**
+ * ReflexLessonDetail
+ */
+export type ReflexLessonDetail = {
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Title
+   */
+  title: string;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Topic
+   */
+  topic?: string | null;
+  difficulty: JlptLevel;
+  /**
+   * Audio Url
+   */
+  audio_url?: string | null;
+  /**
+   * Prompt Ja
+   */
+  prompt_ja: string;
+  /**
+   * Response Start Limit Ms
+   */
+  response_start_limit_ms: number;
+  /**
+   * Scenario Ja
+   */
+  scenario_ja?: string | null;
+};
+
+/**
+ * ReflexLessonItem
+ */
+export type ReflexLessonItem = {
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Title
+   */
+  title: string;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Topic
+   */
+  topic?: string | null;
+  difficulty: JlptLevel;
+  /**
+   * Audio Url
+   */
+  audio_url?: string | null;
+  /**
+   * Prompt Ja
+   */
+  prompt_ja: string;
+  /**
+   * Response Start Limit Ms
+   */
+  response_start_limit_ms: number;
+};
+
+/**
  * RefreshSessionResponse
  *
  * Refreshed access token and current public user profile.
@@ -884,6 +1024,40 @@ export type RegisterRequest = {
    * Name
    */
   name: string;
+};
+
+/**
+ * ReviewScheduleItem
+ */
+export type ReviewScheduleItem = {
+  /**
+   * Content Id
+   */
+  content_id: string;
+  /**
+   * Title
+   */
+  title: string;
+  /**
+   * Due At
+   */
+  due_at: string;
+  /**
+   * Interval Days
+   */
+  interval_days: number;
+  /**
+   * Ease Factor
+   */
+  ease_factor: number;
+  /**
+   * Repetitions
+   */
+  repetitions: number;
+  /**
+   * Last Attempt Id
+   */
+  last_attempt_id?: string | null;
 };
 
 /**
@@ -1840,6 +2014,140 @@ export type StartDictationAttemptResponses = {
 
 export type StartDictationAttemptResponse =
   StartDictationAttemptResponses[keyof StartDictationAttemptResponses];
+
+export type ListReflexLessonsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/reflex/lessons";
+};
+
+export type ListReflexLessonsResponses = {
+  /**
+   * Response Listreflexlessons
+   *
+   * Successful Response
+   */
+  200: Array<ReflexLessonItem>;
+};
+
+export type ListReflexLessonsResponse =
+  ListReflexLessonsResponses[keyof ListReflexLessonsResponses];
+
+export type GetReflexLessonData = {
+  body?: never;
+  path: {
+    /**
+     * Lesson Id
+     */
+    lesson_id: string;
+  };
+  query?: never;
+  url: "/api/v1/reflex/lessons/{lesson_id}";
+};
+
+export type GetReflexLessonErrors = {
+  /**
+   * Not Found
+   */
+  404: ErrorResponse;
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetReflexLessonError = GetReflexLessonErrors[keyof GetReflexLessonErrors];
+
+export type GetReflexLessonResponses = {
+  /**
+   * Successful Response
+   */
+  200: ReflexLessonDetail;
+};
+
+export type GetReflexLessonResponse = GetReflexLessonResponses[keyof GetReflexLessonResponses];
+
+export type EvaluateReflexLessonData = {
+  body: BodyEvaluateReflexLesson;
+  path: {
+    /**
+     * Lesson Id
+     */
+    lesson_id: string;
+  };
+  query?: never;
+  url: "/api/v1/reflex/lessons/{lesson_id}/evaluate";
+};
+
+export type EvaluateReflexLessonErrors = {
+  /**
+   * Bad Request
+   */
+  400: ErrorResponse;
+  /**
+   * Not Found
+   */
+  404: ErrorResponse;
+  /**
+   * Content Too Large
+   */
+  413: ErrorResponse;
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type EvaluateReflexLessonError =
+  EvaluateReflexLessonErrors[keyof EvaluateReflexLessonErrors];
+
+export type EvaluateReflexLessonResponses = {
+  /**
+   * Successful Response
+   */
+  201: ReflexEvaluationResponse;
+};
+
+export type EvaluateReflexLessonResponse =
+  EvaluateReflexLessonResponses[keyof EvaluateReflexLessonResponses];
+
+export type ListDueReviewsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/review/due";
+};
+
+export type ListDueReviewsResponses = {
+  /**
+   * Response Listduereviews
+   *
+   * Successful Response
+   */
+  200: Array<ReviewScheduleItem>;
+};
+
+export type ListDueReviewsResponse = ListDueReviewsResponses[keyof ListDueReviewsResponses];
+
+export type ListReviewScheduleData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/review/schedule";
+};
+
+export type ListReviewScheduleResponses = {
+  /**
+   * Response Listreviewschedule
+   *
+   * Successful Response
+   */
+  200: Array<ReviewScheduleItem>;
+};
+
+export type ListReviewScheduleResponse =
+  ListReviewScheduleResponses[keyof ListReviewScheduleResponses];
 
 export type RegisterData = {
   body: RegisterRequest;
