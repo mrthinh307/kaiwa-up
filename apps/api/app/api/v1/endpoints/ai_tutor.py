@@ -3,7 +3,7 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Path, status
+from fastapi import APIRouter, Path, Response, status
 
 from app.api.dependencies.ai import AiGatewayDep
 from app.api.dependencies.auth import CurrentUser
@@ -12,7 +12,6 @@ from app.api.dependencies.pagination import Pagination
 from app.repositories.tutor import TutorRepository
 from app.schemas.error import ErrorResponse
 from app.schemas.tutor import (
-    TutorConversationCompleteResponse,
     TutorConversationCreateRequest,
     TutorConversationCreateResponse,
     TutorConversationDetailResponse,
@@ -128,11 +127,11 @@ async def send_tutor_message(
     )
 
 
-@router.post(
-    "/conversations/{conversation_id}/complete",
-    operation_id="completeTutorConversation",
-    response_model=TutorConversationCompleteResponse,
-    summary="Complete an AI Tutor conversation",
+@router.delete(
+    "/conversations/{conversation_id}",
+    operation_id="deleteTutorConversation",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete an AI Tutor conversation",
     responses={
         status.HTTP_401_UNAUTHORIZED: {"model": ErrorResponse},
         status.HTTP_403_FORBIDDEN: {"model": ErrorResponse},
@@ -140,13 +139,14 @@ async def send_tutor_message(
         status.HTTP_422_UNPROCESSABLE_CONTENT: {"model": ErrorResponse},
     },
 )
-async def complete_tutor_conversation(
+async def delete_tutor_conversation(
     conversation_id: Annotated[uuid.UUID, Path(description="AI Tutor conversation ID")],
     current_user: CurrentUser,
     session: DatabaseSession,
     gateway: AiGatewayDep,
-) -> TutorConversationCompleteResponse:
-    return await _tutor_service(session, gateway).complete_conversation(
+) -> Response:
+    await _tutor_service(session, gateway).delete_conversation(
         user_id=current_user.id,
         conversation_id=conversation_id,
     )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

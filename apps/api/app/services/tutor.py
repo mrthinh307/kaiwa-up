@@ -3,7 +3,6 @@
 import math
 import uuid
 from collections.abc import Sequence
-from datetime import UTC, datetime
 
 from sqlalchemy.exc import IntegrityError
 
@@ -23,7 +22,6 @@ from app.models.tutor import TutorMessage, TutorSession
 from app.repositories.tutor import TutorConversationHistoryRow, TutorRepository
 from app.schemas.tutor import (
     TutorAnswerHintResponse,
-    TutorConversationCompleteResponse,
     TutorConversationCreateRequest,
     TutorConversationCreateResponse,
     TutorConversationDetailResponse,
@@ -86,6 +84,7 @@ class TutorService:
                 sender=TutorSender.AI,
                 sequence_number=1,
                 content=reply.message,
+                text_vi=reply.text_vi,
                 client_message_id=None,
                 feedback=self._serialize_feedback(reply),
             )
@@ -224,6 +223,7 @@ class TutorService:
                     sender=TutorSender.AI,
                     sequence_number=user_message.sequence_number + 1,
                     content=reply.message,
+                    text_vi=reply.text_vi,
                     client_message_id=None,
                     feedback=self._serialize_feedback(reply),
                 )
@@ -247,35 +247,23 @@ class TutorService:
             ai_reply=self._to_message_response(ai_reply),
         )
 
-    async def complete_conversation(
+    async def delete_conversation(
         self,
         *,
         user_id: uuid.UUID,
         conversation_id: uuid.UUID,
-    ) -> TutorConversationCompleteResponse:
+    ) -> None:
         tutor_session = await self._get_owned_session(
             user_id,
             conversation_id,
             for_update=True,
         )
-        existing_ended_at = tutor_session.ended_at
-        if tutor_session.status == "completed" and existing_ended_at is not None:
-            ended_at = existing_ended_at
+        try:
+            await self.repository.delete_session(tutor_session)
             await self.repository.session.commit()
-        else:
-            ended_at = datetime.now(UTC)
-            tutor_session = await self.repository.complete_session(
-                tutor_session,
-                ended_at=ended_at,
-            )
-            await self.repository.session.commit()
-
-        persisted_ended_at = tutor_session.ended_at or ended_at
-        return TutorConversationCompleteResponse(
-            conversation_id=tutor_session.id,
-            status="completed",
-            ended_at=persisted_ended_at,
-        )
+        except Exception:
+            await self.repository.session.rollback()
+            raise
 
     async def _get_owned_session(
         self,
@@ -337,6 +325,7 @@ class TutorService:
             sender=message.sender,
             sequence_number=message.sequence_number,
             text=message.content,
+            text_vi=message.text_vi,
             client_message_id=message.client_message_id,
             created_at=message.created_at,
             feedback=(
@@ -349,7 +338,6 @@ class TutorService:
     @staticmethod
     def _serialize_feedback(reply: TutorReply) -> dict[str, object]:
         feedback = TutorFeedbackResponse(
-            next_question=reply.follow_up_question,
             grammar_correction=TutorService._format_corrections(reply),
             natural_expression_tip=reply.natural_expression_tip,
             answer_hints=[

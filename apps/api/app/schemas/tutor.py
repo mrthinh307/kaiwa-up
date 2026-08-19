@@ -44,7 +44,6 @@ class TutorFeedbackResponse(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    next_question: str | None = Field(default=None, max_length=2000)
     grammar_correction: str | None = Field(default=None, max_length=2000)
     natural_expression_tip: str | None = Field(default=None, max_length=2000)
     answer_hints: list[TutorAnswerHintResponse] = Field(default_factory=list, max_length=3)
@@ -57,6 +56,7 @@ class TutorMessageResponse(BaseModel):
     sender: TutorSender
     sequence_number: int = Field(ge=1)
     text: str = Field(min_length=1, max_length=2000)
+    text_vi: str | None = Field(default=None, max_length=2000)
     client_message_id: uuid.UUID | None = None
     created_at: datetime
     feedback: TutorFeedbackResponse | None = None
@@ -111,11 +111,3 @@ class TutorMessageCreateResponse(BaseModel):
 
     user_message: TutorMessageResponse
     ai_reply: TutorMessageResponse
-
-
-class TutorConversationCompleteResponse(BaseModel):
-    """Response returned when a conversation is completed."""
-
-    conversation_id: uuid.UUID
-    status: Literal["completed"]
-    ended_at: datetime

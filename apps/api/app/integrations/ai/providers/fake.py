@@ -61,15 +61,17 @@ class FakeAiGateway(BaseAiGateway):
     ) -> TutorReply:
         return TutorReply(
             message="こんにちは！次は何を練習しましょうか？",
+            text_vi="Xin chào! Tiếp theo chúng ta muốn luyện tập điều gì?",
             corrections=[],
-            natural_expression_tip="次は何を練習したいですか？",
+            natural_expression_tip=(
+                "Cách hỏi tự nhiên hơn để hỏi người học muốn luyện chủ đề nào tiếp theo."
+            ),
             answer_hints=[
                 TutorAnswerHint(
                     text="旅行について話したいです。",
                     meaning_vi="Tôi muốn nói về du lịch.",
                 )
             ],
-            follow_up_question="次は何を練習したいですか？",
         )
 
     async def _call(self, capability: str, operation: Callable[[], Awaitable[T]]) -> T:

@@ -55,10 +55,10 @@ class TutorReply(BaseModel):
     """Normalized AI Tutor response."""
 
     message: str
+    text_vi: str
     corrections: list[Correction] = Field(default_factory=list)
     natural_expression_tip: str | None = None
     answer_hints: list[TutorAnswerHint] = Field(default_factory=list, max_length=3)
-    follow_up_question: str | None = None
 
 
 M = TypeVar("M", bound=BaseModel)

@@ -95,6 +95,7 @@ class TutorMessage(PrimaryKeyUuidMixin, CreatedAtMixin, Base):
     )
     sequence_number: Mapped[int] = mapped_column(Integer, nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
+    text_vi: Mapped[str | None] = mapped_column(Text, nullable=True)
     client_message_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, nullable=True)
     recording_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid, ForeignKey("recordings.id", ondelete="SET NULL"), nullable=True

@@ -103,6 +103,10 @@ class TutorRepository(BaseRepository):
             ),
         )
 
+    async def delete_session(self, tutor_session: TutorSession) -> None:
+        await self.session.delete(tutor_session)
+        await self.session.flush()
+
     async def list_messages(self, session_id: uuid.UUID) -> list[TutorMessage]:
         statement = (
             select(TutorMessage)
@@ -169,6 +173,7 @@ class TutorRepository(BaseRepository):
         sequence_number: int,
         content: str,
         client_message_id: uuid.UUID | None,
+        text_vi: str | None = None,
         feedback: dict[str, object] | None = None,
     ) -> TutorMessage:
         message = TutorMessage(
@@ -176,6 +181,7 @@ class TutorRepository(BaseRepository):
             sender=sender,
             sequence_number=sequence_number,
             content=content,
+            text_vi=text_vi,
             client_message_id=client_message_id,
             feedback=feedback,
         )
@@ -183,16 +189,3 @@ class TutorRepository(BaseRepository):
         await self.session.flush()
         await self.session.refresh(message)
         return message
-
-    async def complete_session(
-        self,
-        tutor_session: TutorSession,
-        *,
-        ended_at: datetime,
-    ) -> TutorSession:
-        tutor_session.status = "completed"
-        tutor_session.ended_at = ended_at
-        self.session.add(tutor_session)
-        await self.session.flush()
-        await self.session.refresh(tutor_session)
-        return tutor_session

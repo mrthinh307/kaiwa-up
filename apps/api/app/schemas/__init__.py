@@ -22,7 +22,6 @@ from app.schemas.progress import (
 from app.schemas.readiness import ReadinessResponse
 from app.schemas.tutor import (
     TutorAnswerHintResponse,
-    TutorConversationCompleteResponse,
     TutorConversationCreateRequest,
     TutorConversationCreateResponse,
     TutorConversationDetailResponse,
@@ -58,7 +57,6 @@ __all__ = [
     "LeaderboardUser",
     "WeeklyLeaderboardData",
     "TutorAnswerHintResponse",
-    "TutorConversationCompleteResponse",
     "TutorConversationCreateRequest",
     "TutorConversationCreateResponse",
     "TutorConversationDetailResponse",
