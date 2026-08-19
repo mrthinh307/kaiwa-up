@@ -346,8 +346,20 @@ Người dùng nhận điểm kinh nghiệm sau khi hoàn thành bài tập.
 * Có thể cộng thêm EXP dựa trên kết quả hoặc hiệu suất.
 * Hệ thống phải lưu lịch sử thay đổi EXP.
 
-Mỗi nội dung có `base_exp > 0`. Khi một attempt chuyển sang `COMPLETED`, backend ghi đúng một bút
-toán EXP cho attempt đó và cập nhật tổng EXP trong cùng transaction.
+Mỗi nội dung có `base_exp > 0`. Khi một attempt có ít nhất một câu trả lời không rỗng chuyển sang
+`COMPLETED`, backend ghi đúng một bút toán EXP cho attempt đó và cập nhật tổng EXP trong cùng
+transaction. Attempt hoàn tất mà chưa trả lời câu nào nhận `0 EXP` và không tạo bút toán EXP.
+
+Riêng Dictation, EXP dựa trên tỷ lệ segment có câu trả lời không rỗng so với tổng số segment:
+
+| Tỷ lệ hoàn thành | EXP |
+| ---------------- | --: |
+| `0%`             |   0 |
+| `> 0%` và `< 5%` |   5 |
+| `>= 5%` và `< 25%` | 15 |
+| `>= 25%` và `< 50%` | 25 |
+| `>= 50%` và `< 75%` | 40 |
+| `>= 75%`         |  50 |
 
 ---
 

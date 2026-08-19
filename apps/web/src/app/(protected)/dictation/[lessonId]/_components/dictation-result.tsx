@@ -16,7 +16,7 @@ import {
   XCircle,
 } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { ExpRewardOverlay } from "@/components/common/exp-reward/exp-reward-overlay";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -39,7 +39,7 @@ import { DictationToolbar } from "./dictation-toolbar";
 import { SegmentAudioPlayer } from "./segment-audio-player";
 
 const RESULT_SHORTCUTS: readonly DictationKeyboardShortcut[] = [
-  { action: "Replay segment", keyLabel: "⎵" },
+  { action: "Pause or resume video", keyLabel: "⎵" },
   { action: "Next segment", keyLabel: "→" },
   { action: "Previous segment", keyLabel: "←" },
 ];
@@ -58,14 +58,24 @@ export function DictationResult({
   review,
   startError,
 }: DictationResultProps) {
+  const {
+    autoPlayDelayMs,
+    autoPlayOnSegmentChange,
+    showVideo,
+    updateAutoPlayDelay,
+    updateAutoPlayOnSegmentChange,
+    updateShowVideo,
+  } = useDictationSettings();
   const audioRef = useRef<HTMLAudioElement>(null);
+  const scheduledPlaybackTimeoutRef = useRef<number | null>(null);
+  const previousAutoPlayEnabledRef = useRef(autoPlayOnSegmentChange);
   const [playbackRequest, setPlaybackRequest] = useState(0);
-  const { showVideo, updateShowVideo } = useDictationSettings();
 
   const firstIncorrectPosition = review.details.findIndex((detail) => !detail.is_correct);
   const [activeReviewPosition, setActiveReviewPosition] = useState(
     firstIncorrectPosition >= 0 ? firstIncorrectPosition : 0,
   );
+  const previousReviewPositionRef = useRef(activeReviewPosition);
   const activeReview = review.details.at(activeReviewPosition);
   const activeSegment = activeReview
     ? attempt.segments.find((segment) => segment.segment_index === activeReview.segment_index)
@@ -137,6 +147,53 @@ export function DictationResult({
     setPlaybackRequest((current) => current + 1);
   }, [activeSegment]);
 
+  const clearScheduledPlayback = useCallback(() => {
+    if (scheduledPlaybackTimeoutRef.current === null) {
+      return;
+    }
+
+    window.clearTimeout(scheduledPlaybackTimeoutRef.current);
+    scheduledPlaybackTimeoutRef.current = null;
+  }, []);
+
+  const schedulePlayback = useCallback(() => {
+    clearScheduledPlayback();
+    scheduledPlaybackTimeoutRef.current = window.setTimeout(() => {
+      scheduledPlaybackTimeoutRef.current = null;
+      handleReplay();
+    }, autoPlayDelayMs);
+  }, [autoPlayDelayMs, clearScheduledPlayback, handleReplay]);
+
+  useEffect(() => clearScheduledPlayback, [clearScheduledPlayback]);
+
+  useEffect(() => {
+    const hasReviewPositionChanged = previousReviewPositionRef.current !== activeReviewPosition;
+    const wasAutoPlayEnabled = previousAutoPlayEnabledRef.current;
+    previousReviewPositionRef.current = activeReviewPosition;
+    previousAutoPlayEnabledRef.current = autoPlayOnSegmentChange;
+
+    if (!autoPlayOnSegmentChange) {
+      clearScheduledPlayback();
+      return;
+    }
+
+    if (hasReviewPositionChanged || !wasAutoPlayEnabled) {
+      schedulePlayback();
+    }
+  }, [activeReviewPosition, autoPlayOnSegmentChange, clearScheduledPlayback, schedulePlayback]);
+
+  const handlePlaybackEnded = useCallback(() => {
+    if (!autoPlayOnSegmentChange || activeReviewPosition >= review.details.length - 1) {
+      return;
+    }
+
+    handleNext();
+  }, [activeReviewPosition, autoPlayOnSegmentChange, handleNext, review.details.length]);
+
+  const handlePlaybackStop = useCallback(() => {
+    clearScheduledPlayback();
+  }, [clearScheduledPlayback]);
+
   const handleShowVideoChange = useCallback(
     (value: boolean) => {
       updateShowVideo(value);
@@ -166,11 +223,6 @@ export function DictationResult({
   const activeSegmentIndex = attempt.segments.findIndex(
     (segment) => segment.segment_index === activeSegment.segment_index,
   );
-  const startSeconds = Math.floor(activeSegment.start_time_ms / 1_000);
-  const endSeconds = Math.ceil(activeSegment.end_time_ms / 1_000);
-  const embedUrl = youtubeVideoId
-    ? `https://www.youtube-nocookie.com/embed/${youtubeVideoId}?start=${startSeconds}&end=${endSeconds}&autoplay=${playbackRequest > 0 ? 1 : 0}&controls=1&rel=0&playsinline=1`
-    : undefined;
   const isUnanswered = !activeReview.user_answer.trim();
   const ActiveStatusIcon = activeReview.is_correct ? CheckCircle2 : isUnanswered ? Circle : XCircle;
   const activeStatusLabel = activeReview.is_correct
@@ -193,7 +245,11 @@ export function DictationResult({
         lessonTitle={content.title}
         settings={
           <DictationSettingsSheet
+            autoPlayDelayMs={autoPlayDelayMs}
+            autoPlayOnSegmentChange={autoPlayOnSegmentChange}
             mode="result"
+            onAutoPlayDelayChange={updateAutoPlayDelay}
+            onAutoPlayOnSegmentChange={updateAutoPlayOnSegmentChange}
             onShowVideoChange={handleShowVideoChange}
             showVideo={showVideo}
           />
@@ -269,31 +325,27 @@ export function DictationResult({
               </Badge>
             </div>
 
-            {!showVideo && youtubeVideoId ? (
+            {youtubeVideoId ? (
               <SegmentAudioPlayer
+                autoPlayDelayMs={autoPlayDelayMs}
+                canContinuePlayback={activeReviewPosition < review.details.length - 1}
                 endTimeMs={activeSegment.end_time_ms}
                 hasPlayedActiveSegment={playbackRequest > 0}
-                key={activeSegment.segment_index}
+                isAutoPlayEnabled={autoPlayOnSegmentChange}
                 lessonTitle={content.title}
+                onEnded={handlePlaybackEnded}
                 onReplay={handleReplay}
+                onStop={handlePlaybackStop}
                 playbackRequest={playbackRequest}
                 segmentIndex={activeSegment.segment_index}
+                showVideo={showVideo}
                 startTimeMs={activeSegment.start_time_ms}
                 youtubeVideoId={youtubeVideoId}
               />
             ) : (
               <>
                 <div className="relative aspect-video w-full overflow-hidden bg-black">
-                  {embedUrl ? (
-                    <iframe
-                      allow="autoplay; encrypted-media; picture-in-picture"
-                      allowFullScreen
-                      className="absolute inset-0 size-full border-0"
-                      key={`${activeSegment.segment_index}-${playbackRequest}`}
-                      src={embedUrl}
-                      title={`${content.title}, segment ${activeSegment.segment_index + 1}`}
-                    />
-                  ) : attempt.audio_url ? (
+                  {attempt.audio_url ? (
                     <div className="flex size-full items-center justify-center p-5">
                       <audio
                         className="w-full"
@@ -304,6 +356,7 @@ export function DictationResult({
                             activeSegment.end_time_ms
                           ) {
                             event.currentTarget.pause();
+                            handlePlaybackEnded();
                           }
                         }}
                         ref={audioRef}

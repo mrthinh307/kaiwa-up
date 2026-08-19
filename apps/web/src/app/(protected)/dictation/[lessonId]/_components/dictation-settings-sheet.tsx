@@ -16,16 +16,16 @@ import {
 import { Switch } from "@/components/ui/switch";
 
 type SharedSettingsProps = {
+  autoPlayDelayMs: number;
+  autoPlayOnSegmentChange: boolean;
+  onAutoPlayDelayChange: (value: number) => void;
+  onAutoPlayOnSegmentChange: (value: boolean) => void;
   onShowVideoChange: (value: boolean) => void;
   showVideo: boolean;
 };
 
 type PracticeSettingsProps = SharedSettingsProps & {
-  autoPlayDelayMs: number;
-  autoPlayOnSegmentChange: boolean;
   mode: "practice";
-  onAutoPlayDelayChange: (value: number) => void;
-  onAutoPlayOnSegmentChange: (value: boolean) => void;
   onShowCorrectAnswerChange: (value: boolean) => void;
   showCorrectAnswer: boolean;
 };
@@ -59,53 +59,51 @@ export function DictationSettingsSheet(props: DictationSettingsSheetProps) {
         </SheetHeader>
 
         <div className="flex flex-1 flex-col gap-5 p-5">
-          {isPractice ? (
-            <>
-              <div className="flex items-start justify-between gap-4 rounded-base border-2 border-border bg-background p-4">
-                <div className="space-y-1">
-                  <Label className="font-heading" htmlFor="dictation-auto-play-segment">
-                    Play segment automatically
-                  </Label>
-                  <p className="text-xs leading-relaxed text-foreground/70">
-                    Start the video or audio automatically after moving to another segment.
-                  </p>
-                </div>
-                <Switch
-                  checked={props.autoPlayOnSegmentChange}
-                  className="mt-0.5 shrink-0"
-                  id="dictation-auto-play-segment"
-                  onCheckedChange={props.onAutoPlayOnSegmentChange}
-                />
-              </div>
+          <div className="flex items-start justify-between gap-4 rounded-base border-2 border-border bg-background p-4">
+            <div className="space-y-1">
+              <Label className="font-heading" htmlFor="dictation-auto-play-segment">
+                Play segments automatically
+              </Label>
+              <p className="text-xs leading-relaxed text-foreground/70">
+                Continue to the next segment when playback ends and play selected segments
+                automatically.
+              </p>
+            </div>
+            <Switch
+              checked={props.autoPlayOnSegmentChange}
+              className="mt-0.5 shrink-0"
+              id="dictation-auto-play-segment"
+              onCheckedChange={props.onAutoPlayOnSegmentChange}
+            />
+          </div>
 
-              <div className="space-y-2 rounded-base border-2 border-border bg-background p-4">
-                <div className="flex items-center justify-between gap-3">
-                  <Label className="font-heading" htmlFor="dictation-auto-play-delay">
-                    Delay before playback
-                  </Label>
-                  <span className="text-xs text-foreground/60">milliseconds</span>
-                </div>
-                <Input
-                  aria-describedby="dictation-auto-play-delay-help"
-                  disabled={!props.autoPlayOnSegmentChange}
-                  id="dictation-auto-play-delay"
-                  inputMode="numeric"
-                  max={10000}
-                  min={0}
-                  onChange={(event) => props.onAutoPlayDelayChange(Number(event.target.value))}
-                  step={1}
-                  type="number"
-                  value={props.autoPlayDelayMs}
-                />
-                <p
-                  className="text-xs leading-relaxed text-foreground/70"
-                  id="dictation-auto-play-delay-help"
-                >
-                  Enter 0 for immediate playback. Maximum 10000 ms.
-                </p>
-              </div>
-            </>
-          ) : null}
+          <div className="space-y-2 rounded-base border-2 border-border bg-background p-4">
+            <div className="flex items-center justify-between gap-3">
+              <Label className="font-heading" htmlFor="dictation-auto-play-delay">
+                Delay between segments
+              </Label>
+              <span className="text-xs text-foreground/60">seconds</span>
+            </div>
+            <Input
+              aria-describedby="dictation-auto-play-delay-help"
+              disabled={!props.autoPlayOnSegmentChange}
+              id="dictation-auto-play-delay"
+              inputMode="numeric"
+              max={10}
+              min={0}
+              onChange={(event) => props.onAutoPlayDelayChange(Number(event.target.value) * 1_000)}
+              step={0.5}
+              type="number"
+              value={props.autoPlayDelayMs / 1_000}
+            />
+            <p
+              className="text-xs leading-relaxed text-foreground/70"
+              id="dictation-auto-play-delay-help"
+            >
+              Applied before automatic playback. Enter 0 for an immediate transition; maximum 10
+              seconds.
+            </p>
+          </div>
 
           <div className="flex items-start justify-between gap-4 rounded-base border-2 border-border bg-background p-4">
             <div className="space-y-1">
