@@ -2191,6 +2191,401 @@
           }
         }
       }
+    },
+    "/api/v1/ai-tutor/conversations": {
+      "post": {
+        "tags": ["AI Tutor"],
+        "summary": "Create an AI Tutor conversation",
+        "operationId": "createTutorConversation",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TutorConversationCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TutorConversationCreateResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      },
+      "get": {
+        "tags": ["AI Tutor"],
+        "summary": "List the current user's AI Tutor conversations",
+        "operationId": "listTutorConversations",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Page Size"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TutorConversationListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          }
+        }
+      }
+    },
+    "/api/v1/ai-tutor/conversations/{conversation_id}": {
+      "get": {
+        "tags": ["AI Tutor"],
+        "summary": "Get an AI Tutor conversation and its ordered messages",
+        "operationId": "getTutorConversation",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "AI Tutor conversation ID",
+              "title": "Conversation Id"
+            },
+            "description": "AI Tutor conversation ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TutorConversationDetailResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          }
+        }
+      }
+    },
+    "/api/v1/ai-tutor/conversations/{conversation_id}/messages": {
+      "post": {
+        "tags": ["AI Tutor"],
+        "summary": "Send a text message to AI Tutor",
+        "operationId": "sendTutorMessage",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "AI Tutor conversation ID",
+              "title": "Conversation Id"
+            },
+            "description": "AI Tutor conversation ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TutorMessageCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TutorMessageCreateResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/ai-tutor/conversations/{conversation_id}/complete": {
+      "post": {
+        "tags": ["AI Tutor"],
+        "summary": "Complete an AI Tutor conversation",
+        "operationId": "completeTutorConversation",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "AI Tutor conversation ID",
+              "title": "Conversation Id"
+            },
+            "description": "AI Tutor conversation ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TutorConversationCompleteResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -4565,6 +4960,435 @@
         "type": "object",
         "required": ["start_time_ms", "end_time_ms", "script"],
         "title": "TranscriptSegment"
+      },
+      "TutorAnswerHintResponse": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Text"
+          },
+          "meaning_vi": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Meaning Vi"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["text", "meaning_vi"],
+        "title": "TutorAnswerHintResponse",
+        "description": "A short answer suggestion and its Vietnamese meaning."
+      },
+      "TutorConversationCompleteResponse": {
+        "properties": {
+          "conversation_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Conversation Id"
+          },
+          "status": {
+            "type": "string",
+            "const": "completed",
+            "title": "Status"
+          },
+          "ended_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Ended At"
+          }
+        },
+        "type": "object",
+        "required": ["conversation_id", "status", "ended_at"],
+        "title": "TutorConversationCompleteResponse",
+        "description": "Response returned when a conversation is completed."
+      },
+      "TutorConversationCreateRequest": {
+        "properties": {
+          "topic": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Topic"
+          },
+          "difficulty": {
+            "$ref": "#/components/schemas/JlptLevel"
+          },
+          "scenario": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scenario"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["topic", "difficulty"],
+        "title": "TutorConversationCreateRequest",
+        "description": "User-provided context for a free-form Tutor conversation."
+      },
+      "TutorConversationCreateResponse": {
+        "properties": {
+          "conversation_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Conversation Id"
+          },
+          "topic": {
+            "type": "string",
+            "title": "Topic"
+          },
+          "difficulty": {
+            "$ref": "#/components/schemas/JlptLevel"
+          },
+          "scenario": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scenario"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["active", "completed"],
+            "title": "Status"
+          },
+          "initial_message": {
+            "$ref": "#/components/schemas/TutorMessageResponse"
+          }
+        },
+        "type": "object",
+        "required": [
+          "conversation_id",
+          "topic",
+          "difficulty",
+          "status",
+          "initial_message"
+        ],
+        "title": "TutorConversationCreateResponse",
+        "description": "Response returned after creating a conversation and its opening AI message."
+      },
+      "TutorConversationDetailResponse": {
+        "properties": {
+          "conversation_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Conversation Id"
+          },
+          "topic": {
+            "type": "string",
+            "title": "Topic"
+          },
+          "difficulty": {
+            "$ref": "#/components/schemas/JlptLevel"
+          },
+          "scenario": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scenario"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["active", "completed"],
+            "title": "Status"
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Started At"
+          },
+          "ended_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ended At"
+          },
+          "messages": {
+            "items": {
+              "$ref": "#/components/schemas/TutorMessageResponse"
+            },
+            "type": "array",
+            "title": "Messages"
+          }
+        },
+        "type": "object",
+        "required": [
+          "conversation_id",
+          "topic",
+          "difficulty",
+          "status",
+          "started_at"
+        ],
+        "title": "TutorConversationDetailResponse",
+        "description": "Conversation metadata and its complete ordered message history."
+      },
+      "TutorConversationListItem": {
+        "properties": {
+          "conversation_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Conversation Id"
+          },
+          "topic": {
+            "type": "string",
+            "title": "Topic"
+          },
+          "difficulty": {
+            "$ref": "#/components/schemas/JlptLevel"
+          },
+          "scenario": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scenario"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["active", "completed"],
+            "title": "Status"
+          },
+          "last_message_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Message Text"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "conversation_id",
+          "topic",
+          "difficulty",
+          "status",
+          "updated_at"
+        ],
+        "title": "TutorConversationListItem",
+        "description": "Compact conversation item used by the history endpoint."
+      },
+      "TutorConversationListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/TutorConversationListItem"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total_items": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Total Items"
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Page"
+          },
+          "page_size": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Page Size"
+          },
+          "total_pages": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Total Pages"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total_items",
+          "page",
+          "page_size",
+          "total_pages"
+        ],
+        "title": "TutorConversationListResponse",
+        "description": "Paginated Tutor conversation history."
+      },
+      "TutorFeedbackResponse": {
+        "properties": {
+          "next_question": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Question"
+          },
+          "grammar_correction": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grammar Correction"
+          },
+          "natural_expression_tip": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Natural Expression Tip"
+          },
+          "answer_hints": {
+            "items": {
+              "$ref": "#/components/schemas/TutorAnswerHintResponse"
+            },
+            "type": "array",
+            "maxItems": 3,
+            "title": "Answer Hints"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "TutorFeedbackResponse",
+        "description": "Normalized feedback attached to an AI Tutor message."
+      },
+      "TutorMessageCreateRequest": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Text"
+          },
+          "client_message_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Client Message Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["text", "client_message_id"],
+        "title": "TutorMessageCreateRequest",
+        "description": "A text message and its client-generated idempotency key."
+      },
+      "TutorMessageCreateResponse": {
+        "properties": {
+          "user_message": {
+            "$ref": "#/components/schemas/TutorMessageResponse"
+          },
+          "ai_reply": {
+            "$ref": "#/components/schemas/TutorMessageResponse"
+          }
+        },
+        "type": "object",
+        "required": ["user_message", "ai_reply"],
+        "title": "TutorMessageCreateResponse",
+        "description": "The persisted user message and the generated AI reply."
+      },
+      "TutorMessageResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "sender": {
+            "$ref": "#/components/schemas/TutorSender"
+          },
+          "sequence_number": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Sequence Number"
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Text"
+          },
+          "client_message_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Message Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "feedback": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TutorFeedbackResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": ["id", "sender", "sequence_number", "text", "created_at"],
+        "title": "TutorMessageResponse",
+        "description": "A persisted Tutor message in sequence order."
+      },
+      "TutorSender": {
+        "type": "string",
+        "enum": ["user", "ai"],
+        "title": "TutorSender"
       },
       "UserResponse": {
         "properties": {
