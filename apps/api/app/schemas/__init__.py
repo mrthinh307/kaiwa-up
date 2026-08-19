@@ -33,7 +33,6 @@ from app.schemas.tutor import (
     TutorMessageCreateRequest,
     TutorMessageCreateResponse,
     TutorMessageResponse,
-    TutorScenarioResponse,
 )
 from app.schemas.user import UserResponse, UserUpdateRequest
 
@@ -70,5 +69,4 @@ __all__ = [
     "TutorMessageCreateRequest",
     "TutorMessageCreateResponse",
     "TutorMessageResponse",
-    "TutorScenarioResponse",
 ]

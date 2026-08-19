@@ -7,7 +7,7 @@ from typing import NamedTuple, cast
 from sqlalchemy import func, select
 
 from app.models.enums import JlptLevel, TutorSender
-from app.models.tutor import TutorMessage, TutorScenario, TutorSession
+from app.models.tutor import TutorMessage, TutorSession
 from app.repositories.base import BaseRepository
 
 
@@ -20,36 +20,16 @@ class TutorConversationHistoryRow(NamedTuple):
 
 
 class TutorRepository(BaseRepository):
-    async def list_active_scenarios(self, topic: str | None = None) -> list[TutorScenario]:
-        statement = select(TutorScenario).where(TutorScenario.is_active.is_(True))
-        if topic is not None:
-            statement = statement.where(func.lower(TutorScenario.topic) == topic.casefold())
-        statement = statement.order_by(
-            TutorScenario.display_order.asc(),
-            TutorScenario.topic.asc(),
-            TutorScenario.id.asc(),
-        )
-        return list((await self.session.scalars(statement)).all())
-
-    async def get_active_scenario(self, scenario_id: uuid.UUID) -> TutorScenario | None:
-        statement = select(TutorScenario).where(
-            TutorScenario.id == scenario_id,
-            TutorScenario.is_active.is_(True),
-        )
-        return cast(TutorScenario | None, await self.session.scalar(statement))
-
     async def create_session(
         self,
         *,
         user_id: uuid.UUID,
-        scenario_id: uuid.UUID | None,
         topic: str,
         difficulty: JlptLevel,
         scenario: str | None,
     ) -> TutorSession:
         tutor_session = TutorSession(
             user_id=user_id,
-            scenario_id=scenario_id,
             topic=topic,
             difficulty=difficulty,
             scenario=scenario,

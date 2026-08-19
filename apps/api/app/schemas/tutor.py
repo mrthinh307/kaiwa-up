@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.models.enums import JlptLevel, TutorSender
 from app.schemas.pagination import PaginatedResponse
@@ -12,31 +12,22 @@ from app.schemas.pagination import PaginatedResponse
 TutorSessionStatus = Literal["active", "completed"]
 
 
-class TutorScenarioResponse(BaseModel):
-    """An active scenario available in the Tutor catalog."""
-
-    id: uuid.UUID
-    slug: str
-    topic: str
-    title: str
-    scenario: str
-    display_order: int = Field(ge=0)
-
-
 class TutorConversationCreateRequest(BaseModel):
-    """Parameters for a catalog-based or free-form Tutor conversation."""
+    """User-provided context for a free-form Tutor conversation."""
 
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
-    scenario_id: uuid.UUID | None = None
-    topic: str | None = Field(default=None, min_length=1, max_length=255)
+    topic: str = Field(min_length=1, max_length=255)
     difficulty: JlptLevel
+    scenario: str | None = Field(default=None, max_length=2000)
 
-    @model_validator(mode="after")
-    def require_scenario_or_topic(self) -> "TutorConversationCreateRequest":
-        if self.scenario_id is None and self.topic is None:
-            raise ValueError("scenario_id or topic is required")
-        return self
+    @field_validator("scenario", mode="before")
+    @classmethod
+    def normalize_optional_scenario(cls, value: object) -> object:
+        if isinstance(value, str):
+            normalized = value.strip()
+            return normalized or None
+        return value
 
 
 class TutorAnswerHintResponse(BaseModel):
@@ -75,7 +66,6 @@ class TutorConversationFields(BaseModel):
     """Fields shared by Tutor conversation responses."""
 
     conversation_id: uuid.UUID
-    scenario_id: uuid.UUID | None = None
     topic: str
     difficulty: JlptLevel
     scenario: str | None = None
