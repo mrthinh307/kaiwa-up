@@ -509,9 +509,9 @@ Người dùng có thể bắt đầu một phiên luyện hội thoại với A
 
 Người dùng có thể chọn:
 
-* Chủ đề hội thoại.
-* Mức độ khó.
-* Scenario từ catalog nếu có; phiên tự do có thể chỉ chọn topic.
+* Chủ đề hội thoại do user nhập, bắt buộc.
+* Mức độ khó JLPT, bắt buộc.
+* Scenario/bối cảnh do user nhập, tùy chọn.
 
 ---
 

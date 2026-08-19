@@ -425,7 +425,6 @@ Phase 2 chỉ hỗ trợ hội thoại bằng văn bản. Voice input được �
 - Xây dựng API:
 
 ```http
-GET /api/v1/ai-tutor/scenarios?topic={topic}
 POST /api/v1/ai-tutor/conversations
 GET /api/v1/ai-tutor/conversations
 GET /api/v1/ai-tutor/conversations/{conversation_id}
@@ -433,8 +432,8 @@ POST /api/v1/ai-tutor/conversations/{conversation_id}/messages
 POST /api/v1/ai-tutor/conversations/{conversation_id}/complete
 ```
 
-- Tạo conversation theo `scenario_id` hoặc topic tự do và difficulty.
-- Resolve scenario từ catalog active; snapshot topic/scenario vào conversation.
+- Tạo conversation từ topic/difficulty bắt buộc và scenario tùy chọn do user nhập.
+- Snapshot topic/scenario vào conversation để lịch sử không phụ thuộc dữ liệu ngoài.
 - Gọi AI tạo lời mở đầu.
 - Lưu message theo đúng thứ tự.
 - Dùng `client_message_id` trên mỗi user message để retry không tạo duplicate.
@@ -471,7 +470,7 @@ POST /api/v1/ai-tutor/conversations/{conversation_id}/complete
 
 **Nội dung:**
 
-- Xây dựng màn hình chọn topic/scenario và difficulty.
+- Xây dựng form nhập topic, chọn difficulty và nhập scenario tùy chọn.
 - Xây dựng danh sách lịch sử conversation.
 - Xây dựng giao diện chat cho user và AI.
 - Hiển thị trạng thái đang gửi và AI đang phản hồi.
@@ -507,7 +506,7 @@ POST /api/v1/ai-tutor/conversations/{conversation_id}/complete
 - Viết E2E test cho luồng:
 
 ```text
-Chọn topic/scenario và difficulty
+Nhập topic, chọn difficulty và nhập scenario tùy chọn
 → Tạo conversation
 → Nhận câu hỏi và gợi ý
 → Chọn một gợi ý
@@ -631,7 +630,7 @@ POST /api/v1/listening-translation/lessons/{lesson_id}/submit
 - Tạo bài Reflex theo các độ khó ưu tiên của MVP.
 - Upload audio prompt lên Cloudinary.
 - Tạo bài Listening & Translation có transcript và bản dịch tham khảo.
-- Tạo danh sách topic và scenario cho AI Tutor.
+- Chuẩn bị ví dụ topic, difficulty và scenario tùy chọn để kiểm thử AI Tutor free-form; không seed catalog Tutor.
 - Kiểm tra seed chạy được trên database mới.
 
 ---

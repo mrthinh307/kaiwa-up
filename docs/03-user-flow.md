@@ -346,11 +346,11 @@ Trong phiên bản đầu:
 
 ```mermaid
 flowchart TD
-    A[User mở AI Tutor] --> B[Chọn chủ đề]
-    B --> C[Chọn scenario hoặc phiên tự do]
+    A[User mở AI Tutor] --> B[Nhập chủ đề]
+    B --> C[Nhập scenario tùy chọn]
     C --> D[Chọn mức độ khó]
     D --> E[Nhấn bắt đầu]
-    E --> F[Tạo conversation]
+    E --> F[Tạo conversation từ topic, difficulty và scenario]
     F --> G[AI gửi câu mở đầu và feedback.answer_hints]
     G --> H[Nhập văn bản]
     H --> I[Gửi text kèm client_message_id]

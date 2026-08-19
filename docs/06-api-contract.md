@@ -1466,33 +1466,8 @@ AI Tutor Phase 2 chỉ hỗ trợ text. API dùng `conversation_id` cho resource
 `user` hoặc `ai`; database có thể lưu enum theo quy ước nội bộ nhưng không được lộ khác biệt này
 ra public contract.
 
-#### `GET /api/v1/ai-tutor/scenarios`
-* **Mục đích**: Lấy catalog scenario đang active để người dùng chọn trước khi tạo conversation.
-* **Yêu cầu xác thực**: Bearer Token
-* **Request Headers**: `Authorization: Bearer <jwt_access_token>`
-* **Query Parameters**:
-  * `topic` (optional, string, max 255): Lọc scenario theo topic.
-* **Response Schema (200 OK)**:
-  ```json
-  [
-    {
-      "id": "222e8400-e29b-41d4-a716-446655440222",
-      "slug": "kyoto-trip",
-      "topic": "Du lịch Nhật Bản",
-      "title": "Hỏi kế hoạch đi Kyoto",
-      "scenario": "Bạn đang hỏi bạn bè về kế hoạch đi Kyoto.",
-      "display_order": 1
-    }
-  ]
-  ```
-* **Status Codes & Error Responses**:
-  * `200 OK`: Lấy catalog thành công.
-  * `401 Unauthorized` (`code`: `unauthorized`): Chưa đăng nhập.
-
----
-
 #### `POST /api/v1/ai-tutor/conversations`
-* **Mục đích**: Khởi tạo conversation theo scenario catalog hoặc topic tự do, cùng cấp độ JLPT.
+* **Mục đích**: Khởi tạo conversation từ topic bắt buộc, cấp độ JLPT và scenario tùy chọn do user nhập.
 * **Yêu cầu xác thực**: Bearer Token
 * **Request Headers**: `Authorization: Bearer <jwt_access_token>`, `Content-Type: application/json`
 * **Path Parameters**: Không
@@ -1500,18 +1475,17 @@ ra public contract.
 * **Request Body Schema**:
   ```json
   {
-    "scenario_id": "222e8400-e29b-41d4-a716-446655440222",
-    "topic": null,
-    "difficulty": "N3"
+    "topic": "Du lịch Nhật Bản",
+    "difficulty": "N3",
+    "scenario": "Bạn đang hỏi một người bạn về kế hoạch đi Kyoto."
   }
   ```
-  Có thể gửi `scenario_id` thay cho `topic`. Một trong hai trường `scenario_id` hoặc `topic` là bắt
-  buộc; nếu có `scenario_id`, backend lấy topic/scenario từ catalog và lưu snapshot vào conversation.
+  `topic` và `difficulty` bắt buộc. `scenario` tùy chọn; chuỗi scenario rỗng được chuẩn hóa thành
+  `null`.
 * **Response Schema (201 Created)**:
   ```json
   {
     "conversation_id": "111e8400-e29b-41d4-a716-446655440111",
-    "scenario_id": "222e8400-e29b-41d4-a716-446655440222",
     "topic": "Du lịch Nhật Bản",
     "difficulty": "N3",
     "scenario": "Bạn đang hỏi bạn bè về kế hoạch đi Kyoto.",
@@ -1538,7 +1512,6 @@ ra public contract.
 * **Status Codes & Error Responses**:
   * `201 Created`: Tạo phiên hội thoại thành công.
   * `401 Unauthorized` (`code`: `unauthorized`): Chưa đăng nhập.
-  * `404 Not Found` (`code`: `not_found`): `scenario_id` không tồn tại hoặc không còn active.
   * `503 Service Unavailable` (`code`: `service_unavailable`): AI Gateway chưa sẵn sàng.
 
 ---
@@ -1558,7 +1531,6 @@ ra public contract.
     "items": [
       {
         "conversation_id": "111e8400-e29b-41d4-a716-446655440111",
-        "scenario_id": "222e8400-e29b-41d4-a716-446655440222",
         "topic": "Du lịch Nhật Bản",
         "difficulty": "N3",
         "scenario": "Bạn đang hỏi bạn bè về kế hoạch đi Kyoto.",
@@ -1591,7 +1563,6 @@ ra public contract.
   ```json
   {
     "conversation_id": "111e8400-e29b-41d4-a716-446655440111",
-    "scenario_id": "222e8400-e29b-41d4-a716-446655440222",
     "topic": "Du lịch Nhật Bản",
     "difficulty": "N3",
     "scenario": "Bạn đang hỏi bạn bè về kế hoạch đi Kyoto.",
@@ -1756,7 +1727,7 @@ ra public contract.
 
 ### 4.1. Thống kê tài liệu
 * **Số lượng Module được mô tả**: 15 module (Health, Auth, User, Learning Content, Shadowing, Dictation, Progress, Gamification, Leaderboard, Dashboard, Reflex, Review, Listening & Translation, AI Tutor, Pronunciation Analysis).
-* **Tổng số API Endpoints được quy định**: 33 endpoints.
+* **Tổng số API Endpoints được quy định**: 32 endpoints.
 
 ### 4.2. Giả định (Assumptions Made)
 1. **YouTube Audio Delivery**: `audio_url` là URL video YouTube được trả trong metadata bài học.

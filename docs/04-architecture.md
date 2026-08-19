@@ -893,7 +893,7 @@ AI Gateway interface → provider adapter
 Luồng backend:
 
 1. Router xác thực user, parse request và gọi `TutorService`.
-2. Service resolve scenario catalog hoặc topic tự do rồi tạo conversation.
+2. Service validate topic/difficulty bắt buộc và scenario tùy chọn do user nhập rồi tạo conversation.
 3. Service gửi prompt/context giới hạn qua AI Gateway; provider không được lộ ra frontend.
 4. Service chuẩn hóa reply, correction, natural expression và tối đa 3 `answer_hints`.
 5. Repository lưu message theo `sequence_number`; `client_message_id` dùng để retry idempotent.

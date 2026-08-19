@@ -183,22 +183,11 @@ Cấp không dùng bảng tham chiếu và không có giới hạn tối đa đ�
 ```mermaid
 erDiagram
     USERS ||--o{ TUTOR_SESSIONS : starts
-    TUTOR_SCENARIOS o|--o{ TUTOR_SESSIONS : selected_for
     TUTOR_SESSIONS ||--o{ TUTOR_MESSAGES : contains
     RECORDINGS o|--o{ TUTOR_MESSAGES : attached_to
-    TUTOR_SCENARIOS {
-        UUID id PK
-        VARCHAR slug UK
-        VARCHAR topic
-        VARCHAR title
-        TEXT scenario
-        BOOLEAN is_active
-        INTEGER display_order
-    }
     TUTOR_SESSIONS {
         UUID id PK
         UUID user_id FK
-        UUID scenario_id FK
         VARCHAR topic
         VARCHAR difficulty
         TEXT scenario
@@ -236,7 +225,6 @@ erDiagram
 | Gamification | `user_achievements` | Thành tích đã cấp cho user. |
 | Gamification | `xp_transactions` | Lịch sử cộng/trừ EXP bất biến. |
 | Gamification | `weekly_leaderboard_entries` | Snapshot bảng xếp hạng tuần. |
-| AI Tutor | `tutor_scenarios` | Catalog chủ đề và bối cảnh hội thoại dùng chung. |
 | AI Tutor | `tutor_sessions` | Phiên hội thoại AI của user. |
 | AI Tutor | `tutor_messages` | Tin nhắn có thứ tự trong phiên. |
 
@@ -480,45 +468,25 @@ Phase 2 bổ sung `client_message_id` cho user message để bảo đảm retry 
 schema cần được triển khai bằng Alembic migration trước khi bật API AI Tutor; không sửa database thủ
 công trên môi trường triển khai.
 
-#### Bảng `tutor_scenarios`
-
-| Trường | Kiểu dữ liệu | Null | Mặc định DB | Khóa / ràng buộc | Ý nghĩa |
-| --- | --- | --- | --- | --- | --- |
-| `id` | UUID | Không | `uuidv7()` | PK | Định danh scenario trong catalog. |
-| `slug` | VARCHAR(255) | Không | - | UNIQUE `uq_tutor_scenarios_slug` | Khóa ổn định dùng cho seed và tham chiếu nội bộ. |
-| `topic` | VARCHAR(255) | Không | - | - | Nhóm chủ đề tiếng Việt dùng để lọc catalog. |
-| `title` | VARCHAR(255) | Không | - | - | Tên scenario tiếng Việt hiển thị cho người dùng. |
-| `scenario` | TEXT | Không | - | - | Bối cảnh tiếng Việt được dùng làm đầu vào cho AI Tutor. |
-| `is_active` | BOOLEAN | Không | - | - | Cho phép ẩn scenario khỏi catalog mà không xóa lịch sử. Application mặc định `true`. |
-| `display_order` | INTEGER | Không | - | CHECK `tutor_scenarios_display_order_nonnegative` | Thứ tự hiển thị không âm; application mặc định `0`. |
-| `created_at` | TIMESTAMPTZ | Không | `now()` | - | Thời điểm tạo catalog item. |
-| `updated_at` | TIMESTAMPTZ | Không | `now()` | - | Thời điểm cập nhật gần nhất. |
-
-Catalog không cố định độ khó. Người dùng chọn scenario và cấp JLPT `N5` đến `N1` độc lập; AI Tutor
-điều chỉnh nội dung hội thoại theo `tutor_sessions.difficulty`.
-
-Index `ix_tutor_scenarios_active_order` trên `(is_active, display_order, topic)` phục vụ danh sách
-scenario đang hoạt động theo thứ tự hiển thị.
-
 #### Bảng `tutor_sessions`
 
 | Trường | Kiểu dữ liệu | Null | Mặc định DB | Khóa / ràng buộc | Ý nghĩa |
 | --- | --- | --- | --- | --- | --- |
 | `id` | UUID | Không | `uuidv7()` | PK | Định danh phiên hội thoại. |
 | `user_id` | UUID | Không | - | FK `users.id` ON DELETE CASCADE | User sở hữu phiên. |
-| `scenario_id` | UUID | Có | - | FK `tutor_scenarios.id` ON DELETE SET NULL | Scenario nguồn đã được chọn; NULL nếu catalog item bị xóa hoặc phiên tự do. |
-| `topic` | VARCHAR(255) | Có | - | - | Chủ đề luyện hội thoại. |
-| `difficulty` | VARCHAR | Có | - | CHECK `tutor_session_jlpt_level` | Cấp JLPT `N5` đến `N1`; NULL khi phiên không chỉ định độ khó. |
+| `topic` | VARCHAR(255) | Không | - | - | Chủ đề do user nhập và được lưu làm snapshot của phiên. |
+| `difficulty` | VARCHAR | Không | - | CHECK `tutor_session_jlpt_level` | Cấp JLPT `N5` đến `N1` do user chọn. |
 | `scenario` | TEXT | Có | - | - | Bối cảnh/role-play được đưa cho tutor. |
 | `status` | VARCHAR(32) | Không | - | CHECK `tutor_session_status` | `active` hoặc `completed`; application mặc định `active`. |
 | `started_at` | TIMESTAMPTZ | Không | `now()` | - | Thời điểm bắt đầu phiên. |
 | `ended_at` | TIMESTAMPTZ | Có | - | - | Thời điểm kết thúc; NULL khi phiên đang hoạt động hoặc chưa đóng đúng cách. |
 
-`topic` và `scenario` là snapshot tại thời điểm tạo phiên, vì vậy lịch sử không đổi khi catalog được
-cập nhật hoặc xóa. `scenario_id` chỉ lưu nguồn catalog đã chọn.
+`topic`, `difficulty` và `scenario` là snapshot tại thời điểm tạo phiên. `topic` và `difficulty` là
+đầu vào bắt buộc; `scenario` là đầu vào tùy chọn. Vì không còn catalog, lịch sử phiên không phụ thuộc
+vào dữ liệu dùng chung nào khác.
 
 Index `ix_tutor_sessions_user_id_started_at` trên `(user_id, started_at DESC)` phục vụ lịch sử phiên
-gần nhất; index `ix_tutor_sessions_scenario_id` hỗ trợ quan hệ với catalog.
+gần nhất.
 
 #### Bảng `tutor_messages`
 
@@ -548,8 +516,7 @@ Phase 2 bổ sung UNIQUE `uq_tutor_messages_client_message_id` trên `(session_i
   `exercise_attempts.content_id` dùng `RESTRICT`.
 - Recording có thể không thuộc attempt để hỗ trợ giọng nói trong AI Tutor. Khi recording bị xóa,
   tham chiếu từ evaluation/message được đặt NULL.
-- Xóa Tutor scenario đặt `tutor_sessions.scenario_id` thành NULL nhưng giữ snapshot `topic` và
-  `scenario` trong lịch sử phiên.
+- Tutor session lưu trực tiếp snapshot `topic`, `difficulty` và `scenario`; không có FK tới catalog.
 - Tạo attempt, chấm điểm, cấp EXP và cập nhật `user_progress` phải nằm trong một transaction do
   service quản lý.
 - Các enum được lưu bằng `VARCHAR` kèm CHECK constraint, không dùng PostgreSQL native enum.
