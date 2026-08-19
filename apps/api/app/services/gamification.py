@@ -9,6 +9,8 @@ from app.repositories.gamification import GamificationRepository
 from app.schemas.gamification import ExpHistoryItem, GamificationProfileResponse
 from app.services.leveling import level_for_total_exp, minimum_exp_for_level
 
+XP_TRANSACTION_REASON_MAX_LENGTH = 100
+
 
 class XpAwardResult(NamedTuple):
     awarded: bool
@@ -49,6 +51,7 @@ class GamificationService:
         *,
         user_id: uuid.UUID,
         attempt_id: uuid.UUID,
+        reward_amount: int | None = None,
     ) -> XpAwardResult:
         """Award EXP without committing so a parent use case can own the transaction."""
 
@@ -75,7 +78,9 @@ class GamificationService:
                 level=progress.current_level,
             )
 
-        amount = attempt.base_exp
+        amount = reward_amount if reward_amount is not None else attempt.base_exp
+        if amount <= 0:
+            raise ValueError("EXP reward amount must be positive")
         reason = self._build_reason(attempt.content_type, attempt.content_title)
         await self.repository.insert_transaction(
             user_id=user_id,
@@ -127,4 +132,5 @@ class GamificationService:
     @staticmethod
     def _build_reason(content_type: ContentType, content_title: str) -> str:
         display_name = content_type.value.replace("_", " ").title()
-        return f"Hoàn thành {display_name}: {content_title}"
+        reason = f"Hoàn thành {display_name}: {content_title}"
+        return reason[:XP_TRANSACTION_REASON_MAX_LENGTH]

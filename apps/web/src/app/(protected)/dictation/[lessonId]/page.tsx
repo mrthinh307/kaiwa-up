@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 import { notFound } from "next/navigation";
 
-import { getMockDictationContent } from "../_utils/dictation-practice-mock";
+import { getDictationContentFromApi } from "../_utils/dictation-content-api";
 import { DictationPracticeScreen } from "./_components/dictation-practice-screen";
 
 type DictationLessonPageProps = {
@@ -11,7 +11,7 @@ type DictationLessonPageProps = {
 
 export async function generateMetadata({ params }: DictationLessonPageProps): Promise<Metadata> {
   const { lessonId } = await params;
-  const content = getMockDictationContent(lessonId);
+  const content = await getDictationContentFromApi(lessonId);
 
   if (!content) {
     return { title: "Dictation lesson not found | KaiwaUp" };
@@ -25,7 +25,7 @@ export async function generateMetadata({ params }: DictationLessonPageProps): Pr
 
 export default async function DictationLessonPage({ params }: DictationLessonPageProps) {
   const { lessonId } = await params;
-  const content = getMockDictationContent(lessonId);
+  const content = await getDictationContentFromApi(lessonId);
 
   if (!content) {
     notFound();

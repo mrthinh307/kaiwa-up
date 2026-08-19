@@ -1,11 +1,15 @@
+"use client";
+
 import type { LucideIcon } from "lucide-react";
 
-import { ArrowRight, BookOpenCheck, Mic2, RotateCcw } from "lucide-react";
+import { ArrowRight, BookOpenCheck, CirclePlay, Mic2, RotateCcw } from "lucide-react";
 import Link from "next/link";
 
 import type { LessonModeProgress, PracticeMode } from "@/lib/practice-catalog-api";
 
 import { cn } from "@/lib/utils";
+
+import { usePracticeCatalogProgress } from "./practice-catalog-progress-provider";
 
 const PRACTICE_MODE_CONFIG: Record<
   PracticeMode,
@@ -37,16 +41,33 @@ export function PracticeModeAction({
   variant = "default",
 }: PracticeModeActionProps) {
   const config = PRACTICE_MODE_CONFIG[progress.mode];
-  const hasAttempts = progress.attemptCount > 0;
-  const attemptLabel = `${progress.attemptCount} ${progress.attemptCount === 1 ? "attempt" : "attempts"}`;
-  const actionLabel = hasAttempts ? "Practice again" : "Start lesson";
-  const displayedProgress = hasAttempts ? attemptLabel : "New";
+  const { dictationAttemptCounts, inProgressDictationContentIds, isLoading } =
+    usePracticeCatalogProgress();
+  const isResumable = progress.mode === "dictation" && inProgressDictationContentIds.has(contentId);
+  const attemptCount =
+    progress.mode === "dictation"
+      ? Math.max(progress.attemptCount, dictationAttemptCounts.get(contentId) ?? 0)
+      : progress.attemptCount;
+  const hasAttempts = attemptCount > 0;
+  const attemptLabel = `${attemptCount} ${attemptCount === 1 ? "attempt" : "attempts"}`;
+  const actionLabel = isResumable
+    ? "Resume attempt"
+    : hasAttempts
+      ? "Practice again"
+      : "Start lesson";
+  const displayedProgress = isResumable
+    ? "Resume"
+    : progress.mode === "dictation" && isLoading
+      ? "Checking progress"
+      : hasAttempts
+        ? attemptLabel
+        : "New";
   const Icon = config.icon;
   const isCompact = variant === "compact";
 
   return (
     <Link
-      aria-label={`${actionLabel}: ${config.label} for ${lessonTitle}. ${attemptLabel}.`}
+      aria-label={`${actionLabel}: ${config.label} for ${lessonTitle}. ${isResumable ? "Attempt in progress" : attemptLabel}.`}
       className={cn(
         "grid grid-cols-[auto_minmax(0,1fr)_auto] items-center rounded-base border-2 border-border bg-background outline-hidden transition-colors hover:bg-main hover:text-main-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-reduce:transition-none",
         isCompact ? "min-h-14 gap-2 px-2 py-2" : "min-h-16 gap-3 px-3 py-2",
@@ -69,7 +90,9 @@ export function PracticeModeAction({
       </span>
       <span className="flex items-center justify-end gap-2 text-right text-sm font-heading">
         {!isCompact && <span className="text-xs sm:text-sm">{actionLabel}</span>}
-        {hasAttempts ? (
+        {isResumable ? (
+          <CirclePlay aria-hidden="true" className="size-4" />
+        ) : hasAttempts ? (
           <RotateCcw aria-hidden="true" className="size-4" />
         ) : (
           <ArrowRight aria-hidden="true" className="size-4" />

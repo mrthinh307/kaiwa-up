@@ -28,6 +28,9 @@ import type {
   GetGamificationProfileData,
   GetGamificationProfileErrors,
   GetGamificationProfileResponses,
+  GetInProgressDictationAttemptData,
+  GetInProgressDictationAttemptErrors,
+  GetInProgressDictationAttemptResponses,
   GetLearningContentData,
   GetLearningContentErrors,
   GetLearningContentResponses,
@@ -311,6 +314,26 @@ export const getShadowingRecordingPlayback = <ThrowOnError extends boolean = fal
   >({
     security: [{ scheme: "bearer", type: "http" }],
     url: "/api/v1/shadowing/recordings/{recording_id}",
+    ...options,
+  });
+
+/**
+ * Resume the latest in-progress Dictation attempt
+ */
+export const getInProgressDictationAttempt = <ThrowOnError extends boolean = false>(
+  options: Options<GetInProgressDictationAttemptData, ThrowOnError>,
+): RequestResult<
+  GetInProgressDictationAttemptResponses,
+  GetInProgressDictationAttemptErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    GetInProgressDictationAttemptResponses,
+    GetInProgressDictationAttemptErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/api/v1/dictation/{content_id}/in-progress",
     ...options,
   });
 

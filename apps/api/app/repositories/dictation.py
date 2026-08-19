@@ -35,6 +35,30 @@ class DictationRepository(BaseRepository):
         )
         return result.scalar_one_or_none()
 
+    async def get_latest_in_progress_attempt(
+        self,
+        *,
+        user_id: uuid.UUID,
+        content_id: uuid.UUID,
+    ) -> DictationAttemptRow | None:
+        result = (
+            await self.session.execute(
+                select(ExerciseAttempt, LearningContent)
+                .join(LearningContent, LearningContent.id == ExerciseAttempt.content_id)
+                .where(
+                    ExerciseAttempt.user_id == user_id,
+                    ExerciseAttempt.content_id == content_id,
+                    LearningContent.content_type == ContentType.SHADOWING_DICTATION,
+                    LearningContent.status == ContentStatus.PUBLISHED,
+                )
+                .order_by(ExerciseAttempt.attempt_number.desc())
+                .limit(1)
+            )
+        ).first()
+        if result is None or result[0].status != AttemptStatus.IN_PROGRESS:
+            return None
+        return DictationAttemptRow(attempt=result[0], content=result[1])
+
     async def lock_attempt_order(self, user_id: uuid.UUID) -> None:
         await self.session.scalar(select(User.id).where(User.id == user_id).with_for_update())
 

@@ -58,7 +58,7 @@ Do đặc thù dự án tập trung logic vào Backend, chiến lược kiểm t
 * **Tích hợp Database (PostgreSQL):** Dựng một database test sạch và tách biệt với môi trường production để chạy integration test ở local và CI. Cách dựng DB có thể là docker compose riêng hoặc một cấu hình test độc lập, miễn là không ảnh hưởng đến Neon DB.
 * **Tích hợp Dịch vụ bên thứ 3 (3rd-party Services):** Áp dụng kỹ thuật **Mocking** để giả lập phản hồi của các dịch vụ bên ngoài, giúp quá trình test diễn ra nhanh, ổn định và không tốn phí API:
   * **YouTube:** Mock player/API và validation URL media bài học.
-  * **Gemini API & WebSpeech:** Mock xử lý AI chấm điểm, speech-to-text và text-to-speech.
+  * **AI API (openai-compatible) & WebSpeech:** Mock xử lý AI chấm điểm, speech-to-text và text-to-speech.
 
 ### 3.3. End-to-End Test (E2E Test)
 Kết hợp linh hoạt giữa kiểm thử thủ công và tự động hóa để đảm bảo chất lượng trải nghiệm người dùng cuối.
@@ -128,7 +128,7 @@ Kiểm tra luồng người dùng phát audio, thu âm giọng nói đuổi theo
 
 ## Kết quả mong đợi (Expected Results)
 - Hệ thống ghi âm rõ ràng, không bị ngắt quãng.
-- Backend gọi mock Gemini API thành công và trả về kết quả đánh giá (phát âm, độ trôi chảy).
+- Backend gọi mock AI API (openai-compatible) thành công và trả về kết quả đánh giá (phát âm, độ trôi chảy).
 - Giao diện hiển thị điểm số và highlight các từ phát âm sai trong vòng 5 giây.
 
 ## Kết quả thực tế (Actual Results)
