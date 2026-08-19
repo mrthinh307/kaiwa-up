@@ -373,6 +373,8 @@ flowchart TD
 * Nội dung gửi lên không hợp lệ.
 * Kết nối bị gián đoạn.
 * Retry với cùng `client_message_id` phải trả lại kết quả cũ, không tạo user message trùng.
+* Nếu turn trước còn chờ AI, message mới nhận `409 tutor_response_pending`; frontend phải retry turn
+  cũ bằng đúng `client_message_id`.
 
 Nếu AI gặp lỗi, hệ thống phải hiển thị thông báo và cho phép người dùng thử lại.
 User message hợp lệ đã ghi nhận không bị mất khi AI timeout; retry tiếp tục dùng cùng

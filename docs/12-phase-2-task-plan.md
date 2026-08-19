@@ -450,6 +450,7 @@ POST /api/v1/ai-tutor/conversations/{conversation_id}/complete
 - Kiểm tra ownership conversation.
 - Xử lý AI timeout mà không làm mất user message.
 - Trả `503 service_unavailable` khi AI Gateway timeout/unavailable; user message đã ghi nhận vẫn giữ lại.
+- Trả `409 tutor_response_pending` nếu user gửi turn mới trong khi turn trước chưa có AI reply.
 - Viết test cho service, thứ tự message và authorization.
 
 **Acceptance criteria:**

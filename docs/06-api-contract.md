@@ -1682,8 +1682,9 @@ ra public contract.
   * `200 OK`: Trả lời hội thoại thành công.
   * `403 Forbidden` (`code`: `forbidden`): Không có quyền truy cập phiên hội thoại.
   * `404 Not Found` (`code`: `not_found`): Conversation không tồn tại.
-  * `409 Conflict` (`code`: `tutor_conversation_completed` hoặc `tutor_message_idempotency_conflict`):
-    Conversation đã kết thúc hoặc `client_message_id` được dùng cho text khác.
+  * `409 Conflict` (`code`: `tutor_conversation_completed`, `tutor_message_idempotency_conflict`
+    hoặc `tutor_response_pending`): Conversation đã kết thúc, `client_message_id` được dùng cho text
+    khác, hoặc turn trước đã lưu user message nhưng vẫn đang chờ AI reply.
   * `503 Service Unavailable` (`code`: `service_unavailable`): AI Gateway bị sập hoặc quá tải.
 
 ---
