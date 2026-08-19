@@ -20,6 +20,21 @@ from app.schemas.progress import (
     ProgressSummaryResponse,
 )
 from app.schemas.readiness import ReadinessResponse
+from app.schemas.tutor import (
+    TutorAnswerHintResponse,
+    TutorConversationCompleteResponse,
+    TutorConversationCreateRequest,
+    TutorConversationCreateResponse,
+    TutorConversationDetailResponse,
+    TutorConversationFields,
+    TutorConversationListItem,
+    TutorConversationListResponse,
+    TutorFeedbackResponse,
+    TutorMessageCreateRequest,
+    TutorMessageCreateResponse,
+    TutorMessageResponse,
+    TutorScenarioResponse,
+)
 from app.schemas.user import UserResponse, UserUpdateRequest
 
 __all__ = [
@@ -43,4 +58,17 @@ __all__ = [
     "ValidationErrorDetail",
     "LeaderboardUser",
     "WeeklyLeaderboardData",
+    "TutorAnswerHintResponse",
+    "TutorConversationCompleteResponse",
+    "TutorConversationCreateRequest",
+    "TutorConversationCreateResponse",
+    "TutorConversationDetailResponse",
+    "TutorConversationFields",
+    "TutorConversationListItem",
+    "TutorConversationListResponse",
+    "TutorFeedbackResponse",
+    "TutorMessageCreateRequest",
+    "TutorMessageCreateResponse",
+    "TutorMessageResponse",
+    "TutorScenarioResponse",
 ]
