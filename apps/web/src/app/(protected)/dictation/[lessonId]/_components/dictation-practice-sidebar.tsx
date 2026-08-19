@@ -1,6 +1,17 @@
 "use client";
 
-import { Check, Circle, Flag, Keyboard, LoaderCircle, PencilLine, Trophy, X } from "lucide-react";
+import {
+  Check,
+  ChevronDown,
+  Circle,
+  Flag,
+  Keyboard,
+  LoaderCircle,
+  PencilLine,
+  Trophy,
+  X,
+} from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
 import { KeyboardShortcut } from "@/components/common/keyboard-shortcut";
 import { Badge } from "@/components/ui/badge";
@@ -32,10 +43,12 @@ function getSegmentState({
 
 const PRACTICE_SHORTCUTS: readonly DictationKeyboardShortcut[] = [
   { action: "Check answer", keyLabel: "⏎" },
-  { action: "Replay segment", keyLabel: "⎵" },
+  { action: "Pause or resume video", keyLabel: "⎵" },
   { action: "Next segment", keyLabel: "→" },
   { action: "Previous segment", keyLabel: "←" },
 ];
+
+const COLLAPSED_SEGMENT_COUNT = 14;
 
 const STATE_CONFIG = {
   correct: {
@@ -99,6 +112,49 @@ export function DictationPracticeSidebar({
   totalSegments,
   variant = "practice",
 }: DictationPracticeSidebarProps) {
+  const [isMapExpanded, setIsMapExpanded] = useState(false);
+  const segmentGridRef = useRef<HTMLDivElement>(null);
+  const shouldCollapseMap = segments.length > COLLAPSED_SEGMENT_COUNT;
+  const collapsedPageIndex = Math.floor(activeSegmentIndex / COLLAPSED_SEGMENT_COUNT);
+  const collapsedStartIndex = collapsedPageIndex * COLLAPSED_SEGMENT_COUNT;
+  const collapsedPageCount = Math.ceil(segments.length / COLLAPSED_SEGMENT_COUNT);
+  const visibleSegments =
+    shouldCollapseMap && !isMapExpanded
+      ? segments.slice(collapsedStartIndex, collapsedStartIndex + COLLAPSED_SEGMENT_COUNT)
+      : segments;
+  const firstVisibleSegment = visibleSegments[0]?.segment_index;
+  const lastVisibleSegment = visibleSegments.at(-1)?.segment_index;
+
+  useEffect(() => {
+    if (!isMapExpanded) {
+      return;
+    }
+
+    const activeSegment = segments[activeSegmentIndex];
+    const frameId = window.requestAnimationFrame(() => {
+      const segmentGrid = segmentGridRef.current;
+      const activeButton = segmentGrid?.querySelector<HTMLElement>(
+        `[data-segment-index="${activeSegment?.segment_index ?? ""}"]`,
+      );
+      if (!segmentGrid || !activeButton) {
+        return;
+      }
+
+      const gridBounds = segmentGrid.getBoundingClientRect();
+      const buttonBounds = activeButton.getBoundingClientRect();
+      if (buttonBounds.top < gridBounds.top) {
+        segmentGrid.scrollBy({ behavior: "smooth", top: buttonBounds.top - gridBounds.top - 4 });
+      } else if (buttonBounds.bottom > gridBounds.bottom) {
+        segmentGrid.scrollBy({
+          behavior: "smooth",
+          top: buttonBounds.bottom - gridBounds.bottom + 4,
+        });
+      }
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [activeSegmentIndex, isMapExpanded, segments]);
+
   const isAllChecked = checkedCount === totalSegments;
   const incorrectCount = checkedCount - correctCount;
   const remainingCount = totalSegments - checkedCount;
@@ -115,7 +171,7 @@ export function DictationPracticeSidebar({
         className="rounded-base border-4 border-border bg-secondary-background p-4 shadow-shadow sm:p-5"
       >
         {/* Header */}
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="font-heading text-lg sm:text-xl" id="dictation-segments-heading">
               Segment map
@@ -124,9 +180,28 @@ export function DictationPracticeSidebar({
               Active: Segment {activeSegmentIndex + 1}
             </p>
           </div>
-          <Badge className="font-heading text-xs" variant="neutral">
-            {checkedCount}/{totalSegments} ({progressPercent}%)
-          </Badge>
+          <div className="flex items-center gap-2">
+            {shouldCollapseMap ? (
+              <Button
+                aria-controls="dictation-segment-grid"
+                aria-expanded={isMapExpanded}
+                className="h-8 gap-1 px-2 text-xs"
+                onClick={() => setIsMapExpanded((currentValue) => !currentValue)}
+                size="sm"
+                type="button"
+                variant="neutral"
+              >
+                {isMapExpanded ? "Collapse" : "Show all"}
+                <ChevronDown
+                  aria-hidden="true"
+                  className={cn("size-3.5 transition-transform", isMapExpanded && "rotate-180")}
+                />
+              </Button>
+            ) : null}
+            <Badge className="font-heading text-xs" variant="neutral">
+              {checkedCount}/{totalSegments} ({progressPercent}%)
+            </Badge>
+          </div>
         </div>
 
         {/* Progress Tracker Stats Grid */}
@@ -145,9 +220,22 @@ export function DictationPracticeSidebar({
           </div>
         </div>
 
-        {/* 36-Segment Grid (7-column matrix: six rows with prominent badges) */}
-        <div className="mt-4 grid grid-cols-7 gap-1.5 sm:gap-2">
-          {segments.map((segment) => {
+        {shouldCollapseMap && !isMapExpanded ? (
+          <p className="mt-3 text-xs font-medium text-foreground/60">
+            Page {collapsedPageIndex + 1} of {collapsedPageCount} · Segments{" "}
+            {(firstVisibleSegment ?? 0) + 1}–{(lastVisibleSegment ?? 0) + 1}
+          </p>
+        ) : null}
+
+        <div
+          className={cn(
+            "mt-4 grid grid-cols-7 gap-1.5 sm:gap-2",
+            isMapExpanded && shouldCollapseMap && "max-h-72 overflow-y-auto p-1",
+          )}
+          id="dictation-segment-grid"
+          ref={segmentGridRef}
+        >
+          {visibleSegments.map((segment) => {
             const answer = answers[segment.segment_index] ?? "";
             const state = getSegmentState({ answer, result: results[segment.segment_index] });
             const config = STATE_CONFIG[state];
@@ -164,6 +252,7 @@ export function DictationPracticeSidebar({
                     ? "border-border bg-main text-main-foreground shadow-shadow font-bold scale-105 z-10"
                     : config.bgClass,
                 )}
+                data-segment-index={segment.segment_index}
                 data-segment-state={state}
                 key={segment.segment_index}
                 onClick={() => onSelectSegment(segment.segment_index)}

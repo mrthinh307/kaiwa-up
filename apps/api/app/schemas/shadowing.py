@@ -69,3 +69,19 @@ class ShadowingAttemptReviewResponse(BaseModel):
     total_segments: int
     completed_segments: int
     segments: list[ShadowingSegmentReviewItem]
+
+
+class ShadowingRecordedSegmentSummary(BaseModel):
+    segment_id: str
+    recording_id: uuid.UUID
+    duration_seconds: int
+    created_at: datetime
+
+
+class ShadowingResumeResponse(BaseModel):
+    attempt_id: uuid.UUID
+    content_id: uuid.UUID
+    attempt_number: int
+    total_segments: int
+    recorded_segments: list[ShadowingRecordedSegmentSummary]
+    total_attempts: int = 0

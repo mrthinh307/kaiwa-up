@@ -542,6 +542,12 @@ Quy tắc MVP:
 * Không tính lại số lần làm lại vào tỷ lệ hoàn thành ban đầu.
 * Tỷ lệ hoàn thành được tính dựa trên số câu đã được submit so với tổng số câu.
 * EXP được tính theo tỷ lệ hoàn thành và cơ chế riêng của Dictation.
+  * `0%`: `0 EXP`.
+  * Trên `0%` và dưới `5%`: `5 EXP`.
+  * Từ `5%` đến dưới `25%`: `15 EXP`.
+  * Từ `25%` đến dưới `50%`: `25 EXP`.
+  * Từ `50%` đến dưới `75%`: `40 EXP`.
+  * Từ `75%` trở lên: `50 EXP`.
 * Kết quả kiểm tra đáp án được lưu để hiển thị lại cho người dùng.
 
 ---
@@ -941,3 +947,90 @@ Các nội dung sau sẽ được làm rõ trong các tài liệu tiếp theo:
 * Nhà cung cấp hoặc mô hình AI.
 * Nền tảng triển khai frontend và backend.
 * Quy tắc xử lý lỗi và retry khi dịch vụ AI không phản hồi.
+
+# 19. AI Gateway
+
+AI Gateway cô lập provider AI/STT khỏi business module. Reflex, Tutor, Translation và STT service chỉ
+phụ thuộc interface `AiGateway`; việc chọn provider, xây prompt, giới hạn và chuẩn hóa kết quả được
+quản lý tập trung. API key chỉ tồn tại ở backend (`.env`), không xuất hiện trong business module và
+không bị log dưới mọi hình thức.
+
+```mermaid
+flowchart TD
+    A[Reflex Service] --> E[AI Gateway Interface]
+    B[Tutor Service] --> E
+    C[Translation Service] --> E
+    D[STT Service] --> E
+
+    E --> F[Prompt Manager]
+    E --> G[Token / Usage Limiter]
+    E --> H[Concurrency Limiter]
+    E --> I[Timeout + Retry + Backoff]
+    E --> J[Response Validator]
+    E --> K[Provider Adapter]
+
+    K --> L[Provider A]
+    K --> M[Provider B]
+    K --> O[Fake Adapter]
+```
+
+Trách nhiệm từng thành phần:
+
+- **Prompt Manager**: xây dựng prompt riêng cho Reflex, Translation và AI Tutor.
+- **Token / Usage Limiter**: giới hạn token mỗi request, budget theo window và số lần gọi mỗi user.
+- **Concurrency Limiter**: giới hạn số gọi AI song song toàn cục và trên mỗi user.
+- **Timeout + Retry + Backoff**: retry có giới hạn với backoff; chỉ retry timeout, 429, 5xx hoặc lỗi
+  kết nối.
+- **Response Validator**: chuẩn hóa transcript, score, feedback, correction, hints về contract nội bộ.
+- **Provider Adapter**: cô lập SDK/HTTP và payload riêng của từng provider; cho phép đổi provider hoặc
+  dùng Fake Adapter khi test mà không sửa business service.
+
+Provider được chọn theo cấu hình (STT và LLM có thể dùng provider khác nhau); khi provider không khả
+dụng có thể fallback sang provider khác.
+
+### 19.1. Cấu trúc code
+
+AI Gateway nằm trong `apps/api/app/integrations/ai/`, chia theo chức năng:
+
+```text
+integrations/ai/
+├── __init__.py          # export public + FallbackAiGateway + RoutedAiGateway + build_ai_gateway(settings)
+├── base.py              # interface chung AiGateway (STT, Reflex, Shadowing, Translation, Tutor) + AiProviderConfig + HTTP helpers
+├── contracts.py         # contract chuẩn hóa: transcript, score, feedback, correction, hints + parser
+├── policy.py            # timeout, retry giới hạn, backoff
+├── prompts/             # prompt theo từng chức năng
+│   ├── common.py        # prompt chung: JSON schema chuẩn + persona + helper build_json_instruction
+│   ├── speech2text.py   # build_stt_instruction
+│   ├── reflex.py        # build_reflex_eval_prompt
+│   ├── shadowing.py     # build_shadowing_eval_prompt
+│   ├── translation.py   # build_translation_eval_prompt
+│   └── tutor.py         # build_tutor_messages
+└── providers/           # adapter provider (dùng httpx, không dùng SDK)
+    ├── base.py          # BaseAiGateway: triển khai chung mọi LLM capability qua _chat/transcribe
+    ├── openai.py        # OpenAiProviderConfig + OpenAiCompatibleAiGateway (OpenAI, Groq, ...)
+    └── fake.py          # FakeAiGateway cho dev/test
+```
+
+- **Interface chung**: business module chỉ phụ thuộc protocol `AiGateway` (5 capability: `transcribe`,
+  `evaluate_reflex`, `evaluate_shadowing`, `evaluate_translation`, `generate_tutor_reply`); không biết
+  provider cụ thể, không lộ API key hay payload riêng của provider.
+- **Triển khai chung**: `providers/base.py` (`BaseAiGateway`) dùng chung mọi LLM capability
+  (reflex/shadowing/translation/tutor + timeout/retry qua `_call`); provider chỉ triển khai `_chat` và
+  `transcribe`. `FakeAiGateway` kế thừa base, chỉ override `_chat` (trả JSON mẫu), `transcribe`,
+  `generate_tutor_reply` và `_call` (chạy thẳng).
+- **Routing theo chức năng**: `build_ai_gateway(settings)` chia 3 lane — `tutor` (generate_tutor_reply),
+  `evaluate` (reflex/shadowing/translation), `stt` (transcribe). Mỗi lane có provider primary + fallback
+  riêng (`AI_<LANE>_PROVIDER` / `AI_<LANE>_FALLBACK_PROVIDERS`); lane rỗng hoặc `fake` dùng
+  `FakeAiGateway`. Cùng 1 provider cho cả 3 lane → trả adapter đơn, khác nhau → `RoutedAiGateway`.
+- **Provider theo dialect**: `OpenAiCompatibleAiGateway` phục vụ mọi API tương thích OpenAI (OpenAI,
+  Groq...); cắm dịch vụ mới chỉ cần thêm config `AI_<NAME>_*` + đăng ký trong `_provider_registry` —
+  không cần file adapter mới nếu cùng dialect. Không dùng Gemini/GeminiAiGateway nữa.
+- **Prompt chung** (`prompts/common.py`): các JSON schema chuẩn (transcription/evaluation/tutor),
+  persona dùng chung và helper `build_json_instruction`; prompt riêng từng chức năng kế thừa từ đây để
+  tránh trùng lặp schema.
+- **Error**: các `Ai*Error` kế thừa `AppError`, định nghĩa trong `app/exceptions/ai.py` và được global
+  handler serialize theo error envelope chuẩn (status/code/message/details).
+- **Cấu hình**: thông số dùng chung (model override, temperature, top_p, max output tokens, timeout,
+  retry) và riêng từng provider (API key, base_url, model) đều qua `app/core/config.py` (biến `AI_*`
+  trong `.env`). `build_ai_gateway(settings)` chọn provider + fallback và dùng `FakeAiGateway` khi chưa
+  cấu hình key hoặc `AI_PROVIDER=fake`.

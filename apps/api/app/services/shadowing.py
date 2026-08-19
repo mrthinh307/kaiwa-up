@@ -18,8 +18,10 @@ from app.repositories.gamification import GamificationRepository
 from app.repositories.recording import RecordingRepository
 from app.schemas.shadowing import (
     ShadowingAttemptReviewResponse,
+    ShadowingRecordedSegmentSummary,
     ShadowingRecordingPlaybackResponse,
     ShadowingRecordSegmentResponse,
+    ShadowingResumeResponse,
     ShadowingSegmentReviewItem,
     ShadowingSubmitResponse,
     ShadowingUserProgressSummary,
@@ -417,6 +419,57 @@ class ShadowingService:
             total_segments=total_count,
             completed_segments=completed_count,
             segments=review_segments,
+        )
+
+    async def get_in_progress_attempt(
+        self,
+        *,
+        user_id: uuid.UUID,
+        content_id: uuid.UUID,
+    ) -> ShadowingResumeResponse:
+        row = await self.repository.get_latest_in_progress_attempt(
+            user_id=user_id,
+            content_id=content_id,
+        )
+        if row is None:
+            raise NotFoundError("In-progress Shadowing attempt not found")
+
+        attempt, content = row
+        total_attempts = await self.repository.get_total_attempt_count(
+            user_id=user_id,
+            content_id=content_id,
+        )
+
+        transcript_segments = content.transcript_ja or []
+        total_count = len(transcript_segments)
+
+        raw_payload_segments = (attempt.answer_payload or {}).get("segments")
+        payload_segments = raw_payload_segments if isinstance(raw_payload_segments, list) else []
+
+        recorded_summaries: list[ShadowingRecordedSegmentSummary] = []
+        for seg in payload_segments:
+            if isinstance(seg, dict) and "segment_id" in seg and "recording_id" in seg:
+                try:
+                    rec_id = uuid.UUID(str(seg["recording_id"]))
+                    dur_s = int(seg.get("duration_seconds", 0))
+                    recorded_summaries.append(
+                        ShadowingRecordedSegmentSummary(
+                            segment_id=str(seg["segment_id"]),
+                            recording_id=rec_id,
+                            duration_seconds=dur_s,
+                            created_at=attempt.started_at,
+                        )
+                    )
+                except Exception:
+                    continue
+
+        return ShadowingResumeResponse(
+            attempt_id=attempt.id,
+            content_id=content.id,
+            attempt_number=attempt.attempt_number,
+            total_segments=total_count,
+            recorded_segments=recorded_summaries,
+            total_attempts=total_attempts,
         )
 
     @staticmethod

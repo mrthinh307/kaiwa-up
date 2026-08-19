@@ -3,10 +3,11 @@
 import {
   AlertCircle,
   CheckCircle2,
+  LoaderCircle,
   Mic,
   MicOff,
-  Play,
   Pause,
+  Play,
   RefreshCw,
   Square,
 } from "lucide-react";
@@ -42,6 +43,7 @@ export function RecorderCard({ isSubmitting = false, onComplete }: RecorderCardP
 
   const [isPlayingSelf, setIsPlayingSelf] = useState(false);
   const selfAudioRef = useRef<HTMLAudioElement | null>(null);
+  const lastSubmittedBlobRef = useRef<Blob | null>(null);
 
   useEffect(() => {
     if (!audioUrl) return;
@@ -58,6 +60,17 @@ export function RecorderCard({ isSubmitting = false, onComplete }: RecorderCardP
     };
   }, [audioUrl]);
 
+  // When recording completes with a new audioBlob, automatically upload the segment recording
+  useEffect(() => {
+    if (status === "recorded" && audioBlob && audioBlob !== lastSubmittedBlobRef.current) {
+      lastSubmittedBlobRef.current = audioBlob;
+      onComplete({
+        audioBlob,
+        durationMs: Math.max(recordingTime * 1000, 1000),
+      });
+    }
+  }, [audioBlob, onComplete, recordingTime, status]);
+
   const togglePlaySelf = () => {
     if (!selfAudioRef.current) return;
 
@@ -72,6 +85,11 @@ export function RecorderCard({ isSubmitting = false, onComplete }: RecorderCardP
     }
   };
 
+  const handleReset = () => {
+    lastSubmittedBlobRef.current = null;
+    resetRecording();
+  };
+
   return (
     <div className="rounded-base border-2 border-border bg-secondary-background p-6 shadow-shadow">
       <div className="flex items-center justify-between">
@@ -82,8 +100,17 @@ export function RecorderCard({ isSubmitting = false, onComplete }: RecorderCardP
 
         {status === "recorded" && (
           <span className="inline-flex items-center gap-1 text-xs font-heading text-success">
-            <CheckCircle2 className="size-4" />
-            Recorded ({formatDuration(recordingTime)})
+            {isSubmitting ? (
+              <>
+                <LoaderCircle className="size-4 animate-spin text-main" />
+                Saving...
+              </>
+            ) : (
+              <>
+                <CheckCircle2 className="size-4" />
+                Recorded ({formatDuration(recordingTime)})
+              </>
+            )}
           </span>
         )}
       </div>
@@ -111,10 +138,9 @@ export function RecorderCard({ isSubmitting = false, onComplete }: RecorderCardP
         {status === "idle" && (
           <div className="space-y-4">
             <p className="text-sm text-foreground/75">
-              Click the button below to grant microphone access and start recording your shadowing
-              attempt.
+              Click the button below to start recording your voice for this segment.
             </p>
-            <Button className="gap-2" onClick={startRecording} size="lg">
+            <Button className="gap-2 font-heading" onClick={startRecording} size="lg">
               <Mic className="size-5" />
               Start Recording
             </Button>
@@ -123,7 +149,7 @@ export function RecorderCard({ isSubmitting = false, onComplete }: RecorderCardP
 
         {status === "requesting_permission" && (
           <div className="space-y-2 py-4">
-            <p className="font-heading text-base animate-pulse">
+            <p className="animate-pulse font-heading text-base">
               Requesting microphone permission...
             </p>
             <p className="text-xs text-foreground/70">
@@ -149,7 +175,7 @@ export function RecorderCard({ isSubmitting = false, onComplete }: RecorderCardP
             </p>
 
             <Button
-              className="gap-2 bg-destructive text-destructive-foreground"
+              className="gap-2 bg-destructive text-destructive-foreground font-heading"
               onClick={stopRecording}
               variant="neutral"
             >
@@ -160,7 +186,7 @@ export function RecorderCard({ isSubmitting = false, onComplete }: RecorderCardP
         )}
 
         {status === "recorded" && (
-          <div className="w-full space-y-5">
+          <div className="w-full space-y-4">
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 rounded-base border-2 border-border bg-secondary-background p-4">
               <div className="flex items-center gap-3">
                 <Button
@@ -184,8 +210,8 @@ export function RecorderCard({ isSubmitting = false, onComplete }: RecorderCardP
               </div>
 
               <Button
-                className="gap-1.5 text-xs"
-                onClick={resetRecording}
+                className="gap-1.5 text-xs font-heading"
+                onClick={handleReset}
                 size="sm"
                 variant="neutral"
               >
@@ -193,29 +219,12 @@ export function RecorderCard({ isSubmitting = false, onComplete }: RecorderCardP
                 Re-record
               </Button>
             </div>
-
-            <div className="flex justify-end gap-3">
-              <Button
-                className="w-full sm:w-auto gap-2"
-                disabled={isSubmitting}
-                onClick={() =>
-                  onComplete({
-                    audioBlob,
-                    durationMs: recordingTime * 1000,
-                  })
-                }
-                size="lg"
-              >
-                <CheckCircle2 className="size-5" />
-                {isSubmitting ? "Submitting..." : "Complete Practice"}
-              </Button>
-            </div>
           </div>
         )}
 
         {(status === "permission_denied" || status === "error") && (
           <div className="mt-4">
-            <Button className="gap-2" onClick={startRecording} variant="neutral">
+            <Button className="gap-2 font-heading" onClick={startRecording} variant="neutral">
               <MicOff className="size-4" />
               Retry Microphone Access
             </Button>

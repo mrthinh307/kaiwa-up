@@ -63,6 +63,42 @@ class RecordingRepository(BaseRepository):
         )
         return result.scalar_one_or_none()
 
+    async def get_latest_in_progress_attempt(
+        self,
+        *,
+        user_id: uuid.UUID,
+        content_id: uuid.UUID,
+    ) -> tuple[ExerciseAttempt, LearningContent] | None:
+        result = (
+            await self.session.execute(
+                select(ExerciseAttempt, LearningContent)
+                .join(LearningContent, LearningContent.id == ExerciseAttempt.content_id)
+                .where(
+                    ExerciseAttempt.user_id == user_id,
+                    ExerciseAttempt.content_id == content_id,
+                    ExerciseAttempt.status == AttemptStatus.IN_PROGRESS,
+                )
+                .order_by(ExerciseAttempt.started_at.desc())
+            )
+        ).first()
+        if result is None:
+            return None
+        return result[0], result[1]
+
+    async def get_total_attempt_count(
+        self,
+        *,
+        user_id: uuid.UUID,
+        content_id: uuid.UUID,
+    ) -> int:
+        count = await self.session.scalar(
+            select(func.count(ExerciseAttempt.id)).where(
+                ExerciseAttempt.user_id == user_id,
+                ExerciseAttempt.content_id == content_id,
+            )
+        )
+        return count or 0
+
     async def create_recording(
         self,
         *,

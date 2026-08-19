@@ -28,6 +28,12 @@ import type {
   GetGamificationProfileData,
   GetGamificationProfileErrors,
   GetGamificationProfileResponses,
+  GetInProgressDictationAttemptData,
+  GetInProgressDictationAttemptErrors,
+  GetInProgressDictationAttemptResponses,
+  GetInProgressShadowingAttemptData,
+  GetInProgressShadowingAttemptErrors,
+  GetInProgressShadowingAttemptResponses,
   GetLearningContentData,
   GetLearningContentErrors,
   GetLearningContentResponses,
@@ -280,6 +286,26 @@ export const getGamificationProfile = <ThrowOnError extends boolean = false>(
   });
 
 /**
+ * Resume the latest in-progress Shadowing attempt
+ */
+export const getInProgressShadowingAttempt = <ThrowOnError extends boolean = false>(
+  options: Options<GetInProgressShadowingAttemptData, ThrowOnError>,
+): RequestResult<
+  GetInProgressShadowingAttemptResponses,
+  GetInProgressShadowingAttemptErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    GetInProgressShadowingAttemptResponses,
+    GetInProgressShadowingAttemptErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/api/v1/shadowing/{content_id}/in-progress",
+    ...options,
+  });
+
+/**
  * Upload audio recording for a shadowing segment
  */
 export const recordShadowingSegment = <ThrowOnError extends boolean = false>(
@@ -357,6 +383,26 @@ export const getShadowingRecordingPlayback = <ThrowOnError extends boolean = fal
   >({
     security: [{ scheme: "bearer", type: "http" }],
     url: "/api/v1/shadowing/recordings/{recording_id}",
+    ...options,
+  });
+
+/**
+ * Resume the latest in-progress Dictation attempt
+ */
+export const getInProgressDictationAttempt = <ThrowOnError extends boolean = false>(
+  options: Options<GetInProgressDictationAttemptData, ThrowOnError>,
+): RequestResult<
+  GetInProgressDictationAttemptResponses,
+  GetInProgressDictationAttemptErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    GetInProgressDictationAttemptResponses,
+    GetInProgressDictationAttemptErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/api/v1/dictation/{content_id}/in-progress",
     ...options,
   });
 

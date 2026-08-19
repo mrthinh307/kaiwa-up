@@ -11,12 +11,33 @@ from app.schemas.shadowing import (
     ShadowingAttemptReviewResponse,
     ShadowingRecordingPlaybackResponse,
     ShadowingRecordSegmentResponse,
+    ShadowingResumeResponse,
     ShadowingSubmitRequest,
     ShadowingSubmitResponse,
 )
 from app.services.shadowing import ShadowingService
 
 router = APIRouter(prefix="/shadowing", tags=["Shadowing"])
+
+
+@router.get(
+    "/{content_id}/in-progress",
+    operation_id="getInProgressShadowingAttempt",
+    response_model=ShadowingResumeResponse,
+    summary="Resume the latest in-progress Shadowing attempt",
+    responses={
+        status.HTTP_401_UNAUTHORIZED: {"model": ErrorResponse},
+        status.HTTP_404_NOT_FOUND: {"model": ErrorResponse},
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {"model": ErrorResponse},
+    },
+)
+async def get_in_progress_shadowing_attempt(
+    content_id: Annotated[uuid.UUID, Path(description="Published shadowing content ID")],
+    current_user: CurrentUser,
+    session: DatabaseSession,
+) -> ShadowingResumeResponse:
+    service = ShadowingService(RecordingRepository(session))
+    return await service.get_in_progress_attempt(user_id=current_user.id, content_id=content_id)
 
 
 @router.post(

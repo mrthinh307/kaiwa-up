@@ -282,7 +282,7 @@ export function ShadowingResult({ onPracticeAgain, review }: ShadowingResultProp
       {/* Bottom Action Bar */}
       <div className="flex flex-wrap justify-end gap-3 border-t-2 border-border pt-6">
         <Button asChild variant="neutral">
-          <Link href="/shadowing">
+          <Link href="/lessons">
             <ArrowLeft className="mr-1 size-4" /> Back to lessons
           </Link>
         </Button>

@@ -190,6 +190,40 @@ export type DictationPromptSegment = {
 };
 
 /**
+ * DictationResumeResponse
+ */
+export type DictationResumeResponse = {
+  /**
+   * Attempt Id
+   */
+  attempt_id: string;
+  /**
+   * Content Id
+   */
+  content_id: string;
+  /**
+   * Attempt Number
+   */
+  attempt_number: number;
+  /**
+   * Audio Url
+   */
+  audio_url: string;
+  /**
+   * Total Segments
+   */
+  total_segments: number;
+  /**
+   * Segments
+   */
+  segments: Array<DictationSegmentItem>;
+  /**
+   * Checked Segments
+   */
+  checked_segments?: Array<DictationSegmentCheckResponse>;
+};
+
+/**
  * DictationSegmentCheckRequest
  */
 export type DictationSegmentCheckRequest = {
@@ -974,6 +1008,28 @@ export type ShadowingRecordSegmentResponse = {
 };
 
 /**
+ * ShadowingRecordedSegmentSummary
+ */
+export type ShadowingRecordedSegmentSummary = {
+  /**
+   * Segment Id
+   */
+  segment_id: string;
+  /**
+   * Recording Id
+   */
+  recording_id: string;
+  /**
+   * Duration Seconds
+   */
+  duration_seconds: number;
+  /**
+   * Created At
+   */
+  created_at: string;
+};
+
+/**
  * ShadowingRecordingPlaybackResponse
  */
 export type ShadowingRecordingPlaybackResponse = {
@@ -993,6 +1049,36 @@ export type ShadowingRecordingPlaybackResponse = {
    * Created At
    */
   created_at: string;
+};
+
+/**
+ * ShadowingResumeResponse
+ */
+export type ShadowingResumeResponse = {
+  /**
+   * Attempt Id
+   */
+  attempt_id: string;
+  /**
+   * Content Id
+   */
+  content_id: string;
+  /**
+   * Attempt Number
+   */
+  attempt_number: number;
+  /**
+   * Total Segments
+   */
+  total_segments: number;
+  /**
+   * Recorded Segments
+   */
+  recorded_segments: Array<ShadowingRecordedSegmentSummary>;
+  /**
+   * Total Attempts
+   */
+  total_attempts?: number;
 };
 
 /**
@@ -1641,6 +1727,48 @@ export type GetGamificationProfileResponses = {
 export type GetGamificationProfileResponse =
   GetGamificationProfileResponses[keyof GetGamificationProfileResponses];
 
+export type GetInProgressShadowingAttemptData = {
+  body?: never;
+  path: {
+    /**
+     * Content Id
+     *
+     * Published shadowing content ID
+     */
+    content_id: string;
+  };
+  query?: never;
+  url: "/api/v1/shadowing/{content_id}/in-progress";
+};
+
+export type GetInProgressShadowingAttemptErrors = {
+  /**
+   * Unauthorized
+   */
+  401: ErrorResponse;
+  /**
+   * Not Found
+   */
+  404: ErrorResponse;
+  /**
+   * Unprocessable Content
+   */
+  422: ErrorResponse;
+};
+
+export type GetInProgressShadowingAttemptError =
+  GetInProgressShadowingAttemptErrors[keyof GetInProgressShadowingAttemptErrors];
+
+export type GetInProgressShadowingAttemptResponses = {
+  /**
+   * Successful Response
+   */
+  200: ShadowingResumeResponse;
+};
+
+export type GetInProgressShadowingAttemptResponse =
+  GetInProgressShadowingAttemptResponses[keyof GetInProgressShadowingAttemptResponses];
+
 export type RecordShadowingSegmentData = {
   body: BodyRecordShadowingSegment;
   path: {
@@ -1832,6 +1960,52 @@ export type GetShadowingRecordingPlaybackResponses = {
 
 export type GetShadowingRecordingPlaybackResponse =
   GetShadowingRecordingPlaybackResponses[keyof GetShadowingRecordingPlaybackResponses];
+
+export type GetInProgressDictationAttemptData = {
+  body?: never;
+  path: {
+    /**
+     * Content Id
+     *
+     * Published dictation content ID
+     */
+    content_id: string;
+  };
+  query?: never;
+  url: "/api/v1/dictation/{content_id}/in-progress";
+};
+
+export type GetInProgressDictationAttemptErrors = {
+  /**
+   * Unauthorized
+   */
+  401: ErrorResponse;
+  /**
+   * Not Found
+   */
+  404: ErrorResponse;
+  /**
+   * Conflict
+   */
+  409: ErrorResponse;
+  /**
+   * Unprocessable Content
+   */
+  422: ErrorResponse;
+};
+
+export type GetInProgressDictationAttemptError =
+  GetInProgressDictationAttemptErrors[keyof GetInProgressDictationAttemptErrors];
+
+export type GetInProgressDictationAttemptResponses = {
+  /**
+   * Successful Response
+   */
+  200: DictationResumeResponse;
+};
+
+export type GetInProgressDictationAttemptResponse =
+  GetInProgressDictationAttemptResponses[keyof GetInProgressDictationAttemptResponses];
 
 export type CheckDictationSegmentData = {
   body: DictationSegmentCheckRequest;

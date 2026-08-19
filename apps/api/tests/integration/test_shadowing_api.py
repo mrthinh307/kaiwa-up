@@ -582,3 +582,35 @@ async def test_get_shadowing_attempt_review_forbidden(
     res_review = await client.get(f"/api/v1/shadowing/attempts/{attempt_id}/review")
     assert res_review.status_code == 403
     assert res_review.json()["error"]["code"] == "forbidden"
+
+
+@pytest.mark.asyncio
+async def test_get_in_progress_shadowing_attempt_success(
+    client: httpx.AsyncClient, db_session: AsyncSession
+):
+    user = await create_test_user(db_session, email="in_progress_shadowing@example.com")
+    content = await create_shadowing_content(db_session, slug="shadowing-in-progress-test")
+    app.dependency_overrides[get_current_user] = lambda: user
+
+    # Initially no in-progress attempt
+    res_empty = await client.get(f"/api/v1/shadowing/{content.id}/in-progress")
+    assert res_empty.status_code == 404
+
+    # Record segment 0
+    res_upload = await client.post(
+        f"/api/v1/shadowing/{content.id}/record-segment",
+        files={"audio_file": ("test.webm", BytesIO(b"0" * 40000), "audio/webm")},
+        data={"segment_id": "0"},
+    )
+    assert res_upload.status_code == 201
+    attempt_id = res_upload.json()["attempt_id"]
+
+    # In-progress attempt exists
+    res_progress = await client.get(f"/api/v1/shadowing/{content.id}/in-progress")
+    assert res_progress.status_code == 200
+    data = res_progress.json()
+    assert data["attempt_id"] == attempt_id
+    assert data["total_segments"] == 2
+    assert len(data["recorded_segments"]) == 1
+    assert data["recorded_segments"][0]["segment_id"] == "0"
+    assert data["total_attempts"] == 1

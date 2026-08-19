@@ -10,6 +10,7 @@ from app.schemas.dictation import (
     DictationAttemptReviewResponse,
     DictationCompleteRequest,
     DictationCompleteResponse,
+    DictationResumeResponse,
     DictationSegmentCheckRequest,
     DictationSegmentCheckResponse,
     DictationStartResponse,
@@ -18,6 +19,27 @@ from app.schemas.error import ErrorResponse
 from app.services.dictation import DictationService
 
 router = APIRouter(prefix="/dictation", tags=["Dictation"])
+
+
+@router.get(
+    "/{content_id}/in-progress",
+    operation_id="getInProgressDictationAttempt",
+    response_model=DictationResumeResponse,
+    summary="Resume the latest in-progress Dictation attempt",
+    responses={
+        status.HTTP_401_UNAUTHORIZED: {"model": ErrorResponse},
+        status.HTTP_404_NOT_FOUND: {"model": ErrorResponse},
+        status.HTTP_409_CONFLICT: {"model": ErrorResponse},
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {"model": ErrorResponse},
+    },
+)
+async def get_in_progress_dictation_attempt(
+    content_id: Annotated[uuid.UUID, Path(description="Published dictation content ID")],
+    current_user: CurrentUser,
+    session: DatabaseSession,
+) -> DictationResumeResponse:
+    service = DictationService(DictationRepository(session))
+    return await service.resume_attempt(user_id=current_user.id, content_id=content_id)
 
 
 @router.post(
