@@ -1,0 +1,271 @@
+import uuid
+from collections.abc import Callable
+
+import httpx
+import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.api.dependencies.ai import get_ai_gateway
+from app.api.dependencies.auth import get_current_user
+from app.exceptions.ai import AiTimeoutError
+from app.integrations.ai import FakeAiGateway, TutorReply
+from app.integrations.ai.base import TutorMessage as GatewayTutorMessage
+from app.main import app
+from app.models.user import User
+
+CONVERSATIONS_PATH = "/api/v1/ai-tutor/conversations"
+
+
+async def create_user(
+    session: AsyncSession,
+    *,
+    email: str,
+    display_name: str,
+) -> User:
+    user = User(email=email, password_hash="password-hash", display_name=display_name)
+    session.add(user)
+    await session.flush()
+    return user
+
+
+def set_current_user(user: User) -> None:
+    async def _current_user() -> User:
+        return user
+
+    app.dependency_overrides[get_current_user] = _current_user
+
+
+def set_gateway(gateway: FakeAiGateway) -> None:
+    app.dependency_overrides[get_ai_gateway] = lambda: gateway
+
+
+class TimeoutGateway(FakeAiGateway):
+    async def generate_tutor_reply(
+        self,
+        *,
+        messages: list[GatewayTutorMessage],
+        topic: str,
+        difficulty: str,
+        scenario: str | None = None,
+    ) -> TutorReply:
+        raise AiTimeoutError("Tutor provider timed out")
+
+
+@pytest.mark.asyncio
+async def test_ai_tutor_end_to_end_flow_and_idempotent_retry(
+    client: httpx.AsyncClient,
+    db_session: AsyncSession,
+    unique_email: Callable[[str], str],
+) -> None:
+    user = await create_user(
+        db_session,
+        email=unique_email("tutor"),
+        display_name="Tutor User",
+    )
+    set_current_user(user)
+    set_gateway(FakeAiGateway())
+
+    create_response = await client.post(
+        CONVERSATIONS_PATH,
+        json={
+            "topic": "Du lịch",
+            "difficulty": "N3",
+            "scenario": "Hỏi bạn về kế hoạch đi Kyoto.",
+        },
+    )
+
+    assert create_response.status_code == 201
+    conversation = create_response.json()
+    conversation_id = conversation["conversation_id"]
+    assert conversation["status"] == "active"
+    assert conversation["topic"] == "Du lịch"
+    assert conversation["scenario"] == "Hỏi bạn về kế hoạch đi Kyoto."
+    assert "scenario_id" not in conversation
+    assert conversation["initial_message"]["sequence_number"] == 1
+    assert conversation["initial_message"]["feedback"]["answer_hints"]
+
+    client_message_id = str(uuid.uuid4())
+    message_payload = {
+        "text": "京都に行きたいです。",
+        "client_message_id": client_message_id,
+    }
+    message_response = await client.post(
+        f"{CONVERSATIONS_PATH}/{conversation_id}/messages",
+        json=message_payload,
+    )
+
+    assert message_response.status_code == 200
+    first_result = message_response.json()
+    assert first_result["user_message"]["sequence_number"] == 2
+    assert first_result["ai_reply"]["sequence_number"] == 3
+    assert first_result["user_message"]["client_message_id"] == client_message_id
+
+    retry_response = await client.post(
+        f"{CONVERSATIONS_PATH}/{conversation_id}/messages",
+        json=message_payload,
+    )
+
+    assert retry_response.status_code == 200
+    retry_result = retry_response.json()
+    assert retry_result["user_message"]["id"] == first_result["user_message"]["id"]
+    assert retry_result["ai_reply"]["id"] == first_result["ai_reply"]["id"]
+
+    detail_response = await client.get(f"{CONVERSATIONS_PATH}/{conversation_id}")
+    assert detail_response.status_code == 200
+    assert [message["sequence_number"] for message in detail_response.json()["messages"]] == [
+        1,
+        2,
+        3,
+    ]
+
+    list_response = await client.get(CONVERSATIONS_PATH)
+    assert list_response.status_code == 200
+    assert list_response.json()["total_items"] == 1
+    assert list_response.json()["items"][0]["last_message_text"] == first_result["ai_reply"]["text"]
+
+    complete_response = await client.post(f"{CONVERSATIONS_PATH}/{conversation_id}/complete")
+    assert complete_response.status_code == 200
+    assert complete_response.json()["status"] == "completed"
+
+    after_complete = await client.post(
+        f"{CONVERSATIONS_PATH}/{conversation_id}/messages",
+        json={"text": "もう一度話しましょう。", "client_message_id": str(uuid.uuid4())},
+    )
+    assert after_complete.status_code == 409
+    assert after_complete.json()["error"]["code"] == "tutor_conversation_completed"
+
+
+@pytest.mark.asyncio
+async def test_ai_tutor_rejects_cross_user_access(
+    client: httpx.AsyncClient,
+    db_session: AsyncSession,
+    unique_email: Callable[[str], str],
+) -> None:
+    user_a = await create_user(
+        db_session,
+        email=unique_email("user-a"),
+        display_name="User A",
+    )
+    user_b = await create_user(
+        db_session,
+        email=unique_email("user-b"),
+        display_name="User B",
+    )
+    set_current_user(user_a)
+    set_gateway(FakeAiGateway())
+
+    create_response = await client.post(
+        CONVERSATIONS_PATH,
+        json={"topic": "Công việc", "difficulty": "N4"},
+    )
+    conversation_id = create_response.json()["conversation_id"]
+
+    set_current_user(user_b)
+    get_response = await client.get(f"{CONVERSATIONS_PATH}/{conversation_id}")
+    send_response = await client.post(
+        f"{CONVERSATIONS_PATH}/{conversation_id}/messages",
+        json={"text": "こんにちは", "client_message_id": str(uuid.uuid4())},
+    )
+    complete_response = await client.post(f"{CONVERSATIONS_PATH}/{conversation_id}/complete")
+
+    assert get_response.status_code == 403
+    assert send_response.status_code == 403
+    assert complete_response.status_code == 403
+    assert get_response.json()["error"]["code"] == "forbidden"
+
+
+@pytest.mark.asyncio
+async def test_ai_tutor_preserves_user_message_when_gateway_times_out(
+    client: httpx.AsyncClient,
+    db_session: AsyncSession,
+    unique_email: Callable[[str], str],
+) -> None:
+    user = await create_user(
+        db_session,
+        email=unique_email("timeout"),
+        display_name="Timeout User",
+    )
+    set_current_user(user)
+    set_gateway(FakeAiGateway())
+
+    create_response = await client.post(
+        CONVERSATIONS_PATH,
+        json={"topic": "Du lịch", "difficulty": "N3"},
+    )
+    conversation_id = create_response.json()["conversation_id"]
+    set_gateway(TimeoutGateway())
+
+    client_message_id = str(uuid.uuid4())
+    timeout_response = await client.post(
+        f"{CONVERSATIONS_PATH}/{conversation_id}/messages",
+        json={"text": "京都に行きたいです。", "client_message_id": client_message_id},
+    )
+
+    assert timeout_response.status_code == 503
+    assert timeout_response.json()["error"]["code"] == "service_unavailable"
+
+    detail_response = await client.get(f"{CONVERSATIONS_PATH}/{conversation_id}")
+    assert detail_response.status_code == 200
+    messages = detail_response.json()["messages"]
+    assert messages[-1]["sender"] == "user"
+    assert messages[-1]["client_message_id"] == client_message_id
+
+
+@pytest.mark.asyncio
+async def test_ai_tutor_openapi_contains_all_five_operations() -> None:
+    paths = app.openapi()["paths"]
+    expected_paths = {
+        "/api/v1/ai-tutor/conversations",
+        "/api/v1/ai-tutor/conversations/{conversation_id}",
+        "/api/v1/ai-tutor/conversations/{conversation_id}/messages",
+        "/api/v1/ai-tutor/conversations/{conversation_id}/complete",
+    }
+
+    assert expected_paths <= paths.keys()
+    assert "/api/v1/ai-tutor/topics" not in paths
+    assert "/api/v1/ai-tutor/scenarios" not in paths
+    operation_ids = {
+        operation["operationId"]
+        for path in expected_paths
+        for operation in paths[path].values()
+        if isinstance(operation, dict) and "operationId" in operation
+    }
+    assert operation_ids == {
+        "createTutorConversation",
+        "listTutorConversations",
+        "getTutorConversation",
+        "sendTutorMessage",
+        "completeTutorConversation",
+    }
+    for path in expected_paths:
+        for operation in paths[path].values():
+            if not isinstance(operation, dict) or "operationId" not in operation:
+                continue
+            validation_schema = operation["responses"]["422"]["content"]["application/json"][
+                "schema"
+            ]
+            assert validation_schema["$ref"].endswith("/ErrorResponse")
+
+
+@pytest.mark.asyncio
+async def test_ai_tutor_validation_errors_use_common_error_envelope(
+    client: httpx.AsyncClient,
+    db_session: AsyncSession,
+    unique_email: Callable[[str], str],
+) -> None:
+    user = await create_user(
+        db_session,
+        email=unique_email("validation"),
+        display_name="Validation User",
+    )
+    set_current_user(user)
+    set_gateway(FakeAiGateway())
+
+    response = await client.post(
+        CONVERSATIONS_PATH,
+        json={"difficulty": "N3"},
+    )
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "validation_error"
+    assert response.json()["error"]["details"]

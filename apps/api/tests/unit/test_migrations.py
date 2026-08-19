@@ -64,3 +64,27 @@ def test_tutor_message_idempotency_migration_backfills_and_constrains_messages()
         "(sender = 'USER' AND client_message_id IS NOT NULL) "
         "OR (sender = 'AI' AND client_message_id IS NULL)",
     )
+
+
+def test_tutor_catalog_removal_migration_requires_context_snapshots() -> None:
+    migration_path = (
+        Path(__file__).resolve().parents[2]
+        / "alembic"
+        / "versions"
+        / "d7e5f3a1b9c2_remove_tutor_scenario_catalog.py"
+    )
+    migration = runpy.run_path(str(migration_path))
+    operations = MagicMock()
+
+    with patch.dict(migration["upgrade"].__globals__, {"op": operations}):
+        migration["upgrade"]()
+
+    preflight_sql = operations.execute.call_args.args[0].text
+    assert "missing topic snapshots exist" in preflight_sql
+    assert "missing difficulty values exist" in preflight_sql
+    assert operations.alter_column.call_args_list[0].args[:2] == ("tutor_sessions", "topic")
+    assert operations.alter_column.call_args_list[0].kwargs["nullable"] is False
+    assert operations.alter_column.call_args_list[1].args[:2] == ("tutor_sessions", "difficulty")
+    assert operations.alter_column.call_args_list[1].kwargs["nullable"] is False
+    operations.drop_column.assert_called_once_with("tutor_sessions", "scenario_id")
+    operations.drop_table.assert_called_once_with("tutor_scenarios")

@@ -16,32 +16,38 @@ from app.schemas.tutor import (
 )
 
 
-def test_conversation_create_accepts_catalog_scenario_without_topic() -> None:
-    scenario_id = uuid.uuid4()
-
-    request = TutorConversationCreateRequest(
-        scenario_id=scenario_id,
-        difficulty=JlptLevel.N3,
-    )
-
-    assert request.scenario_id == scenario_id
-    assert request.topic is None
-    assert request.difficulty is JlptLevel.N3
-
-
-def test_conversation_create_accepts_free_form_topic_without_scenario() -> None:
+def test_conversation_create_requires_topic_and_accepts_optional_scenario() -> None:
     request = TutorConversationCreateRequest(
         topic="  Du lịch Nhật Bản  ",
-        difficulty="N3",
+        difficulty=JlptLevel.N3,
+        scenario="  Hỏi bạn về kế hoạch đi Kyoto.  ",
     )
 
     assert request.topic == "Du lịch Nhật Bản"
-    assert request.scenario_id is None
+    assert request.difficulty is JlptLevel.N3
+    assert request.scenario == "Hỏi bạn về kế hoạch đi Kyoto."
 
 
-def test_conversation_create_requires_scenario_or_topic() -> None:
-    with pytest.raises(ValidationError, match="scenario_id or topic is required"):
+def test_conversation_create_normalizes_blank_scenario_to_none() -> None:
+    request = TutorConversationCreateRequest(
+        topic="Du lịch Nhật Bản",
+        difficulty="N3",
+        scenario="   ",
+    )
+
+    assert request.scenario is None
+
+
+def test_conversation_create_requires_topic_and_rejects_catalog_field() -> None:
+    with pytest.raises(ValidationError):
         TutorConversationCreateRequest(difficulty=JlptLevel.N3)
+
+    with pytest.raises(ValidationError):
+        TutorConversationCreateRequest(
+            topic="Du lịch",
+            difficulty=JlptLevel.N3,
+            scenario_id=uuid.uuid4(),
+        )
 
 
 def test_tutor_requests_forbid_unknown_fields_and_blank_text() -> None:

@@ -22,47 +22,6 @@ async def create_user(
 
 
 @pytest.mark.asyncio
-async def test_list_active_scenarios_filters_topic_and_orders_results(
-    db_session: AsyncSession,
-    unique_value: Callable[[str], str],
-) -> None:
-    from app.models.tutor import TutorScenario
-
-    topic = unique_value("travel")
-    first = TutorScenario(
-        slug=unique_value("scenario-first"),
-        topic=topic,
-        title="First",
-        scenario="First scenario",
-        display_order=10,
-        is_active=True,
-    )
-    second = TutorScenario(
-        slug=unique_value("scenario-second"),
-        topic=topic,
-        title="Second",
-        scenario="Second scenario",
-        display_order=20,
-        is_active=True,
-    )
-    inactive = TutorScenario(
-        slug=unique_value("scenario-inactive"),
-        topic=topic,
-        title="Inactive",
-        scenario="Inactive scenario",
-        display_order=0,
-        is_active=False,
-    )
-    db_session.add_all([second, inactive, first])
-    await db_session.flush()
-
-    scenarios = await TutorRepository(db_session).list_active_scenarios(topic.upper())
-
-    assert [scenario.id for scenario in scenarios] == [first.id, second.id]
-    assert all(scenario.is_active for scenario in scenarios)
-
-
-@pytest.mark.asyncio
 async def test_repository_persists_ordered_messages_and_context(
     db_session: AsyncSession,
     unique_email: Callable[[str], str],
@@ -71,7 +30,6 @@ async def test_repository_persists_ordered_messages_and_context(
     repository = TutorRepository(db_session)
     tutor_session = await repository.create_session(
         user_id=user.id,
-        scenario_id=None,
         topic="Du lịch",
         difficulty=JlptLevel.N3,
         scenario=None,
@@ -131,14 +89,12 @@ async def test_list_sessions_is_scoped_and_returns_last_message_projection(
 
     session_a = await repository.create_session(
         user_id=user_a.id,
-        scenario_id=None,
         topic="A",
         difficulty=JlptLevel.N5,
         scenario=None,
     )
     session_b = await repository.create_session(
         user_id=user_b.id,
-        scenario_id=None,
         topic="B",
         difficulty=JlptLevel.N5,
         scenario=None,
@@ -180,7 +136,6 @@ async def test_complete_session_updates_status_and_end_time(
     repository = TutorRepository(db_session)
     tutor_session = await repository.create_session(
         user_id=user.id,
-        scenario_id=None,
         topic="Giao tiếp",
         difficulty=JlptLevel.N4,
         scenario=None,
