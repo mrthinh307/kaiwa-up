@@ -46,6 +46,7 @@ def test_unique_constraints_defined() -> None:
     assert ("attempt_id",) in constraints["xp_transactions"]
     assert ("attempt_number", "content_id", "user_id") in constraints["exercise_attempts"]
     assert ("slug",) in constraints["tutor_scenarios"]
+    assert ("client_message_id", "session_id") in constraints["tutor_messages"]
     assert ("sequence_number", "session_id") in constraints["tutor_messages"]
     assert ("rank", "week_start") in constraints["weekly_leaderboard_entries"]
 
@@ -137,7 +138,11 @@ def test_database_check_constraints_present() -> None:
         },
         "tutor_scenarios": {"tutor_scenarios_display_order_nonnegative"},
         "tutor_sessions": {"tutor_session_jlpt_level", "tutor_session_status"},
-        "tutor_messages": {"tutor_sender", "tutor_messages_sequence_positive"},
+        "tutor_messages": {
+            "tutor_sender",
+            "tutor_messages_client_message_id_by_sender",
+            "tutor_messages_sequence_positive",
+        },
     }
     for table_name, constraint_names in expected.items():
         actual = {
@@ -238,3 +243,10 @@ def test_tutor_session_scenario_foreign_key_preserves_snapshot() -> None:
     assert scenario_id.nullable
     assert foreign_key.target_fullname == "tutor_scenarios.id"
     assert foreign_key.ondelete == "SET NULL"
+
+
+def test_tutor_message_client_message_id_is_nullable() -> None:
+    messages = Base.metadata.tables["tutor_messages"]
+
+    assert messages.columns["client_message_id"].nullable
+    assert messages.columns["client_message_id"].type.__class__.__name__ == "Uuid"

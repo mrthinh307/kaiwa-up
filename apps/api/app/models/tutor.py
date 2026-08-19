@@ -107,6 +107,16 @@ class TutorMessage(PrimaryKeyUuidMixin, CreatedAtMixin, Base):
     __table_args__ = (
         CheckConstraint("sender IN ('USER', 'AI')", name="tutor_sender"),
         CheckConstraint("sequence_number >= 1", name="tutor_messages_sequence_positive"),
+        CheckConstraint(
+            "(sender = 'USER' AND client_message_id IS NOT NULL) "
+            "OR (sender = 'AI' AND client_message_id IS NULL)",
+            name="tutor_messages_client_message_id_by_sender",
+        ),
+        UniqueConstraint(
+            "session_id",
+            "client_message_id",
+            name="uq_tutor_messages_client_message_id",
+        ),
         UniqueConstraint("session_id", "sequence_number", name="uq_tutor_messages_sequence"),
     )
 
@@ -119,6 +129,7 @@ class TutorMessage(PrimaryKeyUuidMixin, CreatedAtMixin, Base):
     )
     sequence_number: Mapped[int] = mapped_column(Integer, nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
+    client_message_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, nullable=True)
     recording_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid, ForeignKey("recordings.id", ondelete="SET NULL"), nullable=True
     )

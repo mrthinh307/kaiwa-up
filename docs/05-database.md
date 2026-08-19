@@ -4,7 +4,7 @@
 
 Kaiwa sử dụng PostgreSQL 15+. SQLAlchemy models trong `apps/api/app/models/` mô tả schema
 đích; Alembic migrations trong `apps/api/alembic/versions/` là lịch sử thay đổi dùng để triển khai
-schema. Tài liệu này phản ánh schema tại Alembic head `bbea12cc1d7b`.
+schema. Tài liệu này phản ánh schema tại Alembic head `c9f1b4e8d2a6`.
 
 Các nguyên tắc chính:
 
@@ -586,6 +586,7 @@ Chuỗi migration hiện tại:
 6. `51f2a49d6b30`: xóa `level_definitions` và chuyển việc tính cấp sang application.
 7. `6d4f92a1c8e7`: khóa toàn vẹn số/enum, bảo toàn sổ cái EXP và chuẩn hóa độ khó Tutor.
 8. `a4c8d2e6f1b3`: thêm catalog Tutor scenario và liên kết nguồn scenario với phiên hội thoại.
+9. `c9f1b4e8d2a6`: thêm `client_message_id` và constraint idempotency cho Tutor message.
 
 Các lệnh chạy từ repository root:
 
