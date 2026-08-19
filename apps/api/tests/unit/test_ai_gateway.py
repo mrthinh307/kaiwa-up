@@ -23,11 +23,14 @@ from app.integrations.ai import (
     RoutedAiGateway,
     build_ai_gateway,
 )
+from app.integrations.ai.base import TutorMessage
 from app.integrations.ai.contracts import (
     EvaluationResult,
     TranscriptionResult,
     TutorReply,
+    parse_tutor_reply,
 )
+from app.integrations.ai.prompts.tutor import build_tutor_messages
 
 EVALUATION_JSON = json.dumps(
     {
@@ -42,7 +45,14 @@ EVALUATION_JSON = json.dumps(
 TUTOR_JSON = json.dumps(
     {
         "message": "Nice! Let's continue.",
-        "hints": ["Keep going"],
+        "corrections": [],
+        "natural_expression_tip": "京都で旅行について話しましょう。",
+        "answer_hints": [
+            {
+                "text": "京都に行きたいです。",
+                "meaning_vi": "Tôi muốn đi Kyoto.",
+            }
+        ],
         "follow_up_question": "Want to try another?",
     }
 )
@@ -127,15 +137,17 @@ class _CountingGateway(FakeAiGateway):
     async def generate_tutor_reply(
         self,
         *,
-        messages: list[object],
+        messages: list[TutorMessage],
         topic: str,
         difficulty: str,
+        scenario: str | None = None,
     ) -> TutorReply:
         self.calls.append("generate_tutor_reply")
         return await super().generate_tutor_reply(
             messages=messages,
             topic=topic,
             difficulty=difficulty,
+            scenario=scenario,
         )
 
 
@@ -166,9 +178,11 @@ async def test_fake_ai_gateway_succeeds_for_all_capabilities() -> None:
     assert translation.score == 100
 
     tutor = await gateway.generate_tutor_reply(
-        messages=[], topic="greetings", difficulty="beginner"
+        messages=[], topic="greetings", difficulty="beginner", scenario="Say hello"
     )
     assert tutor.message == "こんにちは！次は何を練習しましょうか？"
+    assert tutor.answer_hints[0].meaning_vi == "Tôi muốn nói về du lịch."
+    assert tutor.natural_expression_tip == "次は何を練習したいですか？"
 
 
 def test_ai_gateway_is_a_runtime_checkable_protocol() -> None:
@@ -229,7 +243,9 @@ async def test_routed_gateway_dispatches_each_capability_to_its_lane() -> None:
     stt = _CountingGateway()
     gateway = RoutedAiGateway(tutor=tutor, evaluate=evaluate, stt=stt)
 
-    await gateway.generate_tutor_reply(messages=[], topic="greetings", difficulty="beginner")
+    await gateway.generate_tutor_reply(
+        messages=[], topic="greetings", difficulty="beginner", scenario="Say hello"
+    )
     await gateway.evaluate_reflex(question="What?", transcript="こんにちは")
     await gateway.evaluate_shadowing(reference_transcript="a", user_transcript="b")
     await gateway.evaluate_translation(
@@ -329,11 +345,41 @@ async def test_openai_generate_tutor_reply_success(openai_gateway: _GatewayFacto
     gateway = openai_gateway(lambda _: _openai_chat_response(TUTOR_JSON))
 
     result = await gateway.generate_tutor_reply(
-        messages=[], topic="greetings", difficulty="beginner"
+        messages=[], topic="greetings", difficulty="beginner", scenario="Say hello"
     )
 
     assert result.message == "Nice! Let's continue."
+    assert result.answer_hints[0].text == "京都に行きたいです。"
+    assert result.answer_hints[0].meaning_vi == "Tôi muốn đi Kyoto."
+    assert result.natural_expression_tip == "京都で旅行について話しましょう。"
     assert result.follow_up_question == "Want to try another?"
+
+
+def test_tutor_prompt_includes_scenario_and_language_contract() -> None:
+    prompt = build_tutor_messages(
+        messages=[],
+        topic="Du lịch",
+        difficulty="N3",
+        scenario="Hỏi bạn về kế hoạch đi Kyoto",
+    )[0]
+
+    assert prompt.role == "system"
+    assert "Hỏi bạn về kế hoạch đi Kyoto" in prompt.content
+    assert "bằng tiếng Nhật" in prompt.content
+    assert '"answer_hints"' in prompt.content
+    assert '"meaning_vi"' in prompt.content
+
+
+def test_tutor_reply_rejects_more_than_three_answer_hints() -> None:
+    payload = {
+        "message": "続けましょう。",
+        "answer_hints": [
+            {"text": f"Hint {index}", "meaning_vi": f"Gợi ý {index}"} for index in range(4)
+        ],
+    }
+
+    with pytest.raises(AiInvalidResponseError):
+        parse_tutor_reply(json.dumps(payload))
 
 
 @pytest.mark.asyncio

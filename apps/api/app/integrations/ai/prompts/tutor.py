@@ -13,6 +13,7 @@ def build_tutor_messages(
     messages: list[TutorMessage],
     topic: str,
     difficulty: str,
+    scenario: str | None = None,
 ) -> list[TutorMessage]:
     """Thêm system prompt vào đầu cuộc hội thoại với gia sư."""
     return [
@@ -20,9 +21,12 @@ def build_tutor_messages(
             role="system",
             content=(
                 f"{TUTOR_PERSONA} Bạn đang kèm người học trình độ {difficulty} "
-                f"luyện tập chủ đề '{topic}'. Trả lời bằng tiếng Việt, nhắc lại nhiều "
-                f"lần những điểm khó, và kết thúc bằng một câu hỏi tiếp theo để người học "
-                f"luyện tiếp. {build_json_instruction(TUTOR_JSON_SCHEMA)}"
+                f"luyện tập chủ đề '{topic}' trong bối cảnh '{scenario or 'hội thoại tự do'}'. "
+                "Hãy viết nội dung hội thoại và câu hỏi tiếp theo bằng tiếng Nhật phù hợp "
+                "trình độ. "
+                "Sửa lỗi và giải thích bằng tiếng Việt. Cung cấp tối đa 3 gợi ý trả lời ngắn, "
+                "mỗi gợi ý gồm câu tiếng Nhật và nghĩa tiếng Việt. "
+                f"{build_json_instruction(TUTOR_JSON_SCHEMA)}"
             ),
         ),
         *messages,

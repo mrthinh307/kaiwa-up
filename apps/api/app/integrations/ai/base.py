@@ -101,6 +101,7 @@ class AiGateway(Protocol):
         messages: list[TutorMessage],
         topic: str,
         difficulty: str,
+        scenario: str | None = None,
     ) -> TutorReply: ...
 
 

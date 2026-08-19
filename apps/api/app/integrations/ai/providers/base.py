@@ -82,8 +82,14 @@ class BaseAiGateway(ABC):
         messages: list[TutorMessage],
         topic: str,
         difficulty: str,
+        scenario: str | None = None,
     ) -> TutorReply:
-        prompt = build_tutor_messages(messages=messages, topic=topic, difficulty=difficulty)
+        prompt = build_tutor_messages(
+            messages=messages,
+            topic=topic,
+            difficulty=difficulty,
+            scenario=scenario,
+        )
         content = await self._call("tutor", lambda: self._chat(prompt))
         return parse_tutor_reply(content)
 
