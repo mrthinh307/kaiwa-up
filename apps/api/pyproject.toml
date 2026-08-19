@@ -8,6 +8,7 @@ dependencies = [
     "alembic>=1.16,<2",
     "apscheduler>=3.10,<4",
     "asyncpg>=0.30,<1",
+    "cloudinary>=1.45.0",
     "email-validator>=2.3.0",
     "fastapi>=0.116,<1",
     "httpx>=0.28.1",
@@ -57,5 +58,5 @@ plugins = ["pydantic.mypy"]
 files = ["app", "alembic"]
 
 [[tool.mypy.overrides]]
-module = ["apscheduler.*"]
+module = ["apscheduler.*", "cloudinary.*"]
 ignore_missing_imports = true

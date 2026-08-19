@@ -32,13 +32,11 @@ async def create_shadowing_content(
         if transcript_ja is not None
         else [
             {
-                "id": "seg_001",
                 "start_time_ms": 0,
                 "end_time_ms": 5000,
                 "script": "いらっしゃいませ。",
             },
             {
-                "id": "seg_002",
                 "start_time_ms": 5000,
                 "end_time_ms": 10000,
                 "script": "何をお探しですか？",
@@ -70,7 +68,7 @@ async def test_record_segment_creates_attempt_automatically(
 
     audio_bytes = b"fake_audio_stream_data_sample"
     files = {"audio_file": ("recording.webm", BytesIO(audio_bytes), "audio/webm")}
-    data = {"segment_id": "seg_001"}
+    data = {"segment_id": "0"}
 
     response = await client.post(
         f"/api/v1/shadowing/{content.id}/record-segment",
@@ -80,10 +78,12 @@ async def test_record_segment_creates_attempt_automatically(
 
     assert response.status_code == 201
     res_data = response.json()
-    assert res_data["segment_id"] == "seg_001"
+    assert res_data["segment_id"] == "0"
     assert "recording_id" in res_data
     assert "attempt_id" in res_data
-    assert res_data["storage_key"].startswith("recordings/")
+    assert res_data["storage_key"].startswith("recordings/") or res_data["storage_key"].startswith(
+        "http"
+    )
 
     # Verify ExerciseAttempt created in DB
     attempt = await db_session.scalar(
@@ -118,7 +118,7 @@ async def test_record_segment_reuses_provided_attempt_id(
     res1 = await client.post(
         f"/api/v1/shadowing/{content.id}/record-segment",
         files={"audio_file": ("seg1.webm", BytesIO(audio_bytes1), "audio/webm")},
-        data={"segment_id": "seg_001"},
+        data={"segment_id": "0"},
     )
     assert res1.status_code == 201
     attempt_id = res1.json()["attempt_id"]
@@ -128,7 +128,7 @@ async def test_record_segment_reuses_provided_attempt_id(
     res2 = await client.post(
         f"/api/v1/shadowing/{content.id}/record-segment",
         files={"audio_file": ("seg2.webm", BytesIO(audio_bytes2), "audio/webm")},
-        data={"segment_id": "seg_002", "attempt_id": attempt_id},
+        data={"segment_id": "1", "attempt_id": attempt_id},
     )
     assert res2.status_code == 201
     assert res2.json()["attempt_id"] == attempt_id
@@ -165,6 +165,15 @@ async def test_record_segment_invalid_segment_returns_bad_request(
     assert response.status_code == 400
     assert response.json()["error"]["code"] == "shadowing_invalid_segment"
 
+    # Also verify out of range integer index
+    response_out_of_bounds = await client.post(
+        f"/api/v1/shadowing/{content.id}/record-segment",
+        files={"audio_file": ("test.webm", BytesIO(b"audio"), "audio/webm")},
+        data={"segment_id": "999"},
+    )
+    assert response_out_of_bounds.status_code == 400
+    assert response_out_of_bounds.json()["error"]["code"] == "shadowing_invalid_segment"
+
 
 @pytest.mark.asyncio
 async def test_record_segment_file_too_large_returns_bad_request(
@@ -178,7 +187,7 @@ async def test_record_segment_file_too_large_returns_bad_request(
     response = await client.post(
         f"/api/v1/shadowing/{content.id}/record-segment",
         files={"audio_file": ("huge.webm", BytesIO(large_audio), "audio/webm")},
-        data={"segment_id": "seg_001"},
+        data={"segment_id": "0"},
     )
     assert response.status_code == 400
     assert response.json()["error"]["code"] == "shadowing_audio_too_large"
@@ -195,7 +204,7 @@ async def test_get_recording_playback_owner_success(
     res_upload = await client.post(
         f"/api/v1/shadowing/{content.id}/record-segment",
         files={"audio_file": ("test.webm", BytesIO(b"sample_audio"), "audio/webm")},
-        data={"segment_id": "seg_001"},
+        data={"segment_id": "0"},
     )
     recording_id = res_upload.json()["recording_id"]
 
@@ -204,7 +213,9 @@ async def test_get_recording_playback_owner_success(
     data = response.json()
     assert data["recording_id"] == recording_id
     assert "playback_url" in data
-    assert data["playback_url"].startswith("/static/recordings/")
+    assert data["playback_url"].startswith("/static/recordings/") or data[
+        "playback_url"
+    ].startswith("http")
 
 
 @pytest.mark.asyncio
@@ -220,7 +231,7 @@ async def test_get_recording_playback_unauthorized_user_forbidden(
     res_upload = await client.post(
         f"/api/v1/shadowing/{content.id}/record-segment",
         files={"audio_file": ("user_a.webm", BytesIO(b"user_a_audio"), "audio/webm")},
-        data={"segment_id": "seg_001"},
+        data={"segment_id": "0"},
     )
     recording_id = res_upload.json()["recording_id"]
 

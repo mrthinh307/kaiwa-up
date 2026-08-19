@@ -1,15 +1,31 @@
 "use client";
 
-import { AlertCircle, Headphones, Pause, Play, RotateCcw } from "lucide-react";
+import {
+  AlertCircle,
+  Headphones,
+  Pause,
+  Play,
+  RotateCcw,
+  SkipBack,
+  SkipForward,
+} from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 
-import { useAudioPlayer } from "../_hooks/use-audio-player";
+import { type AudioPlayerState, useAudioPlayer } from "../_hooks/use-audio-player";
 
 interface AudioPlayerCardProps {
   audioUrl: string;
+  durationSeconds?: number | null;
+  hasNextSegment?: boolean;
+  hasPreviousSegment?: boolean;
+  onNextSegment?: () => void;
+  onPreviousSegment?: () => void;
+  onTogglePlay?: () => void;
+  player?: AudioPlayerState;
+  showVideo?: boolean;
 }
 
 function formatTime(seconds: number): string {
@@ -19,22 +35,68 @@ function formatTime(seconds: number): string {
   return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
 }
 
-export function AudioPlayerCard({ audioUrl }: AudioPlayerCardProps) {
+export function AudioPlayerCard({
+  audioUrl,
+  durationSeconds,
+  hasNextSegment = false,
+  hasPreviousSegment = false,
+  onNextSegment,
+  onPreviousSegment,
+  onTogglePlay,
+  player: externalPlayer,
+  showVideo = false,
+}: AudioPlayerCardProps) {
+  const internalPlayer = useAudioPlayer(audioUrl, durationSeconds ?? 0);
+  const player = externalPlayer ?? internalPlayer;
+
   const {
     changePlaybackRate,
     currentTime,
     duration,
+    handleIframeLoad,
     hasError,
+    iframeRef,
     isPlaying,
+    isYouTube,
     playbackRate,
     seek,
     togglePlay,
-  } = useAudioPlayer(audioUrl);
+    youtubeVideoId,
+  } = player;
 
   const speedOptions = [0.8, 1.0, 1.2];
 
   return (
     <div className="rounded-base border-2 border-border bg-secondary-background p-6 shadow-shadow">
+      {isYouTube &&
+        youtubeVideoId &&
+        (showVideo ? (
+          <div className="relative aspect-video w-full overflow-hidden rounded-base border-2 border-border bg-black mb-6 shadow-xs">
+            <iframe
+              allow="autoplay; encrypted-media; picture-in-picture"
+              allowFullScreen
+              className="absolute inset-0 size-full border-0"
+              onLoad={handleIframeLoad}
+              ref={iframeRef}
+              src={`https://www.youtube-nocookie.com/embed/${youtubeVideoId}?enablejsapi=1&autoplay=0&controls=1&rel=0&playsinline=1`}
+              title="Shadowing lesson video"
+            />
+          </div>
+        ) : (
+          <div className="sr-only">
+            <iframe
+              allow="autoplay; encrypted-media; picture-in-picture"
+              aria-hidden="true"
+              className="size-px border-0"
+              onLoad={handleIframeLoad}
+              ref={iframeRef}
+              src={`https://www.youtube-nocookie.com/embed/${youtubeVideoId}?enablejsapi=1&autoplay=0&controls=0&rel=0&playsinline=1`}
+              tabIndex={-1}
+              title="Shadowing lesson audio"
+            />
+          </div>
+        ))}
+
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 font-heading text-lg">
           <Headphones className="size-5 text-main" />
@@ -66,17 +128,47 @@ export function AudioPlayerCard({ audioUrl }: AudioPlayerCardProps) {
         </Alert>
       ) : (
         <div className="mt-6 flex flex-col gap-4">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-3">
+            {onPreviousSegment && (
+              <Button
+                aria-label="Previous segment"
+                className="size-10 sm:size-11 shrink-0"
+                disabled={!hasPreviousSegment}
+                onClick={onPreviousSegment}
+                size="icon"
+                variant="neutral"
+              >
+                <SkipBack className="size-4 sm:size-5" />
+              </Button>
+            )}
+
             <Button
               aria-label={isPlaying ? "Pause lesson audio" : "Play lesson audio"}
-              className="size-14 rounded-base text-main-foreground shrink-0"
-              onClick={togglePlay}
+              className="size-12 sm:size-14 rounded-base text-main-foreground shrink-0"
+              onClick={onTogglePlay ?? togglePlay}
               size="icon"
             >
-              {isPlaying ? <Pause className="size-6" /> : <Play className="ml-0.5 size-6" />}
+              {isPlaying ? (
+                <Pause className="size-5 sm:size-6" />
+              ) : (
+                <Play className="ml-0.5 size-5 sm:size-6" />
+              )}
             </Button>
 
-            <div className="flex flex-1 flex-col gap-2">
+            {onNextSegment && (
+              <Button
+                aria-label="Next segment"
+                className="size-10 sm:size-11 shrink-0"
+                disabled={!hasNextSegment}
+                onClick={onNextSegment}
+                size="icon"
+                variant="neutral"
+              >
+                <SkipForward className="size-4 sm:size-5" />
+              </Button>
+            )}
+
+            <div className="flex flex-1 flex-col gap-2 min-w-0">
               <Slider
                 aria-label="Audio playback seek"
                 max={duration || 100}

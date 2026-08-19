@@ -27,6 +27,13 @@ class Settings(BaseSettings):
     leaderboard_rebuild_interval_hours: int = 1
     leaderboard_rebuild_enabled: bool = True
 
+    STORAGE_DIR: str = "storage"
+    CLOUDINARY_CLOUD_NAME: str | None = None
+    CLOUDINARY_API_KEY: str | None = None
+    CLOUDINARY_API_SECRET: str | None = None
+    CLOUDINARY_URL: str | None = None
+    CLOUDINARY_FOLDER: str = "kaiwa-up"
+
     ai_tutor_provider: str = "fake"
     ai_tutor_fallback_providers: str = ""
     ai_eval_provider: str = "fake"

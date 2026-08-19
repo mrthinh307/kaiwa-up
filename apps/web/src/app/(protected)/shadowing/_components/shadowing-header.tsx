@@ -1,41 +1,53 @@
-import { ArrowLeft, Mic2, Sparkles } from "lucide-react";
+import type { ReactNode } from "react";
+
+import { Headphones } from "lucide-react";
 import Link from "next/link";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 interface ShadowingHeaderProps {
+  children?: ReactNode;
+  difficulty?: string;
+  settings?: ReactNode;
   title: string;
 }
 
-export function ShadowingHeader({ title }: ShadowingHeaderProps) {
+export function ShadowingHeader({
+  children,
+  difficulty = "N4",
+  settings,
+  title,
+}: ShadowingHeaderProps) {
   return (
-    <div className="flex flex-col gap-4 rounded-base border-2 border-border bg-secondary-background p-6 shadow-shadow sm:flex-row sm:items-center sm:justify-between">
-      <div className="space-y-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge className="bg-main text-main-foreground" variant="neutral">
-            <Mic2 className="mr-1 size-3.5" />
-            Shadowing
+    <header
+      aria-label="Shadowing toolbar"
+      className="sticky top-0 z-30 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 rounded-base border-2 border-border bg-background/95 p-2.5 shadow-shadow backdrop-blur-sm sm:gap-3 sm:px-5 sm:py-3"
+    >
+      <div className="col-span-2 flex min-w-0 items-center gap-2 sm:gap-3">
+        <Button asChild className="shrink-0" size="sm" variant="neutral">
+          <Link href="/lessons">
+            <span aria-hidden="true">←</span>
+            <span className="hidden sm:inline">Exit</span>
+          </Link>
+        </Button>
+        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+          <Badge className="shrink-0 font-heading" variant="neutral">
+            JLPT {difficulty}
           </Badge>
-          <Badge variant="neutral">JLPT N4</Badge>
-          <Badge variant="neutral">
-            <Sparkles className="mr-1 size-3.5 text-rank-gold" />
-            Self-Comparison
-          </Badge>
+          <div className="flex min-w-0 items-center gap-1.5">
+            <Headphones aria-hidden="true" className="size-3.5 shrink-0 text-foreground/60" />
+            <span className="min-w-0 truncate text-xs font-heading text-foreground/80 sm:text-sm">
+              {title}
+            </span>
+          </div>
         </div>
-        <h1 className="font-heading text-2xl sm:text-3xl">{title}</h1>
-        <p className="text-sm text-foreground/80 sm:text-base">
-          Listen to the speaker, shadow line by line, and record your voice to compare your
-          pronunciation.
-        </p>
       </div>
 
-      <Link
-        className="inline-flex h-10 items-center justify-center gap-2 rounded-base border-2 border-border bg-background px-4 font-heading text-sm outline-hidden transition-all hover:bg-main hover:text-main-foreground focus-visible:ring-2 focus-visible:ring-ring shrink-0"
-        href="/dashboard"
-      >
-        <ArrowLeft className="size-4" />
-        Dashboard
-      </Link>
-    </div>
+      <div className="col-start-3 row-start-1 flex items-center gap-2">
+        {settings}
+        {children}
+      </div>
+    </header>
   );
 }
