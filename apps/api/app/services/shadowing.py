@@ -131,9 +131,9 @@ class ShadowingService:
         if not transcript_ja:
             return False
 
-        for item in transcript_ja:
-            if isinstance(item, dict) and (
-                str(item.get("id")) == segment_id or str(item.get("segment_id")) == segment_id
-            ):
-                return True
-        return False
+        try:
+            index = int(segment_id)
+        except ValueError:
+            return False
+
+        return 0 <= index < len(transcript_ja)

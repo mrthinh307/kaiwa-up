@@ -18,7 +18,8 @@ import { Button } from "@/components/ui/button";
 import { useVoiceRecorder } from "../_hooks/use-voice-recorder";
 
 interface RecorderCardProps {
-  onComplete: () => void;
+  isSubmitting?: boolean;
+  onComplete: (data: { audioBlob: Blob | null; durationMs: number }) => void;
 }
 
 function formatDuration(seconds: number): string {
@@ -27,8 +28,9 @@ function formatDuration(seconds: number): string {
   return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
 }
 
-export function RecorderCard({ onComplete }: RecorderCardProps) {
+export function RecorderCard({ isSubmitting = false, onComplete }: RecorderCardProps) {
   const {
+    audioBlob,
     audioUrl,
     errorMessage,
     recordingTime,
@@ -193,9 +195,19 @@ export function RecorderCard({ onComplete }: RecorderCardProps) {
             </div>
 
             <div className="flex justify-end gap-3">
-              <Button className="w-full sm:w-auto gap-2" onClick={onComplete} size="lg">
+              <Button
+                className="w-full sm:w-auto gap-2"
+                disabled={isSubmitting}
+                onClick={() =>
+                  onComplete({
+                    audioBlob,
+                    durationMs: recordingTime * 1000,
+                  })
+                }
+                size="lg"
+              >
                 <CheckCircle2 className="size-5" />
-                Complete Practice
+                {isSubmitting ? "Submitting..." : "Complete Practice"}
               </Button>
             </div>
           </div>
