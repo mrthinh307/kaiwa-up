@@ -18,6 +18,7 @@ from app.integrations.ai.contracts import (
     EvaluationResult,
     TranscriptionResult,
     TranscriptionSegment,
+    TutorAnswerHint,
     TutorReply,
 )
 from app.integrations.ai.providers.fake import FakeAiGateway
@@ -91,12 +92,14 @@ class FallbackAiGateway:
         messages: list[TutorMessage],
         topic: str,
         difficulty: str,
+        scenario: str | None = None,
     ) -> TutorReply:
         return await self._try_providers(
             lambda provider: provider.generate_tutor_reply(
                 messages=messages,
                 topic=topic,
                 difficulty=difficulty,
+                scenario=scenario,
             )
         )
 
@@ -181,11 +184,13 @@ class RoutedAiGateway:
         messages: list[TutorMessage],
         topic: str,
         difficulty: str,
+        scenario: str | None = None,
     ) -> TutorReply:
         return await self._tutor.generate_tutor_reply(
             messages=messages,
             topic=topic,
             difficulty=difficulty,
+            scenario=scenario,
         )
 
 
@@ -228,11 +233,15 @@ def _provider_registry(settings: Settings) -> dict[str, AiGateway]:
         api_key = getattr(settings, f"ai_{name}_api_key")
         if not api_key:
             continue
+        llm_model = settings.ai_llm_model or getattr(settings, f"ai_{name}_llm_model")
+        reasoning_effort = (
+            "none" if name == "groq" and llm_model.lower().startswith("qwen/") else None
+        )
         registry[name] = OpenAiCompatibleAiGateway(
             OpenAiProviderConfig(
                 api_key=api_key.get_secret_value(),
                 base_url=getattr(settings, f"ai_{name}_base_url"),
-                llm_model=settings.ai_llm_model or getattr(settings, f"ai_{name}_llm_model"),
+                llm_model=llm_model,
                 stt_model=settings.ai_stt_model or getattr(settings, f"ai_{name}_stt_model"),
                 timeout_seconds=settings.ai_timeout_seconds,
                 max_retries=settings.ai_max_retries,
@@ -242,6 +251,7 @@ def _provider_registry(settings: Settings) -> dict[str, AiGateway]:
                 top_p=settings.ai_top_p,
                 max_output_tokens=settings.ai_max_output_tokens,
                 capability_timeouts=_capability_timeouts(settings),
+                reasoning_effort=reasoning_effort,
             )
         )
     return registry
@@ -310,6 +320,7 @@ __all__ = [
     "RoutedAiGateway",
     "TranscriptionResult",
     "TranscriptionSegment",
+    "TutorAnswerHint",
     "TutorMessage",
     "TutorReply",
     "build_ai_gateway",

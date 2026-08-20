@@ -30,6 +30,14 @@ from app.exceptions.learning_content import (
     TranscriptNotFoundError,
     TranscriptProviderError,
 )
+from app.exceptions.tutor import (
+    TutorAiUnavailableError,
+    TutorConversationCompletedError,
+    TutorConversationForbiddenError,
+    TutorConversationNotFoundError,
+    TutorMessageIdempotencyConflictError,
+    TutorResponsePendingError,
+)
 
 __all__ = [
     "AiInvalidResponseError",
@@ -54,6 +62,12 @@ __all__ = [
     "NotFoundError",
     "TranscriptNotFoundError",
     "TranscriptProviderError",
+    "TutorAiUnavailableError",
+    "TutorConversationCompletedError",
+    "TutorConversationForbiddenError",
+    "TutorConversationNotFoundError",
+    "TutorMessageIdempotencyConflictError",
+    "TutorResponsePendingError",
     "UnauthorizedException",
     "register_exception_handlers",
 ]

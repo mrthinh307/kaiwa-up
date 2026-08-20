@@ -13,9 +13,11 @@ TRANSCRIPTION_JSON_SCHEMA = (
 )
 
 TUTOR_JSON_SCHEMA = (
-    '{"message": <string>, "corrections": [{"original": <string>, '
-    '"corrected": <string>, "reason": <string>}], "hints": [<string>], '
-    '"follow_up_question": <string | null>}'
+    '{"message": <Japanese string>, "text_vi": <Vietnamese translation>, '
+    '"corrections": [{"original": <string>, '
+    '"corrected": <string>, "reason": <string>}], '
+    '"natural_expression_tip": <string | null>, '
+    '"answer_hints": [{"text": <string>, "meaning_vi": <string>}]} '
 )
 
 EVALUATOR_PERSONA = (

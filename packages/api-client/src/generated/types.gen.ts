@@ -1472,6 +1472,248 @@ export type TranscriptSegment = {
 };
 
 /**
+ * TutorAnswerHintResponse
+ *
+ * A short answer suggestion and its Vietnamese meaning.
+ */
+export type TutorAnswerHintResponse = {
+  /**
+   * Text
+   */
+  text: string;
+  /**
+   * Meaning Vi
+   */
+  meaning_vi: string;
+};
+
+/**
+ * TutorConversationCreateRequest
+ *
+ * User-provided context for a free-form Tutor conversation.
+ */
+export type TutorConversationCreateRequest = {
+  /**
+   * Topic
+   */
+  topic: string;
+  difficulty: JlptLevel;
+  /**
+   * Scenario
+   */
+  scenario?: string | null;
+};
+
+/**
+ * TutorConversationCreateResponse
+ *
+ * Response returned after creating a conversation and its opening AI message.
+ */
+export type TutorConversationCreateResponse = {
+  /**
+   * Conversation Id
+   */
+  conversation_id: string;
+  /**
+   * Topic
+   */
+  topic: string;
+  difficulty: JlptLevel;
+  /**
+   * Scenario
+   */
+  scenario?: string | null;
+  /**
+   * Status
+   */
+  status: "active" | "completed";
+  initial_message: TutorMessageResponse;
+};
+
+/**
+ * TutorConversationDetailResponse
+ *
+ * Conversation metadata and its complete ordered message history.
+ */
+export type TutorConversationDetailResponse = {
+  /**
+   * Conversation Id
+   */
+  conversation_id: string;
+  /**
+   * Topic
+   */
+  topic: string;
+  difficulty: JlptLevel;
+  /**
+   * Scenario
+   */
+  scenario?: string | null;
+  /**
+   * Status
+   */
+  status: "active" | "completed";
+  /**
+   * Started At
+   */
+  started_at: string;
+  /**
+   * Ended At
+   */
+  ended_at?: string | null;
+  /**
+   * Messages
+   */
+  messages?: Array<TutorMessageResponse>;
+};
+
+/**
+ * TutorConversationListItem
+ *
+ * Compact conversation item used by the history endpoint.
+ */
+export type TutorConversationListItem = {
+  /**
+   * Conversation Id
+   */
+  conversation_id: string;
+  /**
+   * Topic
+   */
+  topic: string;
+  difficulty: JlptLevel;
+  /**
+   * Scenario
+   */
+  scenario?: string | null;
+  /**
+   * Status
+   */
+  status: "active" | "completed";
+  /**
+   * Last Message Text
+   */
+  last_message_text?: string | null;
+  /**
+   * Updated At
+   */
+  updated_at: string;
+};
+
+/**
+ * TutorConversationListResponse
+ *
+ * Paginated Tutor conversation history.
+ */
+export type TutorConversationListResponse = {
+  /**
+   * Items
+   */
+  items: Array<TutorConversationListItem>;
+  /**
+   * Total Items
+   */
+  total_items: number;
+  /**
+   * Page
+   */
+  page: number;
+  /**
+   * Page Size
+   */
+  page_size: number;
+  /**
+   * Total Pages
+   */
+  total_pages: number;
+};
+
+/**
+ * TutorFeedbackResponse
+ *
+ * Normalized feedback attached to an AI Tutor message.
+ */
+export type TutorFeedbackResponse = {
+  /**
+   * Grammar Correction
+   */
+  grammar_correction?: string | null;
+  /**
+   * Natural Expression Tip
+   */
+  natural_expression_tip?: string | null;
+  /**
+   * Answer Hints
+   */
+  answer_hints?: Array<TutorAnswerHintResponse>;
+};
+
+/**
+ * TutorMessageCreateRequest
+ *
+ * A text message and its client-generated idempotency key.
+ */
+export type TutorMessageCreateRequest = {
+  /**
+   * Text
+   */
+  text: string;
+  /**
+   * Client Message Id
+   */
+  client_message_id: string;
+};
+
+/**
+ * TutorMessageCreateResponse
+ *
+ * The persisted user message and the generated AI reply.
+ */
+export type TutorMessageCreateResponse = {
+  user_message: TutorMessageResponse;
+  ai_reply: TutorMessageResponse;
+};
+
+/**
+ * TutorMessageResponse
+ *
+ * A persisted Tutor message in sequence order.
+ */
+export type TutorMessageResponse = {
+  /**
+   * Id
+   */
+  id: string;
+  sender: TutorSender;
+  /**
+   * Sequence Number
+   */
+  sequence_number: number;
+  /**
+   * Text
+   */
+  text: string;
+  /**
+   * Text Vi
+   */
+  text_vi?: string | null;
+  /**
+   * Client Message Id
+   */
+  client_message_id?: string | null;
+  /**
+   * Created At
+   */
+  created_at: string;
+  feedback?: TutorFeedbackResponse | null;
+};
+
+/**
+ * TutorSender
+ */
+export type TutorSender = "user" | "ai";
+
+/**
  * UserResponse
  *
  * Public representation of a user.
@@ -2881,3 +3123,222 @@ export type GetWeeklyLeaderboardResponses = {
 
 export type GetWeeklyLeaderboardResponse =
   GetWeeklyLeaderboardResponses[keyof GetWeeklyLeaderboardResponses];
+
+export type ListTutorConversationsData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Page
+     */
+    page?: number;
+    /**
+     * Page Size
+     */
+    page_size?: number;
+  };
+  url: "/api/v1/ai-tutor/conversations";
+};
+
+export type ListTutorConversationsErrors = {
+  /**
+   * Unauthorized
+   */
+  401: ErrorResponse;
+  /**
+   * Unprocessable Content
+   */
+  422: ErrorResponse;
+};
+
+export type ListTutorConversationsError =
+  ListTutorConversationsErrors[keyof ListTutorConversationsErrors];
+
+export type ListTutorConversationsResponses = {
+  /**
+   * Successful Response
+   */
+  200: TutorConversationListResponse;
+};
+
+export type ListTutorConversationsResponse =
+  ListTutorConversationsResponses[keyof ListTutorConversationsResponses];
+
+export type CreateTutorConversationData = {
+  body: TutorConversationCreateRequest;
+  path?: never;
+  query?: never;
+  url: "/api/v1/ai-tutor/conversations";
+};
+
+export type CreateTutorConversationErrors = {
+  /**
+   * Unauthorized
+   */
+  401: ErrorResponse;
+  /**
+   * Unprocessable Content
+   */
+  422: ErrorResponse;
+  /**
+   * Service Unavailable
+   */
+  503: ErrorResponse;
+};
+
+export type CreateTutorConversationError =
+  CreateTutorConversationErrors[keyof CreateTutorConversationErrors];
+
+export type CreateTutorConversationResponses = {
+  /**
+   * Successful Response
+   */
+  201: TutorConversationCreateResponse;
+};
+
+export type CreateTutorConversationResponse =
+  CreateTutorConversationResponses[keyof CreateTutorConversationResponses];
+
+export type DeleteTutorConversationData = {
+  body?: never;
+  path: {
+    /**
+     * Conversation Id
+     *
+     * AI Tutor conversation ID
+     */
+    conversation_id: string;
+  };
+  query?: never;
+  url: "/api/v1/ai-tutor/conversations/{conversation_id}";
+};
+
+export type DeleteTutorConversationErrors = {
+  /**
+   * Unauthorized
+   */
+  401: ErrorResponse;
+  /**
+   * Forbidden
+   */
+  403: ErrorResponse;
+  /**
+   * Not Found
+   */
+  404: ErrorResponse;
+  /**
+   * Unprocessable Content
+   */
+  422: ErrorResponse;
+};
+
+export type DeleteTutorConversationError =
+  DeleteTutorConversationErrors[keyof DeleteTutorConversationErrors];
+
+export type DeleteTutorConversationResponses = {
+  /**
+   * Successful Response
+   */
+  204: void;
+};
+
+export type DeleteTutorConversationResponse =
+  DeleteTutorConversationResponses[keyof DeleteTutorConversationResponses];
+
+export type GetTutorConversationData = {
+  body?: never;
+  path: {
+    /**
+     * Conversation Id
+     *
+     * AI Tutor conversation ID
+     */
+    conversation_id: string;
+  };
+  query?: never;
+  url: "/api/v1/ai-tutor/conversations/{conversation_id}";
+};
+
+export type GetTutorConversationErrors = {
+  /**
+   * Unauthorized
+   */
+  401: ErrorResponse;
+  /**
+   * Forbidden
+   */
+  403: ErrorResponse;
+  /**
+   * Not Found
+   */
+  404: ErrorResponse;
+  /**
+   * Unprocessable Content
+   */
+  422: ErrorResponse;
+};
+
+export type GetTutorConversationError =
+  GetTutorConversationErrors[keyof GetTutorConversationErrors];
+
+export type GetTutorConversationResponses = {
+  /**
+   * Successful Response
+   */
+  200: TutorConversationDetailResponse;
+};
+
+export type GetTutorConversationResponse =
+  GetTutorConversationResponses[keyof GetTutorConversationResponses];
+
+export type SendTutorMessageData = {
+  body: TutorMessageCreateRequest;
+  path: {
+    /**
+     * Conversation Id
+     *
+     * AI Tutor conversation ID
+     */
+    conversation_id: string;
+  };
+  query?: never;
+  url: "/api/v1/ai-tutor/conversations/{conversation_id}/messages";
+};
+
+export type SendTutorMessageErrors = {
+  /**
+   * Unauthorized
+   */
+  401: ErrorResponse;
+  /**
+   * Forbidden
+   */
+  403: ErrorResponse;
+  /**
+   * Not Found
+   */
+  404: ErrorResponse;
+  /**
+   * Conflict
+   */
+  409: ErrorResponse;
+  /**
+   * Unprocessable Content
+   */
+  422: ErrorResponse;
+  /**
+   * Service Unavailable
+   */
+  503: ErrorResponse;
+};
+
+export type SendTutorMessageError = SendTutorMessageErrors[keyof SendTutorMessageErrors];
+
+export type SendTutorMessageResponses = {
+  /**
+   * Successful Response
+   */
+  200: TutorMessageCreateResponse;
+};
+
+export type SendTutorMessageResponse = SendTutorMessageResponses[keyof SendTutorMessageResponses];

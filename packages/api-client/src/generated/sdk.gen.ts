@@ -22,6 +22,12 @@ import type {
   EvaluateReflexLessonData,
   EvaluateReflexLessonErrors,
   EvaluateReflexLessonResponses,
+  CreateTutorConversationData,
+  CreateTutorConversationErrors,
+  CreateTutorConversationResponses,
+  DeleteTutorConversationData,
+  DeleteTutorConversationErrors,
+  DeleteTutorConversationResponses,
   GetDictationAttemptData,
   GetDictationAttemptErrors,
   GetDictationAttemptResponses,
@@ -63,6 +69,9 @@ import type {
   GetShadowingRecordingPlaybackErrors,
   GetShadowingRecordingPlaybackResponses,
   GetShadowingRecordingResponses,
+  GetTutorConversationData,
+  GetTutorConversationErrors,
+  GetTutorConversationResponses,
   GetWeeklyLeaderboardData,
   GetWeeklyLeaderboardErrors,
   GetWeeklyLeaderboardResponses,
@@ -80,6 +89,9 @@ import type {
   ListReflexLessonsResponses,
   ListReviewScheduleData,
   ListReviewScheduleResponses,
+  ListTutorConversationsData,
+  ListTutorConversationsErrors,
+  ListTutorConversationsResponses,
   LoginData,
   LoginErrors,
   LoginResponses,
@@ -104,6 +116,9 @@ import type {
   RegisterData,
   RegisterErrors,
   RegisterResponses,
+  SendTutorMessageData,
+  SendTutorMessageErrors,
+  SendTutorMessageResponses,
   StartDictationAttemptData,
   StartDictationAttemptErrors,
   StartDictationAttemptResponses,
@@ -712,4 +727,88 @@ export const getWeeklyLeaderboard = <ThrowOnError extends boolean = false>(
     security: [{ scheme: "bearer", type: "http" }],
     url: "/api/v1/leaderboard/weekly",
     ...options,
+  });
+
+/**
+ * List the current user's AI Tutor conversations
+ */
+export const listTutorConversations = <ThrowOnError extends boolean = false>(
+  options?: Options<ListTutorConversationsData, ThrowOnError>,
+): RequestResult<ListTutorConversationsResponses, ListTutorConversationsErrors, ThrowOnError> =>
+  (options?.client ?? client).get<
+    ListTutorConversationsResponses,
+    ListTutorConversationsErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/api/v1/ai-tutor/conversations",
+    ...options,
+  });
+
+/**
+ * Create an AI Tutor conversation
+ */
+export const createTutorConversation = <ThrowOnError extends boolean = false>(
+  options: Options<CreateTutorConversationData, ThrowOnError>,
+): RequestResult<CreateTutorConversationResponses, CreateTutorConversationErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    CreateTutorConversationResponses,
+    CreateTutorConversationErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/api/v1/ai-tutor/conversations",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Delete an AI Tutor conversation
+ */
+export const deleteTutorConversation = <ThrowOnError extends boolean = false>(
+  options: Options<DeleteTutorConversationData, ThrowOnError>,
+): RequestResult<DeleteTutorConversationResponses, DeleteTutorConversationErrors, ThrowOnError> =>
+  (options.client ?? client).delete<
+    DeleteTutorConversationResponses,
+    DeleteTutorConversationErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/api/v1/ai-tutor/conversations/{conversation_id}",
+    ...options,
+  });
+
+/**
+ * Get an AI Tutor conversation and its ordered messages
+ */
+export const getTutorConversation = <ThrowOnError extends boolean = false>(
+  options: Options<GetTutorConversationData, ThrowOnError>,
+): RequestResult<GetTutorConversationResponses, GetTutorConversationErrors, ThrowOnError> =>
+  (options.client ?? client).get<
+    GetTutorConversationResponses,
+    GetTutorConversationErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/api/v1/ai-tutor/conversations/{conversation_id}",
+    ...options,
+  });
+
+/**
+ * Send a text message to AI Tutor
+ */
+export const sendTutorMessage = <ThrowOnError extends boolean = false>(
+  options: Options<SendTutorMessageData, ThrowOnError>,
+): RequestResult<SendTutorMessageResponses, SendTutorMessageErrors, ThrowOnError> =>
+  (options.client ?? client).post<SendTutorMessageResponses, SendTutorMessageErrors, ThrowOnError>({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/api/v1/ai-tutor/conversations/{conversation_id}/messages",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
   });

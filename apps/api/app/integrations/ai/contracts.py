@@ -16,6 +16,13 @@ class Correction(BaseModel):
     reason: str
 
 
+class TutorAnswerHint(BaseModel):
+    """A short Japanese answer suggestion and its Vietnamese meaning."""
+
+    text: str
+    meaning_vi: str
+
+
 class TranscriptionSegment(BaseModel):
     """A timed slice of a transcription."""
 
@@ -48,9 +55,10 @@ class TutorReply(BaseModel):
     """Normalized AI Tutor response."""
 
     message: str
+    text_vi: str
     corrections: list[Correction] = Field(default_factory=list)
-    hints: list[str] = Field(default_factory=list)
-    follow_up_question: str | None = None
+    natural_expression_tip: str | None = None
+    answer_hints: list[TutorAnswerHint] = Field(default_factory=list, max_length=3)
 
 
 M = TypeVar("M", bound=BaseModel)

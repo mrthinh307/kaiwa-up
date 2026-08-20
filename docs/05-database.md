@@ -4,7 +4,7 @@
 
 Kaiwa sử dụng PostgreSQL 15+. SQLAlchemy models trong `apps/api/app/models/` mô tả schema
 đích; Alembic migrations trong `apps/api/alembic/versions/` là lịch sử thay đổi dùng để triển khai
-schema. Tài liệu này phản ánh schema tại Alembic head `bbea12cc1d7b`.
+schema. Tài liệu này phản ánh schema tại Alembic head `c9f1b4e8d2a6`.
 
 Các nguyên tắc chính:
 
@@ -183,23 +183,13 @@ Cấp không dùng bảng tham chiếu và không có giới hạn tối đa đ�
 ```mermaid
 erDiagram
     USERS ||--o{ TUTOR_SESSIONS : starts
-    TUTOR_SCENARIOS o|--o{ TUTOR_SESSIONS : selected_for
     TUTOR_SESSIONS ||--o{ TUTOR_MESSAGES : contains
     RECORDINGS o|--o{ TUTOR_MESSAGES : attached_to
-    TUTOR_SCENARIOS {
-        UUID id PK
-        VARCHAR slug UK
-        VARCHAR topic
-        VARCHAR title
-        TEXT scenario
-        BOOLEAN is_active
-        INTEGER display_order
-    }
     TUTOR_SESSIONS {
         UUID id PK
         UUID user_id FK
-        UUID scenario_id FK
         VARCHAR topic
+        VARCHAR difficulty
         TEXT scenario
         VARCHAR status
         TIMESTAMPTZ started_at
@@ -211,6 +201,8 @@ erDiagram
         VARCHAR sender
         INTEGER sequence_number
         TEXT content
+        TEXT text_vi
+        UUID client_message_id
         UUID recording_id FK
         JSONB feedback
     }
@@ -234,7 +226,6 @@ erDiagram
 | Gamification | `user_achievements` | Thành tích đã cấp cho user. |
 | Gamification | `xp_transactions` | Lịch sử cộng/trừ EXP bất biến. |
 | Gamification | `weekly_leaderboard_entries` | Snapshot bảng xếp hạng tuần. |
-| AI Tutor | `tutor_scenarios` | Catalog chủ đề và bối cảnh hội thoại dùng chung. |
 | AI Tutor | `tutor_sessions` | Phiên hội thoại AI của user. |
 | AI Tutor | `tutor_messages` | Tin nhắn có thứ tự trong phiên. |
 
@@ -308,7 +299,7 @@ Constraint `jlpt_level` giới hạn `difficulty`. Partial index
 `ix_learning_contents_published_catalog` trên `(content_type, difficulty, published_at DESC) WHERE
 status = 'PUBLISHED'` phục vụ catalog đã xuất bản theo loại, cấp độ và độ mới.
 
-- Ví dụ về `transcript_ja`: 
+- Ví dụ về `transcript_ja`:
 ```json
 "transcript_ja": [
                     {
@@ -474,25 +465,9 @@ leaderboard của một tuần theo thứ hạng.
 
 ### 4.5. AI Tutor
 
-#### Bảng `tutor_scenarios`
-
-| Trường | Kiểu dữ liệu | Null | Mặc định DB | Khóa / ràng buộc | Ý nghĩa |
-| --- | --- | --- | --- | --- | --- |
-| `id` | UUID | Không | `uuidv7()` | PK | Định danh scenario trong catalog. |
-| `slug` | VARCHAR(255) | Không | - | UNIQUE `uq_tutor_scenarios_slug` | Khóa ổn định dùng cho seed và tham chiếu nội bộ. |
-| `topic` | VARCHAR(255) | Không | - | - | Nhóm chủ đề tiếng Việt dùng để lọc catalog. |
-| `title` | VARCHAR(255) | Không | - | - | Tên scenario tiếng Việt hiển thị cho người dùng. |
-| `scenario` | TEXT | Không | - | - | Bối cảnh tiếng Việt được dùng làm đầu vào cho AI Tutor. |
-| `is_active` | BOOLEAN | Không | - | - | Cho phép ẩn scenario khỏi catalog mà không xóa lịch sử. Application mặc định `true`. |
-| `display_order` | INTEGER | Không | - | CHECK `tutor_scenarios_display_order_nonnegative` | Thứ tự hiển thị không âm; application mặc định `0`. |
-| `created_at` | TIMESTAMPTZ | Không | `now()` | - | Thời điểm tạo catalog item. |
-| `updated_at` | TIMESTAMPTZ | Không | `now()` | - | Thời điểm cập nhật gần nhất. |
-
-Catalog không cố định độ khó. Người dùng chọn scenario và cấp JLPT `N5` đến `N1` độc lập; AI Tutor
-điều chỉnh nội dung hội thoại theo `tutor_sessions.difficulty`.
-
-Index `ix_tutor_scenarios_active_order` trên `(is_active, display_order, topic)` phục vụ danh sách
-scenario đang hoạt động theo thứ tự hiển thị.
+Phase 2 bổ sung `client_message_id` cho user message để bảo đảm retry idempotent. Đây là phần mở rộng
+schema cần được triển khai bằng Alembic migration trước khi bật API AI Tutor; không sửa database thủ
+công trên môi trường triển khai.
 
 #### Bảng `tutor_sessions`
 
@@ -500,19 +475,19 @@ scenario đang hoạt động theo thứ tự hiển thị.
 | --- | --- | --- | --- | --- | --- |
 | `id` | UUID | Không | `uuidv7()` | PK | Định danh phiên hội thoại. |
 | `user_id` | UUID | Không | - | FK `users.id` ON DELETE CASCADE | User sở hữu phiên. |
-| `scenario_id` | UUID | Có | - | FK `tutor_scenarios.id` ON DELETE SET NULL | Scenario nguồn đã được chọn; NULL nếu catalog item bị xóa hoặc phiên tự do. |
-| `topic` | VARCHAR(255) | Có | - | - | Chủ đề luyện hội thoại. |
-| `difficulty` | VARCHAR | Có | - | CHECK `tutor_session_jlpt_level` | Cấp JLPT `N5` đến `N1`; NULL khi phiên không chỉ định độ khó. |
+| `topic` | VARCHAR(255) | Không | - | - | Chủ đề do user nhập và được lưu làm snapshot của phiên. |
+| `difficulty` | VARCHAR | Không | - | CHECK `tutor_session_jlpt_level` | Cấp JLPT `N5` đến `N1` do user chọn. |
 | `scenario` | TEXT | Có | - | - | Bối cảnh/role-play được đưa cho tutor. |
 | `status` | VARCHAR(32) | Không | - | CHECK `tutor_session_status` | `active` hoặc `completed`; application mặc định `active`. |
 | `started_at` | TIMESTAMPTZ | Không | `now()` | - | Thời điểm bắt đầu phiên. |
 | `ended_at` | TIMESTAMPTZ | Có | - | - | Thời điểm kết thúc; NULL khi phiên đang hoạt động hoặc chưa đóng đúng cách. |
 
-`topic` và `scenario` là snapshot tại thời điểm tạo phiên, vì vậy lịch sử không đổi khi catalog được
-cập nhật hoặc xóa. `scenario_id` chỉ lưu nguồn catalog đã chọn.
+`topic`, `difficulty` và `scenario` là snapshot tại thời điểm tạo phiên. `topic` và `difficulty` là
+đầu vào bắt buộc; `scenario` là đầu vào tùy chọn. Vì không còn catalog, lịch sử phiên không phụ thuộc
+vào dữ liệu dùng chung nào khác.
 
 Index `ix_tutor_sessions_user_id_started_at` trên `(user_id, started_at DESC)` phục vụ lịch sử phiên
-gần nhất; index `ix_tutor_sessions_scenario_id` hỗ trợ quan hệ với catalog.
+gần nhất.
 
 #### Bảng `tutor_messages`
 
@@ -520,15 +495,20 @@ gần nhất; index `ix_tutor_sessions_scenario_id` hỗ trợ quan hệ với c
 | --- | --- | --- | --- | --- | --- |
 | `id` | UUID | Không | `uuidv7()` | PK | Định danh tin nhắn. |
 | `session_id` | UUID | Không | - | FK `tutor_sessions.id` ON DELETE CASCADE | Phiên chứa tin nhắn. |
-| `sender` | VARCHAR(32) | Không | - | CHECK `tutor_sender` | Bên gửi: `USER` hoặc `AI`. |
+| `sender` | VARCHAR(32) | Không | - | CHECK `tutor_sender` | Bên gửi trong storage: `USER` hoặc `AI`; API trả `user` hoặc `ai`. |
 | `sequence_number` | INTEGER | Không | - | UNIQUE cùng `session_id` | Vị trí tuyệt đối trong phiên, tránh phụ thuộc timestamp khi sắp thứ tự. |
 | `content` | TEXT | Không | - | - | Nội dung văn bản của lượt hội thoại. |
+| `text_vi` | TEXT | Có | - | - | Bản dịch tiếng Việt của AI message; NULL với user message và dữ liệu lịch sử chưa được dịch. |
+| `client_message_id` | UUID | Có | - | UNIQUE cùng `session_id` | Idempotency key của user message; AI message để NULL. |
 | `recording_id` | UUID | Có | - | FK `recordings.id` ON DELETE SET NULL | Bản ghi giọng nói đính kèm; giữ message nếu recording bị xóa. |
-| `feedback` | JSONB | Có | - | - | Phản hồi có cấu trúc cho lượt nói, ví dụ sửa câu, phát âm hoặc gợi ý diễn đạt. |
+| `feedback` | JSONB | Có | - | - | Object chuẩn hóa gồm correction, natural expression và tối đa 3 `answer_hints`. |
 | `created_at` | TIMESTAMPTZ | Không | `now()` | - | Thời điểm lưu tin nhắn. |
 
 UNIQUE `uq_tutor_messages_sequence` trên `(session_id, sequence_number)` ngăn hai message chiếm cùng
 vị trí và hỗ trợ tải hội thoại theo đúng thứ tự.
+
+Phase 2 bổ sung UNIQUE `uq_tutor_messages_client_message_id` trên `(session_id, client_message_id)`
+để retry không tạo user message trùng. Cột nullable để AI message không cần idempotency key.
 
 ## 5. Quy tắc toàn vẹn và transaction
 
@@ -538,8 +518,8 @@ vị trí và hỗ trợ tải hội thoại theo đúng thứ tự.
   `exercise_attempts.content_id` dùng `RESTRICT`.
 - Recording có thể không thuộc attempt để hỗ trợ giọng nói trong AI Tutor. Khi recording bị xóa,
   tham chiếu từ evaluation/message được đặt NULL.
-- Xóa Tutor scenario đặt `tutor_sessions.scenario_id` thành NULL nhưng giữ snapshot `topic` và
-  `scenario` trong lịch sử phiên.
+- Tutor session lưu trực tiếp snapshot `topic`, `difficulty` và `scenario`; không có FK tới catalog.
+- Xóa một Tutor session cascade đến toàn bộ `tutor_messages` thuộc session đó.
 - Tạo attempt, chấm điểm, cấp EXP và cập nhật `user_progress` phải nằm trong một transaction do
   service quản lý.
 - Các enum được lưu bằng `VARCHAR` kèm CHECK constraint, không dùng PostgreSQL native enum.
@@ -576,6 +556,9 @@ Chuỗi migration hiện tại:
 6. `51f2a49d6b30`: xóa `level_definitions` và chuyển việc tính cấp sang application.
 7. `6d4f92a1c8e7`: khóa toàn vẹn số/enum, bảo toàn sổ cái EXP và chuẩn hóa độ khó Tutor.
 8. `a4c8d2e6f1b3`: thêm catalog Tutor scenario và liên kết nguồn scenario với phiên hội thoại.
+9. `c9f1b4e8d2a6`: thêm `client_message_id` và constraint idempotency cho Tutor message.
+10. `e4f6a8c2d1b3`: xóa key feedback `next_question` đã deprecated khỏi Tutor message.
+11. `f1a2b3c4d5e6`: thêm bản dịch tiếng Việt nullable cho Tutor message.
 
 Các lệnh chạy từ repository root:
 

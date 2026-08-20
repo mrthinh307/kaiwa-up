@@ -14,7 +14,8 @@ Hệ thống tập trung xử lý logic phức tạp ở Backend (được xây 
 5. **Phản xạ 3 giây & Lặp lại ngắt quãng (Spaced Repetition):** Trả lời tình huống trong 3 giây, ghi âm, AI đánh giá và lên lịch ôn tập.
 
 ### 1.2. Các tính năng phụ (Secondary Features - Ưu tiên thấp hơn)
-1. **AI Tutor 1-1:** Luyện hội thoại trực tiếp với AI (bằng giọng nói/văn bản).
+1. **AI Tutor 1-1:** Luyện hội thoại trực tiếp với AI bằng văn bản trong Phase 2; voice input để
+   giai đoạn sau.
 2. **Nghe và dịch:** Nghe hội thoại, nhập bản dịch tiếng Việt dạng free-text và nhận đánh giá theo ý nghĩa từ AI.
 
 ---
@@ -25,7 +26,7 @@ Một mốc phát triển chỉ được đánh giá là "Pass" ở giai đoạn
 
 * **Tỷ lệ thực thi (Execution Rate):** Thực thi 100% các test case đã được xác định cho milestone hiện tại.
 * **Tỷ lệ Pass (Pass Rate):** Đạt `>= 90%` tổng số test case của milestone hiện tại. Đặc biệt, **Core features phải đạt 100% Pass**.
-* **Độ phủ mã nguồn (Code Coverage):** Backend core logic nên hướng tới `>= 60%` ở giai đoạn đầu; khi hệ thống ổn định hơn có thể nâng dần lên `>= 75%` cho các module nghiệp vụ chính. *(Các phần đơn giản không chứa logic nghiệp vụ như UI thuần, Getter/Setter, DTOs có thể không bắt buộc unit test ở giai đoạn đầu).* 
+* **Độ phủ mã nguồn (Code Coverage):** Backend core logic nên hướng tới `>= 60%` ở giai đoạn đầu; khi hệ thống ổn định hơn có thể nâng dần lên `>= 75%` cho các module nghiệp vụ chính. *(Các phần đơn giản không chứa logic nghiệp vụ như UI thuần, Getter/Setter, DTOs có thể không bắt buộc unit test ở giai đoạn đầu).*
 * **Tiêu chuẩn về Lỗi (Bug Status):**
   * **0** lỗi Blocker / Critical.
   * **0** lỗi Major mở trong các core flows.

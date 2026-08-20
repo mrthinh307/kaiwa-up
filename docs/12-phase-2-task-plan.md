@@ -189,7 +189,7 @@ Phase 2 gồm:
 | Nội dung | Quyết định Phase 2 |
 |---|---|
 | AI Tutor | Chỉ hỗ trợ text; voice input để giai đoạn sau |
-| AI Tutor hints | Mỗi câu hỏi có tối đa 2–3 gợi ý trả lời phù hợp trình độ |
+| AI Tutor hints | Mỗi câu hỏi có tối đa 3 gợi ý trả lời phù hợp trình độ |
 | Reflex | Ba giây để bắt đầu phản hồi, không phải hoàn thành câu trả lời |
 | Translation | Người dùng bắt buộc nhập bản dịch tiếng Việt dạng free-text |
 | Đánh giá Translation | AI đánh giá theo ý nghĩa, không yêu cầu khớp từng từ với bản dịch tham khảo |
@@ -421,6 +421,7 @@ Phase 2 chỉ hỗ trợ hội thoại bằng văn bản. Voice input được �
 **Nội dung:**
 
 - Hoàn thiện `tutor_sessions` và `tutor_messages`.
+- Bổ sung migration cho `client_message_id` và unique constraint theo `(session_id, client_message_id)`.
 - Xây dựng API:
 
 ```http
@@ -428,22 +429,27 @@ POST /api/v1/ai-tutor/conversations
 GET /api/v1/ai-tutor/conversations
 GET /api/v1/ai-tutor/conversations/{conversation_id}
 POST /api/v1/ai-tutor/conversations/{conversation_id}/messages
+DELETE /api/v1/ai-tutor/conversations/{conversation_id}
 ```
 
-- Tạo conversation theo topic và difficulty.
+- Tạo conversation từ topic/difficulty bắt buộc và scenario tùy chọn do user nhập.
+- Snapshot topic/scenario vào conversation để lịch sử không phụ thuộc dữ liệu ngoài.
 - Gọi AI tạo lời mở đầu.
 - Lưu message theo đúng thứ tự.
+- Dùng `client_message_id` trên mỗi user message để retry không tạo duplicate.
 - Gửi context hội thoại có giới hạn sang AI Gateway.
 - Chuẩn hóa mỗi phản hồi AI gồm:
-  - Nội dung phản hồi.
-  - Câu hỏi tiếp theo.
-  - Tối đa 2–3 gợi ý trả lời.
+  - Nội dung phản hồi bằng tiếng Nhật.
+  - Bản dịch tiếng Việt của nội dung phản hồi.
+  - Tối đa 3 gợi ý trả lời trong `feedback.answer_hints`.
   - Nghĩa tiếng Việt của từng gợi ý.
-  - Sửa lỗi ngữ pháp.
-  - Gợi ý cách diễn đạt tự nhiên.
+  - Giải thích sửa lỗi ngữ pháp bằng tiếng Việt.
+  - Giải thích cách diễn đạt tự nhiên bằng tiếng Việt.
 - Lưu gợi ý cùng message để có thể tải lại.
 - Kiểm tra ownership conversation.
 - Xử lý AI timeout mà không làm mất user message.
+- Trả `503 service_unavailable` khi AI Gateway timeout/unavailable; user message đã ghi nhận vẫn giữ lại.
+- Trả `409 tutor_response_pending` nếu user gửi turn mới trong khi turn trước chưa có AI reply.
 - Viết test cho service, thứ tự message và authorization.
 
 **Acceptance criteria:**
@@ -453,6 +459,7 @@ POST /api/v1/ai-tutor/conversations/{conversation_id}/messages
 - Gợi ý không quá dài và không bắt buộc người dùng sao chép nguyên câu.
 - Lịch sử message và hints được lưu đúng thứ tự.
 - Người dùng không truy cập được conversation của người khác.
+- Refresh hoặc rời trang không làm mất lịch sử conversation.
 
 ---
 
@@ -463,7 +470,7 @@ POST /api/v1/ai-tutor/conversations/{conversation_id}/messages
 
 **Nội dung:**
 
-- Xây dựng màn hình chọn topic và difficulty.
+- Xây dựng form nhập topic, chọn difficulty và nhập scenario tùy chọn.
 - Xây dựng danh sách lịch sử conversation.
 - Xây dựng giao diện chat cho user và AI.
 - Hiển thị trạng thái đang gửi và AI đang phản hồi.
@@ -477,7 +484,7 @@ POST /api/v1/ai-tutor/conversations/{conversation_id}/messages
 **Acceptance criteria:**
 
 - Gợi ý mặc định được thu gọn để khuyến khích tự trả lời.
-- Không hiển thị khối gợi ý khi `answer_hints` rỗng.
+- Không hiển thị khối gợi ý khi `feedback.answer_hints` rỗng.
 - Bấm vào gợi ý không tự động gửi message.
 - Refresh trang vẫn hiển thị được message và hints cũ.
 
@@ -492,13 +499,14 @@ POST /api/v1/ai-tutor/conversations/{conversation_id}/messages
 
 - Kết nối tạo conversation, lịch sử và gửi message với backend.
 - Đồng bộ trạng thái pending, processing, success và failed.
-- Đồng bộ `answer_hints` trong lời mở đầu, phản hồi tiếp theo và lịch sử.
+- Đồng bộ `feedback.answer_hints` trong lời mở đầu, phản hồi tiếp theo và lịch sử.
+- Gửi UUID `client_message_id` ổn định cho mỗi lần user Submit.
 - Kiểm tra retry không tạo duplicate user message.
 - Kiểm tra authorization bằng hai tài khoản.
 - Viết E2E test cho luồng:
 
 ```text
-Chọn topic và difficulty
+Nhập topic, chọn difficulty và nhập scenario tùy chọn
 → Tạo conversation
 → Nhận câu hỏi và gợi ý
 → Chọn một gợi ý
@@ -510,6 +518,7 @@ Chọn topic và difficulty
 **Acceptance criteria:**
 
 - Message không sai thứ tự hoặc bị trùng.
+- Retry cùng `client_message_id` không tạo user message thứ hai.
 - Gợi ý thay đổi phù hợp với difficulty.
 - Refresh không làm mất lịch sử.
 - User A không truy cập được conversation của User B.
@@ -621,7 +630,7 @@ POST /api/v1/listening-translation/lessons/{lesson_id}/submit
 - Tạo bài Reflex theo các độ khó ưu tiên của MVP.
 - Upload audio prompt lên Cloudinary.
 - Tạo bài Listening & Translation có transcript và bản dịch tham khảo.
-- Tạo danh sách topic và scenario cho AI Tutor.
+- Chuẩn bị ví dụ topic, difficulty và scenario tùy chọn để kiểm thử AI Tutor free-form; không seed catalog Tutor.
 - Kiểm tra seed chạy được trên database mới.
 
 ---
