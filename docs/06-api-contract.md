@@ -1343,11 +1343,7 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
       {
         "id": "660e8400-e29b-41d4-a716-446655440666",
         "title": "Nghe hiểu ý chính: Đặt bàn ăn",
-        "description": "Nghe hội thoại ngắn khi đặt chỗ tại nhà hàng.",
         "difficulty": "N3",
-        "topic": "Nhà hàng",
-        "duration_seconds": 12.0,
-        "audio_url": "https://cdn.example.com/translation.mp3",
         "is_completed": false
       }
     ],
@@ -1363,7 +1359,7 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
 ---
 
 #### `GET /api/v1/listening-translation/lessons/{lesson_id}`
-* **Mục đích**: Lấy metadata và audio của bài tập Nghe & Dịch. Transcript và bản dịch tham khảo không được trả trước khi chấm bài.
+* **Mục đích**: Lấy nội dung audio, văn bản và bản dịch tham chiếu của bài tập Nghe & Dịch (từ `translation_exercises`).
 * **Yêu cầu xác thực**: Bearer Token
 * **Request Headers**: `Authorization: Bearer <jwt_access_token>`
 * **Path Parameters**:
@@ -1376,11 +1372,8 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
     "id": "660e8400-e29b-41d4-a716-446655440666",
     "title": "Nghe hiểu ý chính: Đặt bàn ăn",
     "audio_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-    "description": "Nghe hội thoại ngắn khi đặt chỗ tại nhà hàng.",
-    "difficulty": "N3",
-    "topic": "Nhà hàng",
-    "duration_seconds": 12.0,
-    "is_completed": false
+    "transcript_ja": "4人で7時に予約したいですが、いいですか。",
+    "reference_translation_vi": "Tôi muốn đặt bàn cho 4 người lúc 7 giờ, được không?"
   }
   ```
 * **Status Codes & Error Responses**:
@@ -1406,30 +1399,13 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
   ```json
   {
     "attempt_id": "990e8400-e29b-41d4-a716-446655440999",
-    "evaluation_id": "880e8400-e29b-41d4-a716-446655440888",
     "status": "completed",
-    "exp_earned": 10,
-    "score": 82,
-    "is_acceptable": true,
-    "feedback": "Bản dịch truyền tải đúng ý chính.",
-    "covered_ideas": ["Người nói muốn đặt bàn cho 4 người lúc 7 giờ."],
-    "missing_ideas": [],
-    "suggestions": ["Có thể dùng cách diễn đạt tự nhiên hơn cho câu hỏi cuối."],
-    "reference_translation_vi": "Tôi muốn đặt bàn cho 4 người lúc 7 giờ, được không?"
+    "exp_earned": 10
   }
   ```
 * **Status Codes & Error Responses**:
   * `200 OK`: Nộp bài thành công.
   * `404 Not Found` (`code`: `not_found`): Bài học không tồn tại.
-  * `409 Conflict` (`code`: `translation_evaluation_in_progress`): Attempt đang được AI đánh giá.
-  * `422 Unprocessable Entity` (`code`: `validation_error`): Bản dịch rỗng hoặc dài quá giới hạn.
-  * `429 Too Many Requests` (`code`: `ai_rate_limited`): AI provider giới hạn tần suất.
-  * `502 Bad Gateway`: AI provider trả response không hợp lệ hoặc lỗi xác thực provider.
-  * `503 Service Unavailable` (`code`: `ai_provider_unavailable`): AI provider không khả dụng.
-  * `504 Gateway Timeout` (`code`: `ai_timeout`): AI evaluation quá thời gian; bản dịch và attempt vẫn được lưu để retry.
-
-Submit lưu `translation_vi` và evaluation pending trước khi gọi AI. Retry sau lỗi tái sử dụng cùng
-attempt; attempt đã hoàn thành được trả lại từ dữ liệu đã lưu và không cộng EXP lần thứ hai.
 
 ---
 
