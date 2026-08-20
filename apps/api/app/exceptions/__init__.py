@@ -30,6 +30,10 @@ from app.exceptions.learning_content import (
     TranscriptNotFoundError,
     TranscriptProviderError,
 )
+from app.exceptions.translation import (
+    TranslationContentUnavailableError,
+    TranslationEvaluationInProgressError,
+)
 
 __all__ = [
     "AiInvalidResponseError",
@@ -54,6 +58,8 @@ __all__ = [
     "NotFoundError",
     "TranscriptNotFoundError",
     "TranscriptProviderError",
+    "TranslationContentUnavailableError",
+    "TranslationEvaluationInProgressError",
     "UnauthorizedException",
     "register_exception_handlers",
 ]
