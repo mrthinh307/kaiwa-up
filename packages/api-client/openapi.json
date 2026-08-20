@@ -1636,27 +1636,74 @@
         "tags": ["Reflex"],
         "summary": "List Reflex Lessons",
         "operationId": "listReflexLessons",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "difficulty",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/JlptLevel"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Difficulty"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Page Size"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/ReflexLessonItem"
-                  },
-                  "type": "array",
-                  "title": "Response Listreflexlessons"
+                  "$ref": "#/components/schemas/ReflexLessonListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
           }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/reflex/lessons/{lesson_id}": {
@@ -1748,7 +1795,7 @@
           }
         },
         "responses": {
-          "201": {
+          "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
@@ -1812,11 +1859,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/ReviewScheduleItem"
-                  },
-                  "type": "array",
-                  "title": "Response Listduereviews"
+                  "$ref": "#/components/schemas/DueReviewListResponse"
                 }
               }
             }
@@ -1840,11 +1883,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/ReviewScheduleItem"
-                  },
-                  "type": "array",
-                  "title": "Response Listreviewschedule"
+                  "$ref": "#/components/schemas/ReviewScheduleListResponse"
                 }
               }
             }
@@ -2736,6 +2775,50 @@
         ],
         "title": "DictationStartResponse"
       },
+      "DueReviewItem": {
+        "properties": {
+          "lesson_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Lesson Id"
+          },
+          "lesson_title": {
+            "type": "string",
+            "title": "Lesson Title"
+          },
+          "last_score": {
+            "type": "number",
+            "title": "Last Score"
+          },
+          "due_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Due At"
+          }
+        },
+        "type": "object",
+        "required": ["lesson_id", "lesson_title", "last_score", "due_at"],
+        "title": "DueReviewItem"
+      },
+      "DueReviewListResponse": {
+        "properties": {
+          "due_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Due Count"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DueReviewItem"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": ["due_count", "items"],
+        "title": "DueReviewListResponse"
+      },
       "ErrorDetail": {
         "properties": {
           "status": {
@@ -3625,6 +3708,29 @@
         "required": ["status", "timestamp", "app_name", "database"],
         "title": "ReadinessResponse"
       },
+      "ReflexAiFeedback": {
+        "properties": {
+          "transcribed_text": {
+            "type": "string",
+            "title": "Transcribed Text"
+          },
+          "naturalness_evaluation": {
+            "type": "string",
+            "title": "Naturalness Evaluation"
+          },
+          "suggestions": {
+            "type": "string",
+            "title": "Suggestions"
+          }
+        },
+        "type": "object",
+        "required": [
+          "transcribed_text",
+          "naturalness_evaluation",
+          "suggestions"
+        ],
+        "title": "ReflexAiFeedback"
+      },
       "ReflexEvaluationResponse": {
         "properties": {
           "attempt_id": {
@@ -3632,74 +3738,55 @@
             "format": "uuid",
             "title": "Attempt Id"
           },
-          "evaluation_id": {
+          "lesson_id": {
             "type": "string",
             "format": "uuid",
-            "title": "Evaluation Id"
+            "title": "Lesson Id"
           },
-          "transcript": {
-            "type": "string",
-            "title": "Transcript"
-          },
-          "score": {
+          "response_start_ms": {
             "type": "integer",
-            "maximum": 100.0,
             "minimum": 0.0,
-            "title": "Score"
+            "title": "Response Start Ms"
           },
           "is_on_time": {
             "type": "boolean",
             "title": "Is On Time"
           },
-          "feedback": {
-            "type": "string",
-            "title": "Feedback"
-          },
-          "corrections": {
-            "items": {
-              "additionalProperties": {
-                "type": "string"
-              },
-              "type": "object"
-            },
-            "type": "array",
-            "title": "Corrections"
-          },
-          "hints": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Hints"
-          },
-          "earned_exp": {
-            "type": "integer",
+          "ai_score": {
+            "type": "number",
+            "maximum": 100.0,
             "minimum": 0.0,
-            "title": "Earned Exp"
+            "title": "Ai Score"
           },
-          "review_due_at": {
+          "ai_feedback": {
+            "$ref": "#/components/schemas/ReflexAiFeedback"
+          },
+          "next_review_days": {
+            "type": "integer",
+            "title": "Next Review Days"
+          },
+          "next_review_at": {
             "type": "string",
             "format": "date-time",
-            "title": "Review Due At"
+            "title": "Next Review At"
           },
-          "review_interval_days": {
+          "exp_earned": {
             "type": "integer",
-            "title": "Review Interval Days"
+            "minimum": 0.0,
+            "title": "Exp Earned"
           }
         },
         "type": "object",
         "required": [
           "attempt_id",
-          "evaluation_id",
-          "transcript",
-          "score",
+          "lesson_id",
+          "response_start_ms",
           "is_on_time",
-          "feedback",
-          "corrections",
-          "hints",
-          "earned_exp",
-          "review_due_at",
-          "review_interval_days"
+          "ai_score",
+          "ai_feedback",
+          "next_review_days",
+          "next_review_at",
+          "exp_earned"
         ],
         "title": "ReflexEvaluationResponse"
       },
@@ -3714,49 +3801,13 @@
             "type": "string",
             "title": "Title"
           },
-          "description": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Description"
-          },
-          "topic": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Topic"
-          },
-          "difficulty": {
-            "$ref": "#/components/schemas/JlptLevel"
-          },
           "audio_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "type": "string",
             "title": "Audio Url"
           },
           "prompt_ja": {
             "type": "string",
             "title": "Prompt Ja"
-          },
-          "response_start_limit_ms": {
-            "type": "integer",
-            "title": "Response Start Limit Ms"
           },
           "scenario_ja": {
             "anyOf": [
@@ -3768,15 +3819,20 @@
               }
             ],
             "title": "Scenario Ja"
+          },
+          "response_start_limit_seconds": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Response Start Limit Seconds"
           }
         },
         "type": "object",
         "required": [
           "id",
           "title",
-          "difficulty",
+          "audio_url",
           "prompt_ja",
-          "response_start_limit_ms"
+          "response_start_limit_seconds"
         ],
         "title": "ReflexLessonDetail"
       },
@@ -3791,60 +3847,57 @@
             "type": "string",
             "title": "Title"
           },
-          "description": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Description"
-          },
-          "topic": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Topic"
-          },
           "difficulty": {
             "$ref": "#/components/schemas/JlptLevel"
           },
-          "audio_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Audio Url"
+          "is_completed": {
+            "type": "boolean",
+            "title": "Is Completed"
+          }
+        },
+        "type": "object",
+        "required": ["id", "title", "difficulty", "is_completed"],
+        "title": "ReflexLessonItem"
+      },
+      "ReflexLessonListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ReflexLessonItem"
+            },
+            "type": "array",
+            "title": "Items"
           },
-          "prompt_ja": {
-            "type": "string",
-            "title": "Prompt Ja"
-          },
-          "response_start_limit_ms": {
+          "total_items": {
             "type": "integer",
-            "title": "Response Start Limit Ms"
+            "minimum": 0.0,
+            "title": "Total Items"
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Page"
+          },
+          "page_size": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Page Size"
+          },
+          "total_pages": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Total Pages"
           }
         },
         "type": "object",
         "required": [
-          "id",
-          "title",
-          "difficulty",
-          "prompt_ja",
-          "response_start_limit_ms"
+          "items",
+          "total_items",
+          "page",
+          "page_size",
+          "total_pages"
         ],
-        "title": "ReflexLessonItem"
+        "title": "ReflexLessonListResponse"
       },
       "RefreshSessionResponse": {
         "properties": {
@@ -3898,55 +3951,52 @@
       },
       "ReviewScheduleItem": {
         "properties": {
-          "content_id": {
+          "lesson_id": {
             "type": "string",
             "format": "uuid",
-            "title": "Content Id"
+            "title": "Lesson Id"
           },
-          "title": {
+          "lesson_title": {
             "type": "string",
-            "title": "Title"
-          },
-          "due_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Due At"
+            "title": "Lesson Title"
           },
           "interval_days": {
             "type": "integer",
             "title": "Interval Days"
           },
-          "ease_factor": {
-            "type": "number",
-            "title": "Ease Factor"
-          },
-          "repetitions": {
+          "review_count": {
             "type": "integer",
-            "title": "Repetitions"
+            "title": "Review Count"
           },
-          "last_attempt_id": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "uuid"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Last Attempt Id"
+          "next_review_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Next Review At"
           }
         },
         "type": "object",
         "required": [
-          "content_id",
-          "title",
-          "due_at",
+          "lesson_id",
+          "lesson_title",
           "interval_days",
-          "ease_factor",
-          "repetitions"
+          "review_count",
+          "next_review_at"
         ],
         "title": "ReviewScheduleItem"
+      },
+      "ReviewScheduleListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ReviewScheduleItem"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": ["items"],
+        "title": "ReviewScheduleListResponse"
       },
       "ShadowingAttemptReviewResponse": {
         "properties": {
