@@ -40,9 +40,6 @@ import type {
   GetLearningContentData,
   GetLearningContentErrors,
   GetLearningContentResponses,
-  GetListeningTranslationLessonData,
-  GetListeningTranslationLessonErrors,
-  GetListeningTranslationLessonResponses,
   GetMeData,
   GetMeErrors,
   GetMeResponses,
@@ -76,9 +73,6 @@ import type {
   ListLearningContentsData,
   ListLearningContentsErrors,
   ListLearningContentsResponses,
-  ListListeningTranslationLessonsData,
-  ListListeningTranslationLessonsErrors,
-  ListListeningTranslationLessonsResponses,
   ListProgressAttemptsData,
   ListProgressAttemptsErrors,
   ListProgressAttemptsResponses,
@@ -113,9 +107,6 @@ import type {
   StartDictationAttemptData,
   StartDictationAttemptErrors,
   StartDictationAttemptResponses,
-  SubmitListeningTranslationData,
-  SubmitListeningTranslationErrors,
-  SubmitListeningTranslationResponses,
   SubmitShadowingAttemptData,
   SubmitShadowingAttemptErrors,
   SubmitShadowingAttemptResponses,
@@ -587,70 +578,6 @@ export const evaluateReflexLesson = <ThrowOnError extends boolean = false>(
     ...options,
     headers: {
       "Content-Type": null,
-      ...options.headers,
-    },
-  });
-
-/**
- * List Translation Lessons
- */
-export const listListeningTranslationLessons = <ThrowOnError extends boolean = false>(
-  options?: Options<ListListeningTranslationLessonsData, ThrowOnError>,
-): RequestResult<
-  ListListeningTranslationLessonsResponses,
-  ListListeningTranslationLessonsErrors,
-  ThrowOnError
-> =>
-  (options?.client ?? client).get<
-    ListListeningTranslationLessonsResponses,
-    ListListeningTranslationLessonsErrors,
-    ThrowOnError
-  >({
-    security: [{ scheme: "bearer", type: "http" }],
-    url: "/api/v1/listening-translation/lessons",
-    ...options,
-  });
-
-/**
- * Get Translation Lesson
- */
-export const getListeningTranslationLesson = <ThrowOnError extends boolean = false>(
-  options: Options<GetListeningTranslationLessonData, ThrowOnError>,
-): RequestResult<
-  GetListeningTranslationLessonResponses,
-  GetListeningTranslationLessonErrors,
-  ThrowOnError
-> =>
-  (options.client ?? client).get<
-    GetListeningTranslationLessonResponses,
-    GetListeningTranslationLessonErrors,
-    ThrowOnError
-  >({
-    security: [{ scheme: "bearer", type: "http" }],
-    url: "/api/v1/listening-translation/lessons/{lesson_id}",
-    ...options,
-  });
-
-/**
- * Submit Translation
- */
-export const submitListeningTranslation = <ThrowOnError extends boolean = false>(
-  options: Options<SubmitListeningTranslationData, ThrowOnError>,
-): RequestResult<
-  SubmitListeningTranslationResponses,
-  SubmitListeningTranslationErrors,
-  ThrowOnError
-> =>
-  (options.client ?? client).post<
-    SubmitListeningTranslationResponses,
-    SubmitListeningTranslationErrors,
-    ThrowOnError
-  >({
-    security: [{ scheme: "bearer", type: "http" }],
-    url: "/api/v1/listening-translation/lessons/{lesson_id}/submit",
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
       ...options.headers,
     },
   });
