@@ -6,6 +6,12 @@ EVALUATION_JSON_SCHEMA = (
     '"hints": [<string>]}'
 )
 
+TRANSLATION_EVALUATION_JSON_SCHEMA = (
+    '{"score": <0-100>, "is_acceptable": <boolean>, "feedback": <string>, '
+    '"covered_ideas": [<string>], "missing_ideas": [<string>], '
+    '"suggestions": [<string>]}'
+)
+
 TRANSCRIPTION_JSON_SCHEMA = (
     '{"text": <string>, "confidence": <0-1>, "segments": '
     '[{"start_ms": <number>, "end_ms": <number>, "text": <string>, '

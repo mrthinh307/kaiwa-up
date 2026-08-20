@@ -42,6 +42,9 @@ class EvaluationResult(BaseModel):
     feedback: str
     corrections: list[Correction] = Field(default_factory=list)
     hints: list[str] = Field(default_factory=list)
+    covered_ideas: list[str] = Field(default_factory=list)
+    missing_ideas: list[str] = Field(default_factory=list)
+    suggestions: list[str] = Field(default_factory=list)
 
 
 class TutorReply(BaseModel):
