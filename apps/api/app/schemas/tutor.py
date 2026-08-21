@@ -18,6 +18,7 @@ class TutorConversationCreateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
     topic: str = Field(min_length=1, max_length=255)
+    client_conversation_id: uuid.UUID
     difficulty: JlptLevel
     scenario: str | None = Field(default=None, max_length=2000)
     explanation_language: TutorExplanationLanguage = TutorExplanationLanguage.VI
@@ -96,12 +97,6 @@ class TutorConversationFields(BaseModel):
     status: TutorSessionStatus
 
 
-class TutorConversationCreateResponse(TutorConversationFields):
-    """Response returned after creating a conversation and its opening AI message."""
-
-    initial_message: TutorMessageResponse
-
-
 class TutorConversationListItem(TutorConversationFields):
     """Compact conversation item used by the history endpoint."""
 
@@ -119,6 +114,10 @@ class TutorConversationDetailResponse(TutorConversationFields):
     started_at: datetime
     ended_at: datetime | None = None
     messages: list[TutorMessageResponse] = Field(default_factory=list)
+
+
+class TutorConversationCreateResponse(TutorConversationDetailResponse):
+    """Response returned after creating or replaying a Tutor conversation."""
 
 
 class TutorMessageCreateRequest(BaseModel):

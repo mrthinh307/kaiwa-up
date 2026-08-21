@@ -19,6 +19,7 @@ from app.schemas.tutor import (
 def test_conversation_create_requires_topic_and_accepts_optional_scenario() -> None:
     request = TutorConversationCreateRequest(
         topic="  Du lịch Nhật Bản  ",
+        client_conversation_id=uuid.uuid4(),
         difficulty=JlptLevel.N3,
         scenario="  Hỏi bạn về kế hoạch đi Kyoto.  ",
     )
@@ -32,6 +33,7 @@ def test_conversation_create_requires_topic_and_accepts_optional_scenario() -> N
 def test_conversation_create_accepts_selected_explanation_language() -> None:
     request = TutorConversationCreateRequest(
         topic="Du lịch Nhật Bản",
+        client_conversation_id=uuid.uuid4(),
         difficulty="N3",
         explanation_language="en",
     )
@@ -42,6 +44,7 @@ def test_conversation_create_accepts_selected_explanation_language() -> None:
 def test_conversation_create_normalizes_blank_scenario_to_none() -> None:
     request = TutorConversationCreateRequest(
         topic="Du lịch Nhật Bản",
+        client_conversation_id=uuid.uuid4(),
         difficulty="N3",
         scenario="   ",
     )
@@ -51,11 +54,15 @@ def test_conversation_create_normalizes_blank_scenario_to_none() -> None:
 
 def test_conversation_create_requires_topic_and_rejects_catalog_field() -> None:
     with pytest.raises(ValidationError):
-        TutorConversationCreateRequest(difficulty=JlptLevel.N3)
+        TutorConversationCreateRequest(
+            difficulty=JlptLevel.N3,
+            client_conversation_id=uuid.uuid4(),
+        )
 
     with pytest.raises(ValidationError):
         TutorConversationCreateRequest(
             topic="Du lịch",
+            client_conversation_id=uuid.uuid4(),
             difficulty=JlptLevel.N3,
             scenario_id=uuid.uuid4(),
         )

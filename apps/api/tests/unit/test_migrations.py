@@ -5,6 +5,43 @@ from unittest.mock import MagicMock, patch
 from sqlalchemy import Text
 
 
+def test_tutor_conversation_idempotency_migration_adds_nullable_key_and_constraint() -> None:
+    migration_path = (
+        Path(__file__).resolve().parents[2]
+        / "alembic"
+        / "versions"
+        / "e6f7a8b9c0d1_add_tutor_conversation_idempotency.py"
+    )
+    migration = runpy.run_path(str(migration_path))
+    operations = MagicMock()
+
+    with patch.dict(migration["upgrade"].__globals__, {"op": operations}):
+        migration["upgrade"]()
+
+    added_column = operations.add_column.call_args.args[1]
+    assert added_column.name == "client_conversation_id"
+    assert added_column.nullable is True
+    operations.create_unique_constraint.assert_called_once_with(
+        "uq_tutor_sessions_client_conversation_id",
+        "tutor_sessions",
+        ["user_id", "client_conversation_id"],
+    )
+
+    downgrade_operations = MagicMock()
+    with patch.dict(migration["downgrade"].__globals__, {"op": downgrade_operations}):
+        migration["downgrade"]()
+
+    downgrade_operations.drop_constraint.assert_called_once_with(
+        "uq_tutor_sessions_client_conversation_id",
+        "tutor_sessions",
+        type_="unique",
+    )
+    downgrade_operations.drop_column.assert_called_once_with(
+        "tutor_sessions",
+        "client_conversation_id",
+    )
+
+
 def test_merge_listening_content_downgrade_converts_transcript_without_using_subquery() -> None:
     migration_path = (
         Path(__file__).resolve().parents[2]
@@ -31,6 +68,56 @@ def test_merge_listening_content_downgrade_converts_transcript_without_using_sub
     assert isinstance(alter_args.kwargs["existing_type"], Text)
     assert alter_args.kwargs["existing_nullable"] is True
     assert "postgresql_using" not in alter_args.kwargs
+
+
+def test_tutor_soft_delete_migration_adds_partial_indexes_and_safe_downgrade() -> None:
+    migration_path = (
+        Path(__file__).resolve().parents[2]
+        / "alembic"
+        / "versions"
+        / "f7a8b9c0d1e2_soft_delete_tutor_sessions.py"
+    )
+    migration = runpy.run_path(str(migration_path))
+    operations = MagicMock()
+
+    with patch.dict(migration["upgrade"].__globals__, {"op": operations}):
+        migration["upgrade"]()
+
+    added_column = operations.add_column.call_args.args[1]
+    assert added_column.name == "deleted_at"
+    assert added_column.nullable is True
+    assert added_column.type.timezone
+    operations.drop_constraint.assert_called_once_with(
+        "uq_tutor_sessions_client_conversation_id",
+        "tutor_sessions",
+        type_="unique",
+    )
+    operations.drop_index.assert_called_once_with(
+        "ix_tutor_sessions_user_id_started_at",
+        table_name="tutor_sessions",
+    )
+
+    created_indexes = {call.args[0]: call for call in operations.create_index.call_args_list}
+    idempotency_index = created_indexes["uq_tutor_sessions_active_client_conversation_id"]
+    assert idempotency_index.kwargs["unique"] is True
+    assert "deleted_at IS NULL" in str(idempotency_index.kwargs["postgresql_where"])
+    list_index = created_indexes["ix_tutor_sessions_user_id_started_at"]
+    assert "deleted_at IS NULL" in str(list_index.kwargs["postgresql_where"])
+
+    downgrade_operations = MagicMock()
+    with patch.dict(migration["downgrade"].__globals__, {"op": downgrade_operations}):
+        migration["downgrade"]()
+
+    assert "client_conversation_id = NULL" in downgrade_operations.execute.call_args.args[0].text
+    assert downgrade_operations.drop_column.call_args.args == (
+        "tutor_sessions",
+        "deleted_at",
+    )
+    downgrade_operations.create_unique_constraint.assert_called_once_with(
+        "uq_tutor_sessions_client_conversation_id",
+        "tutor_sessions",
+        ["user_id", "client_conversation_id"],
+    )
 
 
 def test_tutor_message_idempotency_migration_backfills_and_constrains_messages() -> None:

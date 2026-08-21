@@ -4,11 +4,14 @@ from typing import TypedDict
 from unittest.mock import AsyncMock
 
 import pytest
+from sqlalchemy.exc import IntegrityError
 
 from app.exceptions.ai import AiTimeoutError
 from app.exceptions.tutor import (
     TutorAiUnavailableError,
     TutorConversationCompletedError,
+    TutorConversationIdempotencyConflictError,
+    TutorConversationNotFoundError,
     TutorMessageIdempotencyConflictError,
     TutorResponsePendingError,
 )
@@ -81,6 +84,7 @@ class TimeoutTutorGateway(FakeAiGateway):
 def make_repository() -> AsyncMock:
     repository = AsyncMock(spec=TutorRepository)
     repository.session = AsyncMock()
+    repository.get_session_by_client_conversation_id.return_value = None
     return repository
 
 
@@ -91,6 +95,7 @@ def make_session(*, user_id: uuid.UUID, status: str = "active") -> TutorSession:
         topic="Du lịch",
         difficulty=JlptLevel.N3,
         scenario="Hỏi bạn về kế hoạch đi Kyoto.",
+        explanation_language=TutorExplanationLanguage.VI,
         status=status,
         started_at=NOW,
     )
@@ -156,33 +161,157 @@ async def test_create_conversation_uses_user_context_and_persists_opening_messag
     repository.create_session.return_value = tutor_session
     repository.create_message.return_value = opening
     gateway = RecordingTutorGateway()
+    request = TutorConversationCreateRequest(
+        topic=topic,
+        client_conversation_id=uuid.uuid4(),
+        difficulty=JlptLevel.N3,
+        scenario=scenario,
+    )
 
     response = await TutorService(repository, gateway).create_conversation(
         user_id=user_id,
-        data=TutorConversationCreateRequest(
-            topic=topic,
-            difficulty=JlptLevel.N3,
-            scenario=scenario,
-        ),
+        data=request,
     )
 
     assert response.conversation_id == tutor_session.id
-    assert response.initial_message.feedback is not None
-    assert response.initial_message.feedback.answer_hints[0].text_meaning.text == (
+    assert response.messages[0].feedback is not None
+    assert response.messages[0].feedback.answer_hints[0].text_meaning.text == (
         "Tôi muốn nói về du lịch."
     )
-    assert response.initial_message.text_meaning is not None
-    assert response.initial_message.text_meaning.text == "Xin chào!"
+    assert response.messages[0].text_meaning is not None
+    assert response.messages[0].text_meaning.text == "Xin chào!"
     assert gateway.calls[0]["scenario"] == scenario
     assert gateway.calls[0]["explanation_language"] == "vi"
     repository.create_session.assert_awaited_once_with(
         user_id=user_id,
+        client_conversation_id=request.client_conversation_id,
         topic=topic,
         difficulty=JlptLevel.N3,
         scenario=scenario,
         explanation_language=TutorExplanationLanguage.VI,
     )
     repository.session.commit.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_create_conversation_replays_existing_conversation_without_calling_gateway() -> None:
+    user_id = uuid.uuid4()
+    client_conversation_id = uuid.uuid4()
+    tutor_session = make_session(user_id=user_id)
+    opening = make_message(
+        session_id=tutor_session.id,
+        sender=TutorSender.AI,
+        sequence_number=1,
+        content="こんにちは！",
+    )
+    repository = make_repository()
+    repository.get_session_by_client_conversation_id.return_value = tutor_session
+    repository.list_messages.return_value = [opening]
+
+    response = await TutorService(repository, RecordingTutorGateway()).create_conversation(
+        user_id=user_id,
+        data=TutorConversationCreateRequest(
+            topic=tutor_session.topic,
+            client_conversation_id=client_conversation_id,
+            difficulty=JlptLevel.N3,
+            scenario=tutor_session.scenario,
+        ),
+    )
+
+    assert response.conversation_id == tutor_session.id
+    assert response.messages[0].id == opening.id
+    repository.create_session.assert_not_awaited()
+    repository.create_message.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_create_conversation_rejects_reused_key_with_different_payload() -> None:
+    user_id = uuid.uuid4()
+    tutor_session = make_session(user_id=user_id)
+    repository = make_repository()
+    repository.get_session_by_client_conversation_id.return_value = tutor_session
+
+    with pytest.raises(TutorConversationIdempotencyConflictError):
+        await TutorService(repository, RecordingTutorGateway()).create_conversation(
+            user_id=user_id,
+            data=TutorConversationCreateRequest(
+                topic="Khác chủ đề",
+                client_conversation_id=uuid.uuid4(),
+                difficulty=JlptLevel.N3,
+                scenario=tutor_session.scenario,
+            ),
+        )
+
+
+@pytest.mark.asyncio
+async def test_create_conversation_recovers_from_unique_constraint_race() -> None:
+    user_id = uuid.uuid4()
+    client_conversation_id = uuid.uuid4()
+    winning_session = make_session(user_id=user_id)
+    opening = make_message(
+        session_id=winning_session.id,
+        sender=TutorSender.AI,
+        sequence_number=1,
+        content="こんにちは！",
+    )
+    repository = make_repository()
+    repository.get_session_by_client_conversation_id.side_effect = [None, winning_session]
+    repository.create_session.side_effect = IntegrityError(
+        "duplicate client conversation id",
+        {},
+        ValueError("duplicate"),
+    )
+    repository.list_messages.return_value = [opening]
+
+    response = await TutorService(repository, RecordingTutorGateway()).create_conversation(
+        user_id=user_id,
+        data=TutorConversationCreateRequest(
+            topic=winning_session.topic,
+            client_conversation_id=client_conversation_id,
+            difficulty=JlptLevel.N3,
+            scenario=winning_session.scenario,
+        ),
+    )
+
+    assert response.conversation_id == winning_session.id
+    assert response.messages[0].id == opening.id
+    repository.session.rollback.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_create_conversation_can_retry_after_gateway_failure() -> None:
+    user_id = uuid.uuid4()
+    client_conversation_id = uuid.uuid4()
+    tutor_session = make_session(user_id=user_id)
+    opening = make_message(
+        session_id=tutor_session.id,
+        sender=TutorSender.AI,
+        sequence_number=1,
+        content="こんにちは！",
+    )
+    repository = make_repository()
+    repository.create_session.return_value = tutor_session
+    repository.create_message.return_value = opening
+    request = TutorConversationCreateRequest(
+        topic=tutor_session.topic,
+        client_conversation_id=client_conversation_id,
+        difficulty=JlptLevel.N3,
+        scenario=tutor_session.scenario,
+    )
+
+    with pytest.raises(TutorAiUnavailableError):
+        await TutorService(repository, TimeoutTutorGateway()).create_conversation(
+            user_id=user_id,
+            data=request,
+        )
+
+    response = await TutorService(repository, RecordingTutorGateway()).create_conversation(
+        user_id=user_id,
+        data=request,
+    )
+
+    assert response.conversation_id == tutor_session.id
+    repository.create_session.assert_awaited_once()
 
 
 @pytest.mark.asyncio
@@ -283,6 +412,56 @@ async def test_send_message_reuses_cached_reply_for_idempotent_retry() -> None:
 
 
 @pytest.mark.asyncio
+async def test_send_message_recovers_when_ai_reply_insert_races() -> None:
+    user_id = uuid.uuid4()
+    tutor_session = make_session(user_id=user_id)
+    client_message_id = uuid.uuid4()
+    opening = make_message(
+        session_id=tutor_session.id,
+        sender=TutorSender.AI,
+        sequence_number=1,
+        content="どこに行きたいですか？",
+    )
+    user_message = make_message(
+        session_id=tutor_session.id,
+        sender=TutorSender.USER,
+        sequence_number=2,
+        content="京都に行きたいです。",
+        client_message_id=client_message_id,
+    )
+    winning_ai_message = make_message(
+        session_id=tutor_session.id,
+        sender=TutorSender.AI,
+        sequence_number=3,
+        content="いいですね！",
+        feedback=ai_feedback(),
+    )
+    repository = make_repository()
+    repository.get_session_for_update.return_value = tutor_session
+    repository.get_user_message_by_client_id.return_value = None
+    repository.get_last_message.return_value = opening
+    repository.get_context_messages.return_value = [opening, user_message]
+    repository.get_message_by_sequence.side_effect = [None, winning_ai_message]
+    repository.create_message.side_effect = [
+        user_message,
+        IntegrityError("duplicate sequence", {}, ValueError("duplicate")),
+    ]
+
+    response = await TutorService(repository, RecordingTutorGateway()).send_message(
+        user_id=user_id,
+        conversation_id=tutor_session.id,
+        data=TutorMessageCreateRequest(
+            text=user_message.content,
+            client_message_id=client_message_id,
+        ),
+    )
+
+    assert response.user_message.id == user_message.id
+    assert response.ai_reply.id == winning_ai_message.id
+    assert repository.session.rollback.await_count == 1
+
+
+@pytest.mark.asyncio
 async def test_send_message_rejects_same_client_id_with_different_text() -> None:
     user_id = uuid.uuid4()
     tutor_session = make_session(user_id=user_id)
@@ -377,15 +556,78 @@ async def test_delete_conversation_deletes_owned_session() -> None:
     user_id = uuid.uuid4()
     tutor_session = make_session(user_id=user_id)
     repository = make_repository()
-    repository.get_session_for_update.return_value = tutor_session
+    repository.get_session_including_deleted_for_update.return_value = tutor_session
 
     await TutorService(repository, RecordingTutorGateway()).delete_conversation(
         user_id=user_id,
         conversation_id=tutor_session.id,
     )
 
-    repository.delete_session.assert_awaited_once_with(tutor_session)
+    assert tutor_session.deleted_at is not None
+    repository.soft_delete_session.assert_awaited_once_with(tutor_session)
     repository.session.commit.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_delete_conversation_is_idempotent_for_missing_or_deleted_session() -> None:
+    user_id = uuid.uuid4()
+    repository = make_repository()
+    repository.get_session_including_deleted_for_update.return_value = None
+
+    await TutorService(repository, RecordingTutorGateway()).delete_conversation(
+        user_id=user_id,
+        conversation_id=uuid.uuid4(),
+    )
+
+    repository.soft_delete_session.assert_not_awaited()
+
+    deleted_session = make_session(user_id=user_id)
+    deleted_session.deleted_at = NOW
+    repository.get_session_including_deleted_for_update.return_value = deleted_session
+
+    await TutorService(repository, RecordingTutorGateway()).delete_conversation(
+        user_id=user_id,
+        conversation_id=deleted_session.id,
+    )
+
+    repository.soft_delete_session.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_send_message_does_not_persist_ai_reply_after_delete_wins_race() -> None:
+    user_id = uuid.uuid4()
+    tutor_session = make_session(user_id=user_id)
+    opening = make_message(
+        session_id=tutor_session.id,
+        sender=TutorSender.AI,
+        sequence_number=1,
+        content="どこに行きたいですか？",
+    )
+    user_message = make_message(
+        session_id=tutor_session.id,
+        sender=TutorSender.USER,
+        sequence_number=2,
+        content="京都に行きたいです。",
+        client_message_id=uuid.uuid4(),
+    )
+    repository = make_repository()
+    repository.get_session_for_update.side_effect = [tutor_session, None]
+    repository.get_user_message_by_client_id.return_value = None
+    repository.get_last_message.return_value = opening
+    repository.get_context_messages.return_value = [opening, user_message]
+    repository.create_message.return_value = user_message
+
+    with pytest.raises(TutorConversationNotFoundError):
+        await TutorService(repository, RecordingTutorGateway()).send_message(
+            user_id=user_id,
+            conversation_id=tutor_session.id,
+            data=TutorMessageCreateRequest(
+                text=user_message.content,
+                client_message_id=user_message.client_message_id,
+            ),
+        )
+
+    repository.create_message.assert_awaited_once()
 
 
 @pytest.mark.asyncio

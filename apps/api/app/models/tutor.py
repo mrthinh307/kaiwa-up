@@ -40,15 +40,24 @@ class TutorSession(PrimaryKeyUuidMixin, Base):
             name="tutor_session_explanation_language",
         ),
         Index(
+            "uq_tutor_sessions_active_client_conversation_id",
+            "user_id",
+            "client_conversation_id",
+            unique=True,
+            postgresql_where=text("deleted_at IS NULL"),
+        ),
+        Index(
             "ix_tutor_sessions_user_id_started_at",
             "user_id",
             text("started_at DESC"),
+            postgresql_where=text("deleted_at IS NULL"),
         ),
     )
 
     user_id: Mapped[uuid.UUID] = mapped_column(
         Uuid, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
+    client_conversation_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, nullable=True)
     topic: Mapped[str] = mapped_column(String(255), nullable=False)
     difficulty: Mapped[JlptLevel] = mapped_column(
         Enum(
@@ -76,6 +85,7 @@ class TutorSession(PrimaryKeyUuidMixin, Base):
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
     ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     messages: Mapped[list["TutorMessage"]] = relationship(
         back_populates="session",
