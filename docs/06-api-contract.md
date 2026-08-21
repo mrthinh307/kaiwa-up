@@ -120,7 +120,10 @@ Dưới đây là các Schema Pydantic/JSON được tái sử dụng tại các
 ```json
 {
   "text": "京都に行きたいです。",
-  "meaning_vi": "Tôi muốn đi Kyoto."
+  "text_meaning": {
+    "language": "vi",
+    "text": "Tôi muốn đi Kyoto."
+  }
 }
 ```
 
@@ -130,12 +133,16 @@ Mỗi AI question có tối đa 3 `TutorAnswerHintSchema`. Frontend chỉ điề
 ### TutorFeedbackSchema
 ```json
 {
+  "explanation_language": "vi",
   "grammar_correction": "Cụm 「お寺を見ます」 đang diễn tả hành động hiện tại. Để nói mong muốn, hãy dùng 「お寺を見たいです」.",
   "natural_expression_tip": "Bạn có thể diễn đạt tự nhiên hơn bằng câu 「京都でお寺めぐりをしたいです」.",
   "answer_hints": [
     {
       "text": "金閣寺に行きたいです。",
-      "meaning_vi": "Tôi muốn đi Kinkaku-ji."
+      "text_meaning": {
+        "language": "vi",
+        "text": "Tôi muốn đi Kinkaku-ji."
+      }
     }
   ]
 }
@@ -151,7 +158,10 @@ luôn là array và rỗng khi AI không tạo gợi ý.
     "sender": "ai",
     "sequence_number": 3,
     "text": "京都のお寺はとても綺麗ですよ！",
-    "text_vi": "Các ngôi chùa ở Kyoto rất đẹp!",
+    "text_meaning": {
+      "language": "vi",
+      "text": "Các ngôi chùa ở Kyoto rất đẹp!"
+    },
   "client_message_id": null,
   "created_at": "2026-08-06T14:51:05.000Z",
   "feedback": {
@@ -1476,11 +1486,18 @@ ra public contract.
   {
     "topic": "Du lịch Nhật Bản",
     "difficulty": "N3",
-    "scenario": "Bạn đang hỏi một người bạn về kế hoạch đi Kyoto."
+    "scenario": "Bạn đang hỏi một người bạn về kế hoạch đi Kyoto.",
+    "explanation_language": "vi"
   }
   ```
   `topic` và `difficulty` bắt buộc. `scenario` tùy chọn; chuỗi scenario rỗng được chuẩn hóa thành
-  `null`.
+  `null`. `explanation_language` tùy chọn, nhận `vi`, `en` hoặc `ja`, mặc định là `vi`; nó quy định
+  ngôn ngữ của phần giải thích grammar/natural expression trong feedback.
+
+  `text` luôn là tiếng Nhật. `text_meaning.language` và mọi `answer_hints[].text_meaning.language`
+  phải khớp `explanation_language`; nội dung trong `text_meaning.text` được hiển thị theo ngôn ngữ
+  đó. Backend yêu cầu response của provider khớp structured TutorReply schema; response sai sẽ được
+  repair một lần, nếu vẫn sai thì trả lỗi service unavailable.
 * **Response Schema (201 Created)**:
   ```json
   {
@@ -1488,22 +1505,24 @@ ra public contract.
     "topic": "Du lịch Nhật Bản",
     "difficulty": "N3",
     "scenario": "Bạn đang hỏi bạn bè về kế hoạch đi Kyoto.",
+    "explanation_language": "vi",
     "status": "active",
     "initial_message": {
       "sender": "ai",
       "sequence_number": 1,
-      "text": "こんにちは！日本旅行について話しましょう。どこに行きたいですか？",
-      "text_vi": "Xin chào! Hãy cùng nói về chuyến du lịch Nhật Bản nhé. Bạn muốn đi đâu?",
+      "text": "日本旅行について練習しましょう。あなたから話し始めてください。",
+      "text_meaning": {
+        "language": "vi",
+        "text": "Hãy cùng luyện hội thoại về du lịch Nhật Bản. Bạn hãy bắt đầu nói trước nhé."
+      },
       "created_at": "2026-08-06T14:50:00.000Z",
       "feedback": {
+        "explanation_language": "vi",
         "grammar_correction": null,
+        "corrections": [],
         "natural_expression_tip": null,
-        "answer_hints": [
-          {
-            "text": "京都に行きたいです。",
-            "meaning_vi": "Tôi muốn đi Kyoto."
-          }
-        ]
+        "natural_expression_example_ja": null,
+        "answer_hints": []
       }
     }
   }
@@ -1533,6 +1552,7 @@ ra public contract.
         "topic": "Du lịch Nhật Bản",
         "difficulty": "N3",
         "scenario": "Bạn đang hỏi bạn bè về kế hoạch đi Kyoto.",
+        "explanation_language": "vi",
         "status": "active",
         "last_message_text": "京都に行きたいです。",
         "updated_at": "2026-08-06T14:52:00.000Z"
@@ -1565,6 +1585,7 @@ ra public contract.
     "topic": "Du lịch Nhật Bản",
     "difficulty": "N3",
     "scenario": "Bạn đang hỏi bạn bè về kế hoạch đi Kyoto.",
+    "explanation_language": "vi",
     "status": "active",
     "started_at": "2026-08-06T14:50:00.000Z",
     "ended_at": null,
@@ -1573,12 +1594,18 @@ ra public contract.
         "id": "msg_01",
         "sender": "ai",
         "sequence_number": 1,
-        "text": "こんにちは！日本旅行について話しましょう。どこに行きたいですか？",
-        "text_vi": "Xin chào! Hãy cùng nói về chuyến du lịch Nhật Bản nhé. Bạn muốn đi đâu?",
+        "text": "日本旅行について練習しましょう。あなたから話し始めてください。",
+        "text_meaning": {
+          "language": "vi",
+          "text": "Hãy cùng luyện hội thoại về du lịch Nhật Bản. Bạn hãy bắt đầu nói trước nhé."
+        },
         "created_at": "2026-08-06T14:50:00.000Z",
         "feedback": {
+          "explanation_language": "vi",
           "grammar_correction": null,
+          "corrections": [],
           "natural_expression_tip": null,
+          "natural_expression_example_ja": null,
           "answer_hints": []
         }
       },
@@ -1587,7 +1614,7 @@ ra public contract.
         "sender": "user",
         "sequence_number": 2,
         "text": "京都に行きたいです。",
-        "text_vi": null,
+        "text_meaning": null,
         "client_message_id": "333e8400-e29b-41d4-a716-446655440333",
         "created_at": "2026-08-06T14:51:00.000Z",
         "feedback": null
@@ -1625,7 +1652,7 @@ ra public contract.
       "sender": "user",
       "sequence_number": 2,
       "text": "京都に行きたいです。お寺を見ます。",
-      "text_vi": null,
+      "text_meaning": null,
       "client_message_id": "333e8400-e29b-41d4-a716-446655440333",
       "created_at": "2026-08-06T14:51:00.000Z",
       "feedback": null
@@ -1635,15 +1662,30 @@ ra public contract.
       "sender": "ai",
       "sequence_number": 3,
       "text": "京都のお寺はとても綺麗ですよ！金閣寺や清水寺が有名です。どちらに行きたいですか？",
-      "text_vi": "Các ngôi chùa ở Kyoto rất đẹp! Kinkaku-ji và Kiyomizu-dera rất nổi tiếng. Bạn muốn đi đâu?",
+      "text_meaning": {
+        "language": "vi",
+        "text": "Các ngôi chùa ở Kyoto rất đẹp! Kinkaku-ji và Kiyomizu-dera rất nổi tiếng. Bạn muốn đi đâu?"
+      },
       "created_at": "2026-08-06T14:51:05.000Z",
       "feedback": {
+        "explanation_language": "vi",
         "grammar_correction": "Cụm 「お寺を見ます」 đang diễn tả hành động hiện tại. Để nói mong muốn, hãy dùng 「お寺を見たいです」.",
+        "corrections": [
+          {
+            "original": "お寺を見ます",
+            "corrected": "お寺を見たいです",
+            "explanation": "Cụm này diễn tả hành động hiện tại; để nói mong muốn, dùng mẫu 「～たいです」."
+          }
+        ],
         "natural_expression_tip": "Bạn có thể diễn đạt tự nhiên hơn bằng câu 「京都でお寺めぐりをしたいです」.",
+        "natural_expression_example_ja": "京都でお寺めぐりをしたいです。",
         "answer_hints": [
           {
             "text": "金閣寺に行きたいです。",
-            "meaning_vi": "Tôi muốn đi Kinkaku-ji."
+            "text_meaning": {
+              "language": "vi",
+              "text": "Tôi muốn đi Kinkaku-ji."
+            }
           }
         ]
       }

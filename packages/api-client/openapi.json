@@ -5010,18 +5010,15 @@
             "minLength": 1,
             "title": "Text"
           },
-          "meaning_vi": {
-            "type": "string",
-            "maxLength": 500,
-            "minLength": 1,
-            "title": "Meaning Vi"
+          "text_meaning": {
+            "$ref": "#/components/schemas/TutorTextMeaningResponse"
           }
         },
         "additionalProperties": false,
         "type": "object",
-        "required": ["text", "meaning_vi"],
+        "required": ["text", "text_meaning"],
         "title": "TutorAnswerHintResponse",
-        "description": "A short answer suggestion and its Vietnamese meaning."
+        "description": "A short answer suggestion and its localized meaning."
       },
       "TutorConversationCreateRequest": {
         "properties": {
@@ -5045,6 +5042,10 @@
               }
             ],
             "title": "Scenario"
+          },
+          "explanation_language": {
+            "$ref": "#/components/schemas/TutorExplanationLanguage",
+            "default": "vi"
           }
         },
         "additionalProperties": false,
@@ -5077,6 +5078,10 @@
               }
             ],
             "title": "Scenario"
+          },
+          "explanation_language": {
+            "$ref": "#/components/schemas/TutorExplanationLanguage",
+            "default": "vi"
           },
           "status": {
             "type": "string",
@@ -5122,6 +5127,10 @@
               }
             ],
             "title": "Scenario"
+          },
+          "explanation_language": {
+            "$ref": "#/components/schemas/TutorExplanationLanguage",
+            "default": "vi"
           },
           "status": {
             "type": "string",
@@ -5188,6 +5197,10 @@
               }
             ],
             "title": "Scenario"
+          },
+          "explanation_language": {
+            "$ref": "#/components/schemas/TutorExplanationLanguage",
+            "default": "vi"
           },
           "status": {
             "type": "string",
@@ -5263,8 +5276,44 @@
         "title": "TutorConversationListResponse",
         "description": "Paginated Tutor conversation history."
       },
+      "TutorCorrectionResponse": {
+        "properties": {
+          "original": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Original"
+          },
+          "corrected": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Corrected"
+          },
+          "explanation": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Explanation"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["original", "corrected", "explanation"],
+        "title": "TutorCorrectionResponse",
+        "description": "A structured correction with a localized explanation."
+      },
+      "TutorExplanationLanguage": {
+        "type": "string",
+        "enum": ["vi", "en", "ja"],
+        "title": "TutorExplanationLanguage"
+      },
       "TutorFeedbackResponse": {
         "properties": {
+          "explanation_language": {
+            "$ref": "#/components/schemas/TutorExplanationLanguage",
+            "default": "vi"
+          },
           "grammar_correction": {
             "anyOf": [
               {
@@ -5276,6 +5325,14 @@
               }
             ],
             "title": "Grammar Correction"
+          },
+          "corrections": {
+            "items": {
+              "$ref": "#/components/schemas/TutorCorrectionResponse"
+            },
+            "type": "array",
+            "maxItems": 3,
+            "title": "Corrections"
           },
           "natural_expression_tip": {
             "anyOf": [
@@ -5289,6 +5346,18 @@
             ],
             "title": "Natural Expression Tip"
           },
+          "natural_expression_example_ja": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Natural Expression Example Ja"
+          },
           "answer_hints": {
             "items": {
               "$ref": "#/components/schemas/TutorAnswerHintResponse"
@@ -5298,7 +5367,6 @@
             "title": "Answer Hints"
           }
         },
-        "additionalProperties": false,
         "type": "object",
         "title": "TutorFeedbackResponse",
         "description": "Normalized feedback attached to an AI Tutor message."
@@ -5358,17 +5426,15 @@
             "minLength": 1,
             "title": "Text"
           },
-          "text_vi": {
+          "text_meaning": {
             "anyOf": [
               {
-                "type": "string",
-                "maxLength": 2000
+                "$ref": "#/components/schemas/TutorTextMeaningResponse"
               },
               {
                 "type": "null"
               }
-            ],
-            "title": "Text Vi"
+            ]
           },
           "client_message_id": {
             "anyOf": [
@@ -5407,6 +5473,24 @@
         "type": "string",
         "enum": ["user", "ai"],
         "title": "TutorSender"
+      },
+      "TutorTextMeaningResponse": {
+        "properties": {
+          "language": {
+            "$ref": "#/components/schemas/TutorExplanationLanguage"
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Text"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["language", "text"],
+        "title": "TutorTextMeaningResponse",
+        "description": "Localized meaning for Japanese text."
       },
       "UserResponse": {
         "properties": {

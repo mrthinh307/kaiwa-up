@@ -1518,17 +1518,14 @@ export type TranscriptSegment = {
 /**
  * TutorAnswerHintResponse
  *
- * A short answer suggestion and its Vietnamese meaning.
+ * A short answer suggestion and its localized meaning.
  */
 export type TutorAnswerHintResponse = {
   /**
    * Text
    */
   text: string;
-  /**
-   * Meaning Vi
-   */
-  meaning_vi: string;
+  text_meaning: TutorTextMeaningResponse;
 };
 
 /**
@@ -1546,6 +1543,7 @@ export type TutorConversationCreateRequest = {
    * Scenario
    */
   scenario?: string | null;
+  explanation_language?: TutorExplanationLanguage;
 };
 
 /**
@@ -1567,6 +1565,7 @@ export type TutorConversationCreateResponse = {
    * Scenario
    */
   scenario?: string | null;
+  explanation_language?: TutorExplanationLanguage;
   /**
    * Status
    */
@@ -1593,6 +1592,7 @@ export type TutorConversationDetailResponse = {
    * Scenario
    */
   scenario?: string | null;
+  explanation_language?: TutorExplanationLanguage;
   /**
    * Status
    */
@@ -1630,6 +1630,7 @@ export type TutorConversationListItem = {
    * Scenario
    */
   scenario?: string | null;
+  explanation_language?: TutorExplanationLanguage;
   /**
    * Status
    */
@@ -1673,19 +1674,53 @@ export type TutorConversationListResponse = {
 };
 
 /**
+ * TutorCorrectionResponse
+ *
+ * A structured correction with a localized explanation.
+ */
+export type TutorCorrectionResponse = {
+  /**
+   * Original
+   */
+  original: string;
+  /**
+   * Corrected
+   */
+  corrected: string;
+  /**
+   * Explanation
+   */
+  explanation: string;
+};
+
+/**
+ * TutorExplanationLanguage
+ */
+export type TutorExplanationLanguage = "vi" | "en" | "ja";
+
+/**
  * TutorFeedbackResponse
  *
  * Normalized feedback attached to an AI Tutor message.
  */
 export type TutorFeedbackResponse = {
+  explanation_language?: TutorExplanationLanguage;
   /**
    * Grammar Correction
    */
   grammar_correction?: string | null;
   /**
+   * Corrections
+   */
+  corrections?: Array<TutorCorrectionResponse>;
+  /**
    * Natural Expression Tip
    */
   natural_expression_tip?: string | null;
+  /**
+   * Natural Expression Example Ja
+   */
+  natural_expression_example_ja?: string | null;
   /**
    * Answer Hints
    */
@@ -1737,10 +1772,7 @@ export type TutorMessageResponse = {
    * Text
    */
   text: string;
-  /**
-   * Text Vi
-   */
-  text_vi?: string | null;
+  text_meaning?: TutorTextMeaningResponse | null;
   /**
    * Client Message Id
    */
@@ -1756,6 +1788,19 @@ export type TutorMessageResponse = {
  * TutorSender
  */
 export type TutorSender = "user" | "ai";
+
+/**
+ * TutorTextMeaningResponse
+ *
+ * Localized meaning for Japanese text.
+ */
+export type TutorTextMeaningResponse = {
+  language: TutorExplanationLanguage;
+  /**
+   * Text
+   */
+  text: string;
+};
 
 /**
  * UserResponse
