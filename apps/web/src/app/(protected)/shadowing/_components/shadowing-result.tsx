@@ -3,14 +3,17 @@
 import type { ShadowingAttemptReviewResponse } from "@kaiwa-app/api-client";
 
 import {
+  AlertCircle,
   ArrowLeft,
   CheckCircle2,
   Headphones,
+  Lightbulb,
   Mic,
   Pause,
   Play,
   Radio,
   RotateCcw,
+  Sparkles,
   Star,
   Trophy,
   Video,
@@ -339,6 +342,105 @@ export function ShadowingResult({ onPracticeAgain, review }: ShadowingResultProp
                     </p>
                   </div>
                 </div>
+
+                {review.user_continuous_transcript && (
+                  <div className="rounded-base border-2 border-border/70 bg-background p-3.5 space-y-1">
+                    <p className="text-xs font-heading text-foreground/70 flex items-center gap-1.5">
+                      <Mic className="size-3.5 text-main" /> Recognized Speech (STT):
+                    </p>
+                    <p className="text-sm font-heading text-foreground leading-relaxed">
+                      {review.user_continuous_transcript}
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* AI Learning Feedback Card (Informational Only) */}
+          {review.ai_feedback && (
+            <Card className="border-2 border-border bg-secondary-background shadow-shadow">
+              <CardHeader className="pb-3 border-b border-border/40">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <CardTitle className="flex items-center gap-2 text-base font-heading">
+                    <Sparkles className="size-5 text-main" />
+                    <span>AI Learning Feedback</span>
+                  </CardTitle>
+                  <div className="flex items-center gap-2">
+                    {review.ai_feedback.similarity_score !== null &&
+                      review.ai_feedback.similarity_score !== undefined && (
+                        <Badge className="bg-main text-main-foreground font-heading text-xs">
+                          AI Similarity: {Number(review.ai_feedback.similarity_score).toFixed(0)}%
+                        </Badge>
+                      )}
+                    <Badge className="font-heading text-xs" variant="neutral">
+                      Informational
+                    </Badge>
+                  </div>
+                </div>
+                <p className="text-[11px] text-foreground/60">
+                  This AI evaluation is provided solely for your learning reference and does not
+                  affect your lesson score or EXP.
+                </p>
+              </CardHeader>
+              <CardContent className="p-4 sm:p-5 space-y-4">
+                {/* AI Pedagogical Feedback */}
+                {review.ai_feedback.feedback && (
+                  <div className="space-y-1">
+                    <p className="text-xs font-heading uppercase text-foreground/70">
+                      Overall Assessment
+                    </p>
+                    <p className="text-sm text-foreground leading-relaxed bg-background/80 rounded-base border border-border/70 p-3">
+                      {review.ai_feedback.feedback}
+                    </p>
+                  </div>
+                )}
+
+                {/* Corrections List */}
+                {review.ai_feedback.corrections && review.ai_feedback.corrections.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-heading uppercase text-foreground/70 flex items-center gap-1">
+                      <AlertCircle className="size-3.5 text-chart-4" />
+                      Pronunciation & Word Corrections
+                    </p>
+                    <div className="space-y-2">
+                      {review.ai_feedback.corrections.map((corr, idx) => (
+                        <div
+                          className="rounded-base border border-border/80 bg-background p-3 text-xs space-y-1"
+                          key={idx}
+                        >
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="line-through text-destructive font-heading bg-destructive/10 px-1.5 py-0.5 rounded">
+                              {corr.original}
+                            </span>
+                            <span className="text-foreground/60">→</span>
+                            <span className="text-success font-heading bg-success/10 px-1.5 py-0.5 rounded">
+                              {corr.corrected}
+                            </span>
+                          </div>
+                          {corr.reason && (
+                            <p className="text-foreground/75 text-[11px]">{corr.reason}</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Pronunciation Hints */}
+                {review.ai_feedback.hints && review.ai_feedback.hints.length > 0 && (
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-heading uppercase text-foreground/70 flex items-center gap-1">
+                      <Lightbulb className="size-3.5 text-chart-3" />
+                      Actionable Improvement Tips
+                    </p>
+                    <ul className="list-disc list-inside space-y-1 text-xs text-foreground/80 bg-background/60 rounded-base border border-border/60 p-3">
+                      {review.ai_feedback.hints.map((hint, idx) => (
+                        <li key={idx}>{hint}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}
@@ -459,6 +561,18 @@ export function ShadowingResult({ onPracticeAgain, review }: ShadowingResultProp
                         <p className="font-heading text-lg sm:text-xl leading-relaxed text-foreground mb-3">
                           {segment.script}
                         </p>
+
+                        {/* Recognized Voice Transcript (if available) */}
+                        {segment.user_transcript && (
+                          <div className="rounded-base border border-border/70 bg-background/90 p-2.5 mb-3 text-xs space-y-1">
+                            <span className="font-heading text-foreground/70 flex items-center gap-1 text-[11px]">
+                              <Mic className="size-3 text-main" /> Recognized Voice:
+                            </span>
+                            <p className="font-heading text-foreground text-sm">
+                              {segment.user_transcript}
+                            </p>
+                          </div>
+                        )}
 
                         {/* Audio Comparison Controls */}
                         <div className="flex flex-wrap items-center gap-2 pt-1">

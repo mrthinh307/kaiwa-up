@@ -4671,6 +4671,70 @@
         "required": ["items"],
         "title": "ReviewScheduleListResponse"
       },
+      "ShadowingAiFeedback": {
+        "properties": {
+          "similarity_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Similarity Score"
+          },
+          "fluency_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fluency Score"
+          },
+          "feedback": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Feedback"
+          },
+          "corrections": {
+            "items": {
+              "$ref": "#/components/schemas/ShadowingCorrection"
+            },
+            "type": "array",
+            "title": "Corrections"
+          },
+          "hints": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Hints"
+          },
+          "user_transcript": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Transcript"
+          }
+        },
+        "type": "object",
+        "title": "ShadowingAiFeedback"
+      },
       "ShadowingAttemptReviewResponse": {
         "properties": {
           "attempt_id": {
@@ -4777,6 +4841,27 @@
               }
             ],
             "title": "User Continuous Duration Seconds"
+          },
+          "user_continuous_transcript": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Continuous Transcript"
+          },
+          "ai_feedback": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ShadowingAiFeedback"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "segments": {
             "items": {
@@ -4916,6 +5001,25 @@
         "type": "object",
         "required": ["recording_id", "storage_key", "duration_seconds"],
         "title": "ShadowingContinuousRecordingSummary"
+      },
+      "ShadowingCorrection": {
+        "properties": {
+          "original": {
+            "type": "string",
+            "title": "Original"
+          },
+          "corrected": {
+            "type": "string",
+            "title": "Corrected"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": ["original", "corrected", "reason"],
+        "title": "ShadowingCorrection"
       },
       "ShadowingMode": {
         "type": "string",
@@ -5172,6 +5276,28 @@
               }
             ],
             "title": "Duration Seconds"
+          },
+          "user_transcript": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Transcript"
+          },
+          "similarity_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Similarity Score"
           }
         },
         "type": "object",
@@ -5235,6 +5361,16 @@
             "type": "string",
             "format": "date-time",
             "title": "Completed At"
+          },
+          "ai_feedback": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ShadowingAiFeedback"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",

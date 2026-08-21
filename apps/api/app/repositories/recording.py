@@ -4,9 +4,15 @@ from decimal import Decimal
 
 from sqlalchemy import func, select
 
-from app.models.attempt import ExerciseAttempt, Recording
+from app.models.attempt import AiEvaluation, ExerciseAttempt, Recording
 from app.models.content import LearningContent
-from app.models.enums import AttemptStatus, ContentStatus, ContentType, RecordingKind
+from app.models.enums import (
+    AiEvaluationStatus,
+    AttemptStatus,
+    ContentStatus,
+    ContentType,
+    RecordingKind,
+)
 from app.models.user import User
 from app.repositories.base import BaseRepository
 
@@ -205,3 +211,50 @@ class RecordingRepository(BaseRepository):
         if result is None:
             return None
         return result[0], result[1], result[2]
+
+    async def create_ai_evaluation(
+        self,
+        *,
+        attempt_id: uuid.UUID,
+        recording_id: uuid.UUID | None = None,
+        status: AiEvaluationStatus = AiEvaluationStatus.COMPLETED,
+        provider: str | None = None,
+        model: str | None = None,
+        similarity_score: Decimal | None = None,
+        fluency_score: Decimal | None = None,
+        feedback: str | None = None,
+        details: dict[str, object] | None = None,
+        error_message: str | None = None,
+        completed_at: datetime | None = None,
+    ) -> AiEvaluation:
+        evaluation = AiEvaluation(
+            attempt_id=attempt_id,
+            recording_id=recording_id,
+            status=status,
+            provider=provider,
+            model=model,
+            similarity_score=similarity_score,
+            fluency_score=fluency_score,
+            feedback=feedback,
+            details=details,
+            error_message=error_message,
+            completed_at=completed_at,
+        )
+        self.session.add(evaluation)
+        await self.session.flush()
+        return evaluation
+
+    async def get_latest_ai_evaluation(self, attempt_id: uuid.UUID) -> AiEvaluation | None:
+        result = await self.session.execute(
+            select(AiEvaluation)
+            .where(AiEvaluation.attempt_id == attempt_id)
+            .order_by(AiEvaluation.created_at.desc())
+        )
+        return result.scalars().first()
+
+    async def update_recording_transcription(
+        self,
+        recording: Recording,
+        transcription_ja: str,
+    ) -> None:
+        recording.transcription_ja = transcription_ja

@@ -1155,6 +1155,36 @@ export type ReviewScheduleListResponse = {
 };
 
 /**
+ * ShadowingAiFeedback
+ */
+export type ShadowingAiFeedback = {
+  /**
+   * Similarity Score
+   */
+  similarity_score?: number | null;
+  /**
+   * Fluency Score
+   */
+  fluency_score?: number | null;
+  /**
+   * Feedback
+   */
+  feedback?: string | null;
+  /**
+   * Corrections
+   */
+  corrections?: Array<ShadowingCorrection>;
+  /**
+   * Hints
+   */
+  hints?: Array<string>;
+  /**
+   * User Transcript
+   */
+  user_transcript?: string | null;
+};
+
+/**
  * ShadowingAttemptReviewResponse
  */
 export type ShadowingAttemptReviewResponse = {
@@ -1212,6 +1242,11 @@ export type ShadowingAttemptReviewResponse = {
    * User Continuous Duration Seconds
    */
   user_continuous_duration_seconds?: number | null;
+  /**
+   * User Continuous Transcript
+   */
+  user_continuous_transcript?: string | null;
+  ai_feedback?: ShadowingAiFeedback | null;
   /**
    * Segments
    */
@@ -1278,6 +1313,24 @@ export type ShadowingContinuousRecordingSummary = {
    * Created At
    */
   created_at?: string | null;
+};
+
+/**
+ * ShadowingCorrection
+ */
+export type ShadowingCorrection = {
+  /**
+   * Original
+   */
+  original: string;
+  /**
+   * Corrected
+   */
+  corrected: string;
+  /**
+   * Reason
+   */
+  reason: string;
 };
 
 /**
@@ -1453,6 +1506,14 @@ export type ShadowingSegmentReviewItem = {
    * Duration Seconds
    */
   duration_seconds?: number | null;
+  /**
+   * User Transcript
+   */
+  user_transcript?: string | null;
+  /**
+   * Similarity Score
+   */
+  similarity_score?: number | null;
 };
 
 /**
@@ -1503,6 +1564,7 @@ export type ShadowingSubmitResponse = {
    * Completed At
    */
   completed_at: string;
+  ai_feedback?: ShadowingAiFeedback | null;
 };
 
 /**

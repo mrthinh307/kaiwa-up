@@ -95,3 +95,24 @@ class StorageService:
         if storage_key.startswith("http://") or storage_key.startswith("https://"):
             return storage_key
         return f"/static/{storage_key}"
+
+    async def get_audio_bytes(self, storage_key: str) -> bytes:
+        """Reads raw audio bytes from local disk or remote Cloudinary URL."""
+        if storage_key.startswith("http://") or storage_key.startswith("https://"):
+            import httpx
+
+            async with httpx.AsyncClient(timeout=20.0) as client:
+                response = await client.get(storage_key)
+                response.raise_for_status()
+                return response.content
+
+        clean_key = storage_key
+        if clean_key.startswith("/static/"):
+            clean_key = clean_key[len("/static/") :]
+        if clean_key.startswith("recordings/"):
+            clean_key = clean_key[len("recordings/") :]
+
+        target_path = self.storage_dir / clean_key
+        if not target_path.exists():
+            raise FileNotFoundError(f"Recording audio not found at {target_path}")
+        return target_path.read_bytes()
