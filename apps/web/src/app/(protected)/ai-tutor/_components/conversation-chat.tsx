@@ -9,12 +9,23 @@ import type {
   TutorMessageResponse,
 } from "@kaiwa-app/api-client";
 
-import { ChevronDown, Lightbulb, LoaderCircle, RefreshCw, Send } from "lucide-react";
+import {
+  Bot,
+  ChevronDown,
+  Lightbulb,
+  LoaderCircle,
+  RefreshCw,
+  Send,
+  UserRound,
+} from "lucide-react";
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { ProtectedUserAvatar } from "@/components/layouts/protected-user-avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { getUserDisplayName } from "@/contexts/auth-context";
+import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 
 import { isTutorRequestError, type TutorRetryScheduled } from "../_lib/ai-tutor-request";
@@ -140,13 +151,41 @@ function TutorFeedback({
 }
 
 function TutorMessage({ message, onHintSelect }: TutorMessageProps) {
+  const { user } = useAuth();
   const isUserMessage = message.sender === "user";
 
+  const userAvatar = user ? (
+    <ProtectedUserAvatar
+      avatarUrl={user.avatar_url}
+      className="size-9 border-2 text-sm"
+      displayName={getUserDisplayName(user)}
+    />
+  ) : (
+    <span
+      aria-hidden="true"
+      className="flex size-9 shrink-0 items-center justify-center rounded-full border-2 border-border bg-main text-main-foreground shadow-shadow"
+    >
+      <UserRound className="size-4" />
+    </span>
+  );
+
+  const aiAvatar = (
+    <span
+      aria-hidden="true"
+      className="flex size-9 shrink-0 items-center justify-center rounded-full border-2 border-border bg-main text-main-foreground shadow-shadow"
+    >
+      <Bot className="size-4" />
+    </span>
+  );
+
   return (
-    <article className={cn("flex", isUserMessage ? "justify-end" : "justify-start")}>
+    <article
+      className={cn("flex items-end gap-3", isUserMessage ? "justify-end" : "justify-start")}
+    >
+      {!isUserMessage ? aiAvatar : null}
       <div
         className={cn(
-          "w-full max-w-[760px] rounded-base border-2 border-border p-3 shadow-shadow sm:p-4",
+          "min-w-0 w-full max-w-[760px] rounded-base border-2 border-border p-3 shadow-shadow sm:p-4",
           isUserMessage ? "bg-main text-main-foreground" : "bg-secondary-background",
         )}
       >
@@ -176,6 +215,7 @@ function TutorMessage({ message, onHintSelect }: TutorMessageProps) {
           <TutorFeedback feedback={message.feedback} onHintSelect={onHintSelect} />
         ) : null}
       </div>
+      {isUserMessage ? userAvatar : null}
     </article>
   );
 }
