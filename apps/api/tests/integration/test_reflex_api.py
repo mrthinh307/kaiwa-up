@@ -5,6 +5,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies.ai import get_ai_gateway
 from app.api.dependencies.auth import get_current_user
+from app.exceptions.ai import AiTimeoutError
+from app.integrations.ai.contracts import TranscriptionResult
 from app.integrations.ai.providers.fake import FakeAiGateway
 from app.main import app
 from app.models.attempt import AiEvaluation, ExerciseAttempt, ReviewSchedule
@@ -66,15 +68,16 @@ async def test_evaluate_reflex_persists_result_schedule_and_exp(
     response = await client.post(
         f"/api/v1/reflex/lessons/{content.id}/evaluate",
         data={"response_start_ms": "3000"},
-        files={"audio_file": ("answer.webm", b"valid-audio", "audio/webm")},
+        files={"audio_file": ("answer.mp3", b"ID3valid-audio", "audio/mpeg")},
     )
 
-    assert response.status_code == 201
+    assert response.status_code == 200
     payload = response.json()
-    assert payload["score"] == 100
+    assert payload["ai_score"] == 100
+    assert payload["response_start_ms"] == 3000
     assert payload["is_on_time"] is True
-    assert payload["review_interval_days"] == 7
-    assert payload["earned_exp"] == 50
+    assert payload["next_review_days"] == 7
+    assert payload["exp_earned"] == 50
 
     attempt = await db_session.scalar(
         select(ExerciseAttempt).where(ExerciseAttempt.content_id == content.id)
@@ -109,9 +112,11 @@ async def test_reflex_catalog_excludes_draft_lessons(
     response = await client.get("/api/v1/reflex/lessons")
 
     assert response.status_code == 200
-    ids = {item["id"] for item in response.json()}
+    payload = response.json()
+    ids = {item["id"] for item in payload["items"]}
     assert str(published.id) in ids
     assert str(draft.id) not in ids
+    assert payload["items"][0]["is_completed"] is False
 
 
 @pytest.mark.asyncio
@@ -130,3 +135,88 @@ async def test_evaluate_reflex_rejects_unsupported_audio(
 
     assert response.status_code == 400
     assert response.json()["error"]["code"] == "invalid_audio"
+
+
+@pytest.mark.asyncio
+async def test_reflex_accepts_browser_webm_audio(
+    client: httpx.AsyncClient, db_session: AsyncSession
+) -> None:
+    user = await create_reflex_user(db_session, "reflex-webm@example.com")
+    content = await create_reflex_lesson(db_session, slug="webm-reflex")
+    override_reflex_dependencies(user)
+
+    response = await client.post(
+        f"/api/v1/reflex/lessons/{content.id}/evaluate",
+        data={"response_start_ms": "1200"},
+        files={"audio_file": ("answer.webm", b"webm-audio", "audio/webm")},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["response_start_ms"] == 1200
+
+
+class TimeoutAiGateway(FakeAiGateway):
+    async def transcribe(
+        self,
+        *,
+        audio: bytes,
+        filename: str,
+        language: str,
+        prompt_hint: str | None = None,
+    ) -> TranscriptionResult:
+        del audio, filename, language, prompt_hint
+        raise AiTimeoutError()
+
+
+@pytest.mark.asyncio
+async def test_ai_timeout_does_not_persist_attempt_schedule_or_exp(
+    client: httpx.AsyncClient, db_session: AsyncSession
+) -> None:
+    user = await create_reflex_user(db_session, "reflex-timeout@example.com")
+    content = await create_reflex_lesson(db_session, slug="timeout-reflex")
+    override_reflex_dependencies(user)
+    app.dependency_overrides[get_ai_gateway] = TimeoutAiGateway
+
+    response = await client.post(
+        f"/api/v1/reflex/lessons/{content.id}/evaluate",
+        data={"response_start_ms": "1000"},
+        files={"audio_file": ("answer.mp3", b"ID3valid-audio", "audio/mpeg")},
+    )
+
+    assert response.status_code == 504
+    assert response.json()["error"]["code"] == "ai_timeout"
+    assert (
+        await db_session.scalar(
+            select(ExerciseAttempt).where(ExerciseAttempt.content_id == content.id)
+        )
+        is None
+    )
+    assert await db_session.get(ReviewSchedule, (user.id, content.id)) is None
+    assert (
+        await db_session.scalar(select(XpTransaction).where(XpTransaction.user_id == user.id))
+        is None
+    )
+
+
+@pytest.mark.asyncio
+async def test_completed_reflex_survives_refresh_and_appears_in_review_schedule(
+    client: httpx.AsyncClient, db_session: AsyncSession
+) -> None:
+    user = await create_reflex_user(db_session, "reflex-refresh@example.com")
+    content = await create_reflex_lesson(db_session, slug="refresh-reflex")
+    override_reflex_dependencies(user)
+
+    evaluation = await client.post(
+        f"/api/v1/reflex/lessons/{content.id}/evaluate",
+        data={"response_start_ms": "2500"},
+        files={"audio_file": ("answer.mp3", b"ID3valid-audio", "audio/mpeg")},
+    )
+    catalog = await client.get("/api/v1/reflex/lessons")
+    schedule = await client.get("/api/v1/review/schedule")
+
+    assert evaluation.status_code == 200
+    lesson = next(item for item in catalog.json()["items"] if item["id"] == str(content.id))
+    assert lesson["is_completed"] is True
+    assert schedule.status_code == 200
+    assert schedule.json()["items"][0]["lesson_id"] == str(content.id)
+    assert schedule.json()["items"][0]["review_count"] == 1

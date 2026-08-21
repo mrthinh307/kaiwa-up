@@ -86,6 +86,7 @@ import type {
   ListProgressAttemptsErrors,
   ListProgressAttemptsResponses,
   ListReflexLessonsData,
+  ListReflexLessonsErrors,
   ListReflexLessonsResponses,
   ListReviewScheduleData,
   ListReviewScheduleResponses,
@@ -557,8 +558,12 @@ export const startDictationAttempt = <ThrowOnError extends boolean = false>(
  */
 export const listReflexLessons = <ThrowOnError extends boolean = false>(
   options?: Options<ListReflexLessonsData, ThrowOnError>,
-): RequestResult<ListReflexLessonsResponses, unknown, ThrowOnError> =>
-  (options?.client ?? client).get<ListReflexLessonsResponses, unknown, ThrowOnError>({
+): RequestResult<ListReflexLessonsResponses, ListReflexLessonsErrors, ThrowOnError> =>
+  (options?.client ?? client).get<
+    ListReflexLessonsResponses,
+    ListReflexLessonsErrors,
+    ThrowOnError
+  >({
     security: [{ scheme: "bearer", type: "http" }],
     url: "/api/v1/reflex/lessons",
     ...options,

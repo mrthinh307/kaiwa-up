@@ -1,24 +1,36 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, File, Form, Path, UploadFile, status
+from fastapi import APIRouter, File, Form, Path, Query, UploadFile, status
 
 from app.api.dependencies.ai import AiGatewayDep
 from app.api.dependencies.auth import CurrentUser
 from app.api.dependencies.database import DatabaseSession
+from app.models.enums import JlptLevel
 from app.repositories.reflex import ReflexRepository
 from app.schemas.error import ErrorResponse
-from app.schemas.reflex import ReflexEvaluationResponse, ReflexLessonDetail, ReflexLessonItem
+from app.schemas.reflex import (
+    ReflexEvaluationResponse,
+    ReflexLessonDetail,
+    ReflexLessonListResponse,
+)
 from app.services.reflex import ReflexService
 
 router = APIRouter(prefix="/reflex", tags=["Reflex"])
 
 
-@router.get("/lessons", operation_id="listReflexLessons", response_model=list[ReflexLessonItem])
+@router.get("/lessons", operation_id="listReflexLessons", response_model=ReflexLessonListResponse)
 async def list_reflex_lessons(
-    current_user: CurrentUser, session: DatabaseSession, ai_gateway: AiGatewayDep
-) -> list[ReflexLessonItem]:
-    return await ReflexService(ReflexRepository(session), ai_gateway).list_lessons()
+    current_user: CurrentUser,
+    session: DatabaseSession,
+    ai_gateway: AiGatewayDep,
+    difficulty: Annotated[JlptLevel | None, Query()] = None,
+    page: Annotated[int, Query(ge=1)] = 1,
+    page_size: Annotated[int, Query(ge=1, le=100)] = 20,
+) -> ReflexLessonListResponse:
+    return await ReflexService(ReflexRepository(session), ai_gateway).list_lessons(
+        user_id=current_user.id, difficulty=difficulty, page=page, page_size=page_size
+    )
 
 
 @router.get(
@@ -40,7 +52,7 @@ async def get_reflex_lesson(
     "/lessons/{lesson_id}/evaluate",
     operation_id="evaluateReflexLesson",
     response_model=ReflexEvaluationResponse,
-    status_code=status.HTTP_201_CREATED,
+    status_code=status.HTTP_200_OK,
     responses={
         status.HTTP_400_BAD_REQUEST: {"model": ErrorResponse},
         status.HTTP_404_NOT_FOUND: {"model": ErrorResponse},
