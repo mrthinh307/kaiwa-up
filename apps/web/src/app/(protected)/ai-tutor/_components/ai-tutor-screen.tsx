@@ -10,7 +10,7 @@ import type {
 } from "@kaiwa-app/api-client";
 import type { ReactNode } from "react";
 
-import { MessageCircleMore, PanelLeftOpen, Plus, Trash2 } from "lucide-react";
+import { LoaderCircle, MessageCircleMore, PanelLeftOpen, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
@@ -34,7 +34,6 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { Skeleton } from "@/components/ui/skeleton";
 
 import { ConversationChat } from "./conversation-chat";
 import { ConversationCreateForm } from "./conversation-create-form";
@@ -211,20 +210,16 @@ function WorkspaceStateFrame({
 
 function DetailLoadingState({ retryAttempt }: { retryAttempt: number }) {
   return (
-    <div className="w-full max-w-[920px] space-y-6" aria-busy="true">
-      <Skeleton className="h-24 w-4/5" />
-      <Skeleton className="ml-auto h-24 w-4/5" />
-      <Skeleton className="h-24 w-4/5" />
-      {retryAttempt > 0 ? (
-        <p className="text-center text-sm text-foreground/65" role="status">
-          Retrying conversation…
-        </p>
-      ) : null}
-      <span className="sr-only" role="status">
+    <div
+      aria-busy="true"
+      className="flex w-full max-w-[680px] flex-col items-center justify-center gap-3 text-center"
+    >
+      <LoaderCircle aria-hidden="true" className="size-8 animate-spin" />
+      <p className="font-heading" role="status">
         {retryAttempt > 0
           ? `Retrying conversation, attempt ${retryAttempt + 1}…`
           : "Loading conversation…"}
-      </span>
+      </p>
     </div>
   );
 }
