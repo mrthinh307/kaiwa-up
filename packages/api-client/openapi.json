@@ -2272,6 +2272,16 @@
             },
             "description": "Unauthorized"
           },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -2485,16 +2495,6 @@
               }
             },
             "description": "Forbidden"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Not Found"
           },
           "422": {
             "content": {
@@ -5028,6 +5028,11 @@
             "minLength": 1,
             "title": "Topic"
           },
+          "client_conversation_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Client Conversation Id"
+          },
           "difficulty": {
             "$ref": "#/components/schemas/JlptLevel"
           },
@@ -5050,7 +5055,7 @@
         },
         "additionalProperties": false,
         "type": "object",
-        "required": ["topic", "difficulty"],
+        "required": ["topic", "client_conversation_id", "difficulty"],
         "title": "TutorConversationCreateRequest",
         "description": "User-provided context for a free-form Tutor conversation."
       },
@@ -5088,8 +5093,29 @@
             "enum": ["active", "completed"],
             "title": "Status"
           },
-          "initial_message": {
-            "$ref": "#/components/schemas/TutorMessageResponse"
+          "started_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Started At"
+          },
+          "ended_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ended At"
+          },
+          "messages": {
+            "items": {
+              "$ref": "#/components/schemas/TutorMessageResponse"
+            },
+            "type": "array",
+            "title": "Messages"
           }
         },
         "type": "object",
@@ -5098,10 +5124,10 @@
           "topic",
           "difficulty",
           "status",
-          "initial_message"
+          "started_at"
         ],
         "title": "TutorConversationCreateResponse",
-        "description": "Response returned after creating a conversation and its opening AI message."
+        "description": "Response returned after creating or replaying a Tutor conversation."
       },
       "TutorConversationDetailResponse": {
         "properties": {

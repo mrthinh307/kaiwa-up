@@ -269,7 +269,6 @@ export type {
   RegisterResponses,
   ReviewScheduleItem,
   ReviewScheduleListResponse,
-  ShadowingAttemptReviewResponse,
   SendTutorMessageData,
   SendTutorMessageError,
   SendTutorMessageErrors,

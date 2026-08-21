@@ -1538,6 +1538,10 @@ export type TutorConversationCreateRequest = {
    * Topic
    */
   topic: string;
+  /**
+   * Client Conversation Id
+   */
+  client_conversation_id: string;
   difficulty: JlptLevel;
   /**
    * Scenario
@@ -1549,7 +1553,7 @@ export type TutorConversationCreateRequest = {
 /**
  * TutorConversationCreateResponse
  *
- * Response returned after creating a conversation and its opening AI message.
+ * Response returned after creating or replaying a Tutor conversation.
  */
 export type TutorConversationCreateResponse = {
   /**
@@ -1570,7 +1574,18 @@ export type TutorConversationCreateResponse = {
    * Status
    */
   status: "active" | "completed";
-  initial_message: TutorMessageResponse;
+  /**
+   * Started At
+   */
+  started_at: string;
+  /**
+   * Ended At
+   */
+  ended_at?: string | null;
+  /**
+   * Messages
+   */
+  messages?: Array<TutorMessageResponse>;
 };
 
 /**
@@ -3282,6 +3297,10 @@ export type CreateTutorConversationErrors = {
    */
   401: ErrorResponse;
   /**
+   * Conflict
+   */
+  409: ErrorResponse;
+  /**
    * Unprocessable Content
    */
   422: ErrorResponse;
@@ -3327,10 +3346,6 @@ export type DeleteTutorConversationErrors = {
    * Forbidden
    */
   403: ErrorResponse;
-  /**
-   * Not Found
-   */
-  404: ErrorResponse;
   /**
    * Unprocessable Content
    */
