@@ -99,7 +99,23 @@ function TutorFeedback({
       ) : null}
 
       {hints.length > 0 ? (
-        <details className="group rounded-base border-2 border-border bg-background">
+        <details
+          className="group scroll-mb-32 rounded-base border-2 border-border bg-background sm:scroll-mb-36"
+          onToggle={(event) => {
+            if (!event.currentTarget.open) {
+              return;
+            }
+
+            const details = event.currentTarget;
+            const behavior = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+              ? "auto"
+              : "smooth";
+
+            window.requestAnimationFrame(() => {
+              details.scrollIntoView({ behavior, block: "end" });
+            });
+          }}
+        >
           <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-heading outline-hidden focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
             <span className="flex items-center gap-2">
               <Lightbulb aria-hidden="true" className="size-4" />
