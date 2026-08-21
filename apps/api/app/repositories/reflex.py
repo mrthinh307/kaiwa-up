@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime, time, timedelta
 from decimal import Decimal
 
 from sqlalchemy import func, select
@@ -196,6 +196,7 @@ class ReflexRepository(BaseRepository):
             .where(ReviewSchedule.user_id == user_id)
         )
         if due_before is not None:
-            query = query.where(ReviewSchedule.due_at <= due_before)
+            next_day = datetime.combine(due_before.date() + timedelta(days=1), time.min, tzinfo=UTC)
+            query = query.where(ReviewSchedule.due_at < next_day)
         rows = (await self.session.execute(query.order_by(ReviewSchedule.due_at))).all()
         return [(row[0], row[1], row[2]) for row in rows]
