@@ -188,7 +188,7 @@ function TutorMessage({ message, onHintSelect }: TutorMessageProps) {
   const aiAvatar = (
     <span
       aria-hidden="true"
-      className="flex size-9 shrink-0 items-center justify-center rounded-full border-2 border-border bg-main text-main-foreground shadow-shadow"
+      className="flex size-9 shrink-0 items-center justify-center rounded-full border-2 border-border bg-secondary-background text-foreground shadow-shadow"
     >
       <Bot className="size-4" />
     </span>
