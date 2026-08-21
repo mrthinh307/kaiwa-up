@@ -357,6 +357,49 @@ async def test_openai_generate_tutor_reply_success(openai_gateway: _GatewayFacto
     assert result.natural_expression_tip == "京都で旅行について話しましょう。"
 
 
+@pytest.mark.asyncio
+async def test_openai_tutor_repairs_reply_without_follow_up_question(
+    openai_gateway: _GatewayFactory,
+) -> None:
+    responses = iter(
+        [
+            _openai_chat_response(
+                json.dumps(
+                    {
+                        "message": "牛乳はあそこにあります。",
+                        "text_vi": "Sữa ở đằng kia.",
+                        "corrections": [],
+                        "natural_expression_tip": None,
+                        "answer_hints": [],
+                    }
+                )
+            ),
+            _openai_chat_response(
+                json.dumps(
+                    {
+                        "message": "牛乳はあそこにあります。ほかに何を探していますか？",
+                        "text_vi": "Sữa ở đằng kia. Bạn còn đang tìm gì khác không?",
+                        "corrections": [],
+                        "natural_expression_tip": None,
+                        "answer_hints": [],
+                    }
+                )
+            ),
+        ]
+    )
+    gateway = openai_gateway(lambda _: next(responses))
+
+    result = await gateway.generate_tutor_reply(
+        messages=[TutorMessage(role="user", content="すみません、牛乳はどこですか。")],
+        topic="go shopping",
+        difficulty="N5",
+        scenario="A shopping conversation",
+    )
+
+    assert result.message.endswith("？")
+    assert "ほかに何を探していますか" in result.message
+
+
 def test_tutor_prompt_includes_scenario_and_language_contract() -> None:
     prompt = build_tutor_messages(
         messages=[],
@@ -374,6 +417,31 @@ def test_tutor_prompt_includes_scenario_and_language_contract() -> None:
     assert "Không giải thích bằng tiếng Nhật" in prompt.content
     assert '"answer_hints"' in prompt.content
     assert '"meaning_vi"' in prompt.content
+    assert "TỪ LƯỢT SAU OPENING" in prompt.content
+    assert "không cần kết thúc bằng câu hỏi" in prompt.content
+    assert "không được trùng hoặc tương đương về ý nghĩa" in prompt.content
+    assert "Nếu người học vừa trả lời vừa hỏi ngược lại" in prompt.content
+    assert "Không thêm key next_question" in prompt.content
+    assert "KHÔNG TỰ GÁN VAI TRÒ" in prompt.content
+    assert "không công bố giả định về role" in prompt.content
+    assert "SAU KHI USER MỞ LỜI" in prompt.content
+    assert "Không tự bịa thêm món hàng mới" in prompt.content
+    assert "Câu hỏi mới phải tiếp tục cùng object hoặc mục tiêu hiện tại" in prompt.content
+    assert "không tự chuyển sang バナナ" in prompt.content
+
+
+def test_tutor_prompt_defines_feedback_and_difficulty_rules() -> None:
+    prompt = build_tutor_messages(
+        messages=[],
+        topic="Sở thích",
+        difficulty="N5",
+    )[0]
+
+    assert "N5-N4 dùng một câu ngắn" in prompt.content
+    assert "Chỉ tạo grammar correction khi có lỗi đáng chú ý" in prompt.content
+    assert "natural_expression_tip khi câu đúng nhưng có cách nói tự nhiên hơn" in prompt.content
+    assert "answer_hints khi câu hỏi hiện tại cần người học trả lời" in prompt.content
+    assert '"natural_expression_tip": <Vietnamese explanation | null>' in prompt.content
 
 
 def test_tutor_opening_prompt_includes_user_query_for_provider_compatibility() -> None:
@@ -385,7 +453,12 @@ def test_tutor_opening_prompt_includes_user_query_for_provider_compatibility() -
     )
 
     assert messages[-1].role == "user"
-    assert "会話を始めてください" in messages[-1].content
+    assert "Hãy tạo opening message" in messages[-1].content
+    assert "bằng tiếng Nhật" in messages[-1].content
+    assert "không tự gán role" in messages[-1].content
+    assert "mở đầu cuộc hội thoại trước" in messages[-1].content
+    assert "không hỏi User đã sẵn sàng chưa" in messages[-1].content
+    assert "chỉ trả về đúng JSON" in messages[-1].content
 
 
 def test_tutor_prompt_escapes_user_context_delimiters() -> None:

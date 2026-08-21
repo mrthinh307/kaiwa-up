@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Awaitable, Callable
 from typing import TypeVar
 
+from app.exceptions.ai import AiInvalidResponseError
 from app.integrations.ai.base import AiProviderConfig, TutorMessage
 from app.integrations.ai.contracts import (
     EvaluationResult,
@@ -11,6 +12,7 @@ from app.integrations.ai.contracts import (
     TutorReply,
     parse_evaluation_result,
     parse_tutor_reply,
+    tutor_reply_ends_with_question,
 )
 from app.integrations.ai.prompts import (
     build_reflex_eval_prompt,
@@ -91,7 +93,31 @@ class BaseAiGateway(ABC):
             scenario=scenario,
         )
         content = await self._call("tutor", lambda: self._chat(prompt))
-        return parse_tutor_reply(content)
+        reply = parse_tutor_reply(content)
+        if not any(message.role == "user" for message in messages):
+            return reply
+        if tutor_reply_ends_with_question(reply.message):
+            return reply
+
+        repair_prompt = [
+            *prompt,
+            TutorMessage(
+                role="user",
+                content=(
+                    "Response JSON vừa rồi không hợp lệ vì message không kết thúc bằng một câu "
+                    "hỏi. "
+                    "Giữ nguyên nội dung phù hợp, bổ sung đúng một câu hỏi tiếng Nhật mới ở cuối, "
+                    "không lặp câu hỏi trong lịch sử và chỉ trả về JSON hợp lệ."
+                ),
+            ),
+        ]
+        repaired_content = await self._call("tutor", lambda: self._chat(repair_prompt))
+        repaired_reply = parse_tutor_reply(repaired_content)
+        if not tutor_reply_ends_with_question(repaired_reply.message):
+            raise AiInvalidResponseError(
+                "AI Tutor response did not end with a follow-up question after repair"
+            )
+        return repaired_reply
 
     async def _evaluate(self, capability: str, prompt: list[TutorMessage]) -> EvaluationResult:
         content = await self._call(capability, lambda: self._chat(prompt))

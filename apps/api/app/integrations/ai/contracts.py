@@ -61,6 +61,12 @@ class TutorReply(BaseModel):
     answer_hints: list[TutorAnswerHint] = Field(default_factory=list, max_length=3)
 
 
+def tutor_reply_ends_with_question(message: str) -> bool:
+    """Return whether a non-opening Tutor message ends with a Japanese question."""
+    normalized = message.rstrip()
+    return normalized.endswith(("?", "？", "か。", "でしょうか。", "かな。"))
+
+
 M = TypeVar("M", bound=BaseModel)
 
 
