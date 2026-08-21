@@ -1,8 +1,10 @@
 import unicodedata
 import uuid
 from decimal import ROUND_HALF_UP, Decimal
+from typing import Protocol, cast
 
 from pydantic import ValidationError
+from pykakasi import kakasi
 
 from app.exceptions import ForbiddenError, NotFoundError
 from app.exceptions.dictation import (
@@ -30,11 +32,22 @@ from app.services.gamification import GamificationService
 from app.utils.datetime_utils import utc_now
 
 
+class _KanaConverter(Protocol):
+    def convert(self, text: str) -> list[dict[str, str]]: ...
+
+
+_KAKASI = cast(_KanaConverter, kakasi())  # type: ignore[no-untyped-call]
+
+
 def normalize_dictation_text(text: str) -> str:
-    return "".join(
+    text_without_spacing_or_punctuation = "".join(
         character
-        for character in text
+        for character in unicodedata.normalize("NFC", text)
         if not character.isspace() and not unicodedata.category(character).startswith("P")
+    )
+    return "".join(
+        converted_fragment["hira"]
+        for converted_fragment in _KAKASI.convert(text_without_spacing_or_punctuation)
     )
 
 

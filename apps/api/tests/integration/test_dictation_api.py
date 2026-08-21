@@ -314,6 +314,30 @@ async def test_check_dictation_segment_returns_feedback_and_persists_answer(
 
 
 @pytest.mark.asyncio
+async def test_check_dictation_segment_accepts_hiragana_for_a_kanji_transcript(
+    client: httpx.AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    user = await create_user(db_session, email="segment-check-hiragana@example.com")
+    content = await create_dictation_content(db_session, slug="segment-check-hiragana")
+    set_current_user(user)
+    start_response = await client.post(f"/api/v1/dictation/{content.id}/start")
+    attempt_id = start_response.json()["attempt_id"]
+
+    response = await client.post(
+        "/api/v1/dictation/segments/check",
+        json={
+            "attempt_id": attempt_id,
+            "segment_index": 0,
+            "user_answer": "あしたのかいぎのしりょうですが",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["is_correct"] is True
+
+
+@pytest.mark.asyncio
 async def test_check_dictation_segment_replaces_previous_answer_and_marks_last_segment(
     client: httpx.AsyncClient,
     db_session: AsyncSession,

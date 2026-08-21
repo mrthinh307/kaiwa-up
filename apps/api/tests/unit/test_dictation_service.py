@@ -12,12 +12,12 @@ from app.services.dictation import (
 @pytest.mark.parametrize(
     ("text", "expected"),
     [
-        ("明日の会議の資料ですが、", "明日の会議の資料ですが"),
-        ("今日 は\u3000いい 天気。", "今日はいい天気"),
-        ("\t準備して\nおきます。", "準備しておきます"),
-        ("本当ですか？！", "本当ですか"),
+        ("あしたのかいぎのしりょうですが、", "あしたのかいぎのしりょうですが"),
+        ("きょう は\u3000いい てんき。", "きょうはいいてんき"),
+        ("\tじゅんびして\nおきます。", "じゅんびしておきます"),
+        ("ほんとうですか？！", "ほんとうですか"),
         ("「はい」...そうです！", "はいそうです"),
-        ("ええと…大丈夫？", "ええと大丈夫"),
+        ("ええと…だいじょうぶ？", "ええとだいじょうぶ"),
     ],
 )
 def test_normalize_dictation_text_removes_whitespace_and_punctuation(
@@ -25,6 +25,20 @@ def test_normalize_dictation_text_removes_whitespace_and_punctuation(
     expected: str,
 ) -> None:
     assert normalize_dictation_text(text) == expected
+
+
+@pytest.mark.parametrize(
+    ("kanji_text", "hiragana_text"),
+    [
+        ("明日の会議の資料ですが、", "あしたのかいぎのしりょうですが"),
+        ("今日の夕方までに準備しておきます。", "きょうのゆうがたまでにじゅんびしておきます"),
+    ],
+)
+def test_normalize_dictation_text_treats_kanji_and_hiragana_as_equivalent(
+    kanji_text: str,
+    hiragana_text: str,
+) -> None:
+    assert normalize_dictation_text(kanji_text) == normalize_dictation_text(hiragana_text)
 
 
 @pytest.mark.parametrize(
