@@ -6,7 +6,7 @@ from typing import NamedTuple, cast
 
 from sqlalchemy import func, select
 
-from app.models.enums import JlptLevel, TutorSender
+from app.models.enums import JlptLevel, TutorExplanationLanguage, TutorSender
 from app.models.tutor import TutorMessage, TutorSession
 from app.repositories.base import BaseRepository
 
@@ -27,12 +27,14 @@ class TutorRepository(BaseRepository):
         topic: str,
         difficulty: JlptLevel,
         scenario: str | None,
+        explanation_language: TutorExplanationLanguage = TutorExplanationLanguage.VI,
     ) -> TutorSession:
         tutor_session = TutorSession(
             user_id=user_id,
             topic=topic,
             difficulty=difficulty,
             scenario=scenario,
+            explanation_language=explanation_language,
             status="active",
         )
         self.session.add(tutor_session)
@@ -173,7 +175,7 @@ class TutorRepository(BaseRepository):
         sequence_number: int,
         content: str,
         client_message_id: uuid.UUID | None,
-        text_vi: str | None = None,
+        text_meaning: dict[str, str] | None = None,
         feedback: dict[str, object] | None = None,
     ) -> TutorMessage:
         message = TutorMessage(
@@ -181,7 +183,7 @@ class TutorRepository(BaseRepository):
             sender=sender,
             sequence_number=sequence_number,
             content=content,
-            text_vi=text_vi,
+            text_meaning=text_meaning,
             client_message_id=client_message_id,
             feedback=feedback,
         )

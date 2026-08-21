@@ -147,7 +147,10 @@ export async function sendMockTutorMessage(
     sender: "ai",
     sequence_number: sequenceNumber,
     text: "ありがとうございます。もう少し詳しく教えてください。",
-    text_vi: "Cảm ơn bạn. Hãy nói thêm một chút nhé.",
+    text_meaning: {
+      language: "vi",
+      text: "Cảm ơn bạn. Hãy nói thêm một chút nhé.",
+    },
     client_message_id: null,
     created_at: new Date().toISOString(),
     feedback: null,

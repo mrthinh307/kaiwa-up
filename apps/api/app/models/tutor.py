@@ -21,7 +21,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, CreatedAtMixin, PrimaryKeyUuidMixin
-from app.models.enums import JlptLevel, TutorSender
+from app.models.enums import JlptLevel, TutorExplanationLanguage, TutorSender
 
 
 class TutorSession(PrimaryKeyUuidMixin, Base):
@@ -34,6 +34,10 @@ class TutorSession(PrimaryKeyUuidMixin, Base):
         CheckConstraint(
             "status IN ('active', 'completed')",
             name="tutor_session_status",
+        ),
+        CheckConstraint(
+            "explanation_language IN ('vi', 'en', 'ja')",
+            name="tutor_session_explanation_language",
         ),
         Index(
             "ix_tutor_sessions_user_id_started_at",
@@ -56,6 +60,17 @@ class TutorSession(PrimaryKeyUuidMixin, Base):
         nullable=False,
     )
     scenario: Mapped[str | None] = mapped_column(Text, nullable=True)
+    explanation_language: Mapped[TutorExplanationLanguage] = mapped_column(
+        Enum(
+            TutorExplanationLanguage,
+            name="tutor_explanation_language",
+            native_enum=False,
+            values_callable=lambda enum_type: [item.value for item in enum_type],
+        ),
+        nullable=False,
+        default=TutorExplanationLanguage.VI,
+        server_default=TutorExplanationLanguage.VI.value,
+    )
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="active")
     started_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
@@ -95,7 +110,7 @@ class TutorMessage(PrimaryKeyUuidMixin, CreatedAtMixin, Base):
     )
     sequence_number: Mapped[int] = mapped_column(Integer, nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
-    text_vi: Mapped[str | None] = mapped_column(Text, nullable=True)
+    text_meaning: Mapped[dict[str, str] | None] = mapped_column(JSONB, nullable=True)
     client_message_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, nullable=True)
     recording_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid, ForeignKey("recordings.id", ondelete="SET NULL"), nullable=True

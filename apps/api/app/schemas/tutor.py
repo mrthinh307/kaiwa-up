@@ -6,7 +6,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from app.models.enums import JlptLevel, TutorSender
+from app.models.enums import JlptLevel, TutorExplanationLanguage, TutorSender
 from app.schemas.pagination import PaginatedResponse
 
 TutorSessionStatus = Literal["active", "completed"]
@@ -20,6 +20,7 @@ class TutorConversationCreateRequest(BaseModel):
     topic: str = Field(min_length=1, max_length=255)
     difficulty: JlptLevel
     scenario: str | None = Field(default=None, max_length=2000)
+    explanation_language: TutorExplanationLanguage = TutorExplanationLanguage.VI
 
     @field_validator("scenario", mode="before")
     @classmethod
@@ -30,22 +31,44 @@ class TutorConversationCreateRequest(BaseModel):
         return value
 
 
+class TutorTextMeaningResponse(BaseModel):
+    """Localized meaning for Japanese text."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    language: TutorExplanationLanguage
+    text: str = Field(min_length=1, max_length=2000)
+
+
 class TutorAnswerHintResponse(BaseModel):
-    """A short answer suggestion and its Vietnamese meaning."""
+    """A short answer suggestion and its localized meaning."""
 
     model_config = ConfigDict(extra="forbid")
 
     text: str = Field(min_length=1, max_length=255)
-    meaning_vi: str = Field(min_length=1, max_length=500)
+    text_meaning: TutorTextMeaningResponse
+
+
+class TutorCorrectionResponse(BaseModel):
+    """A structured correction with a localized explanation."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    original: str = Field(min_length=1, max_length=500)
+    corrected: str = Field(min_length=1, max_length=500)
+    explanation: str = Field(min_length=1, max_length=2000)
 
 
 class TutorFeedbackResponse(BaseModel):
     """Normalized feedback attached to an AI Tutor message."""
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="ignore")
 
+    explanation_language: TutorExplanationLanguage = TutorExplanationLanguage.VI
     grammar_correction: str | None = Field(default=None, max_length=2000)
+    corrections: list[TutorCorrectionResponse] = Field(default_factory=list, max_length=3)
     natural_expression_tip: str | None = Field(default=None, max_length=2000)
+    natural_expression_example_ja: str | None = Field(default=None, max_length=500)
     answer_hints: list[TutorAnswerHintResponse] = Field(default_factory=list, max_length=3)
 
 
@@ -56,7 +79,7 @@ class TutorMessageResponse(BaseModel):
     sender: TutorSender
     sequence_number: int = Field(ge=1)
     text: str = Field(min_length=1, max_length=2000)
-    text_vi: str | None = Field(default=None, max_length=2000)
+    text_meaning: TutorTextMeaningResponse | None = None
     client_message_id: uuid.UUID | None = None
     created_at: datetime
     feedback: TutorFeedbackResponse | None = None
@@ -69,6 +92,7 @@ class TutorConversationFields(BaseModel):
     topic: str
     difficulty: JlptLevel
     scenario: str | None = None
+    explanation_language: TutorExplanationLanguage = TutorExplanationLanguage.VI
     status: TutorSessionStatus
 
 

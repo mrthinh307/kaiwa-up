@@ -94,7 +94,7 @@ function TutorFeedback({
             {hints.map((hint) => (
               <Button
                 className="h-auto justify-start gap-3 whitespace-normal p-3 text-left"
-                key={`${hint.text}-${hint.meaning_vi}`}
+                key={`${hint.text}-${hint.text_meaning.language}-${hint.text_meaning.text}`}
                 onClick={() => onHintSelect(hint)}
                 type="button"
                 variant="noShadow"
@@ -104,7 +104,7 @@ function TutorFeedback({
                     {hint.text}
                   </span>
                   <span className="mt-1 block text-xs font-normal text-foreground/65">
-                    {hint.meaning_vi}
+                    {hint.text_meaning.text}
                   </span>
                 </span>
               </Button>
@@ -136,7 +136,7 @@ function TutorMessage({ message, onHintSelect }: TutorMessageProps) {
         >
           {message.text}
         </p>
-        {message.text_vi ? (
+        {message.text_meaning ? (
           <p
             className={cn(
               "mt-3 border-t-2 pt-3 text-sm leading-relaxed",
@@ -144,8 +144,9 @@ function TutorMessage({ message, onHintSelect }: TutorMessageProps) {
                 ? "border-main-foreground/25 text-main-foreground/75"
                 : "border-border/60 text-foreground/65",
             )}
+            lang={message.text_meaning.language}
           >
-            {message.text_vi}
+            {message.text_meaning.text}
           </p>
         ) : null}
         {!isUserMessage && message.feedback ? (
@@ -382,7 +383,7 @@ export function ConversationChat({ conversation }: ConversationChatProps) {
       sender: "user",
       sequence_number: userSequenceNumber,
       text,
-      text_vi: null,
+      text_meaning: null,
       client_message_id: clientMessageId,
       created_at: new Date().toISOString(),
       feedback: null,

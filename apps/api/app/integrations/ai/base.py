@@ -102,6 +102,7 @@ class AiGateway(Protocol):
         topic: str,
         difficulty: str,
         scenario: str | None = None,
+        explanation_language: str = "vi",
     ) -> TutorReply: ...
 
 

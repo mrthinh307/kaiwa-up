@@ -28,10 +28,12 @@ from app.schemas.tutor import (
     TutorConversationFields,
     TutorConversationListItem,
     TutorConversationListResponse,
+    TutorCorrectionResponse,
     TutorFeedbackResponse,
     TutorMessageCreateRequest,
     TutorMessageCreateResponse,
     TutorMessageResponse,
+    TutorTextMeaningResponse,
 )
 from app.schemas.user import UserResponse, UserUpdateRequest
 
@@ -63,8 +65,10 @@ __all__ = [
     "TutorConversationFields",
     "TutorConversationListItem",
     "TutorConversationListResponse",
+    "TutorCorrectionResponse",
     "TutorFeedbackResponse",
     "TutorMessageCreateRequest",
     "TutorMessageCreateResponse",
     "TutorMessageResponse",
+    "TutorTextMeaningResponse",
 ]

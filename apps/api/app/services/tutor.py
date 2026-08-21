@@ -17,7 +17,7 @@ from app.exceptions.tutor import (
 )
 from app.integrations.ai import AiGateway, TutorReply
 from app.integrations.ai import TutorMessage as GatewayTutorMessage
-from app.models.enums import TutorSender
+from app.models.enums import TutorExplanationLanguage, TutorSender
 from app.models.tutor import TutorMessage, TutorSession
 from app.repositories.tutor import TutorConversationHistoryRow, TutorRepository
 from app.schemas.tutor import (
@@ -28,11 +28,13 @@ from app.schemas.tutor import (
     TutorConversationFields,
     TutorConversationListItem,
     TutorConversationListResponse,
+    TutorCorrectionResponse,
     TutorFeedbackResponse,
     TutorMessageCreateRequest,
     TutorMessageCreateResponse,
     TutorMessageResponse,
     TutorSessionStatus,
+    TutorTextMeaningResponse,
 )
 
 DEFAULT_TUTOR_CONTEXT_MESSAGE_LIMIT = 20
@@ -67,6 +69,7 @@ class TutorService:
                 topic=topic,
                 difficulty=data.difficulty.value,
                 scenario=scenario,
+                explanation_language=data.explanation_language.value,
             )
         except AiProviderError as exc:
             await self.repository.session.rollback()
@@ -78,13 +81,14 @@ class TutorService:
                 topic=topic,
                 difficulty=data.difficulty,
                 scenario=scenario,
+                explanation_language=data.explanation_language,
             )
             initial_message = await self.repository.create_message(
                 session_id=tutor_session.id,
                 sender=TutorSender.AI,
                 sequence_number=1,
                 content=reply.message,
-                text_vi=reply.text_vi,
+                text_meaning=reply.text_meaning.model_dump(mode="json"),
                 client_message_id=None,
                 feedback=self._serialize_feedback(reply),
             )
@@ -99,6 +103,7 @@ class TutorService:
             topic=fields.topic,
             difficulty=fields.difficulty,
             scenario=fields.scenario,
+            explanation_language=fields.explanation_language,
             status=fields.status,
             initial_message=self._to_message_response(initial_message),
         )
@@ -137,6 +142,7 @@ class TutorService:
             topic=fields.topic,
             difficulty=fields.difficulty,
             scenario=fields.scenario,
+            explanation_language=fields.explanation_language,
             status=fields.status,
             started_at=tutor_session.started_at,
             ended_at=tutor_session.ended_at,
@@ -207,6 +213,9 @@ class TutorService:
                 topic=topic,
                 difficulty=difficulty,
                 scenario=scenario,
+                explanation_language=(
+                    tutor_session.explanation_language or TutorExplanationLanguage.VI
+                ).value,
             )
         except AiProviderError as exc:
             await self.repository.session.rollback()
@@ -223,7 +232,7 @@ class TutorService:
                     sender=TutorSender.AI,
                     sequence_number=user_message.sequence_number + 1,
                     content=reply.message,
-                    text_vi=reply.text_vi,
+                    text_meaning=reply.text_meaning.model_dump(mode="json"),
                     client_message_id=None,
                     feedback=self._serialize_feedback(reply),
                 )
@@ -303,6 +312,9 @@ class TutorService:
             topic=tutor_session.topic,
             difficulty=tutor_session.difficulty,
             scenario=tutor_session.scenario,
+            explanation_language=(
+                tutor_session.explanation_language or TutorExplanationLanguage.VI
+            ),
             status=status,
         )
 
@@ -325,7 +337,11 @@ class TutorService:
             sender=message.sender,
             sequence_number=message.sequence_number,
             text=message.content,
-            text_vi=message.text_vi,
+            text_meaning=(
+                TutorTextMeaningResponse.model_validate(message.text_meaning)
+                if message.text_meaning is not None
+                else None
+            ),
             client_message_id=message.client_message_id,
             created_at=message.created_at,
             feedback=(
@@ -338,12 +354,33 @@ class TutorService:
     @staticmethod
     def _serialize_feedback(reply: TutorReply) -> dict[str, object]:
         feedback = TutorFeedbackResponse(
+            explanation_language=reply.explanation_language,
             grammar_correction=TutorService._format_corrections(reply),
-            natural_expression_tip=reply.natural_expression_tip,
+            corrections=[
+                TutorCorrectionResponse(
+                    original=correction.original,
+                    corrected=correction.corrected,
+                    explanation=correction.explanation,
+                )
+                for correction in reply.corrections
+            ],
+            natural_expression_tip=(
+                reply.natural_expression_tip.explanation
+                if reply.natural_expression_tip is not None
+                else None
+            ),
+            natural_expression_example_ja=(
+                reply.natural_expression_tip.example_ja
+                if reply.natural_expression_tip is not None
+                else None
+            ),
             answer_hints=[
                 TutorAnswerHintResponse(
                     text=hint.text,
-                    meaning_vi=hint.meaning_vi,
+                    text_meaning={
+                        "language": hint.text_meaning.language,
+                        "text": hint.text_meaning.text,
+                    },
                 )
                 for hint in reply.answer_hints
             ],
@@ -355,7 +392,7 @@ class TutorService:
         if not reply.corrections:
             return None
         return "\n".join(
-            f"{correction.original} → {correction.corrected} ({correction.reason})"
+            f"{correction.original} → {correction.corrected} ({correction.explanation})"
             for correction in reply.corrections
         )
 

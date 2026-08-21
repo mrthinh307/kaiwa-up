@@ -20,6 +20,7 @@ from app.integrations.ai.contracts import (
     TranscriptionSegment,
     TutorAnswerHint,
     TutorReply,
+    TutorTextMeaning,
 )
 from app.integrations.ai.providers.fake import FakeAiGateway
 from app.integrations.ai.providers.openai import (
@@ -93,6 +94,7 @@ class FallbackAiGateway:
         topic: str,
         difficulty: str,
         scenario: str | None = None,
+        explanation_language: str = "vi",
     ) -> TutorReply:
         return await self._try_providers(
             lambda provider: provider.generate_tutor_reply(
@@ -100,6 +102,7 @@ class FallbackAiGateway:
                 topic=topic,
                 difficulty=difficulty,
                 scenario=scenario,
+                explanation_language=explanation_language,
             )
         )
 
@@ -185,12 +188,14 @@ class RoutedAiGateway:
         topic: str,
         difficulty: str,
         scenario: str | None = None,
+        explanation_language: str = "vi",
     ) -> TutorReply:
         return await self._tutor.generate_tutor_reply(
             messages=messages,
             topic=topic,
             difficulty=difficulty,
             scenario=scenario,
+            explanation_language=explanation_language,
         )
 
 
@@ -323,5 +328,6 @@ __all__ = [
     "TutorAnswerHint",
     "TutorMessage",
     "TutorReply",
+    "TutorTextMeaning",
     "build_ai_gateway",
 ]

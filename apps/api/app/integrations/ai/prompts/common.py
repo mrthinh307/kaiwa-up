@@ -15,11 +15,15 @@ TRANSCRIPTION_JSON_SCHEMA = (
 TUTOR_JSON_SCHEMA = (
     '{"message": <short Japanese string; opening may end with a directive, '
     "later turns end with exactly one question>, "
-    '"text_vi": <full Vietnamese translation>, '
+    '"text_meaning": {"language": <"vi" | "en" | "ja">, '
+    '"text": <full translation in the selected language>}, '
+    '"explanation_language": <"vi" | "en" | "ja">, '
     '"corrections": [{"original": <Japanese>, "corrected": <Japanese>, '
-    '"reason": <Vietnamese explanation>}], '
-    '"natural_expression_tip": <Vietnamese explanation | null>, '
-    '"answer_hints": [{"text": <Japanese>, "meaning_vi": <Vietnamese>}]} '
+    '"explanation": <localized explanation>}], '
+    '"natural_expression_tip": {"explanation": <localized explanation>, '
+    '"example_ja": <Japanese example | null>} | null, '
+    '"answer_hints": [{"text": <Japanese>, "text_meaning": '
+    '{"language": <selected language>, "text": <localized meaning>}}]} '
 )
 
 EVALUATOR_PERSONA = (

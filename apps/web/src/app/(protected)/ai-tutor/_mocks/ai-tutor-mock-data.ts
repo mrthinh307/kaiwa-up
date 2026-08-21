@@ -211,7 +211,10 @@ export const MOCK_TUTOR_DETAILS: Record<string, TutorConversationDetailResponse>
         sender: "ai",
         sequence_number: 1,
         text: "こんにちは！京都について話しましょう。どこに行きたいですか？",
-        text_vi: "Xin chào! Hãy cùng nói về Kyoto nhé. Bạn muốn đi đâu?",
+        text_meaning: {
+          language: "vi",
+          text: "Xin chào! Hãy cùng nói về Kyoto nhé. Bạn muốn đi đâu?",
+        },
         client_message_id: null,
         created_at: "2026-08-20T09:20:01Z",
         feedback: {
@@ -220,7 +223,7 @@ export const MOCK_TUTOR_DETAILS: Record<string, TutorConversationDetailResponse>
           answer_hints: [
             {
               text: "京都に行きたいです。",
-              meaning_vi: "Tôi muốn đi Kyoto.",
+              text_meaning: { language: "vi", text: "Tôi muốn đi Kyoto." },
             },
           ],
         },
@@ -230,7 +233,10 @@ export const MOCK_TUTOR_DETAILS: Record<string, TutorConversationDetailResponse>
         sender: "user",
         sequence_number: 2,
         text: "京都で清水寺を見たいです。",
-        text_vi: "Tôi muốn tham quan chùa Kiyomizu-dera ở Kyoto.",
+        text_meaning: {
+          language: "vi",
+          text: "Tôi muốn tham quan chùa Kiyomizu-dera ở Kyoto.",
+        },
         client_message_id: "55555555-5555-4555-8555-555555555555",
         created_at: "2026-08-20T09:21:12Z",
         feedback: null,
@@ -240,7 +246,10 @@ export const MOCK_TUTOR_DETAILS: Record<string, TutorConversationDetailResponse>
         sender: "ai",
         sequence_number: 3,
         text: "いいですね！清水寺はとても有名です。",
-        text_vi: "Hay đấy! Chùa Kiyomizu-dera rất nổi tiếng.",
+        text_meaning: {
+          language: "vi",
+          text: "Hay đấy! Chùa Kiyomizu-dera rất nổi tiếng.",
+        },
         client_message_id: null,
         created_at: "2026-08-20T09:21:14Z",
         feedback: {
@@ -256,7 +265,7 @@ export const MOCK_TUTOR_DETAILS: Record<string, TutorConversationDetailResponse>
         sender: "user",
         sequence_number: 4,
         text: "そして、抹茶を飲みたいです。",
-        text_vi: "Và tôi muốn uống matcha.",
+        text_meaning: { language: "vi", text: "Và tôi muốn uống matcha." },
         client_message_id: "88888888-8888-4888-8888-888888888888",
         created_at: "2026-08-20T09:22:03Z",
         feedback: null,
@@ -266,7 +275,10 @@ export const MOCK_TUTOR_DETAILS: Record<string, TutorConversationDetailResponse>
         sender: "ai",
         sequence_number: 5,
         text: "抹茶もいいですね。京都で何をしたいですか？",
-        text_vi: "Matcha cũng rất tuyệt. Bạn còn muốn làm gì ở Kyoto nữa?",
+        text_meaning: {
+          language: "vi",
+          text: "Matcha cũng rất tuyệt. Bạn còn muốn làm gì ở Kyoto nữa?",
+        },
         client_message_id: null,
         created_at: "2026-08-20T09:22:05Z",
         feedback: {
@@ -276,11 +288,11 @@ export const MOCK_TUTOR_DETAILS: Record<string, TutorConversationDetailResponse>
           answer_hints: [
             {
               text: "神社を見学したいです。",
-              meaning_vi: "Tôi muốn tham quan các đền thờ.",
+              text_meaning: { language: "vi", text: "Tôi muốn tham quan các đền thờ." },
             },
             {
               text: "京都の町を歩きたいです。",
-              meaning_vi: "Tôi muốn đi bộ quanh phố Kyoto.",
+              text_meaning: { language: "vi", text: "Tôi muốn đi bộ quanh phố Kyoto." },
             },
           ],
         },
@@ -290,7 +302,7 @@ export const MOCK_TUTOR_DETAILS: Record<string, TutorConversationDetailResponse>
         sender: "ai",
         sequence_number: 6,
         text: "ゆっくり話して大丈夫ですよ。",
-        text_vi: "Bạn cứ nói từ từ cũng được nhé.",
+        text_meaning: { language: "vi", text: "Bạn cứ nói từ từ cũng được nhé." },
         client_message_id: null,
         created_at: "2026-08-20T09:22:10Z",
         feedback: null,
