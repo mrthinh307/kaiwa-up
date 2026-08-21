@@ -8,13 +8,23 @@ import Link from "next/link";
 import { useCallback, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 type ConversationHistoryProps = {
+  errorMessage?: string;
   items: TutorConversationListItem[];
-  loadMore?: (offset: number) => Promise<TutorConversationListItem[]>;
+  loadPage?: (page: number) => Promise<{
+    items: TutorConversationListItem[];
+    page: number;
+    total_pages: number;
+  }>;
+  page?: number;
+  onRetry?: () => void;
+  retryAttempt?: number;
   selectedConversationId: string | null;
-  state?: "ready" | "empty" | "error";
+  state?: "loading" | "ready" | "empty" | "error";
+  totalPages?: number;
 };
 
 function ConversationHistoryEmpty() {
@@ -28,14 +38,20 @@ function ConversationHistoryEmpty() {
   );
 }
 
-function ConversationHistoryError() {
+function ConversationHistoryError({
+  errorMessage,
+  onRetry,
+}: {
+  errorMessage?: string;
+  onRetry: () => void;
+}) {
   return (
     <div className="mx-2 mt-2 rounded-base border-2 border-destructive bg-background p-3">
       <p className="text-sm font-heading text-destructive">History unavailable</p>
       <p className="mt-2 text-sm leading-relaxed text-foreground/65">
-        We could not load your conversations.
+        {errorMessage ?? "We could not load your conversations."}
       </p>
-      <Button className="mt-4 w-full" onClick={() => window.location.reload()} variant="neutral">
+      <Button className="mt-4 w-full" onClick={onRetry} variant="neutral">
         <RefreshCw aria-hidden="true" />
         Try again
       </Button>
@@ -44,32 +60,50 @@ function ConversationHistoryError() {
 }
 
 export function ConversationHistory({
+  errorMessage,
   items,
-  loadMore,
+  loadPage,
+  onRetry,
+  page = 1,
+  retryAttempt = 0,
   selectedConversationId,
   state = "ready",
+  totalPages = 0,
 }: ConversationHistoryProps) {
   const [historyItems, setHistoryItems] = useState(items);
   const historyItemsRef = useRef(items);
-  const [hasMore, setHasMore] = useState(Boolean(loadMore));
+  const currentPageRef = useRef(page);
+  const totalPagesRef = useRef(totalPages);
+  const isLoadingMoreRef = useRef(false);
+  const [hasMore, setHasMore] = useState(state === "ready" && page < totalPages);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [loadMoreError, setLoadMoreError] = useState(false);
 
   const loadMoreItems = useCallback(async () => {
-    if (!loadMore || isLoadingMore || !hasMore) {
+    if (
+      !loadPage ||
+      isLoadingMoreRef.current ||
+      !hasMore ||
+      currentPageRef.current >= totalPagesRef.current
+    ) {
       return;
     }
 
+    isLoadingMoreRef.current = true;
     setIsLoadingMore(true);
     setLoadMoreError(false);
 
     try {
-      const nextItems = await loadMore(historyItemsRef.current.length);
+      const nextPage = currentPageRef.current + 1;
+      const response = await loadPage(nextPage);
+      currentPageRef.current = response.page;
+      totalPagesRef.current = response.total_pages;
+      setHasMore(response.page < response.total_pages);
+
       const existingIds = new Set(historyItemsRef.current.map((item) => item.conversation_id));
-      const uniqueItems = nextItems.filter((item) => !existingIds.has(item.conversation_id));
+      const uniqueItems = response.items.filter((item) => !existingIds.has(item.conversation_id));
 
       if (uniqueItems.length === 0) {
-        setHasMore(false);
         return;
       }
 
@@ -79,9 +113,10 @@ export function ConversationHistory({
     } catch {
       setLoadMoreError(true);
     } finally {
+      isLoadingMoreRef.current = false;
       setIsLoadingMore(false);
     }
-  }, [hasMore, isLoadingMore, loadMore]);
+  }, [hasMore, loadPage]);
 
   const handleHistoryScroll = (event: UIEvent<HTMLDivElement>) => {
     const { clientHeight, scrollHeight, scrollTop } = event.currentTarget;
@@ -105,7 +140,24 @@ export function ConversationHistory({
         className="min-h-0 flex-1 overflow-y-auto px-2 py-3"
         onScroll={handleHistoryScroll}
       >
-        {state === "error" ? <ConversationHistoryError /> : null}
+        {state === "loading" ? (
+          <div className="space-y-2 px-1 py-2" role="status">
+            {Array.from({ length: 6 }, (_, index) => (
+              <Skeleton className="h-10 w-full" key={`history-skeleton-${index}`} />
+            ))}
+            <span className="sr-only">
+              {retryAttempt > 0
+                ? `Retrying conversation history, attempt ${retryAttempt + 1}…`
+                : "Loading conversation history…"}
+            </span>
+          </div>
+        ) : null}
+        {state === "error" ? (
+          <ConversationHistoryError
+            errorMessage={errorMessage}
+            onRetry={onRetry ?? (() => undefined)}
+          />
+        ) : null}
         {state === "empty" ? <ConversationHistoryEmpty /> : null}
         {state === "ready" && historyItems.length > 0 ? (
           <div className="space-y-0.5">
@@ -133,12 +185,14 @@ export function ConversationHistory({
           </div>
         ) : null}
 
-        {loadMore ? (
+        {state === "ready" && loadPage && hasMore ? (
           <div className="flex min-h-12 items-center justify-center px-3 py-3 text-xs text-foreground/60">
             {isLoadingMore ? (
               <span className="flex items-center gap-2" role="status">
                 <LoaderCircle aria-hidden="true" className="size-4 animate-spin" />
-                Loading more conversations…
+                {retryAttempt > 0
+                  ? `Retrying, attempt ${retryAttempt + 1}…`
+                  : "Loading more conversations…"}
               </span>
             ) : null}
             {loadMoreError ? (

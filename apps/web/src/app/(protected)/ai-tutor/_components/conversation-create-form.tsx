@@ -3,13 +3,13 @@
 import type {
   JlptLevel,
   TutorConversationCreateRequest,
+  TutorConversationCreateResponse,
   TutorExplanationLanguage,
 } from "@kaiwa-app/api-client";
 import type { FormEvent } from "react";
 
 import { Check, ChevronsUpDown, MessageCircleMore } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,10 +25,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
+import { normalizeApiFieldName } from "@/lib/api-errors";
 import { cn } from "@/lib/utils";
 
-import { createMockTutorConversation } from "../_mocks/ai-tutor-mock-api";
-import { MOCK_TRAVEL_CONVERSATION_ID } from "../_mocks/ai-tutor-mock-data";
+import { isTutorRequestError } from "../_lib/ai-tutor-request";
 
 const DIFFICULTY_OPTIONS: readonly JlptLevel[] = ["N5", "N4", "N3", "N2", "N1"];
 const EXPLANATION_LANGUAGE_OPTIONS = [
@@ -36,12 +36,14 @@ const EXPLANATION_LANGUAGE_OPTIONS = [
   { label: "English", value: "en" },
   { label: "Japanese", value: "ja" },
 ] as const satisfies readonly { label: string; value: TutorExplanationLanguage }[];
-const MOCK_CONVERSATION_PATH = `/ai-tutor/${MOCK_TRAVEL_CONVERSATION_ID}`;
-
 type CreateState = "idle" | "creating" | "error";
+type ConversationCreateFormProps = {
+  onCreate: (request: TutorConversationCreateRequest) => Promise<TutorConversationCreateResponse>;
+  retryAttempt: number;
+};
 
-export function ConversationCreateForm() {
-  const router = useRouter();
+export function ConversationCreateForm({ onCreate, retryAttempt }: ConversationCreateFormProps) {
+  const clientConversationIdRef = useRef<string | null>(null);
   const [topic, setTopic] = useState("");
   const [difficulty, setDifficulty] = useState<JlptLevel | "">("");
   const [isDifficultyOpen, setIsDifficultyOpen] = useState(false);
@@ -50,6 +52,7 @@ export function ConversationCreateForm() {
   const [scenario, setScenario] = useState("");
   const [createState, setCreateState] = useState<CreateState>("idle");
   const [errorMessage, setErrorMessage] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const normalizedTopic = topic.trim();
   const normalizedScenario = scenario.trim();
@@ -68,6 +71,7 @@ export function ConversationCreateForm() {
 
     setDifficulty(selectedDifficulty);
     setIsDifficultyOpen(false);
+    clientConversationIdRef.current = null;
     clearCreateError();
   }
 
@@ -82,10 +86,12 @@ export function ConversationCreateForm() {
 
     setExplanationLanguage(selectedLanguage);
     setIsExplanationLanguageOpen(false);
+    clientConversationIdRef.current = null;
     clearCreateError();
   }
 
   function clearCreateError() {
+    setFieldErrors({});
     if (createState === "error") {
       setCreateState("idle");
       setErrorMessage("");
@@ -99,22 +105,42 @@ export function ConversationCreateForm() {
       return;
     }
 
-    const request: TutorConversationCreateRequest = {
+    const requestWithoutId = {
       topic: normalizedTopic,
       difficulty,
       scenario: normalizedScenario || null,
       explanation_language: explanationLanguage,
     };
+    const clientConversationId = clientConversationIdRef.current ?? globalThis.crypto.randomUUID();
+    clientConversationIdRef.current = clientConversationId;
+    const request: TutorConversationCreateRequest = {
+      ...requestWithoutId,
+      client_conversation_id: clientConversationId,
+    };
 
     setCreateState("creating");
     setErrorMessage("");
+    setFieldErrors({});
 
     try {
-      await createMockTutorConversation(request);
-      router.push(MOCK_CONVERSATION_PATH);
-    } catch {
+      await onCreate(request);
+    } catch (error) {
       setCreateState("error");
-      setErrorMessage("We could not start this mock conversation. Please try again.");
+      if (isTutorRequestError(error)) {
+        const nextFieldErrors: Record<string, string> = {};
+        for (const fieldError of error.failure.fieldErrors) {
+          const fieldName = normalizeApiFieldName(fieldError.field);
+          if (!nextFieldErrors[fieldName]) {
+            nextFieldErrors[fieldName] = fieldError.message;
+          }
+        }
+        setFieldErrors(nextFieldErrors);
+      }
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "We could not start this conversation. Please try again.",
+      );
     }
   }
 
@@ -143,11 +169,12 @@ export function ConversationCreateForm() {
             </div>
             <Input
               aria-describedby="tutor-topic-help tutor-topic-error"
-              aria-invalid={topicError || undefined}
+              aria-invalid={topicError || Boolean(fieldErrors.topic) || undefined}
               id="tutor-topic"
               maxLength={255}
               onChange={(event) => {
                 setTopic(event.target.value);
+                clientConversationIdRef.current = null;
                 clearCreateError();
               }}
               placeholder="e.g. Japanese travel conversation"
@@ -156,9 +183,9 @@ export function ConversationCreateForm() {
             <p className="text-sm text-foreground/65" id="tutor-topic-help">
               Enter any topic you want to practice.
             </p>
-            {topicError ? (
+            {topicError || fieldErrors.topic ? (
               <p className="text-sm text-destructive" id="tutor-topic-error" role="alert">
-                Topic must be 255 characters or fewer.
+                {fieldErrors.topic ?? "Topic must be 255 characters or fewer."}
               </p>
             ) : null}
           </div>
@@ -209,6 +236,11 @@ export function ConversationCreateForm() {
               <p className="text-sm text-foreground/65" id="tutor-difficulty-help">
                 The Tutor will adjust vocabulary and grammar to this level.
               </p>
+              {fieldErrors.difficulty ? (
+                <p className="text-sm text-destructive" role="alert">
+                  {fieldErrors.difficulty}
+                </p>
+              ) : null}
             </div>
 
             <div className="space-y-2">
@@ -270,6 +302,11 @@ export function ConversationCreateForm() {
               <p className="text-sm text-foreground/65" id="tutor-explanation-language-help">
                 Feedback and translations will use this language.
               </p>
+              {fieldErrors.explanation_language ? (
+                <p className="text-sm text-destructive" role="alert">
+                  {fieldErrors.explanation_language}
+                </p>
+              ) : null}
             </div>
           </div>
 
@@ -280,11 +317,12 @@ export function ConversationCreateForm() {
             </div>
             <Textarea
               aria-describedby="tutor-scenario-help tutor-scenario-error"
-              aria-invalid={scenarioError || undefined}
+              aria-invalid={scenarioError || Boolean(fieldErrors.scenario) || undefined}
               id="tutor-scenario"
               maxLength={2000}
               onChange={(event) => {
                 setScenario(event.target.value);
+                clientConversationIdRef.current = null;
                 clearCreateError();
               }}
               placeholder="Optional context, roles, or situation for the conversation"
@@ -294,9 +332,9 @@ export function ConversationCreateForm() {
             <p className="text-sm text-foreground/65" id="tutor-scenario-help">
               Optional. Add context to help the Tutor set the scene.
             </p>
-            {scenarioError ? (
+            {scenarioError || fieldErrors.scenario ? (
               <p className="text-sm text-destructive" id="tutor-scenario-error" role="alert">
-                Scenario must be 2000 characters or fewer.
+                {fieldErrors.scenario ?? "Scenario must be 2000 characters or fewer."}
               </p>
             ) : null}
           </div>
@@ -312,7 +350,11 @@ export function ConversationCreateForm() {
           ) : null}
 
           <Button className="w-full sm:w-auto" disabled={isInvalid || isCreating} type="submit">
-            {isCreating ? "Starting conversation…" : "Start conversation"}
+            {isCreating
+              ? retryAttempt > 0
+                ? "Retrying conversation…"
+                : "Starting conversation…"
+              : "Start conversation"}
           </Button>
         </form>
       </CardContent>

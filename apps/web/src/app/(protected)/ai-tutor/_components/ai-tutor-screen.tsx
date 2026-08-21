@@ -1,10 +1,21 @@
 "use client";
 
+import type {
+  TutorConversationCreateRequest,
+  TutorConversationCreateResponse,
+  TutorConversationDetailResponse,
+  TutorConversationListResponse,
+  TutorMessageCreateRequest,
+  TutorMessageCreateResponse,
+} from "@kaiwa-app/api-client";
+import type { ReactNode } from "react";
+
 import { MessageCircleMore, PanelLeftOpen, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { ProtectedRouteStatusPanel } from "@/components/common/protected-route/protected-route-status-panel";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -23,29 +34,66 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { Skeleton } from "@/components/ui/skeleton";
 
-import type { AiTutorWorkspaceSnapshot } from "../_types/ai-tutor-ui-state";
-
-import {
-  deleteMockTutorConversation,
-  getMockTutorErrorMessage,
-  getMockTutorConversationHistory,
-} from "../_mocks/ai-tutor-mock-api";
 import { ConversationChat } from "./conversation-chat";
 import { ConversationCreateForm } from "./conversation-create-form";
 import { ConversationHistory } from "./conversation-history";
 
+export type AiTutorListState = "loading" | "ready" | "error";
+export type AiTutorDetailState = "new" | "loading" | "ready" | "unavailable" | "error";
+
 type AiTutorScreenProps = {
-  workspace: AiTutorWorkspaceSnapshot;
+  conversations: TutorConversationListResponse | null;
+  createRetryAttempt: number;
+  deleteRetryAttempt: number;
+  detailErrorMessage?: string;
+  detailRetryAttempt: number;
+  detailState: AiTutorDetailState;
+  listErrorMessage?: string;
+  listRetryAttempt: number;
+  listState: AiTutorListState;
+  loadPage: (page: number) => Promise<TutorConversationListResponse>;
+  onCreateConversation: (
+    request: TutorConversationCreateRequest,
+  ) => Promise<TutorConversationCreateResponse>;
+  onDeleteConversation: (conversationId: string) => Promise<void>;
+  onSendMessage: (
+    conversationId: string,
+    request: TutorMessageCreateRequest,
+  ) => Promise<TutorMessageCreateResponse>;
+  onRetryDetail: () => void;
+  onRetryList: () => void;
+  selectedConversation: TutorConversationDetailResponse | null;
 };
 
 function WorkspaceSidebar({
   conversations,
+  listErrorMessage,
+  listRetryAttempt,
+  listState,
+  loadPage,
+  onRetryList,
   selectedConversationId,
 }: {
-  conversations: AiTutorWorkspaceSnapshot["conversations"];
+  conversations: TutorConversationListResponse | null;
+  listErrorMessage?: string;
+  listRetryAttempt: number;
+  listState: AiTutorListState;
+  loadPage: (page: number) => Promise<TutorConversationListResponse>;
+  onRetryList: () => void;
   selectedConversationId: string | null;
 }) {
+  const items = conversations?.items ?? [];
+  const historyState =
+    listState === "loading"
+      ? "loading"
+      : listState === "error"
+        ? "error"
+        : items.length > 0
+          ? "ready"
+          : "empty";
+
   return (
     <div className="flex h-full min-h-0 flex-col bg-secondary-background">
       <div className="flex h-16 shrink-0 items-center gap-3 border-b-4 border-border px-5">
@@ -54,7 +102,7 @@ function WorkspaceSidebar({
         </span>
         <div className="min-w-0">
           <p className="truncate font-heading">AI Tutor</p>
-          <p className="text-xs text-foreground/65">Mock workspace</p>
+          <p className="text-xs text-foreground/65">Conversation history</p>
         </div>
       </div>
 
@@ -68,10 +116,16 @@ function WorkspaceSidebar({
       </div>
 
       <ConversationHistory
-        items={conversations.items}
-        key={selectedConversationId ?? "new-conversation"}
-        loadMore={getMockTutorConversationHistory}
+        errorMessage={listErrorMessage}
+        items={items}
+        key={`${listState}:${items[0]?.conversation_id ?? "empty"}:${conversations?.total_items ?? 0}`}
+        loadPage={listState === "ready" ? loadPage : undefined}
+        onRetry={onRetryList}
+        page={conversations?.page ?? 1}
+        retryAttempt={listRetryAttempt}
         selectedConversationId={selectedConversationId}
+        state={historyState}
+        totalPages={conversations?.total_pages ?? 0}
       />
     </div>
   );
@@ -79,9 +133,19 @@ function WorkspaceSidebar({
 
 function ConversationHistorySheet({
   conversations,
+  listErrorMessage,
+  listRetryAttempt,
+  listState,
+  loadPage,
+  onRetryList,
   selectedConversationId,
 }: {
-  conversations: AiTutorWorkspaceSnapshot["conversations"];
+  conversations: TutorConversationListResponse | null;
+  listErrorMessage?: string;
+  listRetryAttempt: number;
+  listState: AiTutorListState;
+  loadPage: (page: number) => Promise<TutorConversationListResponse>;
+  onRetryList: () => void;
   selectedConversationId: string | null;
 }) {
   return (
@@ -98,6 +162,11 @@ function ConversationHistorySheet({
         </SheetHeader>
         <WorkspaceSidebar
           conversations={conversations}
+          listErrorMessage={listErrorMessage}
+          listState={listState}
+          listRetryAttempt={listRetryAttempt}
+          loadPage={loadPage}
+          onRetryList={onRetryList}
           selectedConversationId={selectedConversationId}
         />
       </SheetContent>
@@ -105,49 +174,123 @@ function ConversationHistorySheet({
   );
 }
 
-export function AiTutorScreen({ workspace }: AiTutorScreenProps) {
-  const [workspaceState, setWorkspaceState] = useState(workspace);
+function WorkspaceStateFrame({
+  children,
+  conversations,
+  listErrorMessage,
+  listRetryAttempt,
+  listState,
+  loadPage,
+  onRetryList,
+}: {
+  children: ReactNode;
+  conversations: TutorConversationListResponse | null;
+  listErrorMessage?: string;
+  listRetryAttempt: number;
+  listState: AiTutorListState;
+  loadPage: (page: number) => Promise<TutorConversationListResponse>;
+  onRetryList: () => void;
+}) {
+  return (
+    <div className="flex min-h-[calc(100dvh-70px)] flex-col items-center justify-center p-5 sm:p-8">
+      <div className="mb-4 flex w-full justify-end lg:hidden">
+        <ConversationHistorySheet
+          conversations={conversations}
+          listErrorMessage={listErrorMessage}
+          listState={listState}
+          listRetryAttempt={listRetryAttempt}
+          loadPage={loadPage}
+          onRetryList={onRetryList}
+          selectedConversationId={null}
+        />
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function DetailLoadingState({ retryAttempt }: { retryAttempt: number }) {
+  return (
+    <div className="w-full max-w-[920px] space-y-6" aria-busy="true">
+      <Skeleton className="h-24 w-4/5" />
+      <Skeleton className="ml-auto h-24 w-4/5" />
+      <Skeleton className="h-24 w-4/5" />
+      {retryAttempt > 0 ? (
+        <p className="text-center text-sm text-foreground/65" role="status">
+          Retrying conversation…
+        </p>
+      ) : null}
+      <span className="sr-only" role="status">
+        {retryAttempt > 0
+          ? `Retrying conversation, attempt ${retryAttempt + 1}…`
+          : "Loading conversation…"}
+      </span>
+    </div>
+  );
+}
+
+function DetailUnavailableState({
+  detailErrorMessage,
+  isUnavailable,
+  onRetry,
+}: {
+  detailErrorMessage?: string;
+  isUnavailable: boolean;
+  onRetry: () => void;
+}) {
+  return (
+    <ProtectedRouteStatusPanel
+      action={
+        <div className="flex flex-wrap justify-center gap-3">
+          {!isUnavailable ? <Button onClick={onRetry}>Try again</Button> : null}
+          <Button asChild variant="neutral">
+            <Link href="/ai-tutor">Back to conversations</Link>
+          </Button>
+        </div>
+      }
+      description={
+        isUnavailable
+          ? "This conversation is no longer available or you do not have access to it."
+          : (detailErrorMessage ?? "We could not load this conversation. Try again.")
+      }
+      title="Conversation unavailable"
+      variant="error"
+    />
+  );
+}
+
+export function AiTutorScreen({
+  conversations,
+  createRetryAttempt,
+  deleteRetryAttempt,
+  detailErrorMessage,
+  detailRetryAttempt,
+  detailState,
+  listErrorMessage,
+  listRetryAttempt,
+  listState,
+  loadPage,
+  onCreateConversation,
+  onDeleteConversation,
+  onSendMessage,
+  onRetryDetail,
+  onRetryList,
+  selectedConversation,
+}: AiTutorScreenProps) {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const deleteButtonRef = useRef<HTMLButtonElement | null>(null);
-  const selectedConversation = workspaceState.selectedConversation;
-
-  async function handleDeleteConversation(conversationId: string) {
-    await deleteMockTutorConversation(conversationId);
-    const isSelectedConversation =
-      workspaceState.selectedConversation?.conversation_id === conversationId;
-
-    setWorkspaceState((currentWorkspace) => {
-      const items = currentWorkspace.conversations.items.filter(
-        (item) => item.conversation_id !== conversationId,
-      );
-
-      return {
-        conversations: {
-          ...currentWorkspace.conversations,
-          items,
-          total_items: items.length,
-          total_pages: Math.max(
-            1,
-            Math.ceil(items.length / currentWorkspace.conversations.page_size),
-          ),
-        },
-        selectedConversation: isSelectedConversation ? null : currentWorkspace.selectedConversation,
-      };
-    });
-
-    if (isSelectedConversation) {
-      window.history.replaceState(null, "", "/ai-tutor");
-    }
-  }
+  const hasConversation = detailState === "ready" && selectedConversation !== null;
 
   function handleDeleteDialogOpenChange(open: boolean) {
-    if (open || isDeleting) {
+    if (isDeleting) {
       return;
     }
 
-    setIsDeleteDialogOpen(false);
-    window.requestAnimationFrame(() => deleteButtonRef.current?.focus());
+    setIsDeleteDialogOpen(open);
+    if (!open) {
+      window.requestAnimationFrame(() => deleteButtonRef.current?.focus());
+    }
   }
 
   async function handleDeleteConfirm() {
@@ -156,16 +299,13 @@ export function AiTutorScreen({ workspace }: AiTutorScreenProps) {
     }
 
     setIsDeleting(true);
-
     try {
-      await handleDeleteConversation(selectedConversation.conversation_id);
+      await onDeleteConversation(selectedConversation.conversation_id);
       setIsDeleteDialogOpen(false);
     } catch (error) {
       toast.error("Could not delete conversation", {
-        description: getMockTutorErrorMessage(error),
+        description: error instanceof Error ? error.message : "Please try again.",
       });
-      setIsDeleteDialogOpen(false);
-      window.requestAnimationFrame(() => deleteButtonRef.current?.focus());
     } finally {
       setIsDeleting(false);
     }
@@ -176,26 +316,34 @@ export function AiTutorScreen({ workspace }: AiTutorScreenProps) {
       <div className="grid h-full min-h-0 lg:grid-cols-[320px_minmax(0,1fr)]">
         <aside className="hidden min-h-0 border-r-4 border-border lg:block">
           <WorkspaceSidebar
-            conversations={workspaceState.conversations}
+            conversations={conversations}
+            listErrorMessage={listErrorMessage}
+            listRetryAttempt={listRetryAttempt}
+            listState={listState}
+            loadPage={loadPage}
+            onRetryList={onRetryList}
             selectedConversationId={selectedConversation?.conversation_id ?? null}
           />
         </aside>
 
         <section className="flex min-h-0 min-w-0 flex-col" aria-label="AI Tutor workspace">
-          {selectedConversation ? (
+          {hasConversation ? (
             <header className="flex h-16 shrink-0 items-center justify-between gap-4 border-b-4 border-border bg-secondary-background px-5 sm:px-6">
               <div className="flex min-w-0 items-center gap-3">
                 <div className="lg:hidden">
                   <ConversationHistorySheet
-                    conversations={workspaceState.conversations}
+                    conversations={conversations}
+                    listErrorMessage={listErrorMessage}
+                    listRetryAttempt={listRetryAttempt}
+                    listState={listState}
+                    loadPage={loadPage}
+                    onRetryList={onRetryList}
                     selectedConversationId={selectedConversation.conversation_id}
                   />
                 </div>
 
                 <div className="min-w-0">
-                  <p className="truncate font-heading">
-                    {selectedConversation?.topic ?? "New conversation"}
-                  </p>
+                  <p className="truncate font-heading">{selectedConversation.topic}</p>
                   <div className="flex min-w-0 items-center gap-2 text-xs text-foreground/65">
                     <span className="shrink-0 font-heading">{selectedConversation.difficulty}</span>
                     {selectedConversation.scenario ? (
@@ -206,7 +354,6 @@ export function AiTutorScreen({ workspace }: AiTutorScreenProps) {
                   </div>
                 </div>
               </div>
-
               <div className="flex items-center gap-2">
                 <Button
                   aria-label={`Delete conversation ${selectedConversation.topic}`}
@@ -223,30 +370,53 @@ export function AiTutorScreen({ workspace }: AiTutorScreenProps) {
           ) : null}
 
           <div className="min-h-0 flex-1">
-            <div
-              className={
-                selectedConversation
-                  ? "h-full min-h-0"
-                  : "scrollbar h-full overflow-x-hidden overflow-y-auto"
-              }
-            >
-              {selectedConversation ? (
+            <div className={hasConversation ? "h-full min-h-0" : "h-full overflow-y-auto"}>
+              {hasConversation ? (
                 <ConversationChat
                   conversation={selectedConversation}
                   key={selectedConversation.conversation_id}
+                  onSendMessage={onSendMessage}
                 />
+              ) : detailState === "loading" ? (
+                <WorkspaceStateFrame
+                  conversations={conversations}
+                  listErrorMessage={listErrorMessage}
+                  listRetryAttempt={listRetryAttempt}
+                  listState={listState}
+                  loadPage={loadPage}
+                  onRetryList={onRetryList}
+                >
+                  <DetailLoadingState retryAttempt={detailRetryAttempt} />
+                </WorkspaceStateFrame>
+              ) : detailState === "new" ? (
+                <WorkspaceStateFrame
+                  conversations={conversations}
+                  listErrorMessage={listErrorMessage}
+                  listRetryAttempt={listRetryAttempt}
+                  listState={listState}
+                  loadPage={loadPage}
+                  onRetryList={onRetryList}
+                >
+                  <ConversationCreateForm
+                    onCreate={onCreateConversation}
+                    retryAttempt={createRetryAttempt}
+                  />
+                </WorkspaceStateFrame>
               ) : (
-                <div className="flex min-h-[calc(100dvh-70px)] items-center justify-center p-5 sm:p-8">
-                  <div className="w-full max-w-[680px]">
-                    <div className="mb-4 flex justify-end lg:hidden">
-                      <ConversationHistorySheet
-                        conversations={workspaceState.conversations}
-                        selectedConversationId={null}
-                      />
-                    </div>
-                    <ConversationCreateForm />
-                  </div>
-                </div>
+                <WorkspaceStateFrame
+                  conversations={conversations}
+                  listErrorMessage={listErrorMessage}
+                  listRetryAttempt={listRetryAttempt}
+                  listState={listState}
+                  loadPage={loadPage}
+                  onRetryList={onRetryList}
+                >
+                  <DetailUnavailableState
+                    detailErrorMessage={detailErrorMessage}
+                    isUnavailable={detailState === "unavailable"}
+                    onRetry={onRetryDetail}
+                  />
+                </WorkspaceStateFrame>
               )}
             </div>
           </div>
@@ -256,8 +426,8 @@ export function AiTutorScreen({ workspace }: AiTutorScreenProps) {
               <DialogHeader>
                 <DialogTitle>Delete conversation?</DialogTitle>
                 <DialogDescription>
-                  This permanently removes “{selectedConversation?.topic ?? "this conversation"}”
-                  and all of its messages.
+                  This removes “{selectedConversation?.topic ?? "this conversation"}” from your
+                  conversation history.
                 </DialogDescription>
               </DialogHeader>
               <DialogFooter>
@@ -273,7 +443,11 @@ export function AiTutorScreen({ workspace }: AiTutorScreenProps) {
                   type="button"
                   variant="neutral"
                 >
-                  {isDeleting ? "Deleting…" : "Delete conversation"}
+                  {isDeleting
+                    ? deleteRetryAttempt > 0
+                      ? "Retrying delete…"
+                      : "Deleting…"
+                    : "Delete conversation"}
                 </Button>
               </DialogFooter>
             </DialogContent>

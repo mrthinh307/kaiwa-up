@@ -14,7 +14,7 @@ export default function AiTutorError({
       <div className="mx-auto w-full max-w-[680px]">
         <ProtectedRouteStatusPanel
           action={<Button onClick={reset}>Try again</Button>}
-          description="The AI Tutor workspace could not be prepared. Try loading the mock experience again."
+          description="The AI Tutor workspace could not be prepared. Try loading it again."
           title="AI Tutor unavailable"
           variant="error"
         />
