@@ -778,6 +778,32 @@ export type PaginatedResponseProgressAttemptItem = {
 };
 
 /**
+ * PaginatedResponse[TranslationLessonItem]
+ */
+export type PaginatedResponseTranslationLessonItem = {
+  /**
+   * Items
+   */
+  items: Array<TranslationLessonItem>;
+  /**
+   * Total Items
+   */
+  total_items: number;
+  /**
+   * Page
+   */
+  page: number;
+  /**
+   * Page Size
+   */
+  page_size: number;
+  /**
+   * Total Pages
+   */
+  total_pages: number;
+};
+
+/**
  * ProgressAttemptDetail
  */
 export type ProgressAttemptDetail = {
@@ -1513,6 +1539,135 @@ export type TranscriptSegment = {
    * Script
    */
   script: string;
+};
+
+/**
+ * TranslationLessonDetail
+ *
+ * Answer-safe lesson detail shown before submission.
+ */
+export type TranslationLessonDetail = {
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Title
+   */
+  title: string;
+  /**
+   * Description
+   */
+  description?: string | null;
+  difficulty: JlptLevel;
+  /**
+   * Topic
+   */
+  topic?: string | null;
+  /**
+   * Duration Seconds
+   */
+  duration_seconds?: number | null;
+  /**
+   * Audio Url
+   */
+  audio_url: string;
+  /**
+   * Is Completed
+   */
+  is_completed: boolean;
+};
+
+/**
+ * TranslationLessonItem
+ */
+export type TranslationLessonItem = {
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Title
+   */
+  title: string;
+  /**
+   * Description
+   */
+  description?: string | null;
+  difficulty: JlptLevel;
+  /**
+   * Topic
+   */
+  topic?: string | null;
+  /**
+   * Duration Seconds
+   */
+  duration_seconds?: number | null;
+  /**
+   * Audio Url
+   */
+  audio_url: string;
+  /**
+   * Is Completed
+   */
+  is_completed: boolean;
+};
+
+/**
+ * TranslationSubmissionCreate
+ */
+export type TranslationSubmissionCreate = {
+  /**
+   * Translation Vi
+   */
+  translation_vi: string;
+};
+
+/**
+ * TranslationSubmissionResponse
+ */
+export type TranslationSubmissionResponse = {
+  /**
+   * Is Acceptable
+   */
+  is_acceptable: boolean;
+  /**
+   * Covered Ideas
+   */
+  covered_ideas: Array<string>;
+  /**
+   * Missing Ideas
+   */
+  missing_ideas: Array<string>;
+  /**
+   * Suggestions
+   */
+  suggestions: Array<string>;
+  /**
+   * Attempt Id
+   */
+  attempt_id: string;
+  /**
+   * Evaluation Id
+   */
+  evaluation_id: string;
+  status: AttemptStatus;
+  /**
+   * Exp Earned
+   */
+  exp_earned: number;
+  /**
+   * Score
+   */
+  score: number;
+  /**
+   * Feedback
+   */
+  feedback: string;
+  /**
+   * Reference Translation Vi
+   */
+  reference_translation_vi: string;
 };
 
 /**
@@ -2952,6 +3107,138 @@ export type EvaluateReflexLessonResponses = {
 
 export type EvaluateReflexLessonResponse =
   EvaluateReflexLessonResponses[keyof EvaluateReflexLessonResponses];
+
+export type ListListeningTranslationLessonsData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Difficulty
+     */
+    difficulty?: JlptLevel | null;
+    /**
+     * Page
+     */
+    page?: number;
+    /**
+     * Page Size
+     */
+    page_size?: number;
+  };
+  url: "/api/v1/listening-translation/lessons";
+};
+
+export type ListListeningTranslationLessonsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListListeningTranslationLessonsError =
+  ListListeningTranslationLessonsErrors[keyof ListListeningTranslationLessonsErrors];
+
+export type ListListeningTranslationLessonsResponses = {
+  /**
+   * Successful Response
+   */
+  200: PaginatedResponseTranslationLessonItem;
+};
+
+export type ListListeningTranslationLessonsResponse =
+  ListListeningTranslationLessonsResponses[keyof ListListeningTranslationLessonsResponses];
+
+export type GetListeningTranslationLessonData = {
+  body?: never;
+  path: {
+    /**
+     * Lesson Id
+     */
+    lesson_id: string;
+  };
+  query?: never;
+  url: "/api/v1/listening-translation/lessons/{lesson_id}";
+};
+
+export type GetListeningTranslationLessonErrors = {
+  /**
+   * Not Found
+   */
+  404: ErrorResponse;
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetListeningTranslationLessonError =
+  GetListeningTranslationLessonErrors[keyof GetListeningTranslationLessonErrors];
+
+export type GetListeningTranslationLessonResponses = {
+  /**
+   * Successful Response
+   */
+  200: TranslationLessonDetail;
+};
+
+export type GetListeningTranslationLessonResponse =
+  GetListeningTranslationLessonResponses[keyof GetListeningTranslationLessonResponses];
+
+export type SubmitListeningTranslationData = {
+  body: TranslationSubmissionCreate;
+  path: {
+    /**
+     * Lesson Id
+     */
+    lesson_id: string;
+  };
+  query?: never;
+  url: "/api/v1/listening-translation/lessons/{lesson_id}/submit";
+};
+
+export type SubmitListeningTranslationErrors = {
+  /**
+   * Not Found
+   */
+  404: ErrorResponse;
+  /**
+   * Conflict
+   */
+  409: ErrorResponse;
+  /**
+   * Unprocessable Content
+   */
+  422: ErrorResponse;
+  /**
+   * Too Many Requests
+   */
+  429: ErrorResponse;
+  /**
+   * Bad Gateway
+   */
+  502: ErrorResponse;
+  /**
+   * Service Unavailable
+   */
+  503: ErrorResponse;
+  /**
+   * Gateway Timeout
+   */
+  504: ErrorResponse;
+};
+
+export type SubmitListeningTranslationError =
+  SubmitListeningTranslationErrors[keyof SubmitListeningTranslationErrors];
+
+export type SubmitListeningTranslationResponses = {
+  /**
+   * Successful Response
+   */
+  200: TranslationSubmissionResponse;
+};
+
+export type SubmitListeningTranslationResponse =
+  SubmitListeningTranslationResponses[keyof SubmitListeningTranslationResponses];
 
 export type ListDueReviewsData = {
   body?: never;

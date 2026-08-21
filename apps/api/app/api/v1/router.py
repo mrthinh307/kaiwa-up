@@ -12,6 +12,7 @@ from app.api.v1.endpoints.readiness import router as readiness_router
 from app.api.v1.endpoints.reflex import router as reflex_router
 from app.api.v1.endpoints.review import router as review_router
 from app.api.v1.endpoints.shadowing import router as shadowing_router
+from app.api.v1.endpoints.translation import router as translation_router
 from app.api.v1.endpoints.users import router as user_router
 
 router = APIRouter()
@@ -23,6 +24,7 @@ router.include_router(gamification_router)
 router.include_router(shadowing_router)
 router.include_router(dictation_router)
 router.include_router(reflex_router)
+router.include_router(translation_router)
 router.include_router(review_router)
 router.include_router(auth_router)
 router.include_router(user_router)
