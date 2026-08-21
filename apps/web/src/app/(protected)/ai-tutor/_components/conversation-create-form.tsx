@@ -1,6 +1,10 @@
 "use client";
 
-import type { JlptLevel, TutorConversationCreateRequest } from "@kaiwa-app/api-client";
+import type {
+  JlptLevel,
+  TutorConversationCreateRequest,
+  TutorExplanationLanguage,
+} from "@kaiwa-app/api-client";
 import type { FormEvent } from "react";
 
 import { Check, ChevronsUpDown, MessageCircleMore } from "lucide-react";
@@ -27,6 +31,11 @@ import { createMockTutorConversation } from "../_mocks/ai-tutor-mock-api";
 import { MOCK_TRAVEL_CONVERSATION_ID } from "../_mocks/ai-tutor-mock-data";
 
 const DIFFICULTY_OPTIONS: readonly JlptLevel[] = ["N5", "N4", "N3", "N2", "N1"];
+const EXPLANATION_LANGUAGE_OPTIONS = [
+  { label: "Vietnamese", value: "vi" },
+  { label: "English", value: "en" },
+  { label: "Japanese", value: "ja" },
+] as const satisfies readonly { label: string; value: TutorExplanationLanguage }[];
 const MOCK_CONVERSATION_PATH = `/ai-tutor/${MOCK_TRAVEL_CONVERSATION_ID}`;
 
 type CreateState = "idle" | "creating" | "error";
@@ -36,6 +45,8 @@ export function ConversationCreateForm() {
   const [topic, setTopic] = useState("");
   const [difficulty, setDifficulty] = useState<JlptLevel | "">("");
   const [isDifficultyOpen, setIsDifficultyOpen] = useState(false);
+  const [explanationLanguage, setExplanationLanguage] = useState<TutorExplanationLanguage>("vi");
+  const [isExplanationLanguageOpen, setIsExplanationLanguageOpen] = useState(false);
   const [scenario, setScenario] = useState("");
   const [createState, setCreateState] = useState<CreateState>("idle");
   const [errorMessage, setErrorMessage] = useState("");
@@ -44,7 +55,8 @@ export function ConversationCreateForm() {
   const normalizedScenario = scenario.trim();
   const topicError = normalizedTopic.length > 255;
   const scenarioError = normalizedScenario.length > 2000;
-  const isInvalid = !normalizedTopic || !difficulty || topicError || scenarioError;
+  const isInvalid =
+    !normalizedTopic || !difficulty || !explanationLanguage || topicError || scenarioError;
   const isCreating = createState === "creating";
 
   function handleDifficultyChange(value: string) {
@@ -56,6 +68,20 @@ export function ConversationCreateForm() {
 
     setDifficulty(selectedDifficulty);
     setIsDifficultyOpen(false);
+    clearCreateError();
+  }
+
+  function handleExplanationLanguageChange(value: string) {
+    const selectedLanguage = EXPLANATION_LANGUAGE_OPTIONS.find(
+      (option) => option.value === value,
+    )?.value;
+
+    if (!selectedLanguage) {
+      return;
+    }
+
+    setExplanationLanguage(selectedLanguage);
+    setIsExplanationLanguageOpen(false);
     clearCreateError();
   }
 
@@ -77,6 +103,7 @@ export function ConversationCreateForm() {
       topic: normalizedTopic,
       difficulty,
       scenario: normalizedScenario || null,
+      explanation_language: explanationLanguage,
     };
 
     setCreateState("creating");
@@ -136,51 +163,114 @@ export function ConversationCreateForm() {
             ) : null}
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="tutor-difficulty">Difficulty</Label>
-            <Popover onOpenChange={setIsDifficultyOpen} open={isDifficultyOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  aria-describedby="tutor-difficulty-help"
-                  aria-expanded={isDifficultyOpen}
-                  className="w-full justify-between"
-                  id="tutor-difficulty"
-                  role="combobox"
-                  type="button"
-                  variant="noShadow"
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="tutor-difficulty">Difficulty</Label>
+              <Popover onOpenChange={setIsDifficultyOpen} open={isDifficultyOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    aria-describedby="tutor-difficulty-help"
+                    aria-expanded={isDifficultyOpen}
+                    className="w-full justify-between"
+                    id="tutor-difficulty"
+                    role="combobox"
+                    type="button"
+                    variant="noShadow"
+                  >
+                    <span className={cn("truncate", !difficulty && "text-foreground/50")}>
+                      {difficulty || "Choose a JLPT level"}
+                    </span>
+                    <ChevronsUpDown aria-hidden="true" className="opacity-70" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent
+                  align="start"
+                  className="w-(--radix-popover-trigger-width) p-0 shadow-shadow"
                 >
-                  <span className={cn("truncate", !difficulty && "text-foreground/50")}>
-                    {difficulty || "Choose a JLPT level"}
-                  </span>
-                  <ChevronsUpDown aria-hidden="true" className="opacity-70" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent
-                align="start"
-                className="w-(--radix-popover-trigger-width) p-0 shadow-shadow"
-              >
-                <Command className="border-0">
-                  <CommandInput aria-label="Search JLPT difficulty" placeholder="Search level" />
-                  <CommandList>
-                    <CommandEmpty>No JLPT level found.</CommandEmpty>
-                    <CommandGroup>
-                      {DIFFICULTY_OPTIONS.map((level) => (
-                        <CommandItem key={level} onSelect={handleDifficultyChange} value={level}>
-                          <Check
-                            aria-hidden="true"
-                            className={cn("opacity-0", difficulty === level && "opacity-100")}
-                          />
-                          {level}
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </CommandList>
-                </Command>
-              </PopoverContent>
-            </Popover>
-            <p className="text-sm text-foreground/65" id="tutor-difficulty-help">
-              The Tutor will adjust vocabulary and grammar to this level.
-            </p>
+                  <Command className="border-0">
+                    <CommandInput aria-label="Search JLPT difficulty" placeholder="Search level" />
+                    <CommandList>
+                      <CommandEmpty>No JLPT level found.</CommandEmpty>
+                      <CommandGroup>
+                        {DIFFICULTY_OPTIONS.map((level) => (
+                          <CommandItem key={level} onSelect={handleDifficultyChange} value={level}>
+                            <Check
+                              aria-hidden="true"
+                              className={cn("opacity-0", difficulty === level && "opacity-100")}
+                            />
+                            {level}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+              <p className="text-sm text-foreground/65" id="tutor-difficulty-help">
+                The Tutor will adjust vocabulary and grammar to this level.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="tutor-explanation-language">Explanation language</Label>
+              <Popover onOpenChange={setIsExplanationLanguageOpen} open={isExplanationLanguageOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    aria-describedby="tutor-explanation-language-help"
+                    aria-expanded={isExplanationLanguageOpen}
+                    className="w-full justify-between"
+                    id="tutor-explanation-language"
+                    role="combobox"
+                    type="button"
+                    variant="noShadow"
+                  >
+                    <span className="truncate">
+                      {
+                        EXPLANATION_LANGUAGE_OPTIONS.find(
+                          (option) => option.value === explanationLanguage,
+                        )?.label
+                      }
+                    </span>
+                    <ChevronsUpDown aria-hidden="true" className="opacity-70" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent
+                  align="start"
+                  className="w-(--radix-popover-trigger-width) p-0 shadow-shadow"
+                >
+                  <Command className="border-0">
+                    <CommandInput
+                      aria-label="Search explanation language"
+                      placeholder="Search language"
+                    />
+                    <CommandList>
+                      <CommandEmpty>No language found.</CommandEmpty>
+                      <CommandGroup>
+                        {EXPLANATION_LANGUAGE_OPTIONS.map((option) => (
+                          <CommandItem
+                            key={option.value}
+                            onSelect={handleExplanationLanguageChange}
+                            value={option.value}
+                          >
+                            <Check
+                              aria-hidden="true"
+                              className={cn(
+                                "opacity-0",
+                                explanationLanguage === option.value && "opacity-100",
+                              )}
+                            />
+                            {option.label}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+              <p className="text-sm text-foreground/65" id="tutor-explanation-language-help">
+                Feedback and translations will use this language.
+              </p>
+            </div>
           </div>
 
           <div className="space-y-2">

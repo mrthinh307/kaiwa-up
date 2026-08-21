@@ -204,6 +204,7 @@ export async function createMockTutorConversation(
     topic: request.topic,
     difficulty: request.difficulty,
     scenario: request.scenario ?? null,
+    explanation_language: request.explanation_language ?? "vi",
     status: "active",
     initial_message: initialMessage,
   };
