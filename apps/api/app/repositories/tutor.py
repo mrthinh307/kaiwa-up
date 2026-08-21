@@ -6,7 +6,7 @@ from typing import NamedTuple, cast
 
 from sqlalchemy import func, select
 
-from app.models.enums import JlptLevel, TutorSender
+from app.models.enums import JlptLevel, TutorExplanationLanguage, TutorSender
 from app.models.tutor import TutorMessage, TutorSession
 from app.repositories.base import BaseRepository
 
@@ -27,18 +27,39 @@ class TutorRepository(BaseRepository):
         topic: str,
         difficulty: JlptLevel,
         scenario: str | None,
+        explanation_language: TutorExplanationLanguage = TutorExplanationLanguage.VI,
+        client_conversation_id: uuid.UUID | None = None,
     ) -> TutorSession:
         tutor_session = TutorSession(
             user_id=user_id,
+            client_conversation_id=client_conversation_id,
             topic=topic,
             difficulty=difficulty,
             scenario=scenario,
+            explanation_language=explanation_language,
             status="active",
         )
         self.session.add(tutor_session)
         await self.session.flush()
         await self.session.refresh(tutor_session)
         return tutor_session
+
+    async def get_session_by_client_conversation_id(
+        self,
+        *,
+        user_id: uuid.UUID,
+        client_conversation_id: uuid.UUID,
+    ) -> TutorSession | None:
+        return cast(
+            TutorSession | None,
+            await self.session.scalar(
+                select(TutorSession).where(
+                    TutorSession.user_id == user_id,
+                    TutorSession.client_conversation_id == client_conversation_id,
+                    TutorSession.deleted_at.is_(None),
+                )
+            ),
+        )
 
     async def list_sessions_for_user(
         self,
@@ -51,7 +72,10 @@ class TutorRepository(BaseRepository):
             await self.session.scalar(
                 select(func.count())
                 .select_from(TutorSession)
-                .where(TutorSession.user_id == user_id)
+                .where(
+                    TutorSession.user_id == user_id,
+                    TutorSession.deleted_at.is_(None),
+                )
             )
             or 0
         )
@@ -72,7 +96,10 @@ class TutorRepository(BaseRepository):
         updated_at = func.coalesce(last_message_at, TutorSession.started_at).label("updated_at")
         statement = (
             select(TutorSession, last_message_text, updated_at)
-            .where(TutorSession.user_id == user_id)
+            .where(
+                TutorSession.user_id == user_id,
+                TutorSession.deleted_at.is_(None),
+            )
             .order_by(updated_at.desc(), TutorSession.id.desc())
             .limit(limit)
             .offset(offset)
@@ -91,7 +118,9 @@ class TutorRepository(BaseRepository):
         return cast(
             TutorSession | None,
             await self.session.scalar(
-                select(TutorSession).where(TutorSession.id == conversation_id)
+                select(TutorSession)
+                .where(TutorSession.id == conversation_id)
+                .where(TutorSession.deleted_at.is_(None))
             ),
         )
 
@@ -99,12 +128,27 @@ class TutorRepository(BaseRepository):
         return cast(
             TutorSession | None,
             await self.session.scalar(
+                select(TutorSession)
+                .where(
+                    TutorSession.id == conversation_id,
+                    TutorSession.deleted_at.is_(None),
+                )
+                .with_for_update()
+            ),
+        )
+
+    async def get_session_including_deleted_for_update(
+        self,
+        conversation_id: uuid.UUID,
+    ) -> TutorSession | None:
+        return cast(
+            TutorSession | None,
+            await self.session.scalar(
                 select(TutorSession).where(TutorSession.id == conversation_id).with_for_update()
             ),
         )
 
-    async def delete_session(self, tutor_session: TutorSession) -> None:
-        await self.session.delete(tutor_session)
+    async def soft_delete_session(self, tutor_session: TutorSession) -> None:
         await self.session.flush()
 
     async def list_messages(self, session_id: uuid.UUID) -> list[TutorMessage]:
@@ -173,7 +217,7 @@ class TutorRepository(BaseRepository):
         sequence_number: int,
         content: str,
         client_message_id: uuid.UUID | None,
-        text_vi: str | None = None,
+        text_meaning: dict[str, str] | None = None,
         feedback: dict[str, object] | None = None,
     ) -> TutorMessage:
         message = TutorMessage(
@@ -181,7 +225,7 @@ class TutorRepository(BaseRepository):
             sender=sender,
             sequence_number=sequence_number,
             content=content,
-            text_vi=text_vi,
+            text_meaning=text_meaning,
             client_message_id=client_message_id,
             feedback=feedback,
         )

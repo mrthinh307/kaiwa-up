@@ -2,7 +2,7 @@ from sqlalchemy import CheckConstraint, DateTime, Enum, Index, UniqueConstraint
 from sqlalchemy.schema import ColumnDefault
 
 from app.models import Base
-from app.models.enums import JlptLevel
+from app.models.enums import JlptLevel, TutorExplanationLanguage
 
 
 def test_all_expected_tables_registered() -> None:
@@ -75,6 +75,7 @@ def test_required_indexes_present() -> None:
     assert "ix_review_schedules_user_id_due_at" in indexes["review_schedules"]
     assert "ix_xp_transactions_created_at_user_id" in indexes["xp_transactions"]
     assert "ix_tutor_sessions_user_id_started_at" in indexes["tutor_sessions"]
+    assert "uq_tutor_sessions_active_client_conversation_id" in indexes["tutor_sessions"]
     assert "ix_learning_contents_published_catalog" in indexes["learning_contents"]
 
 
@@ -96,6 +97,18 @@ def test_partial_index_conditions() -> None:
 
     catalog_idx = _index_by_name("learning_contents", "ix_learning_contents_published_catalog")
     assert "status = 'PUBLISHED'" in str(catalog_idx.dialect_options["postgresql"].get("where"))
+
+    tutor_list_idx = _index_by_name("tutor_sessions", "ix_tutor_sessions_user_id_started_at")
+    assert "deleted_at IS NULL" in str(tutor_list_idx.dialect_options["postgresql"].get("where"))
+
+    tutor_idempotency_idx = _index_by_name(
+        "tutor_sessions",
+        "uq_tutor_sessions_active_client_conversation_id",
+    )
+    assert tutor_idempotency_idx.unique
+    assert "deleted_at IS NULL" in str(
+        tutor_idempotency_idx.dialect_options["postgresql"].get("where")
+    )
 
 
 def test_database_check_constraints_present() -> None:
@@ -132,7 +145,11 @@ def test_database_check_constraints_present() -> None:
             "weekly_leaderboard_exp_nonnegative",
             "weekly_leaderboard_rank_positive",
         },
-        "tutor_sessions": {"tutor_session_jlpt_level", "tutor_session_status"},
+        "tutor_sessions": {
+            "tutor_session_jlpt_level",
+            "tutor_session_status",
+            "tutor_session_explanation_language",
+        },
         "tutor_messages": {
             "tutor_sender",
             "tutor_messages_client_message_id_by_sender",
@@ -205,15 +222,28 @@ def test_tutor_session_stores_free_form_context_as_required_snapshots() -> None:
         "id",
         "user_id",
         "topic",
+        "client_conversation_id",
         "difficulty",
         "scenario",
+        "explanation_language",
         "status",
         "started_at",
         "ended_at",
+        "deleted_at",
     }
     assert not session.columns["topic"].nullable
+    assert session.columns["client_conversation_id"].nullable
+    assert session.columns["client_conversation_id"].type.__class__.__name__ == "Uuid"
     assert not session.columns["difficulty"].nullable
     assert session.columns["scenario"].nullable
+    assert session.columns["deleted_at"].nullable
+    assert session.columns["deleted_at"].type.timezone
+    explanation_language = session.columns["explanation_language"]
+    assert not explanation_language.nullable
+    assert isinstance(explanation_language.type, Enum)
+    assert explanation_language.type.enums == [
+        language.value for language in TutorExplanationLanguage
+    ]
 
 
 def test_tutor_message_client_message_id_is_nullable() -> None:
@@ -223,8 +253,8 @@ def test_tutor_message_client_message_id_is_nullable() -> None:
     assert messages.columns["client_message_id"].type.__class__.__name__ == "Uuid"
 
 
-def test_tutor_message_text_vi_is_nullable_for_legacy_and_user_messages() -> None:
+def test_tutor_message_text_meaning_is_nullable_for_legacy_and_user_messages() -> None:
     messages = Base.metadata.tables["tutor_messages"]
 
-    assert messages.columns["text_vi"].nullable
-    assert messages.columns["text_vi"].type.__class__.__name__ == "Text"
+    assert messages.columns["text_meaning"].nullable
+    assert messages.columns["text_meaning"].type.__class__.__name__ == "JSONB"

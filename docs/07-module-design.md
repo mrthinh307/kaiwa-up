@@ -616,8 +616,12 @@ Backend:
 - Xóa conversation thuộc user hiện tại cùng toàn bộ message liên quan.
 - Tạo conversation từ topic/difficulty bắt buộc và scenario tùy chọn do user nhập.
 - Phase 2 chỉ nhận câu trả lời dạng text; voice dùng Media file tạm và Speech-to-Text ở giai đoạn sau.
-- Gửi context giới hạn qua AI Gateway, chuẩn hóa message tiếng Nhật, `text_vi`, feedback tiếng Việt
-  và tối đa 3 `answer_hints`.
+- Gửi context giới hạn qua AI Gateway, chuẩn hóa message tiếng Nhật và `text_meaning` theo ngôn ngữ
+  được chọn.
+- Cho phép user chọn ngôn ngữ giải thích feedback (`vi`, `en`, `ja`) và lưu lựa chọn này theo
+  conversation; `text_meaning.language` của message và answer hint phải khớp lựa chọn đó.
+- Chuẩn hóa feedback bằng structured schema; backend validate `explanation_language`, cấu trúc JSON
+  và quy tắc follow-up question, sau đó repair provider response tối đa một lần.
 - Kiểm tra ownership của conversation và giới hạn context để kiểm soát chi phí/token.
 - Dùng `client_message_id` để retry không tạo user message trùng.
 - Xác định timeout, retry và trạng thái lỗi mà không làm mất user message đã được ghi nhận hợp lệ.

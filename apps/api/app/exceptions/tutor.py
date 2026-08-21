@@ -23,6 +23,12 @@ class TutorConversationCompletedError(AppError):
     message = "Tutor conversation is already completed"
 
 
+class TutorConversationIdempotencyConflictError(AppError):
+    status_code = status.HTTP_409_CONFLICT
+    code = "tutor_conversation_idempotency_conflict"
+    message = "The client_conversation_id was already used for different conversation data"
+
+
 class TutorResponsePendingError(AppError):
     status_code = status.HTTP_409_CONFLICT
     code = "tutor_response_pending"

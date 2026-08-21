@@ -191,6 +191,7 @@ erDiagram
         VARCHAR topic
         VARCHAR difficulty
         TEXT scenario
+        VARCHAR explanation_language
         VARCHAR status
         TIMESTAMPTZ started_at
         TIMESTAMPTZ ended_at
@@ -201,7 +202,7 @@ erDiagram
         VARCHAR sender
         INTEGER sequence_number
         TEXT content
-        TEXT text_vi
+        JSONB text_meaning
         UUID client_message_id
         UUID recording_id FK
         JSONB feedback
@@ -478,13 +479,15 @@ công trên môi trường triển khai.
 | `topic` | VARCHAR(255) | Không | - | - | Chủ đề do user nhập và được lưu làm snapshot của phiên. |
 | `difficulty` | VARCHAR | Không | - | CHECK `tutor_session_jlpt_level` | Cấp JLPT `N5` đến `N1` do user chọn. |
 | `scenario` | TEXT | Có | - | - | Bối cảnh/role-play được đưa cho tutor. |
+| `explanation_language` | VARCHAR(8) | Không | `vi` | CHECK `tutor_session_explanation_language` | Ngôn ngữ giải thích feedback: `vi`, `en` hoặc `ja`. |
 | `status` | VARCHAR(32) | Không | - | CHECK `tutor_session_status` | `active` hoặc `completed`; application mặc định `active`. |
 | `started_at` | TIMESTAMPTZ | Không | `now()` | - | Thời điểm bắt đầu phiên. |
 | `ended_at` | TIMESTAMPTZ | Có | - | - | Thời điểm kết thúc; NULL khi phiên đang hoạt động hoặc chưa đóng đúng cách. |
 
-`topic`, `difficulty` và `scenario` là snapshot tại thời điểm tạo phiên. `topic` và `difficulty` là
-đầu vào bắt buộc; `scenario` là đầu vào tùy chọn. Vì không còn catalog, lịch sử phiên không phụ thuộc
-vào dữ liệu dùng chung nào khác.
+`topic`, `difficulty`, `scenario` và `explanation_language` là snapshot tại thời điểm tạo phiên.
+`topic` và `difficulty` là đầu vào bắt buộc; `scenario` là đầu vào tùy chọn; `explanation_language`
+nhận `vi`, `en` hoặc `ja` và mặc định `vi`. Vì không còn catalog, lịch sử phiên không phụ thuộc vào
+dữ liệu dùng chung nào khác.
 
 Index `ix_tutor_sessions_user_id_started_at` trên `(user_id, started_at DESC)` phục vụ lịch sử phiên
 gần nhất.
@@ -498,10 +501,10 @@ gần nhất.
 | `sender` | VARCHAR(32) | Không | - | CHECK `tutor_sender` | Bên gửi trong storage: `USER` hoặc `AI`; API trả `user` hoặc `ai`. |
 | `sequence_number` | INTEGER | Không | - | UNIQUE cùng `session_id` | Vị trí tuyệt đối trong phiên, tránh phụ thuộc timestamp khi sắp thứ tự. |
 | `content` | TEXT | Không | - | - | Nội dung văn bản của lượt hội thoại. |
-| `text_vi` | TEXT | Có | - | - | Bản dịch tiếng Việt của AI message; NULL với user message và dữ liệu lịch sử chưa được dịch. |
+| `text_meaning` | JSONB | Có | - | - | Object `{language, text}` chứa bản dịch theo `explanation_language`; NULL với user message. |
 | `client_message_id` | UUID | Có | - | UNIQUE cùng `session_id` | Idempotency key của user message; AI message để NULL. |
 | `recording_id` | UUID | Có | - | FK `recordings.id` ON DELETE SET NULL | Bản ghi giọng nói đính kèm; giữ message nếu recording bị xóa. |
-| `feedback` | JSONB | Có | - | - | Object chuẩn hóa gồm correction, natural expression và tối đa 3 `answer_hints`. |
+| `feedback` | JSONB | Có | - | - | Object chuẩn hóa gồm ngôn ngữ giải thích, structured corrections, natural expression và tối đa 3 `answer_hints`. |
 | `created_at` | TIMESTAMPTZ | Không | `now()` | - | Thời điểm lưu tin nhắn. |
 
 UNIQUE `uq_tutor_messages_sequence` trên `(session_id, sequence_number)` ngăn hai message chiếm cùng

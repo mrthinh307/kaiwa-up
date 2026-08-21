@@ -11,13 +11,14 @@ from app.exceptions.tutor import (
     TutorAiUnavailableError,
     TutorConversationCompletedError,
     TutorConversationForbiddenError,
+    TutorConversationIdempotencyConflictError,
     TutorConversationNotFoundError,
     TutorMessageIdempotencyConflictError,
     TutorResponsePendingError,
 )
 from app.integrations.ai import AiGateway, TutorReply
 from app.integrations.ai import TutorMessage as GatewayTutorMessage
-from app.models.enums import TutorSender
+from app.models.enums import TutorExplanationLanguage, TutorSender
 from app.models.tutor import TutorMessage, TutorSession
 from app.repositories.tutor import TutorConversationHistoryRow, TutorRepository
 from app.schemas.tutor import (
@@ -28,12 +29,15 @@ from app.schemas.tutor import (
     TutorConversationFields,
     TutorConversationListItem,
     TutorConversationListResponse,
+    TutorCorrectionResponse,
     TutorFeedbackResponse,
     TutorMessageCreateRequest,
     TutorMessageCreateResponse,
     TutorMessageResponse,
     TutorSessionStatus,
+    TutorTextMeaningResponse,
 )
+from app.utils.datetime_utils import utc_now
 
 DEFAULT_TUTOR_CONTEXT_MESSAGE_LIMIT = 20
 
@@ -61,12 +65,22 @@ class TutorService:
         topic = data.topic
         scenario = data.scenario
 
+        existing_session = await self.repository.get_session_by_client_conversation_id(
+            user_id=user_id,
+            client_conversation_id=data.client_conversation_id,
+        )
+        if existing_session is not None:
+            self._ensure_create_payload_matches(existing_session, data)
+            messages = await self.repository.list_messages(existing_session.id)
+            return self._to_create_response(existing_session, messages)
+
         try:
             reply = await self.gateway.generate_tutor_reply(
                 messages=[],
                 topic=topic,
                 difficulty=data.difficulty.value,
                 scenario=scenario,
+                explanation_language=data.explanation_language.value,
             )
         except AiProviderError as exc:
             await self.repository.session.rollback()
@@ -75,33 +89,38 @@ class TutorService:
         try:
             tutor_session = await self.repository.create_session(
                 user_id=user_id,
+                client_conversation_id=data.client_conversation_id,
                 topic=topic,
                 difficulty=data.difficulty,
                 scenario=scenario,
+                explanation_language=data.explanation_language,
             )
             initial_message = await self.repository.create_message(
                 session_id=tutor_session.id,
                 sender=TutorSender.AI,
                 sequence_number=1,
                 content=reply.message,
-                text_vi=reply.text_vi,
+                text_meaning=reply.text_meaning.model_dump(mode="json"),
                 client_message_id=None,
                 feedback=self._serialize_feedback(reply),
             )
             await self.repository.session.commit()
+        except IntegrityError:
+            await self.repository.session.rollback()
+            existing_session = await self.repository.get_session_by_client_conversation_id(
+                user_id=user_id,
+                client_conversation_id=data.client_conversation_id,
+            )
+            if existing_session is None:
+                raise
+            self._ensure_create_payload_matches(existing_session, data)
+            messages = await self.repository.list_messages(existing_session.id)
+            return self._to_create_response(existing_session, messages)
         except Exception:
             await self.repository.session.rollback()
             raise
 
-        fields = self._conversation_fields(tutor_session)
-        return TutorConversationCreateResponse(
-            conversation_id=fields.conversation_id,
-            topic=fields.topic,
-            difficulty=fields.difficulty,
-            scenario=fields.scenario,
-            status=fields.status,
-            initial_message=self._to_message_response(initial_message),
-        )
+        return self._to_create_response(tutor_session, [initial_message])
 
     async def list_conversations(
         self,
@@ -131,17 +150,7 @@ class TutorService:
     ) -> TutorConversationDetailResponse:
         tutor_session = await self._get_owned_session(user_id, conversation_id)
         messages = await self.repository.list_messages(tutor_session.id)
-        fields = self._conversation_fields(tutor_session)
-        return TutorConversationDetailResponse(
-            conversation_id=fields.conversation_id,
-            topic=fields.topic,
-            difficulty=fields.difficulty,
-            scenario=fields.scenario,
-            status=fields.status,
-            started_at=tutor_session.started_at,
-            ended_at=tutor_session.ended_at,
-            messages=[self._to_message_response(message) for message in messages],
-        )
+        return self._to_detail_response(tutor_session, messages)
 
     async def send_message(
         self,
@@ -207,11 +216,19 @@ class TutorService:
                 topic=topic,
                 difficulty=difficulty,
                 scenario=scenario,
+                explanation_language=(
+                    tutor_session.explanation_language or TutorExplanationLanguage.VI
+                ).value,
             )
         except AiProviderError as exc:
             await self.repository.session.rollback()
             raise TutorAiUnavailableError() from exc
 
+        tutor_session = await self._get_owned_session(
+            user_id,
+            conversation_id,
+            for_update=True,
+        )
         ai_reply = await self.repository.get_message_by_sequence(
             session_id=conversation_id,
             sequence_number=user_message.sequence_number + 1,
@@ -223,7 +240,7 @@ class TutorService:
                     sender=TutorSender.AI,
                     sequence_number=user_message.sequence_number + 1,
                     content=reply.message,
-                    text_vi=reply.text_vi,
+                    text_meaning=reply.text_meaning.model_dump(mode="json"),
                     client_message_id=None,
                     feedback=self._serialize_feedback(reply),
                 )
@@ -253,13 +270,18 @@ class TutorService:
         user_id: uuid.UUID,
         conversation_id: uuid.UUID,
     ) -> None:
-        tutor_session = await self._get_owned_session(
-            user_id,
-            conversation_id,
-            for_update=True,
+        tutor_session = await self.repository.get_session_including_deleted_for_update(
+            conversation_id
         )
+        if tutor_session is None:
+            return
+        if tutor_session.user_id != user_id:
+            raise TutorConversationForbiddenError()
+
         try:
-            await self.repository.delete_session(tutor_session)
+            if tutor_session.deleted_at is None:
+                tutor_session.deleted_at = utc_now()
+                await self.repository.soft_delete_session(tutor_session)
             await self.repository.session.commit()
         except Exception:
             await self.repository.session.rollback()
@@ -303,7 +325,49 @@ class TutorService:
             topic=tutor_session.topic,
             difficulty=tutor_session.difficulty,
             scenario=tutor_session.scenario,
+            explanation_language=(
+                tutor_session.explanation_language or TutorExplanationLanguage.VI
+            ),
             status=status,
+        )
+
+    @staticmethod
+    def _ensure_create_payload_matches(
+        tutor_session: TutorSession,
+        data: TutorConversationCreateRequest,
+    ) -> None:
+        if (
+            tutor_session.topic != data.topic
+            or tutor_session.difficulty != data.difficulty
+            or tutor_session.scenario != data.scenario
+            or tutor_session.explanation_language != data.explanation_language
+        ):
+            raise TutorConversationIdempotencyConflictError()
+
+    def _to_create_response(
+        self,
+        tutor_session: TutorSession,
+        messages: Sequence[TutorMessage],
+    ) -> TutorConversationCreateResponse:
+        detail = self._to_detail_response(tutor_session, messages)
+        return TutorConversationCreateResponse(**detail.model_dump())
+
+    def _to_detail_response(
+        self,
+        tutor_session: TutorSession,
+        messages: Sequence[TutorMessage],
+    ) -> TutorConversationDetailResponse:
+        fields = self._conversation_fields(tutor_session)
+        return TutorConversationDetailResponse(
+            conversation_id=fields.conversation_id,
+            topic=fields.topic,
+            difficulty=fields.difficulty,
+            scenario=fields.scenario,
+            explanation_language=fields.explanation_language,
+            status=fields.status,
+            started_at=tutor_session.started_at,
+            ended_at=tutor_session.ended_at,
+            messages=[self._to_message_response(message) for message in messages],
         )
 
     def _to_list_item(self, row: TutorConversationHistoryRow) -> TutorConversationListItem:
@@ -313,6 +377,7 @@ class TutorService:
             topic=fields.topic,
             difficulty=fields.difficulty,
             scenario=fields.scenario,
+            explanation_language=fields.explanation_language,
             status=fields.status,
             last_message_text=row.last_message_text,
             updated_at=row.updated_at,
@@ -325,7 +390,11 @@ class TutorService:
             sender=message.sender,
             sequence_number=message.sequence_number,
             text=message.content,
-            text_vi=message.text_vi,
+            text_meaning=(
+                TutorTextMeaningResponse.model_validate(message.text_meaning)
+                if message.text_meaning is not None
+                else None
+            ),
             client_message_id=message.client_message_id,
             created_at=message.created_at,
             feedback=(
@@ -338,12 +407,33 @@ class TutorService:
     @staticmethod
     def _serialize_feedback(reply: TutorReply) -> dict[str, object]:
         feedback = TutorFeedbackResponse(
+            explanation_language=reply.explanation_language,
             grammar_correction=TutorService._format_corrections(reply),
-            natural_expression_tip=reply.natural_expression_tip,
+            corrections=[
+                TutorCorrectionResponse(
+                    original=correction.original,
+                    corrected=correction.corrected,
+                    explanation=correction.explanation,
+                )
+                for correction in reply.corrections
+            ],
+            natural_expression_tip=(
+                reply.natural_expression_tip.explanation
+                if reply.natural_expression_tip is not None
+                else None
+            ),
+            natural_expression_example_ja=(
+                reply.natural_expression_tip.example_ja
+                if reply.natural_expression_tip is not None
+                else None
+            ),
             answer_hints=[
                 TutorAnswerHintResponse(
                     text=hint.text,
-                    meaning_vi=hint.meaning_vi,
+                    text_meaning={
+                        "language": hint.text_meaning.language,
+                        "text": hint.text_meaning.text,
+                    },
                 )
                 for hint in reply.answer_hints
             ],
@@ -355,7 +445,7 @@ class TutorService:
         if not reply.corrections:
             return None
         return "\n".join(
-            f"{correction.original} → {correction.corrected} ({correction.reason})"
+            f"{correction.original} → {correction.corrected} ({correction.explanation})"
             for correction in reply.corrections
         )
 

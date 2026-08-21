@@ -36,6 +36,7 @@ def _tutor_service(session: DatabaseSession, gateway: AiGatewayDep) -> TutorServ
     summary="Create an AI Tutor conversation",
     responses={
         status.HTTP_401_UNAUTHORIZED: {"model": ErrorResponse},
+        status.HTTP_409_CONFLICT: {"model": ErrorResponse},
         status.HTTP_422_UNPROCESSABLE_CONTENT: {"model": ErrorResponse},
         status.HTTP_503_SERVICE_UNAVAILABLE: {"model": ErrorResponse},
     },
@@ -135,7 +136,6 @@ async def send_tutor_message(
     responses={
         status.HTTP_401_UNAUTHORIZED: {"model": ErrorResponse},
         status.HTTP_403_FORBIDDEN: {"model": ErrorResponse},
-        status.HTTP_404_NOT_FOUND: {"model": ErrorResponse},
         status.HTTP_422_UNPROCESSABLE_CONTENT: {"model": ErrorResponse},
     },
 )

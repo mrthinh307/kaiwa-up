@@ -47,3 +47,9 @@ class AiEvaluationStatus(enum.StrEnum):
 class TutorSender(enum.StrEnum):
     USER = "user"
     AI = "ai"
+
+
+class TutorExplanationLanguage(enum.StrEnum):
+    VI = "vi"
+    EN = "en"
+    JA = "ja"

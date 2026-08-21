@@ -1,9 +1,9 @@
 """Normalized AI result contracts and response parsing helpers."""
 
 import json
-from typing import Any, TypeVar
+from typing import Any, Literal, TypeVar
 
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from app.exceptions.ai import AiInvalidResponseError
 
@@ -16,11 +16,36 @@ class Correction(BaseModel):
     reason: str
 
 
-class TutorAnswerHint(BaseModel):
-    """A short Japanese answer suggestion and its Vietnamese meaning."""
+TutorExplanationLanguage = Literal["vi", "en", "ja"]
 
-    text: str
-    meaning_vi: str
+
+class TutorTextMeaning(BaseModel):
+    """A localized meaning paired with the language used to render it."""
+
+    language: TutorExplanationLanguage
+    text: str = Field(min_length=1, max_length=2000)
+
+
+class TutorCorrection(BaseModel):
+    """A Tutor correction with a localized explanation."""
+
+    original: str = Field(min_length=1, max_length=500)
+    corrected: str = Field(min_length=1, max_length=500)
+    explanation: str = Field(min_length=1, max_length=2000)
+
+
+class TutorNaturalExpressionTip(BaseModel):
+    """A localized natural-expression explanation and optional Japanese example."""
+
+    explanation: str = Field(min_length=1, max_length=2000)
+    example_ja: str | None = Field(default=None, max_length=500)
+
+
+class TutorAnswerHint(BaseModel):
+    """A short Japanese answer suggestion and its localized meaning."""
+
+    text: str = Field(min_length=1, max_length=255)
+    text_meaning: TutorTextMeaning
 
 
 class TranscriptionSegment(BaseModel):
@@ -57,10 +82,13 @@ class EvaluationResult(BaseModel):
 class TutorReply(BaseModel):
     """Normalized AI Tutor response."""
 
-    message: str
-    text_vi: str
-    corrections: list[Correction] = Field(default_factory=list)
-    natural_expression_tip: str | None = None
+    model_config = ConfigDict(extra="ignore")
+
+    message: str = Field(min_length=1, max_length=2000)
+    text_meaning: TutorTextMeaning
+    explanation_language: TutorExplanationLanguage = "vi"
+    corrections: list[TutorCorrection] = Field(default_factory=list, max_length=3)
+    natural_expression_tip: TutorNaturalExpressionTip | None = None
     answer_hints: list[TutorAnswerHint] = Field(default_factory=list, max_length=3)
 
 
