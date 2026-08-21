@@ -124,3 +124,48 @@ def test_tutor_message_translation_migration_adds_nullable_text_vi() -> None:
     column = operations.add_column.call_args.args[1]
     assert column.name == "text_vi"
     assert column.nullable is True
+
+
+def test_tutor_text_meaning_migration_backfills_and_replaces_text_vi() -> None:
+    migration_path = (
+        Path(__file__).resolve().parents[2]
+        / "alembic"
+        / "versions"
+        / "b8c9d0e1f2a3_add_tutor_text_meaning.py"
+    )
+    migration = runpy.run_path(str(migration_path))
+    operations = MagicMock()
+
+    with patch.dict(migration["upgrade"].__globals__, {"op": operations}):
+        migration["upgrade"]()
+
+    column = operations.add_column.call_args.args[1]
+    assert column.name == "text_meaning"
+    assert column.nullable is True
+    update_sql = operations.execute.call_args.args[0].text
+    assert "jsonb_build_object('language', 'vi', 'text', text_vi)" in update_sql
+    operations.drop_column.assert_called_once_with("tutor_messages", "text_vi")
+
+
+def test_tutor_explanation_language_migration_adds_default_and_constraint() -> None:
+    migration_path = (
+        Path(__file__).resolve().parents[2]
+        / "alembic"
+        / "versions"
+        / "a7b8c9d0e1f2_add_tutor_explanation_language.py"
+    )
+    migration = runpy.run_path(str(migration_path))
+    operations = MagicMock()
+
+    with patch.dict(migration["upgrade"].__globals__, {"op": operations}):
+        migration["upgrade"]()
+
+    column = operations.add_column.call_args.args[1]
+    assert column.name == "explanation_language"
+    assert column.nullable is False
+    assert column.server_default.arg == "vi"
+    operations.create_check_constraint.assert_called_once_with(
+        "tutor_session_explanation_language",
+        "tutor_sessions",
+        "explanation_language IN ('vi', 'en', 'ja')",
+    )

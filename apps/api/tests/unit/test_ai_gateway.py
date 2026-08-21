@@ -45,13 +45,23 @@ EVALUATION_JSON = json.dumps(
 TUTOR_JSON = json.dumps(
     {
         "message": "Nice! Let's continue.",
-        "text_vi": "Tốt lắm! Chúng ta tiếp tục nhé.",
+        "text_meaning": {
+            "language": "vi",
+            "text": "Tốt lắm! Chúng ta tiếp tục nhé.",
+        },
         "corrections": [],
-        "natural_expression_tip": "京都で旅行について話しましょう。",
+        "explanation_language": "vi",
+        "natural_expression_tip": {
+            "explanation": "Hãy nói về du lịch ở Kyoto.",
+            "example_ja": "京都で旅行について話しましょう。",
+        },
         "answer_hints": [
             {
                 "text": "京都に行きたいです。",
-                "meaning_vi": "Tôi muốn đi Kyoto.",
+                "text_meaning": {
+                    "language": "vi",
+                    "text": "Tôi muốn đi Kyoto.",
+                },
             }
         ],
     }
@@ -141,6 +151,7 @@ class _CountingGateway(FakeAiGateway):
         topic: str,
         difficulty: str,
         scenario: str | None = None,
+        explanation_language: str = "vi",
     ) -> TutorReply:
         self.calls.append("generate_tutor_reply")
         return await super().generate_tutor_reply(
@@ -148,6 +159,7 @@ class _CountingGateway(FakeAiGateway):
             topic=topic,
             difficulty=difficulty,
             scenario=scenario,
+            explanation_language=explanation_language,
         )
 
 
@@ -181,8 +193,9 @@ async def test_fake_ai_gateway_succeeds_for_all_capabilities() -> None:
         messages=[], topic="greetings", difficulty="beginner", scenario="Say hello"
     )
     assert tutor.message == "こんにちは！次は何を練習しましょうか？"
-    assert tutor.answer_hints[0].meaning_vi == "Tôi muốn nói về du lịch."
-    assert tutor.natural_expression_tip == (
+    assert tutor.answer_hints[0].text_meaning.text == "Tôi muốn nói về du lịch."
+    assert tutor.natural_expression_tip is not None
+    assert tutor.natural_expression_tip.explanation == (
         "Cách hỏi tự nhiên hơn để hỏi người học muốn luyện chủ đề nào tiếp theo."
     )
 
@@ -351,10 +364,12 @@ async def test_openai_generate_tutor_reply_success(openai_gateway: _GatewayFacto
     )
 
     assert result.message == "Nice! Let's continue."
-    assert result.text_vi == "Tốt lắm! Chúng ta tiếp tục nhé."
+    assert result.text_meaning.text == "Tốt lắm! Chúng ta tiếp tục nhé."
     assert result.answer_hints[0].text == "京都に行きたいです。"
-    assert result.answer_hints[0].meaning_vi == "Tôi muốn đi Kyoto."
-    assert result.natural_expression_tip == "京都で旅行について話しましょう。"
+    assert result.answer_hints[0].text_meaning.text == "Tôi muốn đi Kyoto."
+    assert result.natural_expression_tip is not None
+    assert result.natural_expression_tip.explanation == "Hãy nói về du lịch ở Kyoto."
+    assert result.natural_expression_tip.example_ja == "京都で旅行について話しましょう。"
 
 
 @pytest.mark.asyncio
@@ -367,7 +382,7 @@ async def test_openai_tutor_repairs_reply_without_follow_up_question(
                 json.dumps(
                     {
                         "message": "牛乳はあそこにあります。",
-                        "text_vi": "Sữa ở đằng kia.",
+                        "text_meaning": {"language": "vi", "text": "Sữa ở đằng kia."},
                         "corrections": [],
                         "natural_expression_tip": None,
                         "answer_hints": [],
@@ -378,7 +393,10 @@ async def test_openai_tutor_repairs_reply_without_follow_up_question(
                 json.dumps(
                     {
                         "message": "牛乳はあそこにあります。ほかに何を探していますか？",
-                        "text_vi": "Sữa ở đằng kia. Bạn còn đang tìm gì khác không?",
+                        "text_meaning": {
+                            "language": "vi",
+                            "text": "Sữa ở đằng kia. Bạn còn đang tìm gì khác không?",
+                        },
                         "corrections": [],
                         "natural_expression_tip": None,
                         "answer_hints": [],
@@ -400,6 +418,166 @@ async def test_openai_tutor_repairs_reply_without_follow_up_question(
     assert "ほかに何を探していますか" in result.message
 
 
+@pytest.mark.asyncio
+async def test_openai_tutor_repairs_mismatched_explanation_language(
+    openai_gateway: _GatewayFactory,
+) -> None:
+    responses = iter(
+        [
+            _openai_chat_response(
+                json.dumps(
+                    {
+                        "message": "今日は買い物を練習しましょう。",
+                        "text_meaning": {
+                            "language": "en",
+                            "text": "Today we are practicing shopping.",
+                        },
+                        "explanation_language": "ja",
+                        "corrections": [],
+                        "natural_expression_tip": None,
+                        "answer_hints": [],
+                    }
+                )
+            ),
+            _openai_chat_response(
+                json.dumps(
+                    {
+                        "message": "今日は買い物を練習しましょう。",
+                        "text_meaning": {
+                            "language": "en",
+                            "text": "Today we are practicing shopping.",
+                        },
+                        "explanation_language": "en",
+                        "corrections": [],
+                        "natural_expression_tip": None,
+                        "answer_hints": [],
+                    }
+                )
+            ),
+        ]
+    )
+    gateway = openai_gateway(lambda _: next(responses))
+
+    result = await gateway.generate_tutor_reply(
+        messages=[],
+        topic="shopping",
+        difficulty="N5",
+        explanation_language="en",
+    )
+
+    assert result.explanation_language == "en"
+
+
+@pytest.mark.asyncio
+async def test_openai_tutor_repairs_invalid_structured_feedback(
+    openai_gateway: _GatewayFactory,
+) -> None:
+    responses = iter(
+        [
+            _openai_chat_response(
+                json.dumps(
+                    {
+                        "message": "今日は買い物を練習しましょう。",
+                        "text_meaning": {
+                            "language": "vi",
+                            "text": "Hôm nay chúng ta luyện mua sắm.",
+                        },
+                        "explanation_language": "vi",
+                        "corrections": [],
+                        "natural_expression_tip": "Không đúng schema",
+                        "answer_hints": [],
+                    }
+                )
+            ),
+            _openai_chat_response(
+                json.dumps(
+                    {
+                        "message": "今日は買い物を練習しましょう。",
+                        "text_meaning": {
+                            "language": "vi",
+                            "text": "Hôm nay chúng ta luyện mua sắm.",
+                        },
+                        "explanation_language": "vi",
+                        "corrections": [],
+                        "natural_expression_tip": {
+                            "explanation": "Cách nói tự nhiên hơn.",
+                            "example_ja": "買い物を練習しましょう。",
+                        },
+                        "answer_hints": [],
+                    }
+                )
+            ),
+        ]
+    )
+    gateway = openai_gateway(lambda _: next(responses))
+
+    result = await gateway.generate_tutor_reply(
+        messages=[],
+        topic="shopping",
+        difficulty="N5",
+    )
+
+    assert result.natural_expression_tip is not None
+    assert result.natural_expression_tip.explanation == "Cách nói tự nhiên hơn."
+
+
+@pytest.mark.asyncio
+async def test_openai_tutor_repairs_japanese_explanation_when_vietnamese_is_selected(
+    openai_gateway: _GatewayFactory,
+) -> None:
+    responses = iter(
+        [
+            _openai_chat_response(
+                json.dumps(
+                    {
+                        "message": "今日は買い物を練習しましょう。",
+                        "text_meaning": {
+                            "language": "vi",
+                            "text": "Hôm nay chúng ta luyện mua sắm.",
+                        },
+                        "explanation_language": "vi",
+                        "corrections": [],
+                        "natural_expression_tip": {
+                            "explanation": "この表現はもっと自然に言えます。",
+                            "example_ja": "買い物を練習しましょう。",
+                        },
+                        "answer_hints": [],
+                    }
+                )
+            ),
+            _openai_chat_response(
+                json.dumps(
+                    {
+                        "message": "今日は買い物を練習しましょう。",
+                        "text_meaning": {
+                            "language": "vi",
+                            "text": "Hôm nay chúng ta luyện mua sắm.",
+                        },
+                        "explanation_language": "vi",
+                        "corrections": [],
+                        "natural_expression_tip": {
+                            "explanation": "Cách diễn đạt này có thể nói tự nhiên hơn.",
+                            "example_ja": "買い物を練習しましょう。",
+                        },
+                        "answer_hints": [],
+                    }
+                )
+            ),
+        ]
+    )
+    gateway = openai_gateway(lambda _: next(responses))
+
+    result = await gateway.generate_tutor_reply(
+        messages=[],
+        topic="shopping",
+        difficulty="N5",
+        explanation_language="vi",
+    )
+
+    assert result.natural_expression_tip is not None
+    assert result.natural_expression_tip.explanation.startswith("Cách diễn đạt")
+
+
 def test_tutor_prompt_includes_scenario_and_language_contract() -> None:
     prompt = build_tutor_messages(
         messages=[],
@@ -413,10 +591,10 @@ def test_tutor_prompt_includes_scenario_and_language_contract() -> None:
     assert "<topic>Du lịch</topic>" in prompt.content
     assert "Hỏi bạn về kế hoạch đi Kyoto" in prompt.content
     assert "bằng tiếng Nhật" in prompt.content
-    assert "bằng tiếng Việt" in prompt.content
-    assert "Không giải thích bằng tiếng Nhật" in prompt.content
+    assert "text_meaning" in prompt.content
+    assert "Khi explanation_language là vi, không giải thích bằng tiếng Nhật" in prompt.content
     assert '"answer_hints"' in prompt.content
-    assert '"meaning_vi"' in prompt.content
+    assert '"text_meaning"' in prompt.content
     assert "TỪ LƯỢT SAU OPENING" in prompt.content
     assert "không cần kết thúc bằng câu hỏi" in prompt.content
     assert "không được trùng hoặc tương đương về ý nghĩa" in prompt.content
@@ -441,7 +619,7 @@ def test_tutor_prompt_defines_feedback_and_difficulty_rules() -> None:
     assert "Chỉ tạo grammar correction khi có lỗi đáng chú ý" in prompt.content
     assert "natural_expression_tip khi câu đúng nhưng có cách nói tự nhiên hơn" in prompt.content
     assert "answer_hints khi câu hỏi hiện tại cần người học trả lời" in prompt.content
-    assert '"natural_expression_tip": <Vietnamese explanation | null>' in prompt.content
+    assert '"natural_expression_tip": {"explanation": <localized explanation>' in prompt.content
 
 
 def test_tutor_opening_prompt_includes_user_query_for_provider_compatibility() -> None:
@@ -477,7 +655,11 @@ def test_tutor_reply_rejects_more_than_three_answer_hints() -> None:
     payload = {
         "message": "続けましょう。",
         "answer_hints": [
-            {"text": f"Hint {index}", "meaning_vi": f"Gợi ý {index}"} for index in range(4)
+            {
+                "text": f"Hint {index}",
+                "text_meaning": {"language": "vi", "text": f"Gợi ý {index}"},
+            }
+            for index in range(4)
         ],
     }
 

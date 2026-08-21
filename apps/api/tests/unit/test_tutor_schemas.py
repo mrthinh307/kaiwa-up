@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 import pytest
 from pydantic import ValidationError
 
-from app.models.enums import JlptLevel, TutorSender
+from app.models.enums import JlptLevel, TutorExplanationLanguage, TutorSender
 from app.schemas.tutor import (
     TutorAnswerHintResponse,
     TutorConversationCreateRequest,
@@ -12,6 +12,7 @@ from app.schemas.tutor import (
     TutorFeedbackResponse,
     TutorMessageCreateRequest,
     TutorMessageResponse,
+    TutorTextMeaningResponse,
 )
 
 
@@ -25,6 +26,17 @@ def test_conversation_create_requires_topic_and_accepts_optional_scenario() -> N
     assert request.topic == "Du lịch Nhật Bản"
     assert request.difficulty is JlptLevel.N3
     assert request.scenario == "Hỏi bạn về kế hoạch đi Kyoto."
+    assert request.explanation_language is TutorExplanationLanguage.VI
+
+
+def test_conversation_create_accepts_selected_explanation_language() -> None:
+    request = TutorConversationCreateRequest(
+        topic="Du lịch Nhật Bản",
+        difficulty="N3",
+        explanation_language="en",
+    )
+
+    assert request.explanation_language is TutorExplanationLanguage.EN
 
 
 def test_conversation_create_normalizes_blank_scenario_to_none() -> None:
@@ -66,7 +78,10 @@ def test_tutor_requests_forbid_unknown_fields_and_blank_text() -> None:
 
 def test_feedback_limits_answer_hints_to_three() -> None:
     hints = [
-        TutorAnswerHintResponse(text=f"Hint {index}", meaning_vi=f"Gợi ý {index}")
+        TutorAnswerHintResponse(
+            text=f"Hint {index}",
+            text_meaning=TutorTextMeaningResponse(language="vi", text=f"Gợi ý {index}"),
+        )
         for index in range(4)
     ]
 
@@ -80,13 +95,16 @@ def test_message_response_serializes_public_sender_and_feedback_contract() -> No
         sender=TutorSender.AI,
         sequence_number=1,
         text="こんにちは！",
-        text_vi="Xin chào!",
+        text_meaning=TutorTextMeaningResponse(language="vi", text="Xin chào!"),
         created_at=datetime(2026, 8, 19, tzinfo=UTC),
         feedback=TutorFeedbackResponse(
             answer_hints=[
                 TutorAnswerHintResponse(
                     text="京都に行きたいです。",
-                    meaning_vi="Tôi muốn đi Kyoto.",
+                    text_meaning=TutorTextMeaningResponse(
+                        language="vi",
+                        text="Tôi muốn đi Kyoto.",
+                    ),
                 )
             ],
         ),
@@ -95,10 +113,10 @@ def test_message_response_serializes_public_sender_and_feedback_contract() -> No
     payload = message.model_dump(mode="json")
 
     assert payload["sender"] == "ai"
-    assert payload["text_vi"] == "Xin chào!"
+    assert payload["text_meaning"] == {"language": "vi", "text": "Xin chào!"}
     assert payload["feedback"]["answer_hints"][0] == {
         "text": "京都に行きたいです。",
-        "meaning_vi": "Tôi muốn đi Kyoto.",
+        "text_meaning": {"language": "vi", "text": "Tôi muốn đi Kyoto."},
     }
 
 

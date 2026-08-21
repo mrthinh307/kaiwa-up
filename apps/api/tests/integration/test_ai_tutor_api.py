@@ -47,6 +47,7 @@ class TimeoutGateway(FakeAiGateway):
         topic: str,
         difficulty: str,
         scenario: str | None = None,
+        explanation_language: str = "vi",
     ) -> TutorReply:
         raise AiTimeoutError("Tutor provider timed out")
 
@@ -71,6 +72,7 @@ async def test_ai_tutor_end_to_end_flow_and_idempotent_retry(
             "topic": "Du lịch",
             "difficulty": "N3",
             "scenario": "Hỏi bạn về kế hoạch đi Kyoto.",
+            "explanation_language": "en",
         },
     )
 
@@ -80,10 +82,17 @@ async def test_ai_tutor_end_to_end_flow_and_idempotent_retry(
     assert conversation["status"] == "active"
     assert conversation["topic"] == "Du lịch"
     assert conversation["scenario"] == "Hỏi bạn về kế hoạch đi Kyoto."
+    assert conversation["explanation_language"] == "en"
     assert "scenario_id" not in conversation
     assert conversation["initial_message"]["sequence_number"] == 1
-    assert conversation["initial_message"]["text_vi"]
+    assert conversation["initial_message"]["text_meaning"]["language"] == "en"
+    assert conversation["initial_message"]["text_meaning"]["text"]
     assert conversation["initial_message"]["feedback"]["answer_hints"]
+    assert conversation["initial_message"]["feedback"]["explanation_language"] == "en"
+    assert (
+        conversation["initial_message"]["feedback"]["answer_hints"][0]["text_meaning"]["language"]
+        == "en"
+    )
 
     client_message_id = str(uuid.uuid4())
     message_payload = {
@@ -100,8 +109,9 @@ async def test_ai_tutor_end_to_end_flow_and_idempotent_retry(
     assert first_result["user_message"]["sequence_number"] == 2
     assert first_result["ai_reply"]["sequence_number"] == 3
     assert first_result["user_message"]["client_message_id"] == client_message_id
-    assert first_result["user_message"]["text_vi"] is None
-    assert first_result["ai_reply"]["text_vi"]
+    assert first_result["user_message"]["text_meaning"] is None
+    assert first_result["ai_reply"]["text_meaning"]["language"] == "en"
+    assert first_result["ai_reply"]["text_meaning"]["text"]
 
     retry_response = await client.post(
         f"{CONVERSATIONS_PATH}/{conversation_id}/messages",

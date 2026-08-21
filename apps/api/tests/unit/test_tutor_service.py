@@ -14,7 +14,7 @@ from app.exceptions.tutor import (
 )
 from app.integrations.ai import FakeAiGateway, TutorReply
 from app.integrations.ai.base import TutorMessage as GatewayTutorMessage
-from app.models.enums import JlptLevel, TutorSender
+from app.models.enums import JlptLevel, TutorExplanationLanguage, TutorSender
 from app.models.tutor import TutorMessage, TutorSession
 from app.repositories.tutor import TutorRepository
 from app.schemas.tutor import (
@@ -31,6 +31,7 @@ class TutorGatewayCall(TypedDict):
     topic: str
     difficulty: str
     scenario: str | None
+    explanation_language: str
 
 
 class RecordingTutorGateway(FakeAiGateway):
@@ -44,6 +45,7 @@ class RecordingTutorGateway(FakeAiGateway):
         topic: str,
         difficulty: str,
         scenario: str | None = None,
+        explanation_language: str = "vi",
     ) -> TutorReply:
         self.calls.append(
             {
@@ -51,6 +53,7 @@ class RecordingTutorGateway(FakeAiGateway):
                 "topic": topic,
                 "difficulty": difficulty,
                 "scenario": scenario,
+                "explanation_language": explanation_language,
             }
         )
         return await super().generate_tutor_reply(
@@ -58,6 +61,7 @@ class RecordingTutorGateway(FakeAiGateway):
             topic=topic,
             difficulty=difficulty,
             scenario=scenario,
+            explanation_language=explanation_language,
         )
 
 
@@ -69,6 +73,7 @@ class TimeoutTutorGateway(FakeAiGateway):
         topic: str,
         difficulty: str,
         scenario: str | None = None,
+        explanation_language: str = "vi",
     ) -> TutorReply:
         raise AiTimeoutError("timeout")
 
@@ -97,7 +102,7 @@ def make_message(
     sender: TutorSender,
     sequence_number: int,
     content: str,
-    text_vi: str | None = None,
+    text_meaning: dict[str, str] | None = None,
     client_message_id: uuid.UUID | None = None,
     feedback: dict[str, object] | None = None,
 ) -> TutorMessage:
@@ -107,7 +112,7 @@ def make_message(
         sender=sender,
         sequence_number=sequence_number,
         content=content,
-        text_vi=text_vi,
+        text_meaning=text_meaning,
         client_message_id=client_message_id,
         created_at=NOW,
         feedback=feedback,
@@ -116,6 +121,7 @@ def make_message(
 
 def ai_feedback() -> dict[str, object]:
     return {
+        "explanation_language": "vi",
         "grammar_correction": None,
         "natural_expression_tip": (
             "Cách diễn đạt tự nhiên hơn để hỏi người học muốn luyện gì tiếp theo."
@@ -123,7 +129,10 @@ def ai_feedback() -> dict[str, object]:
         "answer_hints": [
             {
                 "text": "旅行について話したいです。",
-                "meaning_vi": "Tôi muốn nói về du lịch.",
+                "text_meaning": {
+                    "language": "vi",
+                    "text": "Tôi muốn nói về du lịch.",
+                },
             }
         ],
     }
@@ -140,7 +149,7 @@ async def test_create_conversation_uses_user_context_and_persists_opening_messag
         sender=TutorSender.AI,
         sequence_number=1,
         content="こんにちは！",
-        text_vi="Xin chào!",
+        text_meaning={"language": "vi", "text": "Xin chào!"},
         feedback=ai_feedback(),
     )
     repository = make_repository()
@@ -159,16 +168,19 @@ async def test_create_conversation_uses_user_context_and_persists_opening_messag
 
     assert response.conversation_id == tutor_session.id
     assert response.initial_message.feedback is not None
-    assert response.initial_message.feedback.answer_hints[0].meaning_vi == (
+    assert response.initial_message.feedback.answer_hints[0].text_meaning.text == (
         "Tôi muốn nói về du lịch."
     )
-    assert response.initial_message.text_vi == "Xin chào!"
+    assert response.initial_message.text_meaning is not None
+    assert response.initial_message.text_meaning.text == "Xin chào!"
     assert gateway.calls[0]["scenario"] == scenario
+    assert gateway.calls[0]["explanation_language"] == "vi"
     repository.create_session.assert_awaited_once_with(
         user_id=user_id,
         topic=topic,
         difficulty=JlptLevel.N3,
         scenario=scenario,
+        explanation_language=TutorExplanationLanguage.VI,
     )
     repository.session.commit.assert_awaited_once()
 
@@ -196,7 +208,7 @@ async def test_send_message_commits_user_before_gateway_and_maps_ai_feedback() -
         sender=TutorSender.AI,
         sequence_number=3,
         content="いいですね！",
-        text_vi="Tốt lắm!",
+        text_meaning={"language": "vi", "text": "Tốt lắm!"},
         feedback=ai_feedback(),
     )
     repository = make_repository()
@@ -223,7 +235,8 @@ async def test_send_message_commits_user_before_gateway_and_maps_ai_feedback() -
     assert response.ai_reply.feedback.natural_expression_tip == (
         "Cách diễn đạt tự nhiên hơn để hỏi người học muốn luyện gì tiếp theo."
     )
-    assert response.ai_reply.text_vi == "Tốt lắm!"
+    assert response.ai_reply.text_meaning is not None
+    assert response.ai_reply.text_meaning.text == "Tốt lắm!"
     assert gateway.calls[0]["messages"][0].role == "assistant"
     assert gateway.calls[0]["messages"][1].role == "user"
     assert repository.session.commit.await_count == 3
