@@ -1,3 +1,5 @@
+from datetime import UTC, datetime
+
 import httpx
 import pytest
 from sqlalchemy import select
@@ -220,3 +222,43 @@ async def test_completed_reflex_survives_refresh_and_appears_in_review_schedule(
     assert schedule.status_code == 200
     assert schedule.json()["items"][0]["lesson_id"] == str(content.id)
     assert schedule.json()["items"][0]["review_count"] == 1
+
+
+@pytest.mark.asyncio
+async def test_due_reviews_include_all_schedules_due_today(
+    client: httpx.AsyncClient, db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    user = await create_reflex_user(db_session, "reflex-due-today@example.com")
+    due_today = await create_reflex_lesson(db_session, slug="due-today-reflex")
+    due_tomorrow = await create_reflex_lesson(db_session, slug="due-tomorrow-reflex")
+    override_reflex_dependencies(user)
+    current_time = datetime(2026, 8, 21, 9, tzinfo=UTC)
+    monkeypatch.setattr("app.services.reflex.utc_now", lambda: current_time)
+    db_session.add_all(
+        [
+            ReviewSchedule(
+                user_id=user.id,
+                content_id=due_today.id,
+                due_at=datetime(2026, 8, 21, 23, 59, tzinfo=UTC),
+                interval_days=1,
+                ease_factor=2.5,
+                repetitions=1,
+            ),
+            ReviewSchedule(
+                user_id=user.id,
+                content_id=due_tomorrow.id,
+                due_at=datetime(2026, 8, 22, 0, tzinfo=UTC),
+                interval_days=1,
+                ease_factor=2.5,
+                repetitions=1,
+            ),
+        ]
+    )
+    await db_session.flush()
+
+    response = await client.get("/api/v1/review/due")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["due_count"] == 1
+    assert payload["items"][0]["lesson_id"] == str(due_today.id)
