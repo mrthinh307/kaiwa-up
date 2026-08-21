@@ -1,11 +1,19 @@
-import type { LearningContentItem } from "@kaiwa-app/api-client";
+"use client";
 
-import { ArrowRight, Clock3, Headphones, Languages } from "lucide-react";
+import type { TranslationLessonItem } from "@kaiwa-app/api-client";
+
+import { AlertCircle, ArrowRight, CheckCircle2, Clock3, Headphones, Languages } from "lucide-react";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { useAuth } from "@/hooks/use-auth";
+import { parseApiFailure } from "@/lib/api-errors";
+
+import { requestListeningTranslationLessons } from "../_lib/listening-translation-client";
 
 function formatDuration(durationSeconds: number | null | undefined): string {
   if (!durationSeconds) {
@@ -22,7 +30,43 @@ function formatDuration(durationSeconds: number | null | undefined): string {
   return seconds === 0 ? `${minutes} min` : `${minutes} min ${seconds} sec`;
 }
 
-export function ListeningTranslationCatalog({ lessons }: { lessons: LearningContentItem[] }) {
+export function ListeningTranslationCatalog({
+  initialLessons,
+}: {
+  initialLessons: TranslationLessonItem[];
+}) {
+  const { protectedRequest } = useAuth();
+  const [lessons, setLessons] = useState(initialLessons);
+  const [syncError, setSyncError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isActive = true;
+
+    void protectedRequest(requestListeningTranslationLessons)
+      .then((result) => {
+        if (!isActive) {
+          return;
+        }
+
+        if (result.data) {
+          setLessons(result.data.items);
+          setSyncError(null);
+          return;
+        }
+
+        setSyncError(parseApiFailure(result).message);
+      })
+      .catch(() => {
+        if (isActive) {
+          setSyncError("We could not refresh your completion status.");
+        }
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [protectedRequest]);
+
   if (lessons.length === 0) {
     return (
       <section
@@ -44,6 +88,16 @@ export function ListeningTranslationCatalog({ lessons }: { lessons: LearningCont
 
   return (
     <section aria-labelledby="listening-translation-catalog-heading">
+      {syncError ? (
+        <Alert className="mb-6" variant="destructive">
+          <AlertCircle aria-hidden="true" />
+          <AlertTitle>Progress status unavailable</AlertTitle>
+          <AlertDescription>
+            {syncError} You can still open a lesson from the catalog below.
+          </AlertDescription>
+        </Alert>
+      ) : null}
+
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-sm font-heading tracking-wide text-foreground/60 uppercase">
@@ -62,7 +116,15 @@ export function ListeningTranslationCatalog({ lessons }: { lessons: LearningCont
             <Card className="w-full bg-secondary-background">
               <CardHeader>
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                  <Badge>{lesson.difficulty}</Badge>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge>{lesson.difficulty}</Badge>
+                    {lesson.is_completed ? (
+                      <Badge className="gap-1.5" variant="neutral">
+                        <CheckCircle2 aria-hidden="true" className="size-3.5" />
+                        Completed
+                      </Badge>
+                    ) : null}
+                  </div>
                   <span className="flex items-center gap-1.5 text-xs font-heading text-foreground/65">
                     <Clock3 aria-hidden="true" className="size-4" />
                     {formatDuration(lesson.duration_seconds)}
@@ -89,7 +151,7 @@ export function ListeningTranslationCatalog({ lessons }: { lessons: LearningCont
               <CardFooter>
                 <Button asChild className="w-full">
                   <Link href={`/listening-translation/${encodeURIComponent(lesson.id)}`}>
-                    Start translating
+                    {lesson.is_completed ? "View completed lesson" : "Start translating"}
                     <ArrowRight aria-hidden="true" />
                   </Link>
                 </Button>

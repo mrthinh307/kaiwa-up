@@ -26,7 +26,7 @@ export default async function ListeningTranslationPage() {
         />
 
         <div className="mt-10">
-          <ListeningTranslationCatalog lessons={lessons} />
+          <ListeningTranslationCatalog initialLessons={lessons} />
         </div>
       </div>
     </main>

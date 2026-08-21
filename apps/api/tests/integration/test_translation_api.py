@@ -186,6 +186,14 @@ async def test_submit_translation_persists_evaluation_and_awards_exp(
     assert progress.total_exp == 25
     assert progress.completed_content_count == 1
 
+    catalog_response = await client.get("/api/v1/listening-translation/lessons")
+    detail_response = await client.get(f"/api/v1/listening-translation/lessons/{content.id}")
+
+    assert catalog_response.status_code == 200
+    assert catalog_response.json()["items"][0]["is_completed"] is True
+    assert detail_response.status_code == 200
+    assert detail_response.json()["is_completed"] is True
+
 
 @pytest.mark.asyncio
 async def test_translation_timeout_preserves_answer_and_retry_is_idempotent(
