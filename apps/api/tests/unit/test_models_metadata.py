@@ -22,7 +22,6 @@ def test_all_expected_tables_registered() -> None:
         "recordings",
         "ai_evaluations",
         "review_schedules",
-        "tutor_scenarios",
         "tutor_sessions",
         "tutor_messages",
     }
@@ -45,7 +44,7 @@ def test_unique_constraints_defined() -> None:
     assert ("storage_key",) in constraints["recordings"]
     assert ("attempt_id",) in constraints["xp_transactions"]
     assert ("attempt_number", "content_id", "user_id") in constraints["exercise_attempts"]
-    assert ("slug",) in constraints["tutor_scenarios"]
+    assert ("client_message_id", "session_id") in constraints["tutor_messages"]
     assert ("sequence_number", "session_id") in constraints["tutor_messages"]
     assert ("rank", "week_start") in constraints["weekly_leaderboard_entries"]
 
@@ -75,8 +74,6 @@ def test_required_indexes_present() -> None:
     assert "ix_ai_evaluations_attempt_id_created_at" in indexes["ai_evaluations"]
     assert "ix_review_schedules_user_id_due_at" in indexes["review_schedules"]
     assert "ix_xp_transactions_created_at_user_id" in indexes["xp_transactions"]
-    assert "ix_tutor_scenarios_active_order" in indexes["tutor_scenarios"]
-    assert "ix_tutor_sessions_scenario_id" in indexes["tutor_sessions"]
     assert "ix_tutor_sessions_user_id_started_at" in indexes["tutor_sessions"]
     assert "ix_learning_contents_published_catalog" in indexes["learning_contents"]
 
@@ -135,9 +132,12 @@ def test_database_check_constraints_present() -> None:
             "weekly_leaderboard_exp_nonnegative",
             "weekly_leaderboard_rank_positive",
         },
-        "tutor_scenarios": {"tutor_scenarios_display_order_nonnegative"},
         "tutor_sessions": {"tutor_session_jlpt_level", "tutor_session_status"},
-        "tutor_messages": {"tutor_sender", "tutor_messages_sequence_positive"},
+        "tutor_messages": {
+            "tutor_sender",
+            "tutor_messages_client_message_id_by_sender",
+            "tutor_messages_sequence_positive",
+        },
     }
     for table_name, constraint_names in expected.items():
         actual = {
@@ -198,36 +198,12 @@ def test_tutor_difficulty_uses_jlpt_level() -> None:
     assert difficulty.type.enums == [level.value for level in JlptLevel]
 
 
-def test_tutor_scenario_catalog_shape() -> None:
-    scenario = Base.metadata.tables["tutor_scenarios"]
-
-    assert set(scenario.columns.keys()) == {
-        "id",
-        "slug",
-        "topic",
-        "title",
-        "scenario",
-        "is_active",
-        "display_order",
-        "created_at",
-        "updated_at",
-    }
-    assert "difficulty" not in scenario.columns
-    assert isinstance(scenario.columns["is_active"].default, ColumnDefault)
-    assert scenario.columns["is_active"].default.arg is True
-    assert isinstance(scenario.columns["display_order"].default, ColumnDefault)
-    assert scenario.columns["display_order"].default.arg == 0
-
-
-def test_tutor_session_scenario_foreign_key_preserves_snapshot() -> None:
+def test_tutor_session_stores_free_form_context_as_required_snapshots() -> None:
     session = Base.metadata.tables["tutor_sessions"]
-    scenario_id = session.columns["scenario_id"]
-    foreign_key = next(iter(scenario_id.foreign_keys))
 
     assert set(session.columns.keys()) == {
         "id",
         "user_id",
-        "scenario_id",
         "topic",
         "difficulty",
         "scenario",
@@ -235,6 +211,20 @@ def test_tutor_session_scenario_foreign_key_preserves_snapshot() -> None:
         "started_at",
         "ended_at",
     }
-    assert scenario_id.nullable
-    assert foreign_key.target_fullname == "tutor_scenarios.id"
-    assert foreign_key.ondelete == "SET NULL"
+    assert not session.columns["topic"].nullable
+    assert not session.columns["difficulty"].nullable
+    assert session.columns["scenario"].nullable
+
+
+def test_tutor_message_client_message_id_is_nullable() -> None:
+    messages = Base.metadata.tables["tutor_messages"]
+
+    assert messages.columns["client_message_id"].nullable
+    assert messages.columns["client_message_id"].type.__class__.__name__ == "Uuid"
+
+
+def test_tutor_message_text_vi_is_nullable_for_legacy_and_user_messages() -> None:
+    messages = Base.metadata.tables["tutor_messages"]
+
+    assert messages.columns["text_vi"].nullable
+    assert messages.columns["text_vi"].type.__class__.__name__ == "Text"

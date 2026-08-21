@@ -4,17 +4,14 @@ from app.models.attempt import ExerciseAttempt
 from app.models.content import LearningContent, ReflexExercise, TranslationExercise
 from app.models.enums import AttemptStatus, ContentStatus, ContentType, JlptLevel, UserRole
 from app.models.gamification import Achievement, XpTransaction
-from app.models.tutor import TutorScenario
 from app.models.user import User
 from scripts.seed_data import (
     ACHIEVEMENTS,
     REFLEX_LESSONS,
     TRANSLATION_LESSONS,
-    TUTOR_SCENARIOS,
     seed_achievements,
     seed_reflex_lessons,
     seed_translation_lessons,
-    seed_tutor_scenarios,
     seed_xp_transactions,
 )
 
@@ -182,45 +179,6 @@ async def test_seed_translation_lessons_replaces_legacy_catalog_without_duplicat
     assert len(seeded_again) == 5
     assert translation_count == 5
     assert exercise_count == 5
-
-
-async def test_seed_tutor_scenarios_replaces_legacy_catalog_without_duplicates(
-    db_session,
-) -> None:
-    for scenario_seed in (TUTOR_SCENARIOS[0], TUTOR_SCENARIOS[5]):
-        db_session.add(
-            TutorScenario(
-                slug=scenario_seed["slug"],
-                topic="Chủ đề cũ",
-                title="Scenario cũ",
-                scenario="Bối cảnh cũ",
-                is_active=False,
-                display_order=999,
-            )
-        )
-    await db_session.flush()
-
-    seeded_scenarios, created_count = await seed_tutor_scenarios(db_session)
-    await db_session.flush()
-
-    assert created_count == 8
-    assert len(seeded_scenarios) == 10
-    scenarios_by_slug = {scenario.slug: scenario for scenario in seeded_scenarios}
-    for scenario_seed in TUTOR_SCENARIOS:
-        scenario = scenarios_by_slug[scenario_seed["slug"]]
-        assert scenario.topic == scenario_seed["topic"]
-        assert scenario.title == scenario_seed["title"]
-        assert scenario.scenario == scenario_seed["scenario"]
-        assert scenario.is_active
-        assert scenario.display_order == scenario_seed["display_order"]
-
-    seeded_again, created_again = await seed_tutor_scenarios(db_session)
-    await db_session.flush()
-    scenario_count = await db_session.scalar(select(func.count()).select_from(TutorScenario))
-
-    assert created_again == 0
-    assert len(seeded_again) == 10
-    assert scenario_count == 10
 
 
 async def test_seed_xp_transactions_is_idempotent(db_session) -> None:

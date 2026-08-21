@@ -34,6 +34,14 @@ from app.exceptions.translation import (
     TranslationContentUnavailableError,
     TranslationEvaluationInProgressError,
 )
+from app.exceptions.tutor import (
+    TutorAiUnavailableError,
+    TutorConversationCompletedError,
+    TutorConversationForbiddenError,
+    TutorConversationNotFoundError,
+    TutorMessageIdempotencyConflictError,
+    TutorResponsePendingError,
+)
 
 __all__ = [
     "AiInvalidResponseError",
@@ -60,6 +68,12 @@ __all__ = [
     "TranscriptProviderError",
     "TranslationContentUnavailableError",
     "TranslationEvaluationInProgressError",
+    "TutorAiUnavailableError",
+    "TutorConversationCompletedError",
+    "TutorConversationForbiddenError",
+    "TutorConversationNotFoundError",
+    "TutorMessageIdempotencyConflictError",
+    "TutorResponsePendingError",
     "UnauthorizedException",
     "register_exception_handlers",
 ]

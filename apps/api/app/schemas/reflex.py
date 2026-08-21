@@ -9,37 +9,64 @@ from app.models.enums import JlptLevel
 class ReflexLessonItem(BaseModel):
     id: uuid.UUID
     title: str
-    description: str | None = None
-    topic: str | None = None
     difficulty: JlptLevel
-    audio_url: str | None = None
+    is_completed: bool
+
+
+class ReflexLessonListResponse(BaseModel):
+    items: list[ReflexLessonItem]
+    total_items: int = Field(ge=0)
+    page: int = Field(ge=1)
+    page_size: int = Field(ge=1)
+    total_pages: int = Field(ge=0)
+
+
+class ReflexLessonDetail(BaseModel):
+    id: uuid.UUID
+    title: str
+    audio_url: str
     prompt_ja: str
-    response_start_limit_ms: int
-
-
-class ReflexLessonDetail(ReflexLessonItem):
     scenario_ja: str | None = None
+    response_start_limit_seconds: int = Field(ge=0)
+
+
+class ReflexAiFeedback(BaseModel):
+    transcribed_text: str
+    naturalness_evaluation: str
+    suggestions: str
 
 
 class ReflexEvaluationResponse(BaseModel):
     attempt_id: uuid.UUID
-    evaluation_id: uuid.UUID
-    transcript: str
-    score: int = Field(ge=0, le=100)
+    lesson_id: uuid.UUID
+    response_start_ms: int = Field(ge=0)
     is_on_time: bool
-    feedback: str
-    corrections: list[dict[str, str]]
-    hints: list[str]
-    earned_exp: int = Field(ge=0)
-    review_due_at: datetime
-    review_interval_days: int
+    ai_score: float = Field(ge=0, le=100)
+    ai_feedback: ReflexAiFeedback
+    next_review_days: int
+    next_review_at: datetime
+    exp_earned: int = Field(ge=0)
+
+
+class DueReviewItem(BaseModel):
+    lesson_id: uuid.UUID
+    lesson_title: str
+    last_score: float
+    due_at: datetime
+
+
+class DueReviewListResponse(BaseModel):
+    due_count: int = Field(ge=0)
+    items: list[DueReviewItem]
 
 
 class ReviewScheduleItem(BaseModel):
-    content_id: uuid.UUID
-    title: str
-    due_at: datetime
+    lesson_id: uuid.UUID
+    lesson_title: str
     interval_days: int
-    ease_factor: float
-    repetitions: int
-    last_attempt_id: uuid.UUID | None = None
+    review_count: int
+    next_review_at: datetime
+
+
+class ReviewScheduleListResponse(BaseModel):
+    items: list[ReviewScheduleItem]

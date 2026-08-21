@@ -28,6 +28,7 @@ class OpenAiProviderConfig(AiProviderConfig):
     """OpenAI-compatible settings layered on the shared AI provider config."""
 
     response_format: dict[str, object] = field(default_factory=lambda: {"type": "json_object"})
+    reasoning_effort: str | None = None
 
 
 class OpenAiCompatibleAiGateway(BaseAiGateway):
@@ -103,6 +104,8 @@ class OpenAiCompatibleAiGateway(BaseAiGateway):
             "max_tokens": self._config.max_output_tokens,
             "response_format": self._config.response_format,
         }
+        if self._config.reasoning_effort is not None:
+            payload["reasoning_effort"] = self._config.reasoning_effort
         try:
             response = await self._client.post("/chat/completions", json=payload)
         except httpx.RequestError as exc:

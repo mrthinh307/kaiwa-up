@@ -15,7 +15,6 @@ from app.models.attempt import ExerciseAttempt, ReviewSchedule
 from app.models.content import LearningContent, ReflexExercise, TranslationExercise
 from app.models.enums import AttemptStatus, ContentStatus, ContentType, JlptLevel, UserRole
 from app.models.gamification import Achievement, WeeklyLeaderboardEntry, XpTransaction
-from app.models.tutor import TutorScenario
 from app.models.user import User, UserProgress
 from app.repositories.learning_content import LearningContentRepository
 from app.schemas.learning_content import LearningContentCreate
@@ -61,14 +60,6 @@ class TranslationLessonSeed(TypedDict):
     audio_duration_ms: int
     transcript_ja: list[dict[str, object]]
     reference_translation_vi: str
-
-
-class TutorScenarioSeed(TypedDict):
-    slug: str
-    topic: str
-    title: str
-    scenario: str
-    display_order: int
 
 
 class AchievementSeed(TypedDict):
@@ -339,104 +330,6 @@ TRANSLATION_LESSONS: tuple[TranslationLessonSeed, ...] = (
 )
 
 
-TUTOR_SCENARIOS: tuple[TutorScenarioSeed, ...] = (
-    {
-        "slug": "daily-new-classmate",
-        "topic": "Giao tiếp hàng ngày",
-        "title": "Tự giới thiệu với bạn học mới",
-        "scenario": (
-            "Bạn gặp một bạn học mới trong lớp tiếng Nhật. "
-            "Hãy tự giới thiệu bản thân và hỏi tên của bạn ấy."
-        ),
-        "display_order": 10,
-    },
-    {
-        "slug": "daily-weekend-plans",
-        "topic": "Giao tiếp hàng ngày",
-        "title": "Hỏi kế hoạch cuối tuần",
-        "scenario": (
-            "Bạn nói chuyện với một người bạn về kế hoạch cuối tuần "
-            "và rủ bạn ấy cùng tham gia một hoạt động."
-        ),
-        "display_order": 20,
-    },
-    {
-        "slug": "restaurant-order-meal",
-        "topic": "Nhà hàng",
-        "title": "Gọi món tại nhà hàng",
-        "scenario": (
-            "Bạn đang gọi món tại một nhà hàng Nhật. Hãy hỏi món được đề xuất và gọi món mình muốn."
-        ),
-        "display_order": 30,
-    },
-    {
-        "slug": "restaurant-special-request",
-        "topic": "Nhà hàng",
-        "title": "Yêu cầu món ăn đặc biệt",
-        "scenario": (
-            "Bạn không ăn được một nguyên liệu trong món ăn. "
-            "Hãy lịch sự hỏi nhân viên xem có thể thay đổi món hay không."
-        ),
-        "display_order": 40,
-    },
-    {
-        "slug": "travel-train-directions",
-        "topic": "Du lịch",
-        "title": "Hỏi đường tại ga tàu",
-        "scenario": "Bạn đang ở một ga tàu Nhật Bản và cần hỏi đường đến địa điểm tiếp theo.",
-        "display_order": 50,
-    },
-    {
-        "slug": "travel-hotel-check-in",
-        "topic": "Du lịch",
-        "title": "Nhận phòng khách sạn",
-        "scenario": (
-            "Bạn đến khách sạn ở Nhật để nhận phòng. "
-            "Hãy trao đổi với nhân viên lễ tân về đặt phòng và thời gian lưu trú."
-        ),
-        "display_order": 60,
-    },
-    {
-        "slug": "shopping-ask-size",
-        "topic": "Mua sắm",
-        "title": "Hỏi size quần áo",
-        "scenario": (
-            "Bạn muốn mua một chiếc áo nhưng cần hỏi nhân viên về size, màu sắc và việc thử đồ."
-        ),
-        "display_order": 70,
-    },
-    {
-        "slug": "shopping-return-item",
-        "topic": "Mua sắm",
-        "title": "Đổi sản phẩm đã mua",
-        "scenario": (
-            "Bạn muốn đổi một sản phẩm đã mua vì không vừa. "
-            "Hãy giải thích vấn đề và hỏi chính sách đổi hàng."
-        ),
-        "display_order": 80,
-    },
-    {
-        "slug": "workplace-ask-help",
-        "topic": "Công việc",
-        "title": "Nhờ đồng nghiệp hỗ trợ",
-        "scenario": (
-            "Bạn gặp khó khăn trong một nhiệm vụ ở công ty và muốn nhờ đồng nghiệp hướng dẫn."
-        ),
-        "display_order": 90,
-    },
-    {
-        "slug": "workplace-time-off",
-        "topic": "Công việc",
-        "title": "Xin nghỉ phép",
-        "scenario": (
-            "Bạn cần xin nghỉ phép với quản lý. Hãy trình bày lý do, "
-            "thời gian nghỉ và kế hoạch bàn giao công việc."
-        ),
-        "display_order": 100,
-    },
-)
-
-
 ACHIEVEMENTS: tuple[AchievementSeed, ...] = (
     {
         "code": "first_lesson",
@@ -527,7 +420,7 @@ async def seed_youtube_lessons(session: AsyncSession) -> list[LearningContent]:
         if content is None:
             created = await service.create_from_youtube(
                 LearningContentCreate(
-                    youtube_url=youtube_url,  # type: ignore
+                    youtube_url=youtube_url,
                     title=lesson["title"],
                     topic="Japanese listening",
                     difficulty=lesson["difficulty"],
@@ -693,48 +586,6 @@ async def seed_translation_data() -> dict[str, int]:
         return {"listening_translation_lessons": len(seeded_contents)}
 
 
-async def seed_tutor_scenarios(
-    session: AsyncSession,
-) -> tuple[list[TutorScenario], int]:
-    """Create or update the current Tutor scenario catalog idempotently."""
-    seeded_scenarios: list[TutorScenario] = []
-    created_count = 0
-
-    for scenario_seed in TUTOR_SCENARIOS:
-        scenario_query = select(TutorScenario).where(TutorScenario.slug == scenario_seed["slug"])
-        scenario = (await session.execute(scenario_query)).scalar_one_or_none()
-        if scenario is None:
-            scenario = TutorScenario(
-                slug=scenario_seed["slug"],
-                topic=scenario_seed["topic"],
-                title=scenario_seed["title"],
-                scenario=scenario_seed["scenario"],
-                is_active=True,
-                display_order=scenario_seed["display_order"],
-            )
-            session.add(scenario)
-            await session.flush()
-            created_count += 1
-
-        scenario.topic = scenario_seed["topic"]
-        scenario.title = scenario_seed["title"]
-        scenario.scenario = scenario_seed["scenario"]
-        scenario.is_active = True
-        scenario.display_order = scenario_seed["display_order"]
-        await session.flush()
-        seeded_scenarios.append(scenario)
-
-    return seeded_scenarios, created_count
-
-
-async def seed_tutor_scenarios_data() -> dict[str, int]:
-    """Seed only the current Tutor scenario catalog."""
-    async with AsyncSessionLocal() as session:
-        seeded_scenarios, _ = await seed_tutor_scenarios(session)
-        await session.commit()
-        return {"tutor_scenarios": len(seeded_scenarios)}
-
-
 # Setup database engine
 engine = create_async_engine(settings.database_url, echo=False)
 AsyncSessionLocal = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
@@ -753,7 +604,6 @@ async def clean_database(session: AsyncSession) -> None:
         LearningContent,
         Achievement,
         UserProgress,
-        TutorScenario,
         User,
     ]
     for table in tables_to_clean:
@@ -812,7 +662,6 @@ async def seed_data(clean: bool = False) -> dict[str, int]:
             "shadowing_dictation_lessons": 0,
             "reflex_lessons": 0,
             "listening_translation_lessons": 0,
-            "tutor_scenarios": 0,
             "achievements": 0,
             "exp_entries": 0,
         }
@@ -905,9 +754,6 @@ async def seed_data(clean: bool = False) -> dict[str, int]:
         stats["listening_translation_lessons"] = translation_count
         seeded_contents.extend(translation_contents)
 
-        _, tutor_scenario_count = await seed_tutor_scenarios(session)
-        stats["tutor_scenarios"] = tutor_scenario_count
-
         # ==========================================
         # 5. SEED ATTEMPTS, REVIEW SCHEDULES & XP ENTRIES
         # ==========================================
@@ -998,11 +844,6 @@ def main() -> None:
         help="Seed only the current Listening & Translation lessons",
     )
     parser.add_argument(
-        "--tutor-scenarios-only",
-        action="store_true",
-        help="Seed only the current Tutor scenario catalog",
-    )
-    parser.add_argument(
         "--badge-only",
         action="store_true",
         help="Seed only the achievement badge catalog",
@@ -1015,7 +856,6 @@ def main() -> None:
             args.youtube_only,
             args.reflex_only,
             args.translation_only,
-            args.tutor_scenarios_only,
             args.badge_only,
         )
     )
@@ -1028,8 +868,6 @@ def main() -> None:
         stats = asyncio.run(seed_reflex_data())
     elif args.translation_only:
         stats = asyncio.run(seed_translation_data())
-    elif args.tutor_scenarios_only:
-        stats = asyncio.run(seed_tutor_scenarios_data())
     elif args.badge_only:
         stats = asyncio.run(seed_achievement_data())
     elif args.youtube_only:

@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime, time, timedelta
 from decimal import Decimal
 
 from sqlalchemy import func, select
@@ -7,23 +7,63 @@ from sqlalchemy.orm import selectinload
 
 from app.models.attempt import AiEvaluation, ExerciseAttempt, ReviewSchedule
 from app.models.content import LearningContent
-from app.models.enums import AiEvaluationStatus, AttemptStatus, ContentStatus, ContentType
+from app.models.enums import (
+    AiEvaluationStatus,
+    AttemptStatus,
+    ContentStatus,
+    ContentType,
+    JlptLevel,
+)
 from app.models.user import User, UserProgress
 from app.repositories.base import BaseRepository
 
 
 class ReflexRepository(BaseRepository):
-    async def list_published_lessons(self) -> list[LearningContent]:
+    async def list_published_lessons(
+        self, *, difficulty: JlptLevel | None, offset: int, limit: int
+    ) -> list[LearningContent]:
         result = await self.session.scalars(
             select(LearningContent)
             .options(selectinload(LearningContent.reflex))
             .where(
                 LearningContent.content_type == ContentType.REFLEX,
                 LearningContent.status == ContentStatus.PUBLISHED,
+                *([LearningContent.difficulty == difficulty] if difficulty is not None else []),
             )
             .order_by(LearningContent.published_at.desc(), LearningContent.id)
+            .offset(offset)
+            .limit(limit)
         )
         return list(result.all())
+
+    async def count_published_lessons(self, *, difficulty: JlptLevel | None) -> int:
+        query = (
+            select(func.count())
+            .select_from(LearningContent)
+            .where(
+                LearningContent.content_type == ContentType.REFLEX,
+                LearningContent.status == ContentStatus.PUBLISHED,
+            )
+        )
+        if difficulty is not None:
+            query = query.where(LearningContent.difficulty == difficulty)
+        return await self.session.scalar(query) or 0
+
+    async def completed_content_ids(
+        self, *, user_id: uuid.UUID, content_ids: list[uuid.UUID]
+    ) -> set[uuid.UUID]:
+        if not content_ids:
+            return set()
+        result = await self.session.scalars(
+            select(ExerciseAttempt.content_id)
+            .where(
+                ExerciseAttempt.user_id == user_id,
+                ExerciseAttempt.content_id.in_(content_ids),
+                ExerciseAttempt.status == AttemptStatus.COMPLETED,
+            )
+            .distinct()
+        )
+        return set(result.all())
 
     async def get_published_lesson(self, content_id: uuid.UUID) -> LearningContent | None:
         result = await self.session.execute(
@@ -148,13 +188,15 @@ class ReflexRepository(BaseRepository):
 
     async def list_schedules(
         self, *, user_id: uuid.UUID, due_before: datetime | None = None
-    ) -> list[tuple[ReviewSchedule, str]]:
+    ) -> list[tuple[ReviewSchedule, str, Decimal | None]]:
         query = (
-            select(ReviewSchedule, LearningContent.title)
+            select(ReviewSchedule, LearningContent.title, ExerciseAttempt.score)
             .join(LearningContent, LearningContent.id == ReviewSchedule.content_id)
+            .outerjoin(ExerciseAttempt, ExerciseAttempt.id == ReviewSchedule.last_attempt_id)
             .where(ReviewSchedule.user_id == user_id)
         )
         if due_before is not None:
-            query = query.where(ReviewSchedule.due_at <= due_before)
+            next_day = datetime.combine(due_before.date() + timedelta(days=1), time.min, tzinfo=UTC)
+            query = query.where(ReviewSchedule.due_at < next_day)
         rows = (await self.session.execute(query.order_by(ReviewSchedule.due_at))).all()
-        return [(row[0], row[1]) for row in rows]
+        return [(row[0], row[1], row[2]) for row in rows]

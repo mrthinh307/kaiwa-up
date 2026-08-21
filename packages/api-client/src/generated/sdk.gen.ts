@@ -19,6 +19,12 @@ import type {
   CreateLearningContentFromYouTubeData,
   CreateLearningContentFromYouTubeErrors,
   CreateLearningContentFromYouTubeResponses,
+  CreateTutorConversationData,
+  CreateTutorConversationErrors,
+  CreateTutorConversationResponses,
+  DeleteTutorConversationData,
+  DeleteTutorConversationErrors,
+  DeleteTutorConversationResponses,
   EvaluateReflexLessonData,
   EvaluateReflexLessonErrors,
   EvaluateReflexLessonResponses,
@@ -66,6 +72,9 @@ import type {
   GetShadowingRecordingPlaybackErrors,
   GetShadowingRecordingPlaybackResponses,
   GetShadowingRecordingResponses,
+  GetTutorConversationData,
+  GetTutorConversationErrors,
+  GetTutorConversationResponses,
   GetWeeklyLeaderboardData,
   GetWeeklyLeaderboardErrors,
   GetWeeklyLeaderboardResponses,
@@ -83,9 +92,13 @@ import type {
   ListProgressAttemptsErrors,
   ListProgressAttemptsResponses,
   ListReflexLessonsData,
+  ListReflexLessonsErrors,
   ListReflexLessonsResponses,
   ListReviewScheduleData,
   ListReviewScheduleResponses,
+  ListTutorConversationsData,
+  ListTutorConversationsErrors,
+  ListTutorConversationsResponses,
   LoginData,
   LoginErrors,
   LoginResponses,
@@ -110,6 +123,9 @@ import type {
   RegisterData,
   RegisterErrors,
   RegisterResponses,
+  SendTutorMessageData,
+  SendTutorMessageErrors,
+  SendTutorMessageResponses,
   StartDictationAttemptData,
   StartDictationAttemptErrors,
   StartDictationAttemptResponses,
@@ -551,8 +567,12 @@ export const startDictationAttempt = <ThrowOnError extends boolean = false>(
  */
 export const listReflexLessons = <ThrowOnError extends boolean = false>(
   options?: Options<ListReflexLessonsData, ThrowOnError>,
-): RequestResult<ListReflexLessonsResponses, unknown, ThrowOnError> =>
-  (options?.client ?? client).get<ListReflexLessonsResponses, unknown, ThrowOnError>({
+): RequestResult<ListReflexLessonsResponses, ListReflexLessonsErrors, ThrowOnError> =>
+  (options?.client ?? client).get<
+    ListReflexLessonsResponses,
+    ListReflexLessonsErrors,
+    ThrowOnError
+  >({
     security: [{ scheme: "bearer", type: "http" }],
     url: "/api/v1/reflex/lessons",
     ...options,
@@ -785,4 +805,88 @@ export const getWeeklyLeaderboard = <ThrowOnError extends boolean = false>(
     security: [{ scheme: "bearer", type: "http" }],
     url: "/api/v1/leaderboard/weekly",
     ...options,
+  });
+
+/**
+ * List the current user's AI Tutor conversations
+ */
+export const listTutorConversations = <ThrowOnError extends boolean = false>(
+  options?: Options<ListTutorConversationsData, ThrowOnError>,
+): RequestResult<ListTutorConversationsResponses, ListTutorConversationsErrors, ThrowOnError> =>
+  (options?.client ?? client).get<
+    ListTutorConversationsResponses,
+    ListTutorConversationsErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/api/v1/ai-tutor/conversations",
+    ...options,
+  });
+
+/**
+ * Create an AI Tutor conversation
+ */
+export const createTutorConversation = <ThrowOnError extends boolean = false>(
+  options: Options<CreateTutorConversationData, ThrowOnError>,
+): RequestResult<CreateTutorConversationResponses, CreateTutorConversationErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    CreateTutorConversationResponses,
+    CreateTutorConversationErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/api/v1/ai-tutor/conversations",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Delete an AI Tutor conversation
+ */
+export const deleteTutorConversation = <ThrowOnError extends boolean = false>(
+  options: Options<DeleteTutorConversationData, ThrowOnError>,
+): RequestResult<DeleteTutorConversationResponses, DeleteTutorConversationErrors, ThrowOnError> =>
+  (options.client ?? client).delete<
+    DeleteTutorConversationResponses,
+    DeleteTutorConversationErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/api/v1/ai-tutor/conversations/{conversation_id}",
+    ...options,
+  });
+
+/**
+ * Get an AI Tutor conversation and its ordered messages
+ */
+export const getTutorConversation = <ThrowOnError extends boolean = false>(
+  options: Options<GetTutorConversationData, ThrowOnError>,
+): RequestResult<GetTutorConversationResponses, GetTutorConversationErrors, ThrowOnError> =>
+  (options.client ?? client).get<
+    GetTutorConversationResponses,
+    GetTutorConversationErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/api/v1/ai-tutor/conversations/{conversation_id}",
+    ...options,
+  });
+
+/**
+ * Send a text message to AI Tutor
+ */
+export const sendTutorMessage = <ThrowOnError extends boolean = false>(
+  options: Options<SendTutorMessageData, ThrowOnError>,
+): RequestResult<SendTutorMessageResponses, SendTutorMessageErrors, ThrowOnError> =>
+  (options.client ?? client).post<SendTutorMessageResponses, SendTutorMessageErrors, ThrowOnError>({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/api/v1/ai-tutor/conversations/{conversation_id}/messages",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
   });

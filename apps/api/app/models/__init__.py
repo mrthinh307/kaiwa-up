@@ -13,7 +13,7 @@ from app.models.gamification import (
     WeeklyLeaderboardEntry,
     XpTransaction,
 )
-from app.models.tutor import TutorMessage, TutorScenario, TutorSession
+from app.models.tutor import TutorMessage, TutorSession
 from app.models.user import AuthRefreshToken, User, UserProgress
 
 __all__ = [
@@ -31,7 +31,6 @@ __all__ = [
     "TimestampMixin",
     "TranslationExercise",
     "TutorMessage",
-    "TutorScenario",
     "TutorSession",
     "User",
     "UserAchievement",

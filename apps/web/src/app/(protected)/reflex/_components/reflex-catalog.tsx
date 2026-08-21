@@ -29,15 +29,30 @@ export function ReflexCatalog() {
   const [state, setState] = useState<CatalogState>({ status: "loading" });
 
   const loadCatalog = useCallback(async () => {
-    const [lessonResult, dueResult] = await Promise.all([listReflexLessons(), listDueReviews()]);
+    try {
+      const [lessonResult, dueResult] = await Promise.all([listReflexLessons(), listDueReviews()]);
 
-    if (!lessonResult.data || !dueResult.data) {
-      const failure = parseApiFailure(!lessonResult.data ? lessonResult : dueResult);
-      setState({ message: failure.message, status: "failed" });
-      return;
+      if (!lessonResult.data || !dueResult.data) {
+        const failure = parseApiFailure(!lessonResult.data ? lessonResult : dueResult);
+        setState({ message: failure.message, status: "failed" });
+        return;
+      }
+
+      if (!Array.isArray(lessonResult.data.items) || !Array.isArray(dueResult.data.items)) {
+        setState({
+          message: "The Reflex API returned an outdated response. Restart the API and web servers.",
+          status: "failed",
+        });
+        return;
+      }
+
+      setState({ dueReviews: dueResult.data.items, lessons: lessonResult.data, status: "success" });
+    } catch {
+      setState({
+        message: "Unable to load Reflex data. Restart the development servers and try again.",
+        status: "failed",
+      });
     }
-
-    setState({ dueReviews: dueResult.data.items, lessons: lessonResult.data, status: "success" });
   }, []);
 
   const handleRetry = () => {

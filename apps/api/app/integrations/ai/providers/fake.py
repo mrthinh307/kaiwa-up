@@ -8,6 +8,7 @@ from app.integrations.ai.base import TutorMessage
 from app.integrations.ai.contracts import (
     TranscriptionResult,
     TranscriptionSegment,
+    TutorAnswerHint,
     TutorReply,
 )
 from app.integrations.ai.providers.base import BaseAiGateway
@@ -56,12 +57,21 @@ class FakeAiGateway(BaseAiGateway):
         messages: list[TutorMessage],
         topic: str,
         difficulty: str,
+        scenario: str | None = None,
     ) -> TutorReply:
         return TutorReply(
             message="こんにちは！次は何を練習しましょうか？",
+            text_vi="Xin chào! Tiếp theo chúng ta muốn luyện tập điều gì?",
             corrections=[],
-            hints=[],
-            follow_up_question="Bạn muốn luyện phần nào tiếp theo?",
+            natural_expression_tip=(
+                "Cách hỏi tự nhiên hơn để hỏi người học muốn luyện chủ đề nào tiếp theo."
+            ),
+            answer_hints=[
+                TutorAnswerHint(
+                    text="旅行について話したいです。",
+                    meaning_vi="Tôi muốn nói về du lịch.",
+                )
+            ],
         )
 
     async def _call(self, capability: str, operation: Callable[[], Awaitable[T]]) -> T:

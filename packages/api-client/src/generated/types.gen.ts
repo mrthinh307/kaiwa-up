@@ -376,6 +376,42 @@ export type DictationStartResponse = {
 };
 
 /**
+ * DueReviewItem
+ */
+export type DueReviewItem = {
+  /**
+   * Lesson Id
+   */
+  lesson_id: string;
+  /**
+   * Lesson Title
+   */
+  lesson_title: string;
+  /**
+   * Last Score
+   */
+  last_score: number;
+  /**
+   * Due At
+   */
+  due_at: string;
+};
+
+/**
+ * DueReviewListResponse
+ */
+export type DueReviewListResponse = {
+  /**
+   * Due Count
+   */
+  due_count: number;
+  /**
+   * Items
+   */
+  items: Array<DueReviewItem>;
+};
+
+/**
  * ErrorDetail
  *
  * Application error payload.
@@ -910,6 +946,24 @@ export type ReadinessResponse = {
 };
 
 /**
+ * ReflexAiFeedback
+ */
+export type ReflexAiFeedback = {
+  /**
+   * Transcribed Text
+   */
+  transcribed_text: string;
+  /**
+   * Naturalness Evaluation
+   */
+  naturalness_evaluation: string;
+  /**
+   * Suggestions
+   */
+  suggestions: string;
+};
+
+/**
  * ReflexEvaluationResponse
  */
 export type ReflexEvaluationResponse = {
@@ -918,47 +972,34 @@ export type ReflexEvaluationResponse = {
    */
   attempt_id: string;
   /**
-   * Evaluation Id
+   * Lesson Id
    */
-  evaluation_id: string;
+  lesson_id: string;
   /**
-   * Transcript
+   * Response Start Ms
    */
-  transcript: string;
-  /**
-   * Score
-   */
-  score: number;
+  response_start_ms: number;
   /**
    * Is On Time
    */
   is_on_time: boolean;
   /**
-   * Feedback
+   * Ai Score
    */
-  feedback: string;
+  ai_score: number;
+  ai_feedback: ReflexAiFeedback;
   /**
-   * Corrections
+   * Next Review Days
    */
-  corrections: Array<{
-    [key: string]: string;
-  }>;
+  next_review_days: number;
   /**
-   * Hints
+   * Next Review At
    */
-  hints: Array<string>;
+  next_review_at: string;
   /**
-   * Earned Exp
+   * Exp Earned
    */
-  earned_exp: number;
-  /**
-   * Review Due At
-   */
-  review_due_at: string;
-  /**
-   * Review Interval Days
-   */
-  review_interval_days: number;
+  exp_earned: number;
 };
 
 /**
@@ -974,30 +1015,21 @@ export type ReflexLessonDetail = {
    */
   title: string;
   /**
-   * Description
-   */
-  description?: string | null;
-  /**
-   * Topic
-   */
-  topic?: string | null;
-  difficulty: JlptLevel;
-  /**
    * Audio Url
    */
-  audio_url?: string | null;
+  audio_url: string;
   /**
    * Prompt Ja
    */
   prompt_ja: string;
   /**
-   * Response Start Limit Ms
-   */
-  response_start_limit_ms: number;
-  /**
    * Scenario Ja
    */
   scenario_ja?: string | null;
+  /**
+   * Response Start Limit Seconds
+   */
+  response_start_limit_seconds: number;
 };
 
 /**
@@ -1012,27 +1044,37 @@ export type ReflexLessonItem = {
    * Title
    */
   title: string;
-  /**
-   * Description
-   */
-  description?: string | null;
-  /**
-   * Topic
-   */
-  topic?: string | null;
   difficulty: JlptLevel;
   /**
-   * Audio Url
+   * Is Completed
    */
-  audio_url?: string | null;
+  is_completed: boolean;
+};
+
+/**
+ * ReflexLessonListResponse
+ */
+export type ReflexLessonListResponse = {
   /**
-   * Prompt Ja
+   * Items
    */
-  prompt_ja: string;
+  items: Array<ReflexLessonItem>;
   /**
-   * Response Start Limit Ms
+   * Total Items
    */
-  response_start_limit_ms: number;
+  total_items: number;
+  /**
+   * Page
+   */
+  page: number;
+  /**
+   * Page Size
+   */
+  page_size: number;
+  /**
+   * Total Pages
+   */
+  total_pages: number;
 };
 
 /**
@@ -1081,33 +1123,35 @@ export type RegisterRequest = {
  */
 export type ReviewScheduleItem = {
   /**
-   * Content Id
+   * Lesson Id
    */
-  content_id: string;
+  lesson_id: string;
   /**
-   * Title
+   * Lesson Title
    */
-  title: string;
-  /**
-   * Due At
-   */
-  due_at: string;
+  lesson_title: string;
   /**
    * Interval Days
    */
   interval_days: number;
   /**
-   * Ease Factor
+   * Review Count
    */
-  ease_factor: number;
+  review_count: number;
   /**
-   * Repetitions
+   * Next Review At
    */
-  repetitions: number;
+  next_review_at: string;
+};
+
+/**
+ * ReviewScheduleListResponse
+ */
+export type ReviewScheduleListResponse = {
   /**
-   * Last Attempt Id
+   * Items
    */
-  last_attempt_id?: string | null;
+  items: Array<ReviewScheduleItem>;
 };
 
 /**
@@ -1499,6 +1543,8 @@ export type TranscriptSegment = {
 
 /**
  * TranslationLessonDetail
+ *
+ * Answer-safe lesson detail shown before submission.
  */
 export type TranslationLessonDetail = {
   /**
@@ -1623,6 +1669,248 @@ export type TranslationSubmissionResponse = {
    */
   reference_translation_vi: string;
 };
+
+/**
+ * TutorAnswerHintResponse
+ *
+ * A short answer suggestion and its Vietnamese meaning.
+ */
+export type TutorAnswerHintResponse = {
+  /**
+   * Text
+   */
+  text: string;
+  /**
+   * Meaning Vi
+   */
+  meaning_vi: string;
+};
+
+/**
+ * TutorConversationCreateRequest
+ *
+ * User-provided context for a free-form Tutor conversation.
+ */
+export type TutorConversationCreateRequest = {
+  /**
+   * Topic
+   */
+  topic: string;
+  difficulty: JlptLevel;
+  /**
+   * Scenario
+   */
+  scenario?: string | null;
+};
+
+/**
+ * TutorConversationCreateResponse
+ *
+ * Response returned after creating a conversation and its opening AI message.
+ */
+export type TutorConversationCreateResponse = {
+  /**
+   * Conversation Id
+   */
+  conversation_id: string;
+  /**
+   * Topic
+   */
+  topic: string;
+  difficulty: JlptLevel;
+  /**
+   * Scenario
+   */
+  scenario?: string | null;
+  /**
+   * Status
+   */
+  status: "active" | "completed";
+  initial_message: TutorMessageResponse;
+};
+
+/**
+ * TutorConversationDetailResponse
+ *
+ * Conversation metadata and its complete ordered message history.
+ */
+export type TutorConversationDetailResponse = {
+  /**
+   * Conversation Id
+   */
+  conversation_id: string;
+  /**
+   * Topic
+   */
+  topic: string;
+  difficulty: JlptLevel;
+  /**
+   * Scenario
+   */
+  scenario?: string | null;
+  /**
+   * Status
+   */
+  status: "active" | "completed";
+  /**
+   * Started At
+   */
+  started_at: string;
+  /**
+   * Ended At
+   */
+  ended_at?: string | null;
+  /**
+   * Messages
+   */
+  messages?: Array<TutorMessageResponse>;
+};
+
+/**
+ * TutorConversationListItem
+ *
+ * Compact conversation item used by the history endpoint.
+ */
+export type TutorConversationListItem = {
+  /**
+   * Conversation Id
+   */
+  conversation_id: string;
+  /**
+   * Topic
+   */
+  topic: string;
+  difficulty: JlptLevel;
+  /**
+   * Scenario
+   */
+  scenario?: string | null;
+  /**
+   * Status
+   */
+  status: "active" | "completed";
+  /**
+   * Last Message Text
+   */
+  last_message_text?: string | null;
+  /**
+   * Updated At
+   */
+  updated_at: string;
+};
+
+/**
+ * TutorConversationListResponse
+ *
+ * Paginated Tutor conversation history.
+ */
+export type TutorConversationListResponse = {
+  /**
+   * Items
+   */
+  items: Array<TutorConversationListItem>;
+  /**
+   * Total Items
+   */
+  total_items: number;
+  /**
+   * Page
+   */
+  page: number;
+  /**
+   * Page Size
+   */
+  page_size: number;
+  /**
+   * Total Pages
+   */
+  total_pages: number;
+};
+
+/**
+ * TutorFeedbackResponse
+ *
+ * Normalized feedback attached to an AI Tutor message.
+ */
+export type TutorFeedbackResponse = {
+  /**
+   * Grammar Correction
+   */
+  grammar_correction?: string | null;
+  /**
+   * Natural Expression Tip
+   */
+  natural_expression_tip?: string | null;
+  /**
+   * Answer Hints
+   */
+  answer_hints?: Array<TutorAnswerHintResponse>;
+};
+
+/**
+ * TutorMessageCreateRequest
+ *
+ * A text message and its client-generated idempotency key.
+ */
+export type TutorMessageCreateRequest = {
+  /**
+   * Text
+   */
+  text: string;
+  /**
+   * Client Message Id
+   */
+  client_message_id: string;
+};
+
+/**
+ * TutorMessageCreateResponse
+ *
+ * The persisted user message and the generated AI reply.
+ */
+export type TutorMessageCreateResponse = {
+  user_message: TutorMessageResponse;
+  ai_reply: TutorMessageResponse;
+};
+
+/**
+ * TutorMessageResponse
+ *
+ * A persisted Tutor message in sequence order.
+ */
+export type TutorMessageResponse = {
+  /**
+   * Id
+   */
+  id: string;
+  sender: TutorSender;
+  /**
+   * Sequence Number
+   */
+  sequence_number: number;
+  /**
+   * Text
+   */
+  text: string;
+  /**
+   * Text Vi
+   */
+  text_vi?: string | null;
+  /**
+   * Client Message Id
+   */
+  client_message_id?: string | null;
+  /**
+   * Created At
+   */
+  created_at: string;
+  feedback?: TutorFeedbackResponse | null;
+};
+
+/**
+ * TutorSender
+ */
+export type TutorSender = "user" | "ai";
 
 /**
  * UserResponse
@@ -2706,17 +2994,37 @@ export type StartDictationAttemptResponse =
 export type ListReflexLessonsData = {
   body?: never;
   path?: never;
-  query?: never;
+  query?: {
+    /**
+     * Difficulty
+     */
+    difficulty?: JlptLevel | null;
+    /**
+     * Page
+     */
+    page?: number;
+    /**
+     * Page Size
+     */
+    page_size?: number;
+  };
   url: "/api/v1/reflex/lessons";
 };
 
+export type ListReflexLessonsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListReflexLessonsError = ListReflexLessonsErrors[keyof ListReflexLessonsErrors];
+
 export type ListReflexLessonsResponses = {
   /**
-   * Response Listreflexlessons
-   *
    * Successful Response
    */
-  200: Array<ReflexLessonItem>;
+  200: ReflexLessonListResponse;
 };
 
 export type ListReflexLessonsResponse =
@@ -2794,7 +3102,7 @@ export type EvaluateReflexLessonResponses = {
   /**
    * Successful Response
    */
-  201: ReflexEvaluationResponse;
+  200: ReflexEvaluationResponse;
 };
 
 export type EvaluateReflexLessonResponse =
@@ -2941,11 +3249,9 @@ export type ListDueReviewsData = {
 
 export type ListDueReviewsResponses = {
   /**
-   * Response Listduereviews
-   *
    * Successful Response
    */
-  200: Array<ReviewScheduleItem>;
+  200: DueReviewListResponse;
 };
 
 export type ListDueReviewsResponse = ListDueReviewsResponses[keyof ListDueReviewsResponses];
@@ -2959,11 +3265,9 @@ export type ListReviewScheduleData = {
 
 export type ListReviewScheduleResponses = {
   /**
-   * Response Listreviewschedule
-   *
    * Successful Response
    */
-  200: Array<ReviewScheduleItem>;
+  200: ReviewScheduleListResponse;
 };
 
 export type ListReviewScheduleResponse =
@@ -3166,3 +3470,222 @@ export type GetWeeklyLeaderboardResponses = {
 
 export type GetWeeklyLeaderboardResponse =
   GetWeeklyLeaderboardResponses[keyof GetWeeklyLeaderboardResponses];
+
+export type ListTutorConversationsData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Page
+     */
+    page?: number;
+    /**
+     * Page Size
+     */
+    page_size?: number;
+  };
+  url: "/api/v1/ai-tutor/conversations";
+};
+
+export type ListTutorConversationsErrors = {
+  /**
+   * Unauthorized
+   */
+  401: ErrorResponse;
+  /**
+   * Unprocessable Content
+   */
+  422: ErrorResponse;
+};
+
+export type ListTutorConversationsError =
+  ListTutorConversationsErrors[keyof ListTutorConversationsErrors];
+
+export type ListTutorConversationsResponses = {
+  /**
+   * Successful Response
+   */
+  200: TutorConversationListResponse;
+};
+
+export type ListTutorConversationsResponse =
+  ListTutorConversationsResponses[keyof ListTutorConversationsResponses];
+
+export type CreateTutorConversationData = {
+  body: TutorConversationCreateRequest;
+  path?: never;
+  query?: never;
+  url: "/api/v1/ai-tutor/conversations";
+};
+
+export type CreateTutorConversationErrors = {
+  /**
+   * Unauthorized
+   */
+  401: ErrorResponse;
+  /**
+   * Unprocessable Content
+   */
+  422: ErrorResponse;
+  /**
+   * Service Unavailable
+   */
+  503: ErrorResponse;
+};
+
+export type CreateTutorConversationError =
+  CreateTutorConversationErrors[keyof CreateTutorConversationErrors];
+
+export type CreateTutorConversationResponses = {
+  /**
+   * Successful Response
+   */
+  201: TutorConversationCreateResponse;
+};
+
+export type CreateTutorConversationResponse =
+  CreateTutorConversationResponses[keyof CreateTutorConversationResponses];
+
+export type DeleteTutorConversationData = {
+  body?: never;
+  path: {
+    /**
+     * Conversation Id
+     *
+     * AI Tutor conversation ID
+     */
+    conversation_id: string;
+  };
+  query?: never;
+  url: "/api/v1/ai-tutor/conversations/{conversation_id}";
+};
+
+export type DeleteTutorConversationErrors = {
+  /**
+   * Unauthorized
+   */
+  401: ErrorResponse;
+  /**
+   * Forbidden
+   */
+  403: ErrorResponse;
+  /**
+   * Not Found
+   */
+  404: ErrorResponse;
+  /**
+   * Unprocessable Content
+   */
+  422: ErrorResponse;
+};
+
+export type DeleteTutorConversationError =
+  DeleteTutorConversationErrors[keyof DeleteTutorConversationErrors];
+
+export type DeleteTutorConversationResponses = {
+  /**
+   * Successful Response
+   */
+  204: void;
+};
+
+export type DeleteTutorConversationResponse =
+  DeleteTutorConversationResponses[keyof DeleteTutorConversationResponses];
+
+export type GetTutorConversationData = {
+  body?: never;
+  path: {
+    /**
+     * Conversation Id
+     *
+     * AI Tutor conversation ID
+     */
+    conversation_id: string;
+  };
+  query?: never;
+  url: "/api/v1/ai-tutor/conversations/{conversation_id}";
+};
+
+export type GetTutorConversationErrors = {
+  /**
+   * Unauthorized
+   */
+  401: ErrorResponse;
+  /**
+   * Forbidden
+   */
+  403: ErrorResponse;
+  /**
+   * Not Found
+   */
+  404: ErrorResponse;
+  /**
+   * Unprocessable Content
+   */
+  422: ErrorResponse;
+};
+
+export type GetTutorConversationError =
+  GetTutorConversationErrors[keyof GetTutorConversationErrors];
+
+export type GetTutorConversationResponses = {
+  /**
+   * Successful Response
+   */
+  200: TutorConversationDetailResponse;
+};
+
+export type GetTutorConversationResponse =
+  GetTutorConversationResponses[keyof GetTutorConversationResponses];
+
+export type SendTutorMessageData = {
+  body: TutorMessageCreateRequest;
+  path: {
+    /**
+     * Conversation Id
+     *
+     * AI Tutor conversation ID
+     */
+    conversation_id: string;
+  };
+  query?: never;
+  url: "/api/v1/ai-tutor/conversations/{conversation_id}/messages";
+};
+
+export type SendTutorMessageErrors = {
+  /**
+   * Unauthorized
+   */
+  401: ErrorResponse;
+  /**
+   * Forbidden
+   */
+  403: ErrorResponse;
+  /**
+   * Not Found
+   */
+  404: ErrorResponse;
+  /**
+   * Conflict
+   */
+  409: ErrorResponse;
+  /**
+   * Unprocessable Content
+   */
+  422: ErrorResponse;
+  /**
+   * Service Unavailable
+   */
+  503: ErrorResponse;
+};
+
+export type SendTutorMessageError = SendTutorMessageErrors[keyof SendTutorMessageErrors];
+
+export type SendTutorMessageResponses = {
+  /**
+   * Successful Response
+   */
+  200: TutorMessageCreateResponse;
+};
+
+export type SendTutorMessageResponse = SendTutorMessageResponses[keyof SendTutorMessageResponses];

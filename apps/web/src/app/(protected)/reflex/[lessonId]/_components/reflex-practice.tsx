@@ -28,11 +28,27 @@ import { cn } from "@/lib/utils";
 
 import type { ReflexEvaluation, ReflexLesson } from "../../_lib/reflex-api";
 
-import { evaluateReflexLesson, MOCK_AUDIO_URL } from "../../_lib/reflex-api";
+import { evaluateReflexLesson } from "../../_lib/reflex-api";
 import { ReflexResult } from "./reflex-result";
 
 type Phase = "ready" | "playing" | "thinking" | "recording" | "processing" | "result";
 const VOICE_THRESHOLD = 0.055;
+
+const AUDIO_FILE_EXTENSIONS: Readonly<Record<string, string>> = {
+  "audio/mp3": "mp3",
+  "audio/mp4": "m4a",
+  "audio/mpeg": "mp3",
+  "audio/ogg": "ogg",
+  "audio/wav": "wav",
+  "audio/webm": "webm",
+  "audio/x-wav": "wav",
+};
+
+function recordingFile(recording: Blob): File {
+  const mimeType = recording.type.split(";")[0] || "audio/webm";
+  const extension = AUDIO_FILE_EXTENSIONS[mimeType] ?? "webm";
+  return new File([recording], `reflex-response.${extension}`, { type: mimeType });
+}
 
 function microphoneMessage(error: unknown): string {
   if (
@@ -123,6 +139,7 @@ export function ReflexPractice({ lesson }: { lesson: ReflexLesson }) {
       );
       if (rms >= VOICE_THRESHOLD && responseStartRef.current === null) {
         responseStartRef.current = Math.max(0, Math.round(performance.now() - endedAtRef.current));
+        setPhase("recording");
       }
       if (responseStartRef.current === null) voiceFrameRef.current = requestAnimationFrame(sample);
     };
@@ -138,9 +155,9 @@ export function ReflexPractice({ lesson }: { lesson: ReflexLesson }) {
     chunksRef.current = [];
     setCountdown(lesson.response_start_limit_seconds);
     setPhase("thinking");
+    recorder.start(250);
+    detectVoiceStart(stream);
     thinkingTimerRef.current = window.setTimeout(() => {
-      recorder.start(250);
-      detectVoiceStart(stream);
       setPhase("recording");
       thinkingTimerRef.current = null;
     }, lesson.response_start_limit_seconds * 1000);
@@ -171,19 +188,7 @@ export function ReflexPractice({ lesson }: { lesson: ReflexLesson }) {
       recorderRef.current = recorder;
       setRecordedAudio(null);
       setPhase("playing");
-      if (lesson.audio_url === MOCK_AUDIO_URL) {
-        if (!("speechSynthesis" in window)) {
-          throw new DOMException("Speech synthesis is not supported", "NotSupportedError");
-        }
-        const question = new SpeechSynthesisUtterance(lesson.prompt_ja);
-        question.lang = "ja-JP";
-        question.rate = 0.9;
-        question.onend = handleAudioEnded;
-        question.onerror = handleAudioError;
-        window.speechSynthesis.speak(question);
-      } else {
-        await audioRef.current?.play();
-      }
+      await audioRef.current?.play();
     } catch (error) {
       cleanupMedia();
       setPhase("ready");
@@ -206,7 +211,8 @@ export function ReflexPractice({ lesson }: { lesson: ReflexLesson }) {
     dispatchAiRequest({ type: "start" });
     const responseStartMs =
       responseStartRef.current ?? Math.round(lesson.response_start_limit_seconds * 1000);
-    const evaluation = await evaluateReflexLesson(lesson.id, recordedAudio, responseStartMs);
+    const audioFile = recordingFile(recordedAudio);
+    const evaluation = await evaluateReflexLesson(lesson.id, audioFile, responseStartMs);
     if (!evaluation.data) {
       dispatchAiRequest({
         errorMessage: parseApiFailure(evaluation).message,
@@ -287,7 +293,7 @@ export function ReflexPractice({ lesson }: { lesson: ReflexLesson }) {
               onError={handleAudioError}
               preload="metadata"
               ref={audioRef}
-              src={lesson.audio_url === MOCK_AUDIO_URL ? undefined : lesson.audio_url}
+              src={lesson.audio_url}
             />
             <div className="grid max-w-xl justify-items-center gap-6">
               {phase === "playing" && (

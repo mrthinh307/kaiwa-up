@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 
+from app.api.v1.endpoints.ai_tutor import router as ai_tutor_router
 from app.api.v1.endpoints.auth import router as auth_router
 from app.api.v1.endpoints.dictation import router as dictation_router
 from app.api.v1.endpoints.gamification import router as gamification_router
@@ -28,3 +29,4 @@ router.include_router(review_router)
 router.include_router(auth_router)
 router.include_router(user_router)
 router.include_router(leaderboard_router)
+router.include_router(ai_tutor_router)
