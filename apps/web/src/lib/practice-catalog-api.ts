@@ -1,8 +1,12 @@
+import "server-only";
+
 import type { LearningContentItem } from "@kaiwa-app/api-client";
 
 import { client, listLearningContents } from "@kaiwa-app/api-client";
 
 import type { JlptDifficulty } from "@/types/practice-catalog";
+
+import { getServerApiBaseUrl } from "@/lib/server-api-base-url";
 
 export const PRACTICE_MODES = ["shadowing", "dictation"] as const;
 
@@ -83,7 +87,7 @@ export async function getPracticeCatalogFromApi({
   topics: string[];
 }> {
   client.setConfig({
-    baseUrl: process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000",
+    baseUrl: getServerApiBaseUrl(),
   });
 
   const result = await listLearningContents({
