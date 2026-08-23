@@ -1,225 +1,192 @@
-# 11. Deployment
+# 11. Deployment và CD
 
-## 1. Mục tiêu
+## 1. Kiến trúc P0
 
-Tài liệu này mô tả cách triển khai KaiwaUP theo hướng đơn giản, dễ vận hành và phù hợp với MVP. Mục tiêu là có một quy trình deploy rõ ràng cho **Next.js frontend**, **FastAPI backend**, database và các bước kiểm tra chất lượng trước khi push code.
+KaiwaUP dùng các gói miễn phí, tách theo đúng trách nhiệm của từng thành phần:
 
-Ưu tiên của giai đoạn đầu:
+- Frontend Next.js: Vercel.
+- Backend FastAPI: Render Web Service chạy Docker.
+- PostgreSQL 18+: Neon; URL pooled dùng cho ứng dụng, URL direct dùng riêng cho Alembic.
+- Bản ghi âm người dùng: Cloudinary; production không ghi file vào ổ đĩa tạm của Render.
+- CI/CD: GitHub Actions; chỉ release commit `master` đã pass CI.
 
-1. Dễ thiết lập cho cả nhóm.
-2. Có thể kiểm tra nhanh trước khi push.
-3. Có preview deployment cho frontend.
-4. Tách biệt môi trường development, staging và production.
+Trình duyệt gọi API qua đường dẫn cùng origin `/api/v1/...` của Vercel. Rewrite trong Next.js
+chuyển tiếp request đến Render, giúp refresh cookie dùng `SameSite=lax` và không phụ thuộc vào
+third-party cookie. Server Component gọi Render bằng biến server-only `API_BASE_URL`.
 
----
+Render Free có thể sleep khi không hoạt động nên lần gọi đầu có thể chậm. Kiến trúc P0 phù hợp
+demo/MVP, không phải cấu hình có SLA production trả phí.
 
-## 2. Kiến trúc triển khai
+## 2. Phân kỳ triển khai
 
-KaiwaUP được triển khai theo mô hình tách frontend và backend:
+### Phase 1: deployment thủ công
 
-* **Frontend:** Next.js, deploy trên Vercel.
-* **Backend:** FastAPI, deploy trên một nền tảng chạy API riêng như Render, Railway hoặc tương đương.
-* **Database:** PostgreSQL trên Neon.
-* **Audio bài học:** video YouTube; bản ghi người dùng dùng private object storage khi cần lưu.
+Phase 1 đưa ứng dụng lên chạy trước khi có quyền quản trị repository:
 
-* Vercel xử lý tốt frontend và preview branch.
-* Backend FastAPI có thể scale độc lập.
-* Database được quản lý riêng, tránh phụ thuộc vào môi trường deploy frontend.
+1. Hoàn tất production hardening, migration, test, frontend build và Docker smoke check.
+2. Push nhánh triển khai và tạo pull request để cố định commit được đưa lên demo.
+3. Tạo Neon và Cloudinary, sau đó cấu hình secrets trực tiếp trên từng provider.
+4. Tạo Render service với Auto-Deploy tắt, chạy migration bằng Neon direct URL và deploy backend
+   thủ công từ commit đã chọn.
+5. Khi `/api/v1/ready` pass, cấu hình `API_BASE_URL` và deploy frontend bằng Vercel CLI hoặc
+   Dashboard.
+6. Smoke test frontend, proxy `/api`, auth và recording; ghi lại URLs cùng release SHA.
 
----
+Phase này không yêu cầu GitHub Environment hoặc branch protection. Với private organization
+repository, Render/Vercel GitHub App vẫn có thể cần organization owner phê duyệt trước khi provider
+đọc được source. Không công khai repository hoặc Docker image để né giới hạn này.
 
-## 3. Môi trường triển khai
+### Phase 2: bật CD sau khi admin phê duyệt
 
-### 3.1. Development
+Repository admin hoặc custom role tương đương cấu hình `production` environment, deployment
+protection và branch protection cho `master`. Sau đó thêm các secrets/variables ở mục 4.5 và bật
+workflow release. Manual deployment của Phase 1 vẫn là đường phục hồi khi CD gặp sự cố.
 
-Môi trường local dùng cho lập trình hằng ngày.
+## 3. Luồng phát hành CD
 
-Yêu cầu tối thiểu:
+Pull request vào `dev` hoặc `master` chạy CI:
 
-* Chạy frontend bằng môi trường local.
-* Chạy backend bằng môi trường local hoặc Docker.
-* Dùng database test hoặc database local, không kết nối thẳng vào production.
+1. Backend: Ruff, format, mypy, migration trên PostgreSQL 18, pytest và Docker build.
+2. Frontend: lint, typecheck, kiểm tra generated API client, format và production build.
 
-### 3.2. Preview / Staging
+Push/merge vào `master` chạy lại CI. Chỉ khi CI thành công, workflow `Deploy production` mới:
 
-Môi trường preview dùng để kiểm tra trước khi merge hoặc trước khi phát hành.
+1. Checkout đúng commit đã được CI kiểm tra.
+2. Chạy Alembic bằng Neon direct connection.
+3. Yêu cầu Render deploy đúng SHA đó và chờ `/api/v1/ready` trả về cùng `release_sha`.
+4. Build/deploy frontend lên Vercel.
+5. Smoke test trang đăng nhập và `/api/v1/auth/refresh` qua proxy cùng origin.
 
-Khuyến nghị:
+Workflow dùng GitHub Environment `production` và khóa concurrency để hai release không chạy chồng
+lên nhau. Migration production không tự `stamp`; revision lạ hoặc migration lỗi sẽ dừng release.
 
-* Mỗi pull request tạo một preview deployment cho frontend trên Vercel.
-* Backend staging dùng chung một endpoint riêng với production.
-* Database staging tách biệt với database production.
+## 4. Thiết lập một lần
 
-### 3.3. Production
+### 4.1. Neon
 
-Môi trường production là môi trường dùng thật cho người dùng cuối.
+1. Tạo project PostgreSQL 18 hoặc mới hơn, ưu tiên region Singapore.
+2. Lấy hai connection string dùng cùng database/schema:
+   - Pooled URL cho `DATABASE_URL` của Render.
+   - Direct URL cho GitHub secret `NEON_MIGRATION_DATABASE_URL`.
+3. Chuyển scheme sang `postgresql+asyncpg://`, URL-encode password, và dùng query
+   `?ssl=require` cho SQLAlchemy/asyncpg. Không giữ tham số `channel_binding` dành cho libpq trong
+   URL ứng dụng này.
+4. Không chạy full demo seed trên staging/production. Nếu cần dữ liệu bài học ban đầu, dùng các script
+   seed nội dung riêng đã được review.
 
-Yêu cầu:
+### 4.2. Cloudinary
 
-* Chỉ nhận code đã qua lint và test cơ bản.
-* Chỉ deploy từ branch chính đã được review.
-* Biến môi trường production không được dùng chung với local hoặc preview.
+1. Tạo tài khoản/project Cloudinary.
+2. Lấy `CLOUDINARY_URL` từ dashboard.
+3. Không đưa URL này vào repository hoặc `NEXT_PUBLIC_*`.
 
----
+### 4.3. Render
 
-## 4. Biến môi trường
+1. Tạo Blueprint từ repository và file `render.yaml`.
+2. Điền các giá trị `sync: false` khi Render yêu cầu:
+   - `DATABASE_URL`: Neon pooled URL.
+   - `CORS_ORIGINS`: JSON array chứa URL frontend, ví dụ `["https://kaiwa.example"]`.
+   - `CLOUDINARY_URL`: secret của Cloudinary.
+3. Giữ Auto-Deploy ở trạng thái tắt; GitHub Actions là nguồn duy nhất phát hành production.
+4. Sau deploy đầu tiên, lấy:
+   - Backend URL, ví dụ `https://kaiwa-api.onrender.com`.
+   - Secret Deploy Hook URL trong Render Settings.
 
-Mỗi môi trường cần có bộ biến môi trường riêng.
+`JWT_SECRET_KEY` được Blueprint yêu cầu Render tạo ngẫu nhiên. Cookie production bắt buộc Secure.
+Scheduler leaderboard bị tắt trên free web process vì job trong-process không có đảm bảo chạy đúng
+lịch khi instance sleep; rebuild có thể chạy thủ công cho P0.
 
-### 4.1. Frontend
+### 4.4. Vercel
 
-* `NEXT_PUBLIC_API_BASE_URL`: URL backend cho frontend gọi.
-* `NEXT_PUBLIC_APP_NAME`: tên ứng dụng hiển thị.
-* `NEXT_PUBLIC_VERCEL_ENV`: môi trường hiện tại nếu cần.
+1. Import repository dưới dạng monorepo.
+2. Chọn Root Directory `apps/web`, Framework Preset `Next.js`, và bật quyền truy cập source bên
+   ngoài Root Directory để dùng `packages/api-client`.
+3. Thêm production environment variable:
+   - `API_BASE_URL=https://<render-service>.onrender.com`
+4. Không cấu hình `NEXT_PUBLIC_API_BASE_URL` trong production; browser phải dùng `/api` cùng origin.
+5. Có thể giữ Git integration để tạo PR Preview. Trong Ignored Build Step, bật system environment
+   variables và dùng lệnh dưới đây để `master` chỉ được deploy bởi workflow sau CI:
 
-### 4.2. Backend
+   ```sh
+   if [ "$VERCEL_GIT_COMMIT_REF" = "master" ]; then exit 0; else exit 1; fi
+   ```
 
-* `DATABASE_URL`: kết nối PostgreSQL.
-* `JWT_SECRET_KEY`: khóa ký JWT.
-* `CORS_ORIGINS`: danh sách domain frontend được phép gọi backend.
-* `YOUTUBE_API_KEY` nếu backend cần gọi YouTube Data API; không cần biến này nếu chỉ lưu/phát URL.
-* `AI_API_KEY` hoặc cấu hình dịch vụ AI nếu có.
-* `APP_ENV`: development, staging hoặc production.
+6. Tạo Vercel access token và lấy Team/Account ID cùng Project ID.
 
-### 4.3. Nguyên tắc quản lý biến môi trường
+Preview chỉ hoạt động đầy đủ khi preview environment có `API_BASE_URL` trỏ đến backend staging hoặc
+backend demo được phép dùng. Không trỏ preview không tin cậy vào database production.
 
-* Không commit file `.env` thật lên repository.
-* Chỉ lưu `.env.example` để mô tả tên biến cần thiết.
-* Preview và production phải dùng secret riêng.
+### 4.5. GitHub Actions
 
----
+Tạo repository/environment secrets:
 
-## 5. Quy trình kiểm tra trước khi push
+| Tên | Giá trị |
+| --- | --- |
+| `NEON_MIGRATION_DATABASE_URL` | Neon direct connection string |
+| `RENDER_DEPLOY_HOOK_URL` | Secret deploy hook URL của Render |
+| `VERCEL_TOKEN` | Vercel access token |
+| `VERCEL_ORG_ID` | Vercel Team hoặc Account ID |
+| `VERCEL_PROJECT_ID` | ID project frontend |
 
-Trước khi push code lên remote, cần chạy tối thiểu các bước sau:
+Tạo repository variable:
 
-1. Format nếu dự án có cấu hình format.
-2. Chạy lint cho frontend và backend.
-3. Chạy test liên quan đến phần thay đổi.
-4. Chạy smoke check nếu thay đổi ảnh hưởng luồng chính.
-5. Kiểm tra lại biến môi trường và URL gọi API.
+| Tên | Giá trị |
+| --- | --- |
+| `RENDER_BACKEND_URL` | URL Render không có dấu `/` cuối |
 
-### 5.1. Checklist tối thiểu
+Nên cấu hình branch protection cho `master`: yêu cầu pull request, CI pass và không cho push trực
+tiếp. Nếu repository hỗ trợ protected environment, thêm required reviewer cho environment
+`production` khi nhóm muốn bước duyệt thủ công trước release.
 
-* Lint pass.
-* Test pass.
-* Không còn lỗi nghiêm trọng trong core flow.
-* Preview frontend chạy được.
-* Backend trả response hợp lệ cho các endpoint chính.
+## 5. Biến môi trường backend production
 
-### 5.2. Khuyến nghị theo dự án này
+Các biến bắt buộc hoặc được Blueprint đặt:
 
-Với KaiwaUP, trước khi push ưu tiên kiểm tra:
+- `ENVIRONMENT=production`
+- `DEBUG=false`
+- `DATABASE_URL=<Neon pooled URL>`
+- `JWT_SECRET_KEY=<random secret ít nhất 32 ký tự>`
+- `CORS_ORIGINS=["https://<frontend-domain>"]`
+- `REFRESH_COOKIE_SECURE=true`
+- `REFRESH_COOKIE_SAMESITE=lax`
+- `CLOUDINARY_URL=<secret>`
+- `LEADERBOARD_REBUILD_ENABLED=false`
 
-* Auth flow.
-* API kết nối backend.
-* Trang học chính của module đang sửa.
-* Request mock cho AI hoặc media nếu có thay đổi liên quan.
+`MIGRATION_DATABASE_URL` chỉ dùng trong GitHub Actions, không cần cấp cho web process. Render tự cung
+cấp `RENDER_GIT_COMMIT`; health/readiness công khai SHA này để workflow xác minh release.
 
----
+Các AI provider mặc định là `fake` để P0 không phát sinh chi phí. Khi bật provider thật, thêm secret
+phía backend và ngân sách/rate limit trước khi chuyển cấu hình provider.
 
-## 6. CI/CD đơn giản
+## 6. Seed và migration
 
-Mục tiêu của CI/CD là tự động hóa phần kiểm tra cơ bản, không làm quy trình quá phức tạp.
+- Full demo seed yêu cầu `DEMO_SEED_PASSWORD` ở local và bị chặn hoàn toàn ở staging/production.
+- Không dùng `alembic stamp head` để bỏ qua revision không nhận diện được.
+- Migration phải tương thích ngược với phiên bản backend đang chạy vì schema được nâng cấp trước khi
+  deploy backend. Với thay đổi phá vỡ contract, dùng quy trình expand → deploy → migrate data →
+  contract trong nhiều release.
+- Không tự động downgrade production. Migration có mất dữ liệu phải có backup và runbook riêng.
 
-### 6.1. CI khi mở pull request
+## 7. Smoke check và rollback
 
-Khi tạo pull request, pipeline tối thiểu:
+Một release thành công khi:
 
-1. Cài dependency.
-2. Chạy lint.
-3. Chạy test.
-4. Chạy kiểm tra build nếu cần.
+- `/api/v1/ready` trả `status=ready`, `database=ok` và đúng SHA đã deploy.
+- Frontend truy cập được.
+- Request refresh không đăng nhập qua `/api/v1/auth/refresh` trả `401`, chứng minh proxy hoạt động.
 
-Nếu pipeline fail, không merge PR.
+Nếu backend fail trước khi frontend deploy, workflow dừng và frontend cũ được giữ nguyên. Rollback
+code bằng cách revert commit trên `master` để tạo release mới có lịch sử rõ ràng. Có thể promote lại
+deployment Vercel trước đó khi lỗi chỉ nằm ở frontend. Nếu lỗi liên quan schema, không downgrade mù;
+khôi phục theo migration runbook và backup đã chuẩn bị.
 
-### 6.2. CD cho frontend
+## 8. Giới hạn P0 và bước tiếp theo
 
-Frontend deploy trên Vercel theo quy tắc:
+- Render Free có cold start và không phù hợp job định kỳ đáng tin cậy.
+- Chưa có backend preview riêng cho từng PR.
+- Chưa tự động backup/restore rehearsal ngoài khả năng do Neon cung cấp.
+- Chưa có synthetic monitoring hoặc cảnh báo ngoài smoke test sau deploy.
 
-* PR mới tạo preview deployment tự động.
-* Merge vào branch chính sẽ deploy production tự động.
-* Chỉ merge khi preview đã được kiểm tra và pass lint/test liên quan.
-
-### 6.3. CD cho backend
-
-Backend deploy qua một pipeline riêng của nền tảng hosting backend.
-
-Quy trình:
-
-* Merge vào branch chính mới trigger deploy.
-* Dùng môi trường staging để kiểm tra trước khi lên production nếu có.
-* Sau deploy, kiểm tra health endpoint và một luồng API cốt lõi.
-
----
-
-## 7. Thứ tự deploy khuyến nghị
-
-Để giảm rủi ro lỗi tích hợp:
-
-1. Cập nhật database migration nếu có thay đổi schema.
-2. Deploy backend.
-3. Kiểm tra health và các endpoint chính của backend.
-4. Deploy frontend lên Vercel.
-5. Kiểm tra luồng frontend gọi backend thực tế.
-
-Nếu backend thay đổi API, cần đảm bảo frontend đã tương thích trước khi phát hành production.
-
----
-
-## 8. Rollback
-
-Rollback phải đơn giản và nhanh.
-
-### 8.1. Frontend
-
-* Vercel cho phép quay về deployment trước đó.
-* Nếu lỗi nằm ở frontend, rollback frontend trước.
-
-### 8.2. Backend
-
-* Quay lại release hoặc container version trước đó.
-* Nếu lỗi do migration, cần có kế hoạch rollback schema hoặc script khôi phục phù hợp.
-
-### 8.3. Quy tắc rollback
-
-* Ưu tiên khôi phục core flow trước.
-* Nếu rollback backend ảnh hưởng API, kiểm tra lại frontend preview hoặc production ngay sau đó.
-
----
-
-## 9. Tiêu chí hoàn thành deploy
-
-Một lần deploy được coi là thành công khi:
-
-* Frontend truy cập được trên domain preview hoặc production.
-* Backend health check trả về trạng thái bình thường.
-* Database kết nối ổn định.
-* Các luồng chính không bị lỗi 5xx.
-* Các test quan trọng của milestone hiện tại đã pass.
-
----
-
-## 10. Quy ước áp dụng cho dự án
-
-Trong giai đoạn đầu của KaiwaUP: 
-
-* Dev branch hoặc feature branch dùng để phát triển.
-* Pull request phải qua lint và test trước khi merge.
-* Vercel preview dùng để review giao diện và luồng frontend.
-* Production chỉ nhận code từ branch chính sau khi đã kiểm tra xong.
-* Backend chỉ deploy khi API core flow không bị phá vỡ.
-
----
-
-## 11. Tóm tắt ngắn
-
-Quy trình deploy tối thiểu cho KaiwaUP:
-
-1. Dev code trên branch riêng.
-2. Chạy lint và test trước khi push.
-3. Tạo pull request.
-4. Xem preview deployment trên Vercel.
-5. Merge khi pass kiểm tra.
-6. Frontend deploy production trên Vercel.
-7. Backend deploy riêng trên nền tảng API phù hợp.
+P1 nên bổ sung backend staging, content-only seed idempotent, lịch rebuild leaderboard bên ngoài web
+process và giám sát uptime. P2 mới cân nhắc custom domain, observability và nâng gói khi có người dùng
+thật.

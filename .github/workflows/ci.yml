@@ -2,12 +2,17 @@
 name: CI
 
 on:
+  push:
+    branches: [master]
   pull_request:
     branches: [dev, master]
 
+permissions:
+  contents: read
+
 jobs:
   backend:
-    name: Backend (lint, format, type-check, test)
+    name: Backend (quality, migration, test, container)
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -30,10 +35,10 @@ jobs:
       DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/kaiwa_test
       DATABASE_URL_TEST: postgresql+asyncpg://postgres:postgres@localhost:5432/kaiwa_test
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v3
+        uses: astral-sh/setup-uv@v9
 
       - name: Install dependencies
         run: uv sync --locked
@@ -53,15 +58,18 @@ jobs:
       - name: Run tests in parallel
         run: uv run pytest -n 4 --dist loadfile --durations=20
 
+      - name: Build production container
+        run: docker build --tag kaiwa-api:ci .
+
   frontend:
-    name: Frontend (lint, typecheck, format)
+    name: Frontend (quality, contract, build)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: pnpm
@@ -75,5 +83,11 @@ jobs:
       - name: Type check
         run: pnpm --filter web typecheck
 
+      - name: Verify generated API client
+        run: pnpm check:api-client
+
       - name: Format check (prettier)
         run: pnpm format:check
+
+      - name: Production build
+        run: pnpm build:web
