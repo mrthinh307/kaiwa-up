@@ -653,6 +653,11 @@ async def seed_xp_transactions(
 
 
 async def seed_data(clean: bool = False) -> dict[str, int]:
+    if settings.environment in {"staging", "production"}:
+        raise RuntimeError("Full demo seed is disabled in staging and production")
+    if settings.demo_seed_password is None:
+        raise RuntimeError("DEMO_SEED_PASSWORD is required to create demo users")
+
     async with AsyncSessionLocal() as session:
         if clean:
             await clean_database(session)
@@ -669,7 +674,7 @@ async def seed_data(clean: bool = False) -> dict[str, int]:
         # ==========================================
         # 1. SEED USERS & USER_PROGRESS
         # ==========================================
-        hashed_pwd = hash_password("12345678")
+        hashed_pwd = hash_password(settings.demo_seed_password.get_secret_value())
         users_payload: list[UserSeed] = [
             {
                 "email": "admin@kaiwaup.com",

@@ -24,10 +24,10 @@ async def _rebuild_weekly_leaderboard() -> None:
         logger.info("Rebuilt weekly leaderboard for %s: %d users", week_start, count)
 
 
-def configure_scheduler() -> None:
+def configure_scheduler() -> bool:
     if not settings.leaderboard_rebuild_enabled:
         logger.info("Weekly leaderboard rebuild is disabled")
-        return
+        return False
     scheduler.add_job(
         _rebuild_weekly_leaderboard,
         trigger="interval",
@@ -37,3 +37,4 @@ def configure_scheduler() -> None:
         coalesce=True,
         max_instances=1,
     )
+    return True

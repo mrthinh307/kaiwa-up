@@ -10,7 +10,10 @@ from app.core import settings
 from app.models import Base
 
 config = context.config
-config.set_main_option("sqlalchemy.url", settings.database_url)
+config.set_main_option(
+    "sqlalchemy.url",
+    settings.migration_database_url or settings.database_url,
+)
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
@@ -37,18 +40,6 @@ def do_run_migrations(connection: Connection) -> None:
         target_metadata=target_metadata,
         compare_type=True,
     )
-
-    mig_context = context.get_context()
-    db_revision = mig_context.get_current_revision()
-    script = mig_context.script
-
-    if db_revision is not None and script is not None:
-        try:
-            script.get_revision(db_revision)
-        except Exception:
-            head_rev = script.get_current_head()
-            if head_rev is not None:
-                mig_context.stamp(script, head_rev)
 
     with context.begin_transaction():
         context.run_migrations()

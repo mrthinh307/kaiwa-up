@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import uuid
 from pathlib import Path
@@ -7,6 +8,7 @@ import cloudinary.uploader
 from fastapi import UploadFile
 
 from app.core import settings
+from app.exceptions import StorageUnavailableError
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +18,8 @@ class StorageService:
         configured_dir = getattr(settings, "STORAGE_DIR", "storage")
         base_dir: str = storage_dir or str(configured_dir) or "storage"
         self.storage_dir = Path(base_dir) / "recordings"
-        self.storage_dir.mkdir(parents=True, exist_ok=True)
+        if settings.environment != "production":
+            self.storage_dir.mkdir(parents=True, exist_ok=True)
 
         self._has_cloudinary = False
         if settings.CLOUDINARY_URL:
@@ -61,7 +64,8 @@ class StorageService:
                 folder_prefix = getattr(settings, "CLOUDINARY_FOLDER", "kaiwa-up") or "kaiwa-up"
                 folder = f"{folder_prefix}/shadowing_user_recordings/{user_id}/{attempt_id}"
 
-                result = cloudinary.uploader.upload(
+                result = await asyncio.to_thread(
+                    cloudinary.uploader.upload,
                     io.BytesIO(content),
                     resource_type="auto",
                     folder=folder,
@@ -75,7 +79,13 @@ class StorageService:
                 if secure_url:
                     return str(secure_url), duration_seconds
             except Exception as exc:
+                if settings.environment == "production":
+                    logger.exception("Cloudinary upload failed")
+                    raise StorageUnavailableError() from exc
                 logger.warning("Cloudinary upload failed, falling back to local storage: %s", exc)
+
+        if settings.environment == "production":
+            raise StorageUnavailableError()
 
         filename = file.filename or "recording.webm"
         file_ext = Path(filename).suffix or ".webm"
