@@ -2,7 +2,7 @@ import math
 import uuid
 
 from app.exceptions.progress import AttemptForbiddenError, AttemptNotFoundError
-from app.models.enums import AttemptStatus, ContentType
+from app.models.enums import AttemptStatus, ContentType, PracticeMethod
 from app.repositories.progress import AttemptHistoryRow, InProgressLessonRow, ProgressRepository
 from app.schemas.pagination import PaginatedResponse
 from app.schemas.progress import (
@@ -40,6 +40,7 @@ class ProgressService:
         user_id: uuid.UUID,
         *,
         content_type: ContentType | None,
+        practice_method: PracticeMethod | None,
         content_id: uuid.UUID | None,
         status: AttemptStatus | None,
         search_query: str | None,
@@ -49,6 +50,7 @@ class ProgressService:
         attempts, total = await self.repository.list_attempts(
             user_id,
             content_type=content_type,
+            practice_method=practice_method,
             content_id=content_id,
             status=status,
             search_query=search_query,
@@ -78,6 +80,7 @@ class ProgressService:
             id=attempt.id,
             content_id=attempt.content_id,
             content_type=row.content_type,
+            practice_method=attempt.practice_method,
             attempt_number=attempt.attempt_number,
             status=attempt.status,
             score=float(attempt.score) if attempt.score is not None else None,
@@ -92,6 +95,7 @@ class ProgressService:
             content_id=lesson.content_id,
             content_title=lesson.content_title,
             content_type=lesson.content_type,
+            practice_method=lesson.practice_method,
             difficulty=lesson.difficulty,
             attempt_number=lesson.attempt_number,
         )
@@ -103,6 +107,7 @@ class ProgressService:
             content_id=attempt.content_id,
             content_title=attempt.content_title,
             content_type=attempt.content_type,
+            practice_method=attempt.practice_method,
             attempt_number=attempt.attempt_number,
             status=attempt.status,
             score=float(attempt.score) if attempt.score is not None else None,

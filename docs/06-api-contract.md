@@ -570,7 +570,7 @@ giá trị là `null`.
   * `audio_file` (required, file): File âm thanh ghi âm (`webm`, `wav`, `mp3`, `m4a`, `ogg`).
   * `segment_id` (required, string): ID hoặc chỉ số câu (vd: `"0"`, `"1"`).
   * `attempt_id` (optional, string, UUID): ID attempt nếu tiếp tục phiên hiện có.
-* **Response Schema (200 OK)**:
+* **Response Schema (201 Created)**:
   ```json
   {
     "attempt_id": "550e8400-e29b-41d4-a716-446655440000",
@@ -583,9 +583,10 @@ giá trị là `null`.
   }
   ```
 * **Status Codes & Error Responses**:
-  * `200 OK`: Ghi âm segment thành công.
+  * `201 Created`: Ghi âm segment thành công.
   * `400 Bad Request` (`code`: `bad_request`): Định dạng file không hợp lệ hoặc thiếu dữ liệu.
   * `404 Not Found` (`code`: `not_found`): Bài học hoặc attempt không tồn tại.
+  * `409 Conflict` (`code`: `attempt_already_in_progress`): Đã có Shadowing attempt đang dở; response trả `attempt_id` và `practice_method` trong `details` để client chuyển sang Resume.
 
 ---
 
@@ -599,7 +600,7 @@ giá trị là `null`.
   * `audio_file` (required, file): File âm thanh ghi âm buổi luyện tập.
   * `duration_seconds` (optional, integer): Thời lượng ghi âm thực tế tính bằng giây.
   * `attempt_id` (optional, string, UUID): ID attempt nếu tiếp tục phiên hiện có.
-* **Response Schema (200 OK)**:
+* **Response Schema (201 Created)**:
   ```json
   {
     "attempt_id": "550e8400-e29b-41d4-a716-446655440000",
@@ -609,9 +610,10 @@ giá trị là `null`.
   }
   ```
 * **Status Codes & Error Responses**:
-  * `200 OK`: Ghi âm liên tục thành công.
+  * `201 Created`: Ghi âm liên tục thành công.
   * `400 Bad Request` (`code`: `bad_request`): File không hợp lệ.
   * `404 Not Found` (`code`: `not_found`): Không tìm thấy bài học.
+  * `409 Conflict` (`code`: `attempt_already_in_progress`): Đã có Shadowing attempt đang dở; client phải Resume attempt được trả trong `details`.
 
 ---
 
@@ -777,6 +779,7 @@ giá trị là `null`.
   * `401 Unauthorized` (`code`: `unauthorized`): Chưa đăng nhập.
   * `404 Not Found` (`code`: `not_found`): Nội dung không tồn tại, chưa publish hoặc sai loại.
   * `409 Conflict` (`code`: `dictation_content_unavailable`): Nội dung thiếu audio hoặc segment hợp lệ.
+  * `409 Conflict` (`code`: `attempt_already_in_progress`): Đã có Dictation attempt đang dở; response trả `attempt_id` và `practice_method` trong `details`.
 
 ---
 
@@ -985,6 +988,7 @@ giá trị là `null`.
         "content_id": "770e8400-e29b-41d4-a716-446655440111",
         "content_title": "Thời tiết hôm nay",
         "content_type": "shadowing_dictation",
+        "practice_method": "shadowing",
         "difficulty": "N4",
         "attempt_number": 1
       }
@@ -1004,6 +1008,7 @@ giá trị là `null`.
 * **Path Parameters**: Không
 * **Query Parameters**:
   * `content_type` (optional, string): `shadowing_dictation` | `reflex` | `listening_translation`
+  * `practice_method` (optional, string): `shadowing` | `dictation` | `reflex` | `listening_translation`
   * `content_id` (optional, string, UUID): Lọc theo nội dung cụ thể
   * `q` (optional, string, tối đa 100 ký tự): Tìm kiếm theo tiêu đề bài học (không phân biệt hoa thường)
   * `status` (optional, string): `in_progress` | `completed`
@@ -1019,6 +1024,7 @@ giá trị là `null`.
         "content_id": "770e8400-e29b-41d4-a716-446655440111",
         "content_title": "Nghe điền từ: Thời tiết hôm nay",
         "content_type": "shadowing_dictation",
+        "practice_method": "dictation",
         "attempt_number": 1,
         "status": "completed",
         "score": 100.0,
@@ -1034,6 +1040,10 @@ giá trị là `null`.
 * **Status Codes & Error Responses**:
   * `200 OK`: Lấy lịch sử thành công.
   * `401 Unauthorized` (`code`: `unauthorized`): Chưa đăng nhập.
+
+`practice_method` luôn xuất hiện trong Progress response. Giá trị `null` biểu thị Attempt legacy không
+thể xác định phương thức một cách an toàn; các Attempt này vẫn xuất hiện khi không filter nhưng không
+được trả về khi lọc theo một phương thức cụ thể và không được Resume qua endpoint method-specific.
   * `422 Unprocessable Entity` (`code`: `validation_error`): Tham số filter hoặc pagination không hợp lệ.
 
 ---

@@ -3,7 +3,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
-from app.models.enums import AttemptStatus, ContentType, JlptLevel
+from app.models.enums import AttemptStatus, ContentType, JlptLevel, PracticeMethod
 
 
 class ProgressInProgressLesson(BaseModel):
@@ -11,6 +11,7 @@ class ProgressInProgressLesson(BaseModel):
     content_id: uuid.UUID
     content_title: str
     content_type: ContentType
+    practice_method: PracticeMethod | None
     difficulty: JlptLevel
     attempt_number: int = Field(ge=1)
 
@@ -29,6 +30,7 @@ class ProgressAttemptItem(BaseModel):
     content_id: uuid.UUID
     content_title: str
     content_type: ContentType
+    practice_method: PracticeMethod | None
     attempt_number: int = Field(ge=1)
     status: AttemptStatus
     score: float | None = None
@@ -39,6 +41,7 @@ class ProgressAttemptDetail(BaseModel):
     id: uuid.UUID
     content_id: uuid.UUID
     content_type: ContentType
+    practice_method: PracticeMethod | None
     attempt_number: int = Field(ge=1)
     status: AttemptStatus
     score: float | None = None

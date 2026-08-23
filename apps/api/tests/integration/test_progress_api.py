@@ -10,7 +10,7 @@ from app.api.dependencies.auth import get_current_user
 from app.main import app
 from app.models.attempt import ExerciseAttempt
 from app.models.content import LearningContent
-from app.models.enums import AttemptStatus, ContentStatus, ContentType, JlptLevel
+from app.models.enums import AttemptStatus, ContentStatus, ContentType, JlptLevel, PracticeMethod
 from app.models.user import User
 
 SUMMARY_PATH = "/api/v1/progress/summary"
@@ -51,6 +51,7 @@ async def create_attempt(
     content_id: UUID,
     attempt_number: int,
     status: AttemptStatus = AttemptStatus.COMPLETED,
+    practice_method: PracticeMethod | None = None,
     score: float | None = None,
     completed_at: datetime | None = None,
     answer_payload: dict[str, object] | None = None,
@@ -60,6 +61,7 @@ async def create_attempt(
         user_id=user_id,
         content_id=content_id,
         attempt_number=attempt_number,
+        practice_method=practice_method,
         status=status,
         score=score,
         started_at=started_at,
@@ -127,6 +129,7 @@ async def test_progress_summary_counts_completed_by_content_type(
         content_id=reflex.id,
         attempt_number=1,
         status=AttemptStatus.IN_PROGRESS,
+        practice_method=PracticeMethod.REFLEX,
     )
 
     set_current_user(user)
@@ -146,6 +149,7 @@ async def test_progress_summary_counts_completed_by_content_type(
                 "content_id": str(reflex.id),
                 "content_title": "Reflex lesson",
                 "content_type": "reflex",
+                "practice_method": "reflex",
                 "difficulty": "N5",
                 "attempt_number": 1,
             }
@@ -217,6 +221,7 @@ async def test_progress_summary_lists_in_progress_lessons(
         content_id=listening.id,
         attempt_number=1,
         status=AttemptStatus.IN_PROGRESS,
+        practice_method=PracticeMethod.SHADOWING,
     )
     await create_attempt(
         session=db_session, user_id=user.id, content_id=completed.id, attempt_number=1
@@ -234,6 +239,7 @@ async def test_progress_summary_lists_in_progress_lessons(
             "content_id": str(listening.id),
             "content_title": "Listening lesson",
             "content_type": "shadowing_dictation",
+            "practice_method": "shadowing",
             "difficulty": "N5",
             "attempt_number": 1,
         }
@@ -353,6 +359,67 @@ async def test_progress_attempts_filter_by_status(
     assert payload["total_items"] == 1
     assert payload["items"][0]["status"] == "in_progress"
     assert payload["items"][0]["attempt_number"] == 2
+
+
+@pytest.mark.asyncio
+async def test_progress_attempts_filter_by_practice_method_and_keep_legacy_unfiltered(
+    client: httpx.AsyncClient,
+    db_session: AsyncSession,
+    unique_value: Callable[[str], str],
+) -> None:
+    user = await create_user(
+        session=db_session,
+        email=f"{unique_value('user-a')}@example.com",
+        display_name="User A",
+    )
+    content = await create_content(
+        session=db_session,
+        content_type=ContentType.SHADOWING_DICTATION,
+        slug=unique_value("listening"),
+        title="Listening",
+    )
+    await create_attempt(
+        session=db_session,
+        user_id=user.id,
+        content_id=content.id,
+        attempt_number=1,
+        practice_method=PracticeMethod.SHADOWING,
+    )
+    await create_attempt(
+        session=db_session,
+        user_id=user.id,
+        content_id=content.id,
+        attempt_number=2,
+        practice_method=PracticeMethod.DICTATION,
+    )
+    await create_attempt(
+        session=db_session,
+        user_id=user.id,
+        content_id=content.id,
+        attempt_number=3,
+    )
+    set_current_user(user)
+
+    filtered_response = await client.get(
+        ATTEMPTS_PATH,
+        params={
+            "content_type": "shadowing_dictation",
+            "practice_method": "shadowing",
+            "status": "completed",
+        },
+    )
+    unfiltered_response = await client.get(ATTEMPTS_PATH)
+
+    assert filtered_response.status_code == 200
+    filtered_payload = filtered_response.json()
+    assert filtered_payload["total_items"] == 1
+    assert filtered_payload["items"][0]["practice_method"] == "shadowing"
+    assert unfiltered_response.status_code == 200
+    assert {item["practice_method"] for item in unfiltered_response.json()["items"]} == {
+        "shadowing",
+        "dictation",
+        None,
+    }
 
 
 @pytest.mark.asyncio
@@ -546,6 +613,7 @@ async def test_progress_attempt_detail_returns_attempt(
         user_id=user.id,
         content_id=content.id,
         attempt_number=2,
+        practice_method=PracticeMethod.DICTATION,
         score=95.0,
         completed_at=completed_at,
         answer_payload={"answer_text": "今日はいい天気ですね"},
@@ -560,6 +628,7 @@ async def test_progress_attempt_detail_returns_attempt(
     assert payload["id"] == str(attempt.id)
     assert payload["content_id"] == str(content.id)
     assert payload["content_type"] == "shadowing_dictation"
+    assert payload["practice_method"] == "dictation"
     assert payload["attempt_number"] == 2
     assert payload["status"] == "completed"
     assert payload["score"] == 95.0
