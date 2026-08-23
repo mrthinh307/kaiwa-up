@@ -2,7 +2,7 @@ from sqlalchemy import CheckConstraint, DateTime, Enum, Index, UniqueConstraint
 from sqlalchemy.schema import ColumnDefault
 
 from app.models import Base
-from app.models.enums import JlptLevel, TutorExplanationLanguage
+from app.models.enums import JlptLevel, PracticeMethod, TutorExplanationLanguage
 
 
 def test_all_expected_tables_registered() -> None:
@@ -70,6 +70,7 @@ def test_required_indexes_present() -> None:
     assert "ix_auth_refresh_tokens_user_id_expires_at_active" in indexes["auth_refresh_tokens"]
     assert "ix_exercise_attempts_user_id_completed_at" in indexes["exercise_attempts"]
     assert "ix_exercise_attempts_content_id_completed_at" in indexes["exercise_attempts"]
+    assert "uq_exercise_attempts_in_progress_practice_method" in indexes["exercise_attempts"]
     assert "ix_recordings_user_id_created_at" in indexes["recordings"]
     assert "ix_ai_evaluations_attempt_id_created_at" in indexes["ai_evaluations"]
     assert "ix_review_schedules_user_id_due_at" in indexes["review_schedules"]
@@ -110,6 +111,14 @@ def test_partial_index_conditions() -> None:
         tutor_idempotency_idx.dialect_options["postgresql"].get("where")
     )
 
+    attempt_method_idx = _index_by_name(
+        "exercise_attempts", "uq_exercise_attempts_in_progress_practice_method"
+    )
+    assert attempt_method_idx.unique
+    attempt_method_predicate = str(attempt_method_idx.dialect_options["postgresql"].get("where"))
+    assert "status = 'IN_PROGRESS'" in attempt_method_predicate
+    assert "practice_method IS NOT NULL" in attempt_method_predicate
+
 
 def test_database_check_constraints_present() -> None:
     expected = {
@@ -128,6 +137,7 @@ def test_database_check_constraints_present() -> None:
         },
         "exercise_attempts": {
             "attempt_status",
+            "exercise_attempts_practice_method",
             "exercise_attempts_number_positive",
             "exercise_attempts_score_range",
             "exercise_attempts_correct_count_nonnegative",
@@ -206,6 +216,14 @@ def test_learning_content_difficulty_uses_jlpt_level() -> None:
     assert isinstance(difficulty.default, ColumnDefault)
     assert difficulty.default.arg == JlptLevel.N5
     assert str(jlpt_constraint.sqltext) == "difficulty IN ('N5', 'N4', 'N3', 'N2', 'N1')"
+
+
+def test_attempt_practice_method_is_nullable_for_legacy_rows() -> None:
+    practice_method = Base.metadata.tables["exercise_attempts"].columns["practice_method"]
+
+    assert practice_method.nullable
+    assert isinstance(practice_method.type, Enum)
+    assert practice_method.type.enums == [method.name for method in PracticeMethod]
 
 
 def test_tutor_difficulty_uses_jlpt_level() -> None:

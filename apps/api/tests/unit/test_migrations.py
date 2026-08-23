@@ -256,3 +256,56 @@ def test_tutor_explanation_language_migration_adds_default_and_constraint() -> N
         "tutor_sessions",
         "explanation_language IN ('vi', 'en', 'ja')",
     )
+
+
+def test_attempt_practice_method_migration_backfills_and_constrains_active_attempts() -> None:
+    migration_path = (
+        Path(__file__).resolve().parents[2]
+        / "alembic"
+        / "versions"
+        / "9c4e1a7b2d6f_add_attempt_practice_method.py"
+    )
+    migration = runpy.run_path(str(migration_path))
+    operations = MagicMock()
+
+    with patch.dict(migration["upgrade"].__globals__, {"op": operations}):
+        migration["upgrade"]()
+
+    column = operations.add_column.call_args.args[1]
+    assert column.name == "practice_method"
+    assert column.nullable is True
+    backfill_sql = str(operations.execute.call_args.args[0])
+    assert "has_shadowing_signal" in backfill_sql
+    assert "has_dictation_signal" in backfill_sql
+    assert "row_number() OVER" in backfill_sql
+    assert "attempt_number DESC, started_at DESC, id DESC" in backfill_sql
+    assert "ranked.active_rank = 1" in backfill_sql
+    operations.create_check_constraint.assert_called_once_with(
+        "exercise_attempts_practice_method",
+        "exercise_attempts",
+        "practice_method IS NULL OR practice_method IN "
+        "('SHADOWING', 'DICTATION', 'REFLEX', 'LISTENING_TRANSLATION')",
+    )
+    index_call = operations.create_index.call_args
+    assert index_call.args[:3] == (
+        "uq_exercise_attempts_in_progress_practice_method",
+        "exercise_attempts",
+        ["user_id", "content_id", "practice_method"],
+    )
+    assert index_call.kwargs["unique"] is True
+    assert "practice_method IS NOT NULL" in str(index_call.kwargs["postgresql_where"])
+
+    downgrade_operations = MagicMock()
+    with patch.dict(migration["downgrade"].__globals__, {"op": downgrade_operations}):
+        migration["downgrade"]()
+
+    downgrade_operations.drop_index.assert_called_once_with(
+        "uq_exercise_attempts_in_progress_practice_method",
+        table_name="exercise_attempts",
+    )
+    downgrade_operations.drop_constraint.assert_called_once_with(
+        "exercise_attempts_practice_method",
+        "exercise_attempts",
+        type_="check",
+    )
+    downgrade_operations.drop_column.assert_called_once_with("exercise_attempts", "practice_method")

@@ -13,7 +13,14 @@ from app.core.security import hash_password
 from app.integrations.youtube import YouTubeCaptionProvider
 from app.models.attempt import ExerciseAttempt, ReviewSchedule
 from app.models.content import LearningContent, ReflexExercise, TranslationExercise
-from app.models.enums import AttemptStatus, ContentStatus, ContentType, JlptLevel, UserRole
+from app.models.enums import (
+    AttemptStatus,
+    ContentStatus,
+    ContentType,
+    JlptLevel,
+    PracticeMethod,
+    UserRole,
+)
 from app.models.gamification import Achievement, WeeklyLeaderboardEntry, XpTransaction
 from app.models.user import User, UserProgress
 from app.repositories.learning_content import LearningContentRepository
@@ -772,6 +779,7 @@ async def seed_data(clean: bool = False) -> dict[str, int]:
                 user_id=test_user.id,
                 content_id=test_content.id,
                 attempt_number=1,
+                practice_method=PracticeMethod.DICTATION,
                 status=AttemptStatus.COMPLETED,
                 started_at=datetime.now(UTC) - timedelta(minutes=5),
                 completed_at=datetime.now(UTC),
@@ -793,6 +801,9 @@ async def seed_data(clean: bool = False) -> dict[str, int]:
                 last_attempt_id=attempt.id,
             )
             session.add(review)
+        elif attempt.practice_method is None:
+            attempt.practice_method = PracticeMethod.DICTATION
+            await session.flush()
 
         stats["exp_entries"] = await seed_xp_transactions(session, seeded_users, attempt)
 
