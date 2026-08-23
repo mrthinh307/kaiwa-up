@@ -3,8 +3,9 @@ import type { NextConfig } from "next";
 import path from "node:path";
 
 const apiBaseUrl = process.env.API_BASE_URL?.replace(/\/$/, "");
+const isVercel = process.env.VERCEL === "1";
 
-if (process.env.VERCEL === "1" && !apiBaseUrl) {
+if (isVercel && !apiBaseUrl) {
   throw new Error("API_BASE_URL must be configured for Vercel deployments");
 }
 
@@ -38,7 +39,7 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  output: "standalone",
+  output: isVercel ? undefined : "standalone",
   outputFileTracingRoot: path.join(__dirname, "../.."),
 };
 

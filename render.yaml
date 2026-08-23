@@ -4,6 +4,7 @@ services:
     runtime: docker
     plan: free
     region: singapore
+    repo: https://github.com/awesome-academy/python-naitei26_kaiwa-practice
     branch: master
     autoDeployTrigger: off
     dockerfilePath: ./apps/api/Dockerfile
