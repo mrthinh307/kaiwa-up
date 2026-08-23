@@ -448,7 +448,7 @@ sequenceDiagram
 
     U->>FE: Mở bài Shadowing
     FE->>BE: GET /api/v1/shadowing/{content_id} & /in-progress
-    BE->>DB: Truy vấn learning_content & in-progress attempt
+    BE->>DB: Truy vấn learning_content & in-progress attempt theo practice_method
     DB-->>BE: Dữ liệu bài học + transcript + in-progress state
     BE-->>FE: Transcript, audio_url, và trạng thái attempt dở dang
 

@@ -6,7 +6,7 @@ from typing import Protocol, cast
 from pydantic import ValidationError
 from pykakasi import kakasi
 
-from app.exceptions import ForbiddenError, NotFoundError
+from app.exceptions import AttemptAlreadyInProgressError, ForbiddenError, NotFoundError
 from app.exceptions.dictation import (
     DictationAttemptNotInProgressError,
     DictationContentUnavailableError,
@@ -14,7 +14,7 @@ from app.exceptions.dictation import (
     DictationInvalidSegmentIndexError,
 )
 from app.models.content import LearningContent
-from app.models.enums import AttemptStatus, ContentType
+from app.models.enums import AttemptStatus, ContentType, PracticeMethod
 from app.repositories.dictation import DictationRepository
 from app.repositories.gamification import GamificationRepository
 from app.schemas.dictation import (
@@ -93,6 +93,15 @@ class DictationService:
 
         try:
             await self.repository.lock_attempt_order(user_id)
+            existing_attempt = await self.repository.get_latest_in_progress_attempt(
+                user_id=user_id,
+                content_id=content_id,
+            )
+            if existing_attempt is not None:
+                raise AttemptAlreadyInProgressError(
+                    attempt_id=existing_attempt.attempt.id,
+                    practice_method=PracticeMethod.DICTATION,
+                )
             attempt_number = await self.repository.get_next_attempt_number(
                 user_id=user_id,
                 content_id=content_id,
