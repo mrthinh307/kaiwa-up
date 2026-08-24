@@ -10,6 +10,7 @@ import {
   Headphones,
   LoaderCircle,
   Play,
+  Repeat2,
   RotateCcw,
   Trophy,
   VideoOff,
@@ -70,6 +71,7 @@ export function DictationResult({
   const scheduledPlaybackTimeoutRef = useRef<number | null>(null);
   const previousAutoPlayEnabledRef = useRef(autoPlayOnSegmentChange);
   const [playbackRequest, setPlaybackRequest] = useState(0);
+  const [isLoopEnabled, setIsLoopEnabled] = useState(false);
 
   const firstIncorrectPosition = review.details.findIndex((detail) => !detail.is_correct);
   const [activeReviewPosition, setActiveReviewPosition] = useState(
@@ -189,6 +191,28 @@ export function DictationResult({
 
     handleNext();
   }, [activeReviewPosition, autoPlayOnSegmentChange, handleNext, review.details.length]);
+
+  const handleLoopToggle = useCallback(() => {
+    setIsLoopEnabled((isEnabled) => !isEnabled);
+  }, []);
+
+  const handleNativePlaybackBoundary = useCallback(
+    (audio: HTMLAudioElement) => {
+      if (!activeSegment) {
+        return;
+      }
+
+      if (isLoopEnabled) {
+        audio.currentTime = activeSegment.start_time_ms / 1_000;
+        void audio.play().catch(() => undefined);
+        return;
+      }
+
+      audio.pause();
+      handlePlaybackEnded();
+    },
+    [activeSegment, handlePlaybackEnded, isLoopEnabled],
+  );
 
   const handlePlaybackStop = useCallback(() => {
     clearScheduledPlayback();
@@ -332,8 +356,10 @@ export function DictationResult({
                 endTimeMs={activeSegment.end_time_ms}
                 hasPlayedActiveSegment={playbackRequest > 0}
                 isAutoPlayEnabled={autoPlayOnSegmentChange}
+                isLoopEnabled={isLoopEnabled}
                 lessonTitle={content.title}
                 onEnded={handlePlaybackEnded}
+                onLoopToggle={handleLoopToggle}
                 onReplay={handleReplay}
                 onStop={handlePlaybackStop}
                 playbackRequest={playbackRequest}
@@ -350,13 +376,13 @@ export function DictationResult({
                       <audio
                         className="w-full"
                         controls
+                        onEnded={(event) => handleNativePlaybackBoundary(event.currentTarget)}
                         onTimeUpdate={(event) => {
                           if (
                             event.currentTarget.currentTime * 1_000 >=
                             activeSegment.end_time_ms
                           ) {
-                            event.currentTarget.pause();
-                            handlePlaybackEnded();
+                            handleNativePlaybackBoundary(event.currentTarget);
                           }
                         }}
                         ref={audioRef}
@@ -382,20 +408,34 @@ export function DictationResult({
                         {formatDictationTimestamp(activeSegment.end_time_ms)}
                       </p>
                     </div>
-                    <Button
-                      className="min-h-10 font-heading text-xs"
-                      onClick={handleReplay}
-                      size="sm"
-                      type="button"
-                      variant="neutral"
-                    >
-                      {playbackRequest > 0 ? (
-                        <RotateCcw aria-hidden="true" />
-                      ) : (
-                        <Play aria-hidden="true" />
-                      )}
-                      Replay segment
-                    </Button>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button
+                        aria-label={`Loop current segment ${isLoopEnabled ? "on" : "off"}`}
+                        aria-pressed={isLoopEnabled}
+                        className="min-h-10 gap-1.5 font-heading text-xs"
+                        onClick={handleLoopToggle}
+                        size="sm"
+                        type="button"
+                        variant={isLoopEnabled ? "default" : "neutral"}
+                      >
+                        <Repeat2 aria-hidden="true" />
+                        Loop {isLoopEnabled ? "on" : "off"}
+                      </Button>
+                      <Button
+                        className="min-h-10 font-heading text-xs"
+                        onClick={handleReplay}
+                        size="sm"
+                        type="button"
+                        variant="neutral"
+                      >
+                        {playbackRequest > 0 ? (
+                          <RotateCcw aria-hidden="true" />
+                        ) : (
+                          <Play aria-hidden="true" />
+                        )}
+                        Replay segment
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </>

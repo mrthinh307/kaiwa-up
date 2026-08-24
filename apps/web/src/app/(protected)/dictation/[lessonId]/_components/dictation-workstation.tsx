@@ -10,13 +10,14 @@ import {
   LoaderCircle,
   PencilLine,
   Play,
+  Repeat2,
   RotateCcw,
   Send,
   Sparkles,
   VideoOff,
   XCircle,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -32,16 +33,35 @@ import { SegmentAudioPlayer } from "./segment-audio-player";
 
 type SegmentPlaybackBarProps = {
   hasPlayedActiveSegment: boolean;
+  isLoopEnabled: boolean;
+  onLoopToggle: () => void;
   onReplay: () => void;
 };
 
-function SegmentPlaybackBar({ hasPlayedActiveSegment, onReplay }: SegmentPlaybackBarProps) {
+function SegmentPlaybackBar({
+  hasPlayedActiveSegment,
+  isLoopEnabled,
+  onLoopToggle,
+  onReplay,
+}: SegmentPlaybackBarProps) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 border-t-2 border-b-2 border-border bg-background/50 px-4 py-2.5 sm:px-6">
       <span className="text-[11px] text-foreground/60 sm:text-xs">
         Listen carefully and transcribe the sentence below
       </span>
       <div className="flex items-center gap-2">
+        <Button
+          aria-label={`Loop current segment ${isLoopEnabled ? "on" : "off"}`}
+          aria-pressed={isLoopEnabled}
+          className="gap-1.5 font-heading text-xs sm:text-sm"
+          onClick={onLoopToggle}
+          size="sm"
+          type="button"
+          variant={isLoopEnabled ? "default" : "neutral"}
+        >
+          <Repeat2 aria-hidden="true" />
+          Loop {isLoopEnabled ? "on" : "off"}
+        </Button>
         <Button
           className="font-heading text-xs sm:text-sm"
           onClick={onReplay}
@@ -88,6 +108,7 @@ export function DictationWorkstation({
   const previousAutoPlayEnabledRef = useRef(false);
   const previousSegmentIndexRef = useRef(activeSegment.segment_index);
   const lastPlaybackRequestRef = useRef(playbackRequest);
+  const [isLoopEnabled, setIsLoopEnabled] = useState(false);
 
   const youtubeVideoId = useMemo(() => getYouTubeVideoId(audioUrl), [audioUrl]);
 
@@ -185,6 +206,10 @@ export function DictationWorkstation({
     onReplay();
   };
 
+  const handleLoopToggle = useCallback(() => {
+    setIsLoopEnabled((isEnabled) => !isEnabled);
+  }, []);
+
   const handlePlaybackEnded = useCallback(() => {
     if (!autoPlayOnSegmentChange || isLastSegment) {
       return;
@@ -193,6 +218,20 @@ export function DictationWorkstation({
     shouldContinuePlaybackRef.current = true;
     onNext();
   }, [autoPlayOnSegmentChange, isLastSegment, onNext]);
+
+  const handleNativePlaybackBoundary = useCallback(
+    (audio: HTMLAudioElement) => {
+      if (isLoopEnabled) {
+        audio.currentTime = activeSegment.start_time_ms / 1_000;
+        void audio.play().catch(() => undefined);
+        return;
+      }
+
+      audio.pause();
+      handlePlaybackEnded();
+    },
+    [activeSegment.start_time_ms, handlePlaybackEnded, isLoopEnabled],
+  );
 
   const handlePlaybackStop = useCallback(() => {
     shouldContinuePlaybackRef.current = false;
@@ -267,8 +306,10 @@ export function DictationWorkstation({
             endTimeMs={activeSegment.end_time_ms}
             hasPlayedActiveSegment={hasPlayedActiveSegment}
             isAutoPlayEnabled={autoPlayOnSegmentChange}
+            isLoopEnabled={isLoopEnabled}
             lessonTitle={lessonTitle}
             onEnded={handlePlaybackEnded}
+            onLoopToggle={handleLoopToggle}
             onReplay={handleReplayClick}
             onStop={handlePlaybackStop}
             playbackRequest={playbackRequest}
@@ -282,10 +323,10 @@ export function DictationWorkstation({
             <audio
               className="w-full"
               controls
+              onEnded={(event) => handleNativePlaybackBoundary(event.currentTarget)}
               onTimeUpdate={(event) => {
                 if (event.currentTarget.currentTime * 1_000 >= activeSegment.end_time_ms) {
-                  event.currentTarget.pause();
-                  handlePlaybackEnded();
+                  handleNativePlaybackBoundary(event.currentTarget);
                 }
               }}
               ref={audioRef}
@@ -303,6 +344,8 @@ export function DictationWorkstation({
         {!youtubeVideoId ? (
           <SegmentPlaybackBar
             hasPlayedActiveSegment={hasPlayedActiveSegment}
+            isLoopEnabled={isLoopEnabled}
+            onLoopToggle={handleLoopToggle}
             onReplay={handleReplayClick}
           />
         ) : null}

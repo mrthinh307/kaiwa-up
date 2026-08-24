@@ -1,6 +1,6 @@
 "use client";
 
-import { Gauge, Headphones, Pause, Play, Square } from "lucide-react";
+import { Gauge, Headphones, Pause, Play, Repeat2, Square } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -25,8 +25,10 @@ type SegmentAudioPlayerProps = {
   endTimeMs: number;
   hasPlayedActiveSegment: boolean;
   isAutoPlayEnabled: boolean;
+  isLoopEnabled: boolean;
   lessonTitle: string;
   onEnded: () => void;
+  onLoopToggle: () => void;
   onReplay: () => void;
   onStop: () => void;
   playbackRequest: number;
@@ -132,8 +134,10 @@ export function SegmentAudioPlayer({
   endTimeMs,
   hasPlayedActiveSegment,
   isAutoPlayEnabled,
+  isLoopEnabled,
   lessonTitle,
   onEnded,
+  onLoopToggle,
   onReplay,
   onStop,
   playbackRequest,
@@ -404,6 +408,12 @@ export function SegmentAudioPlayer({
 
       if (nextTime >= durationSeconds && !hasReachedEndRef.current) {
         hasReachedEndRef.current = true;
+        if (isLoopEnabled) {
+          setCurrentTime(0);
+          requestPlayback(0);
+          return;
+        }
+
         const shouldContinueWithoutDelay =
           isAutoPlayEnabled && canContinuePlayback && autoPlayDelayMs === 0;
         if (!shouldContinueWithoutDelay) {
@@ -423,7 +433,9 @@ export function SegmentAudioPlayer({
     durationSeconds,
     isAutoPlayEnabled,
     isPlaying,
+    isLoopEnabled,
     onEnded,
+    requestPlayback,
     startSeconds,
   ]);
 
@@ -495,7 +507,19 @@ export function SegmentAudioPlayer({
             </span>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <Button
+              aria-label={`Loop current segment ${isLoopEnabled ? "on" : "off"}`}
+              aria-pressed={isLoopEnabled}
+              className="gap-1.5 font-heading text-xs"
+              onClick={onLoopToggle}
+              size="sm"
+              type="button"
+              variant={isLoopEnabled ? "default" : "neutral"}
+            >
+              <Repeat2 aria-hidden="true" className="size-3.5" />
+              Loop {isLoopEnabled ? "on" : "off"}
+            </Button>
             <Button
               aria-label={`Playback speed ${playbackRate}x. Change playback speed.`}
               className={cn(
