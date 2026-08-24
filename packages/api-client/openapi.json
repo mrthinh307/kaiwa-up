@@ -4387,6 +4387,16 @@
       },
       "ProgressSummaryResponse": {
         "properties": {
+          "shadowing_completed": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Shadowing Completed"
+          },
+          "dictation_completed": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Dictation Completed"
+          },
           "shadowing_dictation_completed": {
             "type": "integer",
             "minimum": 0.0,
@@ -4422,6 +4432,8 @@
         },
         "type": "object",
         "required": [
+          "shadowing_completed",
+          "dictation_completed",
           "shadowing_dictation_completed",
           "reflex_completed",
           "listening_translation_completed",

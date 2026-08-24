@@ -906,6 +906,14 @@ export type ProgressInProgressLesson = {
  */
 export type ProgressSummaryResponse = {
   /**
+   * Shadowing Completed
+   */
+  shadowing_completed: number;
+  /**
+   * Dictation Completed
+   */
+  dictation_completed: number;
+  /**
    * Shadowing Dictation Completed
    */
   shadowing_dictation_completed: number;
