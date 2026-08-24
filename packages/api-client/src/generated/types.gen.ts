@@ -808,6 +808,11 @@ export type PaginatedResponseTranslationLessonItem = {
 };
 
 /**
+ * PracticeMethod
+ */
+export type PracticeMethod = "shadowing" | "dictation" | "reflex" | "listening_translation";
+
+/**
  * ProgressAttemptDetail
  */
 export type ProgressAttemptDetail = {
@@ -820,6 +825,7 @@ export type ProgressAttemptDetail = {
    */
   content_id: string;
   content_type: ContentType;
+  practice_method: PracticeMethod | null;
   /**
    * Attempt Number
    */
@@ -858,6 +864,7 @@ export type ProgressAttemptItem = {
    */
   content_title: string;
   content_type: ContentType;
+  practice_method: PracticeMethod | null;
   /**
    * Attempt Number
    */
@@ -890,6 +897,7 @@ export type ProgressInProgressLesson = {
    */
   content_title: string;
   content_type: ContentType;
+  practice_method: PracticeMethod | null;
   difficulty: JlptLevel;
   /**
    * Attempt Number
@@ -901,6 +909,14 @@ export type ProgressInProgressLesson = {
  * ProgressSummaryResponse
  */
 export type ProgressSummaryResponse = {
+  /**
+   * Shadowing Completed
+   */
+  shadowing_completed: number;
+  /**
+   * Dictation Completed
+   */
+  dictation_completed: number;
   /**
    * Shadowing Dictation Completed
    */
@@ -2388,6 +2404,10 @@ export type ListProgressAttemptsData = {
      */
     content_type?: ContentType | null;
     /**
+     * Practice Method
+     */
+    practice_method?: PracticeMethod | null;
+    /**
      * Content Id
      */
     content_id?: string | null;
@@ -2576,6 +2596,10 @@ export type RecordShadowingSegmentErrors = {
    */
   404: ErrorResponse;
   /**
+   * Conflict
+   */
+  409: ErrorResponse;
+  /**
    * Validation Error
    */
   422: HttpValidationError;
@@ -2625,6 +2649,10 @@ export type RecordShadowingContinuousErrors = {
    * Not Found
    */
   404: ErrorResponse;
+  /**
+   * Conflict
+   */
+  409: ErrorResponse;
   /**
    * Validation Error
    */

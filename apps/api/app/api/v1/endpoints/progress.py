@@ -6,7 +6,7 @@ from fastapi import APIRouter, Path, Query, status
 from app.api.dependencies.auth import CurrentUser
 from app.api.dependencies.database import DatabaseSession
 from app.api.dependencies.pagination import Pagination
-from app.models.enums import AttemptStatus, ContentType
+from app.models.enums import AttemptStatus, ContentType, PracticeMethod
 from app.repositories.progress import ProgressRepository
 from app.schemas.pagination import PaginatedResponse
 from app.schemas.progress import (
@@ -47,6 +47,7 @@ async def list_progress_attempts(
     pagination: Pagination,
     session: DatabaseSession,
     content_type: Annotated[ContentType | None, Query()] = None,
+    practice_method: Annotated[PracticeMethod | None, Query()] = None,
     content_id: Annotated[uuid.UUID | None, Query()] = None,
     q: Annotated[str | None, Query(max_length=100)] = None,
     status: Annotated[AttemptStatus | None, Query()] = None,
@@ -54,6 +55,7 @@ async def list_progress_attempts(
     return await _progress_service(session).list_attempts(
         current_user.id,
         content_type=content_type,
+        practice_method=practice_method,
         content_id=content_id,
         status=status,
         search_query=q.strip() if q else None,

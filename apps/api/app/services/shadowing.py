@@ -5,16 +5,17 @@ from typing import Any
 
 from fastapi import UploadFile
 
-from app.exceptions import ForbiddenError, NotFoundError
+from app.exceptions import AttemptAlreadyInProgressError, ForbiddenError, NotFoundError
 from app.exceptions.shadowing import (
     ShadowingAttemptNotFoundError,
+    ShadowingAttemptNotInProgressError,
     ShadowingAudioTooLargeError,
     ShadowingContentNotFoundError,
     ShadowingInvalidAudioError,
     ShadowingInvalidSegmentError,
 )
 from app.models.attempt import ExerciseAttempt
-from app.models.enums import AttemptStatus, ContentType
+from app.models.enums import AttemptStatus, ContentType, PracticeMethod
 from app.repositories.gamification import GamificationRepository
 from app.repositories.recording import RecordingRepository
 from app.schemas.shadowing import (
@@ -94,25 +95,11 @@ class ShadowingService:
             raise ShadowingAudioTooLargeError()
 
         try:
-            attempt: ExerciseAttempt
-            if attempt_id is None:
-                await self.repository.lock_user(user_id)
-                attempt_number = await self.repository.get_next_attempt_number(
-                    user_id=user_id,
-                    content_id=content_id,
-                )
-                attempt = await self.repository.create_attempt(
-                    user_id=user_id,
-                    content_id=content_id,
-                    attempt_number=attempt_number,
-                )
-            else:
-                existing_attempt = await self.repository.get_attempt(attempt_id)
-                if existing_attempt is None or existing_attempt.content_id != content_id:
-                    raise NotFoundError("Attempt not found")
-                if existing_attempt.user_id != user_id:
-                    raise ForbiddenError()
-                attempt = existing_attempt
+            attempt = await self._get_or_create_attempt(
+                user_id=user_id,
+                content_id=content_id,
+                attempt_id=attempt_id,
+            )
 
             storage_key, duration_seconds = await self.storage_service.save_audio(
                 user_id=user_id,
@@ -183,25 +170,11 @@ class ShadowingService:
             raise ShadowingAudioTooLargeError()
 
         try:
-            attempt: ExerciseAttempt
-            if attempt_id is None:
-                await self.repository.lock_user(user_id)
-                attempt_number = await self.repository.get_next_attempt_number(
-                    user_id=user_id,
-                    content_id=content_id,
-                )
-                attempt = await self.repository.create_attempt(
-                    user_id=user_id,
-                    content_id=content_id,
-                    attempt_number=attempt_number,
-                )
-            else:
-                existing_attempt = await self.repository.get_attempt(attempt_id)
-                if existing_attempt is None or existing_attempt.content_id != content_id:
-                    raise NotFoundError("Attempt not found")
-                if existing_attempt.user_id != user_id:
-                    raise ForbiddenError()
-                attempt = existing_attempt
+            attempt = await self._get_or_create_attempt(
+                user_id=user_id,
+                content_id=content_id,
+                attempt_id=attempt_id,
+            )
 
             storage_key, file_duration_seconds = await self.storage_service.save_audio(
                 user_id=user_id,
@@ -645,6 +618,43 @@ class ShadowingService:
             continuous_recording=continuous_summary,
             total_attempts=total_attempts,
         )
+
+    async def _get_or_create_attempt(
+        self,
+        *,
+        user_id: uuid.UUID,
+        content_id: uuid.UUID,
+        attempt_id: uuid.UUID | None,
+    ) -> ExerciseAttempt:
+        if attempt_id is None:
+            await self.repository.lock_user(user_id)
+            existing_row = await self.repository.get_latest_in_progress_attempt(
+                user_id=user_id,
+                content_id=content_id,
+            )
+            if existing_row is not None:
+                raise AttemptAlreadyInProgressError(
+                    attempt_id=existing_row[0].id,
+                    practice_method=PracticeMethod.SHADOWING,
+                )
+            attempt_number = await self.repository.get_next_attempt_number(
+                user_id=user_id,
+                content_id=content_id,
+            )
+            return await self.repository.create_attempt(
+                user_id=user_id,
+                content_id=content_id,
+                attempt_number=attempt_number,
+            )
+
+        attempt = await self.repository.get_attempt(attempt_id)
+        if attempt is None or attempt.content_id != content_id:
+            raise ShadowingAttemptNotFoundError()
+        if attempt.user_id != user_id:
+            raise ForbiddenError()
+        if attempt.status != AttemptStatus.IN_PROGRESS:
+            raise ShadowingAttemptNotInProgressError()
+        return attempt
 
     @staticmethod
     def _is_valid_segment(transcript_ja: list[dict[str, Any]] | None, segment_id: str) -> bool:

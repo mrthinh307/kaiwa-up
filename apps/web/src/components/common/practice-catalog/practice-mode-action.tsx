@@ -2,17 +2,16 @@
 
 import type { LucideIcon } from "lucide-react";
 
-import { ArrowRight, BookOpenCheck, CirclePlay, Mic2, RotateCcw } from "lucide-react";
+import { ArrowRight, BookOpenCheck, CirclePlay, Mic2 } from "lucide-react";
 import Link from "next/link";
 
-import type { LessonModeProgress, PracticeMode } from "@/lib/practice-catalog-api";
+import type { LessonPracticeMethod } from "@/components/common/practice-progress/practice-progress-provider";
 
+import { usePracticeProgress } from "@/components/common/practice-progress/practice-progress-provider";
 import { cn } from "@/lib/utils";
 
-import { usePracticeCatalogProgress } from "./practice-catalog-progress-provider";
-
-const PRACTICE_MODE_CONFIG: Record<
-  PracticeMode,
+const PRACTICE_METHOD_CONFIG: Record<
+  LessonPracticeMethod,
   { getHref: (contentId: string) => string; icon: LucideIcon; label: string }
 > = {
   dictation: {
@@ -27,73 +26,58 @@ const PRACTICE_MODE_CONFIG: Record<
   },
 };
 
-type PracticeModeActionProps = {
-  contentId: string;
-  lessonTitle: string;
-  progress: LessonModeProgress;
-  variant?: "compact" | "default";
-};
-
 export function PracticeModeAction({
   contentId,
   lessonTitle,
-  progress,
-  variant = "default",
-}: PracticeModeActionProps) {
-  const config = PRACTICE_MODE_CONFIG[progress.mode];
-  const { attemptCounts, inProgressContentIds, isLoading } = usePracticeCatalogProgress();
-  const isResumable = inProgressContentIds.has(contentId);
-  const attemptCount = Math.max(progress.attemptCount, attemptCounts.get(contentId) ?? 0);
-  const hasAttempts = attemptCount > 0;
-  const attemptLabel = `${attemptCount} ${attemptCount === 1 ? "attempt" : "attempts"}`;
-  const actionLabel = isResumable
-    ? "Resume attempt"
-    : hasAttempts
-      ? "Practice again"
-      : "Start lesson";
-  const displayedProgress = isResumable
-    ? "Resume"
-    : isLoading
-      ? "Checking progress"
-      : hasAttempts
-        ? attemptLabel
-        : "New";
+  method,
+}: {
+  contentId: string;
+  lessonTitle: string;
+  method: LessonPracticeMethod;
+}) {
+  const { errorMessage, isLoading, progressByContentId } = usePracticeProgress();
+  const progress = progressByContentId.get(contentId);
+  const isInProgress = progress?.activeMethods.includes(method) ?? false;
+  const hasLegacyInProgress = progress?.hasLegacyInProgress ?? false;
+  const config = PRACTICE_METHOD_CONFIG[method];
   const Icon = config.icon;
-  const isCompact = variant === "compact";
+  const actionLabel = isInProgress ? `Resume ${config.label}` : `Practice ${config.label}`;
+  const statusLabel = isLoading
+    ? "Checking progress…"
+    : errorMessage
+      ? "Progress unavailable"
+      : isInProgress
+        ? "In progress"
+        : hasLegacyInProgress
+          ? "Legacy attempt"
+          : "New practice";
 
   return (
     <Link
-      aria-label={`${actionLabel}: ${config.label} for ${lessonTitle}. ${isResumable ? "Attempt in progress" : attemptLabel}.`}
+      aria-label={`${actionLabel}: ${lessonTitle}. ${statusLabel}.`}
       className={cn(
-        "grid grid-cols-[auto_minmax(0,1fr)_auto] items-center rounded-base border-2 border-border bg-background outline-hidden transition-colors hover:bg-main hover:text-main-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-reduce:transition-none",
-        isCompact ? "min-h-14 gap-2 px-2 py-2" : "min-h-16 gap-3 px-3 py-2",
+        "grid min-h-16 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 rounded-base border-2 border-border bg-background px-2 py-2 outline-hidden transition-colors hover:bg-main hover:text-main-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-reduce:transition-none",
+        isInProgress && "bg-main/15",
       )}
       href={config.getHref(contentId)}
     >
       <span
         className={cn(
-          "flex items-center justify-center rounded-base border-2 border-border bg-secondary-background text-foreground shadow-shadow",
-          isCompact ? "size-8" : "size-9",
+          "flex size-8 items-center justify-center rounded-base border-2 border-border bg-secondary-background text-foreground shadow-shadow",
+          statusLabel === "In progress" && "bg-chart-3",
         )}
       >
-        <Icon aria-hidden="true" className={isCompact ? "size-4" : "size-5"} />
+        <Icon aria-hidden="true" className={cn("size-4")} />
       </span>
       <span className="min-w-0">
-        <span className={cn("block truncate font-heading", isCompact && "text-sm")}>
-          {config.label}
-        </span>
-        <span className="block truncate text-xs opacity-70">{displayedProgress}</span>
+        <span className="block truncate text-sm font-heading">{config.label}</span>
+        <span className="block truncate text-xs opacity-70">{statusLabel}</span>
       </span>
-      <span className="flex items-center justify-end gap-2 text-right text-sm font-heading">
-        {!isCompact && <span className="text-xs sm:text-sm">{actionLabel}</span>}
-        {isResumable ? (
-          <CirclePlay aria-hidden="true" className="size-4" />
-        ) : hasAttempts ? (
-          <RotateCcw aria-hidden="true" className="size-4" />
-        ) : (
-          <ArrowRight aria-hidden="true" className="size-4" />
-        )}
-      </span>
+      {isInProgress ? (
+        <CirclePlay aria-hidden="true" className="size-5" />
+      ) : (
+        <ArrowRight aria-hidden="true" className="size-5" />
+      )}
     </Link>
   );
 }

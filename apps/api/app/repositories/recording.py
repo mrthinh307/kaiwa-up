@@ -6,7 +6,13 @@ from sqlalchemy import func, select
 
 from app.models.attempt import ExerciseAttempt, Recording
 from app.models.content import LearningContent
-from app.models.enums import AttemptStatus, ContentStatus, ContentType, RecordingKind
+from app.models.enums import (
+    AttemptStatus,
+    ContentStatus,
+    ContentType,
+    PracticeMethod,
+    RecordingKind,
+)
 from app.models.user import User
 from app.repositories.base import BaseRepository
 
@@ -50,6 +56,7 @@ class RecordingRepository(BaseRepository):
             user_id=user_id,
             content_id=content_id,
             attempt_number=attempt_number,
+            practice_method=PracticeMethod.SHADOWING,
             status=AttemptStatus.IN_PROGRESS,
             answer_payload={},
         )
@@ -59,7 +66,10 @@ class RecordingRepository(BaseRepository):
 
     async def get_attempt(self, attempt_id: uuid.UUID) -> ExerciseAttempt | None:
         result = await self.session.execute(
-            select(ExerciseAttempt).where(ExerciseAttempt.id == attempt_id)
+            select(ExerciseAttempt).where(
+                ExerciseAttempt.id == attempt_id,
+                ExerciseAttempt.practice_method == PracticeMethod.SHADOWING,
+            )
         )
         return result.scalar_one_or_none()
 
@@ -76,6 +86,7 @@ class RecordingRepository(BaseRepository):
                 .where(
                     ExerciseAttempt.user_id == user_id,
                     ExerciseAttempt.content_id == content_id,
+                    ExerciseAttempt.practice_method == PracticeMethod.SHADOWING,
                     ExerciseAttempt.status == AttemptStatus.IN_PROGRESS,
                 )
                 .order_by(ExerciseAttempt.started_at.desc())
@@ -95,6 +106,7 @@ class RecordingRepository(BaseRepository):
             select(func.count(ExerciseAttempt.id)).where(
                 ExerciseAttempt.user_id == user_id,
                 ExerciseAttempt.content_id == content_id,
+                ExerciseAttempt.practice_method == PracticeMethod.SHADOWING,
             )
         )
         return count or 0
@@ -131,7 +143,10 @@ class RecordingRepository(BaseRepository):
             await self.session.execute(
                 select(ExerciseAttempt, LearningContent)
                 .join(LearningContent, LearningContent.id == ExerciseAttempt.content_id)
-                .where(ExerciseAttempt.id == attempt_id)
+                .where(
+                    ExerciseAttempt.id == attempt_id,
+                    ExerciseAttempt.practice_method == PracticeMethod.SHADOWING,
+                )
                 .with_for_update(of=ExerciseAttempt)
             )
         ).first()
@@ -199,7 +214,10 @@ class RecordingRepository(BaseRepository):
                 select(ExerciseAttempt, LearningContent, XpTransaction.amount)
                 .join(LearningContent, LearningContent.id == ExerciseAttempt.content_id)
                 .outerjoin(XpTransaction, XpTransaction.attempt_id == ExerciseAttempt.id)
-                .where(ExerciseAttempt.id == attempt_id)
+                .where(
+                    ExerciseAttempt.id == attempt_id,
+                    ExerciseAttempt.practice_method == PracticeMethod.SHADOWING,
+                )
             )
         ).first()
         if result is None:

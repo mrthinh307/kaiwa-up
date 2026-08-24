@@ -13,6 +13,7 @@ from app.models.enums import (
     ContentStatus,
     ContentType,
     JlptLevel,
+    PracticeMethod,
 )
 from app.models.user import User, UserProgress
 from app.repositories.base import BaseRepository
@@ -60,6 +61,7 @@ class ReflexRepository(BaseRepository):
                 ExerciseAttempt.user_id == user_id,
                 ExerciseAttempt.content_id.in_(content_ids),
                 ExerciseAttempt.status == AttemptStatus.COMPLETED,
+                ExerciseAttempt.practice_method == PracticeMethod.REFLEX,
             )
             .distinct()
         )
@@ -109,6 +111,7 @@ class ReflexRepository(BaseRepository):
             user_id=user_id,
             content_id=content_id,
             attempt_number=attempt_number,
+            practice_method=PracticeMethod.REFLEX,
             status=AttemptStatus.COMPLETED,
             started_at=started_at,
             score=Decimal(score),

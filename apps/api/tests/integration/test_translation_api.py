@@ -19,6 +19,7 @@ from app.models.enums import (
     ContentStatus,
     ContentType,
     JlptLevel,
+    PracticeMethod,
 )
 from app.models.gamification import XpTransaction
 from app.models.user import User, UserProgress
@@ -172,6 +173,7 @@ async def test_submit_translation_persists_evaluation_and_awards_exp(
         )
     )
     assert attempt is not None
+    assert attempt.practice_method == PracticeMethod.LISTENING_TRANSLATION
     assert attempt.status == AttemptStatus.COMPLETED
     assert attempt.answer_payload == {"translation_vi": "Hai người muốn ngồi gần cửa sổ."}
     evaluation = await db_session.scalar(
@@ -196,6 +198,48 @@ async def test_submit_translation_persists_evaluation_and_awards_exp(
 
 
 @pytest.mark.asyncio
+async def test_translation_submission_does_not_reuse_wrong_method_attempt(
+    client: httpx.AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    user = await create_translation_user(db_session, "translation-wrong-method@example.com")
+    content = await create_translation_lesson(db_session, slug="translation-wrong-method")
+    wrong_method_attempt = ExerciseAttempt(
+        user_id=user.id,
+        content_id=content.id,
+        attempt_number=1,
+        practice_method=PracticeMethod.SHADOWING,
+        status=AttemptStatus.IN_PROGRESS,
+        answer_payload={},
+    )
+    db_session.add(wrong_method_attempt)
+    await db_session.flush()
+    override_translation_dependencies(user, SuccessfulTranslationGateway())
+
+    response = await client.post(
+        f"/api/v1/listening-translation/lessons/{content.id}/submit",
+        json={"translation_vi": "Hai người muốn ngồi gần cửa sổ."},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["attempt_id"] != str(wrong_method_attempt.id)
+    attempts = (
+        await db_session.scalars(
+            select(ExerciseAttempt)
+            .where(
+                ExerciseAttempt.user_id == user.id,
+                ExerciseAttempt.content_id == content.id,
+            )
+            .order_by(ExerciseAttempt.attempt_number)
+        )
+    ).all()
+    assert [attempt.practice_method for attempt in attempts] == [
+        PracticeMethod.SHADOWING,
+        PracticeMethod.LISTENING_TRANSLATION,
+    ]
+
+
+@pytest.mark.asyncio
 async def test_translation_timeout_preserves_answer_and_retry_is_idempotent(
     client: httpx.AsyncClient,
     db_session: AsyncSession,
@@ -214,6 +258,7 @@ async def test_translation_timeout_preserves_answer_and_retry_is_idempotent(
         select(ExerciseAttempt).where(ExerciseAttempt.content_id == content.id)
     )
     assert attempt is not None
+    assert attempt.practice_method == PracticeMethod.LISTENING_TRANSLATION
     assert attempt.status == AttemptStatus.IN_PROGRESS
     assert attempt.answer_payload == {"translation_vi": "Hai người muốn ngồi gần cửa sổ."}
     evaluation = await db_session.scalar(

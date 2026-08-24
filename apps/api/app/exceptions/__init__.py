@@ -8,6 +8,7 @@ from app.exceptions.ai import (
     AiRateLimitError,
     AiTimeoutError,
 )
+from app.exceptions.attempt import AttemptAlreadyInProgressError
 from app.exceptions.auth import (
     EmailAlreadyExistsException,
     ForbiddenException,
@@ -52,6 +53,7 @@ __all__ = [
     "AiRateLimitError",
     "AiTimeoutError",
     "AppError",
+    "AttemptAlreadyInProgressError",
     "DictationAttemptNotInProgressError",
     "DictationContentUnavailableError",
     "DictationExperienceAlreadyAwardedError",
