@@ -1,6 +1,7 @@
 "use client";
 
 import { ChevronDown, CirclePlay, History } from "lucide-react";
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +20,25 @@ import { cn } from "@/lib/utils";
 import type { DashboardViewModel } from "../_utils/dashboard-api-adapter";
 
 import { getDashboardPracticeModeMetadata } from "../_utils/dashboard-formatters";
+
+function getInProgressLessonHref(
+  lesson: DashboardViewModel["progressSummary"]["inProgressLessons"][number],
+): string {
+  const encodedContentId = encodeURIComponent(lesson.contentId);
+  if (lesson.contentType === "shadowing_dictation") {
+    if (lesson.practiceMode === "shadowing") {
+      return `/shadowing/${encodedContentId}`;
+    }
+    if (lesson.practiceMode === "dictation") {
+      return `/dictation/${encodedContentId}`;
+    }
+    return "/lessons";
+  }
+  if (lesson.contentType === "reflex") {
+    return `/reflex/${encodedContentId}`;
+  }
+  return `/listening-translation/${encodedContentId}`;
+}
 
 export function DashboardInProgressLessons({
   lessons,
@@ -116,31 +136,37 @@ export function DashboardInProgressLessons({
                         className="pt-2 pr-2 pb-2 pl-3 sm:pl-4 md:basis-1/2 2xl:basis-1/3"
                         key={lesson.id}
                       >
-                        <article className="relative flex h-full min-h-48 cursor-pointer flex-col rounded-base border-2 border-border bg-background p-5 shadow-shadow motion-safe:transition-transform motion-safe:hover:-translate-y-1 sm:p-6">
-                          <div className="flex justify-between items-center gap-4">
-                            <div className="flex flex-wrap gap-2">
-                              <Badge
-                                className={cn(
-                                  "gap-1.5 rounded-none font-heading",
-                                  practiceMetadata.badgeClassName,
-                                )}
-                              >
-                                <PracticeIcon aria-hidden="true" />
-                                {practiceMetadata.label}
-                              </Badge>
-                              <Badge className="rounded-none font-heading bg-secondary-background text-foreground">
-                                {lesson.difficulty}
-                              </Badge>
+                        <Link
+                          aria-label={`Continue ${practiceMetadata.label}: ${lesson.contentTitle}`}
+                          className="block h-full rounded-base outline-hidden transition-transform focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-safe:hover:-translate-y-1 motion-reduce:transition-none"
+                          href={getInProgressLessonHref(lesson)}
+                        >
+                          <article className="relative flex h-full min-h-48 flex-col rounded-base border-2 border-border bg-background p-5 shadow-shadow sm:p-6">
+                            <div className="flex items-center justify-between gap-4">
+                              <div className="flex flex-wrap gap-2">
+                                <Badge
+                                  className={cn(
+                                    "gap-1.5 rounded-none font-heading",
+                                    practiceMetadata.badgeClassName,
+                                  )}
+                                >
+                                  <PracticeIcon aria-hidden="true" />
+                                  {practiceMetadata.label}
+                                </Badge>
+                                <Badge className="rounded-none bg-secondary-background font-heading text-foreground">
+                                  {lesson.difficulty}
+                                </Badge>
+                              </div>
+                              <div className="flex items-center gap-1.5 py-1 text-sm font-heading">
+                                <History aria-hidden="true" className="size-4" />
+                                <span>{lesson.attemptNumber}</span>
+                              </div>
                             </div>
-                            <div className="flex items-center gap-1.5 py-1 text-sm font-heading">
-                              <History aria-hidden="true" className="size-4" />
-                              <span>{lesson.attemptNumber}</span>
-                            </div>
-                          </div>
-                          <h3 className="mt-4 text-xl leading-snug line-clamp-3">
-                            {lesson.contentTitle}
-                          </h3>
-                        </article>
+                            <h3 className="mt-4 line-clamp-3 text-xl leading-snug">
+                              {lesson.contentTitle}
+                            </h3>
+                          </article>
+                        </Link>
                       </CarouselItem>
                     );
                   })}
