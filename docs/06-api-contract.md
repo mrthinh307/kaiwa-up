@@ -977,6 +977,8 @@ giá trị là `null`.
 * **Response Schema (200 OK)**:
   ```json
   {
+    "shadowing_completed": 4,
+    "dictation_completed": 8,
     "shadowing_dictation_completed": 12,
     "reflex_completed": 5,
     "listening_translation_completed": 3,
@@ -995,6 +997,9 @@ giá trị là `null`.
     ]
   }
   ```
+  `shadowing_completed` và `dictation_completed` chỉ đếm Attempt đã xác định
+  `practice_method`. `shadowing_dictation_completed` được giữ để tương thích ngược và có thể lớn hơn
+  tổng hai field trên khi còn Attempt legacy có `practice_method = null`.
 * **Status Codes & Error Responses**:
   * `200 OK`: Thành công.
   * `401 Unauthorized` (`code`: `unauthorized`): Token không hợp lệ.
