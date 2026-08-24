@@ -140,7 +140,7 @@ Dashboard hiển thị:
 * Cấp độ hiện tại.
 * Tổng EXP.
 * Số bài hoàn thành tách riêng theo Shadowing, Dictation, Reflex và Listening Translation.
-* Các Lesson đang làm dở; chọn card sẽ mở đúng Lesson Detail hoặc practice route tương ứng.
+* Các Lesson đang làm dở; chọn card sẽ mở trực tiếp practice route tương ứng.
 * Attempt History có filter theo từng Practice method và trạng thái.
 * Các bài cần ôn lại.
 * Thành tích gần đây.
@@ -161,17 +161,16 @@ flowchart TD
 
 # 6. Luồng luyện Shadowing kép
 
-Shadowing và Dictation dùng chung Lesson catalog và Lesson Detail. Người dùng chọn bài học trước,
-sau đó chọn Practice method; Dashboard cũng điều hướng về cùng Lesson Detail và ưu tiên method của
-Attempt đang dở.
+Shadowing và Dictation dùng chung Lesson catalog. Mỗi Lesson card có action riêng cho từng Practice
+method; Dashboard điều hướng trực tiếp tới đúng workstation dựa trên `practice_method` của Attempt
+đang dở.
 
 ## 6.1. Luồng chính
 
 ```mermaid
 flowchart TD
-    A[User mở Lessons] --> B[Chọn bài học]
-    B --> C[Lesson Detail - Preview và metadata]
-    C --> C1[Chọn Shadowing]
+    A[User mở Lessons] --> B[Chọn Shadowing trên Lesson card]
+    B --> C1[Màn hình Preview / Bắt đầu Shadowing]
 
     C1 --> D{Có Shadowing attempt in-progress?}
     D -- Có --> E[Nút Tiếp tục bài học - Resume]
@@ -235,9 +234,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    A[User mở Lessons] --> B[Chọn bài học]
-    B --> B1[Lesson Detail - Preview và metadata]
-    B1 --> B2[Chọn Dictation]
+    A[User mở Lessons] --> B2[Chọn Dictation trên Lesson card]
 
     B2 --> C[Hiển thị đoạn hội thoại có chỗ trống]
 
