@@ -26,7 +26,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, CreatedAtMixin, PrimaryKeyUuidMixin
-from app.models.enums import AiEvaluationStatus, AttemptStatus, RecordingKind
+from app.models.enums import AiEvaluationStatus, AttemptStatus, PracticeMethod, RecordingKind
 
 if TYPE_CHECKING:
     from app.models.gamification import XpTransaction
@@ -39,6 +39,11 @@ class ExerciseAttempt(PrimaryKeyUuidMixin, Base):
         CheckConstraint(
             "status IN ('IN_PROGRESS', 'COMPLETED')",
             name="attempt_status",
+        ),
+        CheckConstraint(
+            "practice_method IS NULL OR practice_method IN "
+            "('SHADOWING', 'DICTATION', 'REFLEX', 'LISTENING_TRANSLATION')",
+            name="exercise_attempts_practice_method",
         ),
         CheckConstraint(
             "score IS NULL OR score BETWEEN 0 AND 100",
@@ -70,6 +75,14 @@ class ExerciseAttempt(PrimaryKeyUuidMixin, Base):
             "content_id",
             text("completed_at DESC"),
         ),
+        Index(
+            "uq_exercise_attempts_in_progress_practice_method",
+            "user_id",
+            "content_id",
+            "practice_method",
+            unique=True,
+            postgresql_where=text("status = 'IN_PROGRESS' AND practice_method IS NOT NULL"),
+        ),
     )
 
     user_id: Mapped[uuid.UUID] = mapped_column(
@@ -79,6 +92,10 @@ class ExerciseAttempt(PrimaryKeyUuidMixin, Base):
         Uuid, ForeignKey("learning_contents.id", ondelete="RESTRICT"), nullable=False
     )
     attempt_number: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    practice_method: Mapped[PracticeMethod | None] = mapped_column(
+        Enum(PracticeMethod, name="practice_method", native_enum=False, length=32),
+        nullable=True,
+    )
     status: Mapped[AttemptStatus] = mapped_column(
         Enum(AttemptStatus, name="attempt_status", native_enum=False, length=32),
         nullable=False,

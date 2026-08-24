@@ -368,7 +368,7 @@ Frontend:
 - Hỗ trợ hệ thống phím tắt (`useShadowingShortcuts`): `Space` (Play/Pause), `R` (Toggle Record), `←` / `→` (Previous/Next Segment).
 - Màn hình Review 2 cột cuộn độc lập (`ScrollArea`) giúp người dùng nghe lại câu gốc và câu ghi âm để tự đối chiếu ngữ điệu.
 
-Sở hữu: rule thực hành kép, lưu trữ recording, tính điểm và review của Shadowing. Attempt chung thuộc Progress/`exercise_attempts`; audio bài học thuộc Learning Content.
+Sở hữu: rule thực hành kép, lưu trữ recording, tính điểm và review của Shadowing. Attempt chung thuộc Progress/`exercise_attempts`, được phân biệt bằng `practice_method`; audio bài học thuộc Learning Content.
 
 Phụ thuộc: Auth/User, Learning Content, Media/Storage, Progress/Attempt và Gamification.
 

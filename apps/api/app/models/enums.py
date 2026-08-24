@@ -32,6 +32,13 @@ class AttemptStatus(enum.StrEnum):
     COMPLETED = "completed"
 
 
+class PracticeMethod(enum.StrEnum):
+    SHADOWING = "shadowing"
+    DICTATION = "dictation"
+    REFLEX = "reflex"
+    LISTENING_TRANSLATION = "listening_translation"
+
+
 class RecordingKind(enum.StrEnum):
     SHADOWING = "shadowing"
     REFLEX = "reflex"

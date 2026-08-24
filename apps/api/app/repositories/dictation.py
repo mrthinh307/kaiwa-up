@@ -7,7 +7,7 @@ from sqlalchemy import func, select
 
 from app.models.attempt import ExerciseAttempt
 from app.models.content import LearningContent
-from app.models.enums import AttemptStatus, ContentStatus, ContentType
+from app.models.enums import AttemptStatus, ContentStatus, ContentType, PracticeMethod
 from app.models.gamification import XpTransaction
 from app.models.user import User
 from app.repositories.base import BaseRepository
@@ -48,6 +48,8 @@ class DictationRepository(BaseRepository):
                 .where(
                     ExerciseAttempt.user_id == user_id,
                     ExerciseAttempt.content_id == content_id,
+                    ExerciseAttempt.practice_method == PracticeMethod.DICTATION,
+                    ExerciseAttempt.status == AttemptStatus.IN_PROGRESS,
                     LearningContent.content_type == ContentType.SHADOWING_DICTATION,
                     LearningContent.status == ContentStatus.PUBLISHED,
                 )
@@ -55,7 +57,7 @@ class DictationRepository(BaseRepository):
                 .limit(1)
             )
         ).first()
-        if result is None or result[0].status != AttemptStatus.IN_PROGRESS:
+        if result is None:
             return None
         return DictationAttemptRow(attempt=result[0], content=result[1])
 
@@ -87,6 +89,7 @@ class DictationRepository(BaseRepository):
             user_id=user_id,
             content_id=content_id,
             attempt_number=attempt_number,
+            practice_method=PracticeMethod.DICTATION,
             status=AttemptStatus.IN_PROGRESS,
             answer_payload={},
         )
@@ -102,7 +105,10 @@ class DictationRepository(BaseRepository):
             await self.session.execute(
                 select(ExerciseAttempt, LearningContent)
                 .join(LearningContent, LearningContent.id == ExerciseAttempt.content_id)
-                .where(ExerciseAttempt.id == attempt_id)
+                .where(
+                    ExerciseAttempt.id == attempt_id,
+                    ExerciseAttempt.practice_method == PracticeMethod.DICTATION,
+                )
                 .with_for_update(of=ExerciseAttempt.__table__)
             )
         ).first()
@@ -144,7 +150,10 @@ class DictationRepository(BaseRepository):
                 select(ExerciseAttempt, LearningContent, XpTransaction.amount)
                 .join(LearningContent, LearningContent.id == ExerciseAttempt.content_id)
                 .outerjoin(XpTransaction, XpTransaction.attempt_id == ExerciseAttempt.id)
-                .where(ExerciseAttempt.id == attempt_id)
+                .where(
+                    ExerciseAttempt.id == attempt_id,
+                    ExerciseAttempt.practice_method == PracticeMethod.DICTATION,
+                )
             )
         ).first()
         if result is None:
