@@ -37,12 +37,13 @@ class _KanaConverter(Protocol):
 
 
 _KAKASI = cast(_KanaConverter, kakasi())  # type: ignore[no-untyped-call]
+_FULL_WIDTH_DIGIT_TRANSLATION = str.maketrans("０１２３４５６７８９", "0123456789")
 
 
 def normalize_dictation_text(text: str) -> str:
     text_without_spacing_or_punctuation = "".join(
         character
-        for character in unicodedata.normalize("NFC", text)
+        for character in unicodedata.normalize("NFC", text).translate(_FULL_WIDTH_DIGIT_TRANSLATION)
         if not character.isspace() and not unicodedata.category(character).startswith("P")
     )
     return "".join(

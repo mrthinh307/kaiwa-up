@@ -42,6 +42,28 @@ def test_normalize_dictation_text_treats_kanji_and_hiragana_as_equivalent(
 
 
 @pytest.mark.parametrize(
+    ("half_width_text", "full_width_text"),
+    [
+        ("6", "\uff16"),
+        ("2026", "\uff12\uff10\uff12\uff16"),
+        (
+            "\u4f1a\u8b70\u306f6\u6642\u304b\u3089\u3067\u3059",
+            "\u4f1a\u8b70\u306f\uff16\u6642\u304b\u3089\u3067\u3059",
+        ),
+    ],
+)
+def test_normalize_dictation_text_treats_half_and_full_width_digits_as_equivalent(
+    half_width_text: str,
+    full_width_text: str,
+) -> None:
+    assert normalize_dictation_text(half_width_text) == normalize_dictation_text(full_width_text)
+
+
+def test_normalize_dictation_text_does_not_normalize_non_digit_width_variants() -> None:
+    assert normalize_dictation_text("A") != normalize_dictation_text("Ａ")
+
+
+@pytest.mark.parametrize(
     ("answered_count", "total_count", "expected"),
     [
         (0, 100, 0),
