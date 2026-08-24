@@ -180,6 +180,12 @@ export function ShadowingScreen({ lesson }: ShadowingScreenProps) {
     }
   }, [handleSelectSegment, selectedSegmentIndex, transcriptSegments.length]);
 
+  const handleReplaySegment = useCallback(() => {
+    if (!activeSegment) return;
+
+    player.playSegment(activeSegment.start_time_ms / 1000, activeSegment.end_time_ms / 1000);
+  }, [activeSegment, player]);
+
   const handleTogglePlay = useCallback(() => {
     player.togglePlay();
   }, [player]);
@@ -424,6 +430,7 @@ export function ShadowingScreen({ lesson }: ShadowingScreenProps) {
             mode={practiceMode}
             onNextSegment={handleNextSegment}
             onPreviousSegment={handlePreviousSegment}
+            onReplaySegment={isContinuous ? undefined : handleReplaySegment}
             onTogglePlay={handleTogglePlay}
             player={player}
             showVideo={showVideo}

@@ -31,6 +31,7 @@ interface AudioPlayerCardProps {
   mode?: "segmented" | "continuous";
   onNextSegment?: () => void;
   onPreviousSegment?: () => void;
+  onReplaySegment?: () => void;
   onTogglePlay?: () => void;
   player?: AudioPlayerState;
   showVideo?: boolean;
@@ -51,6 +52,7 @@ export function AudioPlayerCard({
   mode = "segmented",
   onNextSegment,
   onPreviousSegment,
+  onReplaySegment,
   onTogglePlay,
   player: externalPlayer,
   showVideo = false,
@@ -271,10 +273,11 @@ export function AudioPlayerCard({
             </div>
 
             <Button
-              aria-label="Reset audio playback"
+              aria-label={isContinuous ? "Reset audio playback" : "Replay current segment"}
               className="size-10 shrink-0"
-              onClick={() => seek(0)}
+              onClick={onReplaySegment ?? (() => seek(0))}
               size="icon"
+              title={isContinuous ? "Reset audio playback" : "Replay current segment"}
               variant="neutral"
             >
               <RotateCcw className="size-4" />

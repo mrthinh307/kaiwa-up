@@ -192,6 +192,13 @@ export function ShadowingResult({ onPracticeAgain, review }: ShadowingResultProp
     }
   }, [handlePlayOriginalSegment, review.segments, selectedReviewIndex]);
 
+  const handleReplaySegment = useCallback(() => {
+    const segment = review.segments[selectedReviewIndex];
+    if (!segment) return;
+
+    player.playSegment((segment.start_time_ms ?? 0) / 1000, (segment.end_time_ms ?? 0) / 1000);
+  }, [player, review.segments, selectedReviewIndex]);
+
   // Keyboard shortcuts in review mode
   useShadowingShortcuts({
     onNext: isContinuous ? undefined : handleNextSegment,
@@ -288,6 +295,7 @@ export function ShadowingResult({ onPracticeAgain, review }: ShadowingResultProp
                 mode={review.mode}
                 onNextSegment={handleNextSegment}
                 onPreviousSegment={handlePreviousSegment}
+                onReplaySegment={isContinuous ? undefined : handleReplaySegment}
                 player={player}
                 showVideo={showVideo}
               />
