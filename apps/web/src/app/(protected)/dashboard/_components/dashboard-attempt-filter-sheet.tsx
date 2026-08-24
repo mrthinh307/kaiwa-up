@@ -23,7 +23,8 @@ import type {
 import { buildDashboardHref } from "../_utils/dashboard-query";
 
 const ATTEMPT_MODE_OPTIONS = [
-  { label: "Shadowing & Dictation", value: "shadowing_dictation" },
+  { label: "Shadowing", value: "shadowing" },
+  { label: "Dictation", value: "dictation" },
   { label: "Reflex", value: "reflex" },
   { label: "Listening & Translation", value: "listening_translation" },
 ] as const;

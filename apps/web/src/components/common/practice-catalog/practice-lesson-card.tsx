@@ -39,15 +39,8 @@ export function PracticeLessonCard({
         </div>
 
         <div className="mt-auto grid gap-2 pt-5 sm:grid-cols-2">
-          {lesson.modes.map((progress) => (
-            <PracticeModeAction
-              contentId={lesson.id}
-              key={progress.mode}
-              lessonTitle={lesson.title}
-              progress={progress}
-              variant="compact"
-            />
-          ))}
+          <PracticeModeAction contentId={lesson.id} lessonTitle={lesson.title} method="shadowing" />
+          <PracticeModeAction contentId={lesson.id} lessonTitle={lesson.title} method="dictation" />
         </div>
       </div>
     </article>
