@@ -536,6 +536,10 @@ export type HealthResponse = {
    * App Name
    */
   app_name: string;
+  /**
+   * Release Sha
+   */
+  release_sha: string;
 };
 
 /**
@@ -959,6 +963,10 @@ export type ReadinessResponse = {
    * Database
    */
   database: "ok";
+  /**
+   * Release Sha
+   */
+  release_sha: string;
 };
 
 /**

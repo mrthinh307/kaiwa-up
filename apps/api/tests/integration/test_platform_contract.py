@@ -55,9 +55,10 @@ async def test_health_endpoint_matches_platform_contract(client: httpx.AsyncClie
 
     assert response.status_code == 200
     payload = response.json()
-    assert set(payload) == {"status", "timestamp", "app_name"}
+    assert set(payload) == {"status", "timestamp", "app_name", "release_sha"}
     assert payload["status"] == "ok"
     assert payload["app_name"] == settings.app_name
+    assert payload["release_sha"] == settings.effective_release_sha
 
     timestamp = datetime.fromisoformat(payload["timestamp"].replace("Z", "+00:00"))
     assert timestamp.tzinfo is not None
@@ -106,6 +107,7 @@ async def test_readiness_endpoint_reports_database_ready(
     assert response.status_code == 200
     assert response.json()["status"] == "ready"
     assert response.json()["database"] == "ok"
+    assert response.json()["release_sha"] == settings.effective_release_sha
 
 
 @pytest.mark.asyncio

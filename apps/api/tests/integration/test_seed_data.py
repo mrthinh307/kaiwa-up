@@ -1,5 +1,7 @@
+import pytest
 from sqlalchemy import func, select
 
+from app.core import settings
 from app.models.attempt import ExerciseAttempt
 from app.models.content import LearningContent, ReflexExercise, TranslationExercise
 from app.models.enums import AttemptStatus, ContentStatus, ContentType, JlptLevel, UserRole
@@ -10,10 +12,21 @@ from scripts.seed_data import (
     REFLEX_LESSONS,
     TRANSLATION_LESSONS,
     seed_achievements,
+    seed_data,
     seed_reflex_lessons,
     seed_translation_lessons,
     seed_xp_transactions,
 )
+
+
+@pytest.mark.asyncio
+async def test_full_demo_seed_is_blocked_in_production(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "environment", "production")
+
+    with pytest.raises(RuntimeError, match="Full demo seed is disabled"):
+        await seed_data()
 
 
 async def test_seed_achievements_updates_catalog_without_duplicates(db_session) -> None:

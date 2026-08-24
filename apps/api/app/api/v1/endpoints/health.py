@@ -14,4 +14,9 @@ router = APIRouter(prefix="/health", tags=["Health"])
     summary="Check application health",
 )
 def health_check() -> HealthResponse:
-    return HealthResponse(status="ok", timestamp=utc_now(), app_name=settings.app_name)
+    return HealthResponse(
+        status="ok",
+        timestamp=utc_now(),
+        app_name=settings.app_name,
+        release_sha=settings.effective_release_sha,
+    )

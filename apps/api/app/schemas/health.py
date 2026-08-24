@@ -8,6 +8,7 @@ class HealthResponse(BaseModel):
     status: Literal["ok"]
     timestamp: datetime
     app_name: str
+    release_sha: str
 
     @field_serializer("timestamp")
     def serialize_timestamp(self, value: datetime) -> str:

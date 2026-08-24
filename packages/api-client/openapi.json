@@ -3668,10 +3668,14 @@
           "app_name": {
             "type": "string",
             "title": "App Name"
+          },
+          "release_sha": {
+            "type": "string",
+            "title": "Release Sha"
           }
         },
         "type": "object",
-        "required": ["status", "timestamp", "app_name"],
+        "required": ["status", "timestamp", "app_name", "release_sha"],
         "title": "HealthResponse"
       },
       "JlptLevel": {
@@ -4461,10 +4465,20 @@
             "type": "string",
             "const": "ok",
             "title": "Database"
+          },
+          "release_sha": {
+            "type": "string",
+            "title": "Release Sha"
           }
         },
         "type": "object",
-        "required": ["status", "timestamp", "app_name", "database"],
+        "required": [
+          "status",
+          "timestamp",
+          "app_name",
+          "database",
+          "release_sha"
+        ],
         "title": "ReadinessResponse"
       },
       "ReflexAiFeedback": {

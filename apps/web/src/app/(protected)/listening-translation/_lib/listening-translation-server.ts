@@ -10,11 +10,12 @@ import type {
 import { client, getLearningContent, listLearningContents } from "@kaiwa-app/api-client";
 import { connection } from "next/server";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+import { getServerApiBaseUrl } from "@/lib/server-api-base-url";
+
 const CATALOG_PAGE_SIZE = 20;
 
 function configureServerClient(): void {
-  client.setConfig({ baseUrl: API_BASE_URL });
+  client.setConfig({ baseUrl: getServerApiBaseUrl() });
 }
 
 export async function listListeningTranslationLessons(): Promise<TranslationLessonItem[]> {

@@ -1,18 +1,21 @@
 from functools import lru_cache
-from typing import Literal
+from typing import Literal, Self
 
-from pydantic import SecretStr
+from pydantic import SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     app_name: str = "Kaiwa App API"
-    environment: str = "development"
+    environment: Literal["development", "test", "staging", "production"] = "development"
     debug: bool = False
     api_v1_prefix: str = "/api/v1"
     cors_origins: list[str] = ["http://localhost:3000"]
     database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/app"
     database_url_test: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/app_test"
+    migration_database_url: str | None = None
+    release_sha: str = "local"
+    render_git_commit: str | None = None
 
     JWT_SECRET_KEY: str = "secret"
     JWT_ALGORITHM: str = "HS256"
@@ -33,6 +36,8 @@ class Settings(BaseSettings):
     CLOUDINARY_API_SECRET: str | None = None
     CLOUDINARY_URL: str | None = None
     CLOUDINARY_FOLDER: str = "kaiwa-up"
+
+    demo_seed_password: SecretStr | None = None
 
     ai_tutor_provider: str = "fake"
     ai_tutor_fallback_providers: str = ""
@@ -68,6 +73,49 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         extra="ignore",
     )
+
+    @property
+    def effective_release_sha(self) -> str:
+        return self.render_git_commit or self.release_sha
+
+    @property
+    def has_cloudinary_config(self) -> bool:
+        return bool(
+            self.CLOUDINARY_URL
+            or (
+                self.CLOUDINARY_CLOUD_NAME
+                and self.CLOUDINARY_API_KEY
+                and self.CLOUDINARY_API_SECRET
+            )
+        )
+
+    @model_validator(mode="after")
+    def validate_production_settings(self) -> Self:
+        if self.environment != "production":
+            return self
+
+        errors: list[str] = []
+        if self.debug:
+            errors.append("DEBUG must be false")
+        if self.JWT_SECRET_KEY in {"secret", "change-this-secret-in-production"}:
+            errors.append("JWT_SECRET_KEY must not use a documented default")
+        elif len(self.JWT_SECRET_KEY) < 32:
+            errors.append("JWT_SECRET_KEY must contain at least 32 characters")
+        if not self.REFRESH_COOKIE_SECURE:
+            errors.append("REFRESH_COOKIE_SECURE must be true")
+        if not self.has_cloudinary_config:
+            errors.append("Cloudinary configuration is required")
+        if not self.cors_origins:
+            errors.append("CORS_ORIGINS must contain at least one HTTPS origin")
+        elif any(
+            origin == "*" or not origin.startswith("https://") for origin in self.cors_origins
+        ):
+            errors.append("CORS_ORIGINS must contain only explicit HTTPS origins")
+
+        if errors:
+            raise ValueError("Invalid production configuration: " + "; ".join(errors))
+
+        return self
 
 
 @lru_cache

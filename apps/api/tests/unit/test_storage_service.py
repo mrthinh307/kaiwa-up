@@ -5,6 +5,8 @@ from pathlib import Path
 import pytest
 from fastapi import UploadFile
 
+from app.core import settings
+from app.exceptions import StorageUnavailableError
 from app.services.storage import StorageService
 
 
@@ -40,3 +42,27 @@ async def test_storage_service_save_audio_and_playback_url(tmp_path: Path):
         or playback_url.startswith("http://")
         or playback_url.startswith("https://")
     )
+
+
+@pytest.mark.asyncio
+async def test_storage_service_does_not_fall_back_to_local_files_in_production(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "environment", "production")
+    monkeypatch.setattr(settings, "CLOUDINARY_URL", None)
+    monkeypatch.setattr(settings, "CLOUDINARY_CLOUD_NAME", None)
+    monkeypatch.setattr(settings, "CLOUDINARY_API_KEY", None)
+    monkeypatch.setattr(settings, "CLOUDINARY_API_SECRET", None)
+
+    storage = StorageService(storage_dir=str(tmp_path))
+    upload_file = UploadFile(filename="recording.webm", file=BytesIO(b"audio"))
+
+    with pytest.raises(StorageUnavailableError):
+        await storage.save_audio(
+            user_id=uuid.uuid4(),
+            attempt_id=uuid.uuid4(),
+            file=upload_file,
+        )
+
+    assert not (tmp_path / "recordings").exists()

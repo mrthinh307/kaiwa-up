@@ -31,6 +31,7 @@ from app.exceptions.learning_content import (
     TranscriptNotFoundError,
     TranscriptProviderError,
 )
+from app.exceptions.storage import StorageUnavailableError
 from app.exceptions.translation import (
     TranslationContentUnavailableError,
     TranslationEvaluationInProgressError,
@@ -66,6 +67,7 @@ __all__ = [
     "LearningContentAlreadyPublishedError",
     "LearningContentNotReadyError",
     "NotFoundError",
+    "StorageUnavailableError",
     "TranscriptNotFoundError",
     "TranscriptProviderError",
     "TranslationContentUnavailableError",

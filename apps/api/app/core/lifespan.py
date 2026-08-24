@@ -9,10 +9,12 @@ from app.core.scheduler import configure_scheduler, scheduler
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
-    configure_scheduler()
-    scheduler.start()
+    is_scheduler_enabled = configure_scheduler()
+    if is_scheduler_enabled:
+        scheduler.start()
     try:
         yield
     finally:
-        scheduler.shutdown(wait=False)
+        if is_scheduler_enabled:
+            scheduler.shutdown(wait=False)
         await engine.dispose()
