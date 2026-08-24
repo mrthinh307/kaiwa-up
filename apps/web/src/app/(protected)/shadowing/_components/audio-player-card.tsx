@@ -6,6 +6,7 @@ import {
   Headphones,
   Pause,
   Play,
+  Repeat2,
   RotateCcw,
   SkipBack,
   SkipForward,
@@ -70,12 +71,14 @@ export function AudioPlayerCard({
     hasError,
     iframeRef,
     isMuted,
+    isLoopEnabled,
     isPlaying,
     isYouTube,
     playbackRate,
     seek,
     setVolume,
     toggleMute,
+    toggleLoop,
     togglePlay,
     volume,
     youtubeVideoId,
@@ -126,7 +129,7 @@ export function AudioPlayerCard({
           <span>Original Lesson Audio</span>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
           {/* Volume Control Popover */}
           <Popover>
             <PopoverTrigger asChild>
@@ -197,6 +200,21 @@ export function AudioPlayerCard({
             <Gauge aria-hidden="true" className="size-3.5" />
             {playbackRate}x
           </Button>
+
+          {!isContinuous && (
+            <Button
+              aria-label={`Loop current segment ${isLoopEnabled ? "on" : "off"}`}
+              aria-pressed={isLoopEnabled}
+              className="gap-1.5 font-heading text-xs"
+              onClick={toggleLoop}
+              size="sm"
+              type="button"
+              variant={isLoopEnabled ? "default" : "neutral"}
+            >
+              <Repeat2 aria-hidden="true" className="size-3.5" />
+              Loop {isLoopEnabled ? "on" : "off"}
+            </Button>
+          )}
         </div>
       </div>
 

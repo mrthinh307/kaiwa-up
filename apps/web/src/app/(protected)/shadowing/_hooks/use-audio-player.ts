@@ -42,6 +42,7 @@ export function useAudioPlayer(src: string, initialDuration = 0, options?: UseAu
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const hasReachedEndRef = useRef(false);
+  const loopStartSecondsRef = useRef<number | null>(null);
   const stopBoundarySecondsRef = useRef<number | null>(null);
 
   const [playbackStatus, setPlaybackStatus] = useState<PlaybackStatus>("IDLE");
@@ -59,6 +60,8 @@ export function useAudioPlayer(src: string, initialDuration = 0, options?: UseAu
   const [isMuted, setIsMuted] = useState(false);
   const isMutedRef = useRef(false);
   const [hasError, setHasError] = useState(false);
+  const [isLoopEnabled, setIsLoopEnabled] = useState(false);
+  const isLoopEnabledRef = useRef(false);
 
   useEffect(() => {
     volumeRef.current = volume;
@@ -185,7 +188,7 @@ export function useAudioPlayer(src: string, initialDuration = 0, options?: UseAu
 
   const checkAndHandleBoundary = useCallback(
     (timeSeconds: number): boolean => {
-      if (autoPlay) return false;
+      if (autoPlay && !isLoopEnabledRef.current) return false;
       if (playbackStatusRef.current !== "PLAYING_SEGMENT") return false;
       if (segments.length === 0) return false;
 
@@ -194,11 +197,19 @@ export function useAudioPlayer(src: string, initialDuration = 0, options?: UseAu
         const curSeg = findSegmentAtTime(timeSeconds);
         if (curSeg) {
           boundary = curSeg.end_time_ms / 1000;
+          loopStartSecondsRef.current = curSeg.start_time_ms / 1000;
           stopBoundarySecondsRef.current = boundary;
         }
       }
 
       if (boundary !== null && timeSeconds >= boundary - 0.05) {
+        if (isLoopEnabledRef.current && loopStartSecondsRef.current !== null) {
+          const loopStartSeconds = loopStartSecondsRef.current;
+          setCurrentTime(loopStartSeconds);
+          executePlay(loopStartSeconds);
+          return true;
+        }
+
         executePause();
         setCurrentTime(boundary);
         setPlaybackStatus("PAUSED_AT_BOUNDARY");
@@ -207,11 +218,14 @@ export function useAudioPlayer(src: string, initialDuration = 0, options?: UseAu
 
       return false;
     },
-    [autoPlay, executePause, findSegmentAtTime, segments.length],
+    [autoPlay, executePause, executePlay, findSegmentAtTime, segments.length],
   );
 
   const startPlayback = useCallback(
     (startSeconds?: number, stopSeconds: number | null = null) => {
+      if (typeof startSeconds === "number") {
+        loopStartSecondsRef.current = startSeconds;
+      }
       stopBoundarySecondsRef.current = stopSeconds;
       setPlaybackStatus("PLAYING_SEGMENT");
       executePlay(startSeconds);
@@ -228,6 +242,15 @@ export function useAudioPlayer(src: string, initialDuration = 0, options?: UseAu
     }
 
     if (playbackStatusRef.current === "PAUSED_AT_BOUNDARY") {
+      if (isLoopEnabledRef.current && loopStartSecondsRef.current !== null) {
+        const loopStartSeconds = loopStartSecondsRef.current;
+        const loopSegment = findSegmentAtTime(loopStartSeconds);
+        const loopStopSeconds = loopSegment ? loopSegment.end_time_ms / 1000 : null;
+        setCurrentTime(loopStartSeconds);
+        startPlayback(loopStartSeconds, loopStopSeconds);
+        return;
+      }
+
       if (segments.length > 0) {
         const nextIndex = findSegmentIndexAtTime(currentTime + 0.1);
         if (nextIndex >= 0 && nextIndex < segments.length) {
@@ -244,15 +267,24 @@ export function useAudioPlayer(src: string, initialDuration = 0, options?: UseAu
     }
 
     startPlayback();
-  }, [autoPlay, currentTime, executePause, findSegmentIndexAtTime, segments, startPlayback]);
+  }, [
+    autoPlay,
+    currentTime,
+    executePause,
+    findSegmentAtTime,
+    findSegmentIndexAtTime,
+    segments,
+    startPlayback,
+  ]);
 
   const playSegment = useCallback(
     (startSeconds: number, stopSeconds: number | null = null) => {
-      const targetStop = autoPlay
-        ? null
-        : stopSeconds !== null
-          ? stopSeconds
-          : (findSegmentAtTime(startSeconds)?.end_time_ms ?? 0) / 1000 || null;
+      const targetStop =
+        autoPlay && !isLoopEnabledRef.current
+          ? null
+          : stopSeconds !== null
+            ? stopSeconds
+            : (findSegmentAtTime(startSeconds)?.end_time_ms ?? 0) / 1000 || null;
       startPlayback(startSeconds, targetStop);
     },
     [autoPlay, findSegmentAtTime, startPlayback],
@@ -279,6 +311,14 @@ export function useAudioPlayer(src: string, initialDuration = 0, options?: UseAu
     stopBoundarySecondsRef.current = stopSeconds;
   }, []);
 
+  const toggleLoop = useCallback(() => {
+    setIsLoopEnabled((isEnabled) => {
+      const nextIsEnabled = !isEnabled;
+      isLoopEnabledRef.current = nextIsEnabled;
+      return nextIsEnabled;
+    });
+  }, []);
+
   const seek = useCallback(
     (time: number) => {
       setCurrentTime(time);
@@ -295,6 +335,7 @@ export function useAudioPlayer(src: string, initialDuration = 0, options?: UseAu
 
       if (playbackStatusRef.current === "PLAYING_SEGMENT" && !autoPlay) {
         const curSeg = findSegmentAtTime(time);
+        loopStartSecondsRef.current = curSeg ? curSeg.start_time_ms / 1000 : null;
         stopBoundarySecondsRef.current = curSeg ? curSeg.end_time_ms / 1000 : null;
       } else if (playbackStatusRef.current !== "PLAYING_SEGMENT") {
         setPlaybackStatus("PAUSED_MANUAL");
@@ -515,6 +556,7 @@ export function useAudioPlayer(src: string, initialDuration = 0, options?: UseAu
     hasError,
     iframeRef,
     isMuted,
+    isLoopEnabled,
     isPlaying,
     isYouTube,
     pause,
@@ -527,6 +569,7 @@ export function useAudioPlayer(src: string, initialDuration = 0, options?: UseAu
     setStopAtSeconds,
     setVolume,
     toggleMute,
+    toggleLoop,
     togglePlay,
     volume,
     youtubeVideoId,
