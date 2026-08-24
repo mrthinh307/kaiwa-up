@@ -112,16 +112,28 @@ async def test_progress_summary_counts_completed_by_content_type(
         title="Translation lesson",
     )
     await create_attempt(
-        session=db_session, user_id=user.id, content_id=listening.id, attempt_number=1
+        session=db_session,
+        user_id=user.id,
+        content_id=listening.id,
+        attempt_number=1,
+        practice_method=PracticeMethod.SHADOWING,
     )
     await create_attempt(
-        session=db_session, user_id=user.id, content_id=listening.id, attempt_number=2
+        session=db_session,
+        user_id=user.id,
+        content_id=listening.id,
+        attempt_number=2,
+        practice_method=PracticeMethod.DICTATION,
     )
     await create_attempt(
         session=db_session, user_id=user.id, content_id=listening.id, attempt_number=3
     )
     await create_attempt(
-        session=db_session, user_id=user.id, content_id=translation.id, attempt_number=1
+        session=db_session,
+        user_id=user.id,
+        content_id=translation.id,
+        attempt_number=1,
+        practice_method=PracticeMethod.LISTENING_TRANSLATION,
     )
     reflex_attempt = await create_attempt(
         session=db_session,
@@ -138,6 +150,8 @@ async def test_progress_summary_counts_completed_by_content_type(
 
     assert response.status_code == 200
     assert response.json() == {
+        "shadowing_completed": 1,
+        "dictation_completed": 1,
         "shadowing_dictation_completed": 3,
         "reflex_completed": 0,
         "listening_translation_completed": 1,
@@ -185,6 +199,8 @@ async def test_progress_summary_only_uses_current_user_data(
 
     assert response.status_code == 200
     assert response.json() == {
+        "shadowing_completed": 0,
+        "dictation_completed": 0,
         "shadowing_dictation_completed": 0,
         "reflex_completed": 0,
         "listening_translation_completed": 0,

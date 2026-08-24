@@ -18,13 +18,20 @@ class ProgressService:
         self.repository = repository
 
     async def get_summary(self, user_id: uuid.UUID) -> ProgressSummaryResponse:
-        total_attempts, completed_by_type = await self.repository.get_summary(user_id)
+        total_attempts, completed_by_type, completed_by_method = await self.repository.get_summary(
+            user_id
+        )
         in_progress_lessons = await self.repository.get_in_progress_lessons(user_id)
 
         def completed(content_type: ContentType) -> int:
             return completed_by_type.get(content_type, 0)
 
+        def completed_method(practice_method: PracticeMethod) -> int:
+            return completed_by_method.get(practice_method, 0)
+
         return ProgressSummaryResponse(
+            shadowing_completed=completed_method(PracticeMethod.SHADOWING),
+            dictation_completed=completed_method(PracticeMethod.DICTATION),
             shadowing_dictation_completed=completed(ContentType.SHADOWING_DICTATION),
             reflex_completed=completed(ContentType.REFLEX),
             listening_translation_completed=completed(ContentType.LISTENING_TRANSLATION),

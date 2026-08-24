@@ -62,7 +62,9 @@ class ProgressRepository(BaseRepository):
             conditions.append(LearningContent.title.ilike(f"%{search_query}%"))
         return tuple(conditions)
 
-    async def get_summary(self, user_id: UUID) -> tuple[int, dict[ContentType, int]]:
+    async def get_summary(
+        self, user_id: UUID
+    ) -> tuple[int, dict[ContentType, int], dict[PracticeMethod, int]]:
         total_attempts = (
             await self.session.scalar(
                 select(func.count())
@@ -83,7 +85,23 @@ class ProgressRepository(BaseRepository):
             )
         ).all()
         completed_by_type = {content_type: count for content_type, count in completed_rows}
-        return total_attempts, completed_by_type
+        completed_method_rows = (
+            await self.session.execute(
+                select(ExerciseAttempt.practice_method, func.count())
+                .where(
+                    ExerciseAttempt.user_id == user_id,
+                    ExerciseAttempt.status == AttemptStatus.COMPLETED,
+                    ExerciseAttempt.practice_method.is_not(None),
+                )
+                .group_by(ExerciseAttempt.practice_method)
+            )
+        ).all()
+        completed_by_method = {
+            practice_method: count
+            for practice_method, count in completed_method_rows
+            if practice_method is not None
+        }
+        return total_attempts, completed_by_type, completed_by_method
 
     async def list_attempts(
         self,

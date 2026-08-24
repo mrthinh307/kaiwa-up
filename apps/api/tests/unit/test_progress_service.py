@@ -25,6 +25,11 @@ async def test_summary_counts_merged_shadowing_dictation_content() -> None:
             ContentType.SHADOWING_DICTATION: 3,
             ContentType.LISTENING_TRANSLATION: 1,
         },
+        {
+            PracticeMethod.SHADOWING: 1,
+            PracticeMethod.DICTATION: 1,
+            PracticeMethod.LISTENING_TRANSLATION: 1,
+        },
     )
     repository.get_in_progress_lessons.return_value = [
         InProgressLessonRow(
@@ -41,6 +46,8 @@ async def test_summary_counts_merged_shadowing_dictation_content() -> None:
     summary = await ProgressService(repository).get_summary(uuid.uuid4())
 
     assert summary.model_dump(mode="json") == {
+        "shadowing_completed": 1,
+        "dictation_completed": 1,
         "shadowing_dictation_completed": 3,
         "reflex_completed": 0,
         "listening_translation_completed": 1,
