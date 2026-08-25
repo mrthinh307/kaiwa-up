@@ -3,12 +3,13 @@ import type {
   ContentType,
   GamificationProfileResponse,
   PaginatedResponseProgressAttemptItem,
+  PracticeMethod,
   ProgressSummaryResponse,
 } from "@kaiwa-app/api-client";
 
 import type { JlptDifficulty } from "@/types/practice-catalog";
 
-export type DashboardPracticeMode = ContentType;
+export type DashboardPracticeMode = PracticeMethod;
 export type DashboardAttemptStatus = AttemptStatus;
 
 export type DashboardAttemptHistoryItem = {
@@ -16,7 +17,7 @@ export type DashboardAttemptHistoryItem = {
   contentId: string;
   contentTitle: string;
   id: string;
-  practiceMode: DashboardPracticeMode;
+  practiceMode: DashboardPracticeMode | null;
   score: number | null;
   status: DashboardAttemptStatus;
 };
@@ -25,9 +26,10 @@ export type DashboardInProgressLesson = {
   attemptNumber: number;
   contentId: string;
   contentTitle: string;
+  contentType: ContentType;
   difficulty: JlptDifficulty;
   id: string;
-  practiceMode: DashboardPracticeMode;
+  practiceMode: DashboardPracticeMode | null;
 };
 
 export type DashboardViewModel = {
@@ -50,9 +52,11 @@ export type DashboardViewModel = {
   };
   progressSummary: {
     inProgressLessons: DashboardInProgressLesson[];
+    dictationCompleted: number;
+    legacyShadowingDictationCompleted: number;
     listeningTranslationCompleted: number;
     reflexCompleted: number;
-    shadowingDictationCompleted: number;
+    shadowingCompleted: number;
     totalAttempts: number;
     totalCompletedAttempts: number;
   };
@@ -83,7 +87,7 @@ export function adaptDashboardData({
         contentId: attempt.content_id,
         contentTitle: attempt.content_title,
         id: attempt.id,
-        practiceMode: attempt.content_type,
+        practiceMode: attempt.practice_method,
         score: attempt.score ?? null,
         status: attempt.status,
       })),
@@ -107,13 +111,21 @@ export function adaptDashboardData({
         attemptNumber: lesson.attempt_number,
         contentId: lesson.content_id,
         contentTitle: lesson.content_title,
+        contentType: lesson.content_type,
         difficulty: lesson.difficulty,
         id: lesson.id,
-        practiceMode: lesson.content_type,
+        practiceMode: lesson.practice_method,
       })),
+      dictationCompleted: summary.dictation_completed,
+      legacyShadowingDictationCompleted: Math.max(
+        summary.shadowing_dictation_completed -
+          summary.shadowing_completed -
+          summary.dictation_completed,
+        0,
+      ),
       listeningTranslationCompleted: summary.listening_translation_completed,
       reflexCompleted: summary.reflex_completed,
-      shadowingDictationCompleted: summary.shadowing_dictation_completed,
+      shadowingCompleted: summary.shadowing_completed,
       totalAttempts: summary.total_attempts,
       totalCompletedAttempts: summary.total_completed_attempts,
     },

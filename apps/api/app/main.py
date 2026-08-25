@@ -12,11 +12,15 @@ from app.exceptions import register_exception_handlers
 
 def create_app() -> FastAPI:
     configure_logging()
+    is_production = settings.environment == "production"
 
     application = FastAPI(
         title=settings.app_name,
         debug=settings.debug,
+        docs_url=None if is_production else "/docs",
         lifespan=lifespan,
+        openapi_url=None if is_production else "/openapi.json",
+        redoc_url=None if is_production else "/redoc",
     )
     application.add_middleware(
         CORSMiddleware,
@@ -28,9 +32,10 @@ def create_app() -> FastAPI:
     register_exception_handlers(application)
     application.include_router(api_router)
 
-    storage_path = Path(settings.STORAGE_DIR)
-    storage_path.mkdir(parents=True, exist_ok=True)
-    application.mount("/static", StaticFiles(directory=str(storage_path)), name="static")
+    if not is_production:
+        storage_path = Path(settings.STORAGE_DIR)
+        storage_path.mkdir(parents=True, exist_ok=True)
+        application.mount("/static", StaticFiles(directory=str(storage_path)), name="static")
 
     return application
 

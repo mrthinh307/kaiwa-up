@@ -41,4 +41,5 @@ async def readiness_check() -> ReadinessResponse:
         timestamp=utc_now(),
         app_name=settings.app_name,
         database="ok",
+        release_sha=settings.effective_release_sha,
     )

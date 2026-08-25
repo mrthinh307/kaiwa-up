@@ -5,8 +5,10 @@ import type { DictationContentDetail } from "@kaiwa-app/api-client";
 import { client, getDictationContent } from "@kaiwa-app/api-client";
 import { cache } from "react";
 
+import { getServerApiBaseUrl } from "@/lib/server-api-base-url";
+
 client.setConfig({
-  baseUrl: process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000",
+  baseUrl: getServerApiBaseUrl(),
 });
 
 export const getDictationContentFromApi = cache(

@@ -195,6 +195,13 @@ export function ShadowingResult({ onPracticeAgain, review }: ShadowingResultProp
     }
   }, [handlePlayOriginalSegment, review.segments, selectedReviewIndex]);
 
+  const handleReplaySegment = useCallback(() => {
+    const segment = review.segments[selectedReviewIndex];
+    if (!segment) return;
+
+    player.playSegment((segment.start_time_ms ?? 0) / 1000, (segment.end_time_ms ?? 0) / 1000);
+  }, [player, review.segments, selectedReviewIndex]);
+
   // Keyboard shortcuts in review mode
   useShadowingShortcuts({
     onNext: isContinuous ? undefined : handleNextSegment,
@@ -291,6 +298,7 @@ export function ShadowingResult({ onPracticeAgain, review }: ShadowingResultProp
                 mode={review.mode}
                 onNextSegment={handleNextSegment}
                 onPreviousSegment={handlePreviousSegment}
+                onReplaySegment={isContinuous ? undefined : handleReplaySegment}
                 player={player}
                 showVideo={showVideo}
               />
@@ -298,64 +306,71 @@ export function ShadowingResult({ onPracticeAgain, review }: ShadowingResultProp
           )}
 
           {/* Continuous Voice Recording Card */}
-          {isContinuous && review.user_continuous_recording_url && (
-            <Card className="border-2 border-border bg-secondary-background shadow-shadow">
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center justify-between text-base font-heading">
-                  <div className="flex items-center gap-2">
-                    <Mic className="size-5 text-main" />
-                    <span>Your Continuous Voice Recording</span>
-                  </div>
-                  <Badge className="bg-success text-success-foreground font-heading text-xs">
-                    {formatShadowingDuration(review.user_continuous_duration_seconds ?? 0)} Recorded
-                  </Badge>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <p className="text-xs text-foreground/75 leading-relaxed">
-                  Listen to your full continuous audio session and self-evaluate your flow and
-                  rhythm.
-                </p>
-                <div className="flex items-center gap-3 rounded-base border-2 border-border bg-background p-4">
-                  <Button
-                    aria-label={
-                      isPlayingContinuousVoice
-                        ? "Pause continuous recording"
-                        : "Play continuous recording"
-                    }
-                    className="size-12 shrink-0 text-main-foreground"
-                    onClick={toggleContinuousVoicePlayback}
-                    size="icon"
-                    type="button"
-                  >
-                    {isPlayingContinuousVoice ? (
-                      <Pause className="size-5" />
-                    ) : (
-                      <Play className="ml-0.5 size-5" />
-                    )}
-                  </Button>
-                  <div>
-                    <p className="font-heading text-sm">Play Full Voice Take</p>
-                    <p className="font-mono text-xs text-foreground/60">
-                      Duration:{" "}
-                      {formatShadowingDuration(review.user_continuous_duration_seconds ?? 0)}
-                    </p>
-                  </div>
-                </div>
+          {isContinuous &&
+            (review.user_continuous_recording_url || review.user_continuous_transcript) && (
+              <Card className="border-2 border-border bg-secondary-background shadow-shadow">
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center justify-between text-base font-heading">
+                    <div className="flex items-center gap-2">
+                      <Mic className="size-5 text-main" />
+                      <span>Your Continuous Voice Recording</span>
+                    </div>
+                    {review.user_continuous_duration_seconds !== undefined &&
+                      review.user_continuous_duration_seconds !== null && (
+                        <Badge className="bg-success text-success-foreground font-heading text-xs">
+                          {formatShadowingDuration(review.user_continuous_duration_seconds)}{" "}
+                          Recorded
+                        </Badge>
+                      )}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <p className="text-xs text-foreground/75 leading-relaxed">
+                    Listen to your full continuous audio session and self-evaluate your flow and
+                    rhythm.
+                  </p>
+                  {review.user_continuous_recording_url && (
+                    <div className="flex items-center gap-3 rounded-base border-2 border-border bg-background p-4">
+                      <Button
+                        aria-label={
+                          isPlayingContinuousVoice
+                            ? "Pause continuous recording"
+                            : "Play continuous recording"
+                        }
+                        className="size-12 shrink-0 text-main-foreground"
+                        onClick={toggleContinuousVoicePlayback}
+                        size="icon"
+                        type="button"
+                      >
+                        {isPlayingContinuousVoice ? (
+                          <Pause className="size-5" />
+                        ) : (
+                          <Play className="ml-0.5 size-5" />
+                        )}
+                      </Button>
+                      <div>
+                        <p className="font-heading text-sm">Play Full Voice Take</p>
+                        <p className="font-mono text-xs text-foreground/60">
+                          Duration:{" "}
+                          {formatShadowingDuration(review.user_continuous_duration_seconds ?? 0)}
+                        </p>
+                      </div>
+                    </div>
+                  )}
 
-                {review.user_continuous_transcript && (
-                  <div className="rounded-base border-2 border-border/70 bg-background p-3.5 space-y-1">
-                    <p className="text-xs font-heading text-foreground/70 flex items-center gap-1.5">
-                      <Mic className="size-3.5 text-main" /> Recognized Speech (STT):
-                    </p>
-                    <p className="text-sm font-heading text-foreground leading-relaxed">
-                      {review.user_continuous_transcript}
-                    </p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
+                  {review.user_continuous_transcript && (
+                    <div className="rounded-base border-2 border-border/70 bg-background p-3.5 space-y-1">
+                      <p className="text-xs font-heading text-foreground/70 flex items-center gap-1.5">
+                        <Mic className="size-3.5 text-main" /> Recognized Speech (STT):
+                      </p>
+                      <p className="text-sm font-heading text-foreground leading-relaxed">
+                        {review.user_continuous_transcript}
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
 
           {/* AI Learning Feedback Card (Informational Only) */}
           {review.ai_feedback && (

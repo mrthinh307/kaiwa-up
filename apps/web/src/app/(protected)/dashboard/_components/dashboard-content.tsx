@@ -72,9 +72,9 @@ export function DashboardContent({ mode, page, searchQuery, status }: DashboardC
       protectedRequest(() =>
         listProgressAttempts({
           query: {
-            content_type: mode,
             page,
             page_size: DASHBOARD_PAGE_SIZE,
+            practice_method: mode,
             q: searchQuery,
             status,
           },

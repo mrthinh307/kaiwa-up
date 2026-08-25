@@ -426,6 +426,22 @@
             }
           },
           {
+            "name": "practice_method",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/PracticeMethod"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Practice Method"
+            }
+          },
+          {
             "name": "content_id",
             "in": "query",
             "required": false,
@@ -776,6 +792,16 @@
             },
             "description": "Not Found"
           },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -873,6 +899,16 @@
               }
             },
             "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
           },
           "422": {
             "description": "Validation Error",
@@ -3632,10 +3668,14 @@
           "app_name": {
             "type": "string",
             "title": "App Name"
+          },
+          "release_sha": {
+            "type": "string",
+            "title": "Release Sha"
           }
         },
         "type": "object",
-        "required": ["status", "timestamp", "app_name"],
+        "required": ["status", "timestamp", "app_name", "release_sha"],
         "title": "HealthResponse"
       },
       "JlptLevel": {
@@ -4141,6 +4181,11 @@
         ],
         "title": "PaginatedResponse[TranslationLessonItem]"
       },
+      "PracticeMethod": {
+        "type": "string",
+        "enum": ["shadowing", "dictation", "reflex", "listening_translation"],
+        "title": "PracticeMethod"
+      },
       "ProgressAttemptDetail": {
         "properties": {
           "id": {
@@ -4155,6 +4200,16 @@
           },
           "content_type": {
             "$ref": "#/components/schemas/ContentType"
+          },
+          "practice_method": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PracticeMethod"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "attempt_number": {
             "type": "integer",
@@ -4205,6 +4260,7 @@
           "id",
           "content_id",
           "content_type",
+          "practice_method",
           "attempt_number",
           "status"
         ],
@@ -4228,6 +4284,16 @@
           },
           "content_type": {
             "$ref": "#/components/schemas/ContentType"
+          },
+          "practice_method": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PracticeMethod"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "attempt_number": {
             "type": "integer",
@@ -4267,6 +4333,7 @@
           "content_id",
           "content_title",
           "content_type",
+          "practice_method",
           "attempt_number",
           "status"
         ],
@@ -4291,6 +4358,16 @@
           "content_type": {
             "$ref": "#/components/schemas/ContentType"
           },
+          "practice_method": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PracticeMethod"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "difficulty": {
             "$ref": "#/components/schemas/JlptLevel"
           },
@@ -4306,6 +4383,7 @@
           "content_id",
           "content_title",
           "content_type",
+          "practice_method",
           "difficulty",
           "attempt_number"
         ],
@@ -4313,6 +4391,16 @@
       },
       "ProgressSummaryResponse": {
         "properties": {
+          "shadowing_completed": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Shadowing Completed"
+          },
+          "dictation_completed": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Dictation Completed"
+          },
           "shadowing_dictation_completed": {
             "type": "integer",
             "minimum": 0.0,
@@ -4348,6 +4436,8 @@
         },
         "type": "object",
         "required": [
+          "shadowing_completed",
+          "dictation_completed",
           "shadowing_dictation_completed",
           "reflex_completed",
           "listening_translation_completed",
@@ -4375,10 +4465,20 @@
             "type": "string",
             "const": "ok",
             "title": "Database"
+          },
+          "release_sha": {
+            "type": "string",
+            "title": "Release Sha"
           }
         },
         "type": "object",
-        "required": ["status", "timestamp", "app_name", "database"],
+        "required": [
+          "status",
+          "timestamp",
+          "app_name",
+          "database",
+          "release_sha"
+        ],
         "title": "ReadinessResponse"
       },
       "ReflexAiFeedback": {

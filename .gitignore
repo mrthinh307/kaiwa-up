@@ -28,3 +28,8 @@ Thumbs.db
 .env
 
 .pnpm-store/
+
+# Local provider CLI context
+.neon
+
+.vercel

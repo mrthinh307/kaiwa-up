@@ -6,6 +6,7 @@ import {
   Headphones,
   Pause,
   Play,
+  Repeat2,
   RotateCcw,
   SkipBack,
   SkipForward,
@@ -31,6 +32,7 @@ interface AudioPlayerCardProps {
   mode?: "segmented" | "continuous";
   onNextSegment?: () => void;
   onPreviousSegment?: () => void;
+  onReplaySegment?: () => void;
   onTogglePlay?: () => void;
   player?: AudioPlayerState;
   showVideo?: boolean;
@@ -51,6 +53,7 @@ export function AudioPlayerCard({
   mode = "segmented",
   onNextSegment,
   onPreviousSegment,
+  onReplaySegment,
   onTogglePlay,
   player: externalPlayer,
   showVideo = false,
@@ -68,12 +71,14 @@ export function AudioPlayerCard({
     hasError,
     iframeRef,
     isMuted,
+    isLoopEnabled,
     isPlaying,
     isYouTube,
     playbackRate,
     seek,
     setVolume,
     toggleMute,
+    toggleLoop,
     togglePlay,
     volume,
     youtubeVideoId,
@@ -124,7 +129,7 @@ export function AudioPlayerCard({
           <span>Original Lesson Audio</span>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
           {/* Volume Control Popover */}
           <Popover>
             <PopoverTrigger asChild>
@@ -195,6 +200,21 @@ export function AudioPlayerCard({
             <Gauge aria-hidden="true" className="size-3.5" />
             {playbackRate}x
           </Button>
+
+          {!isContinuous && (
+            <Button
+              aria-label={`Loop current segment ${isLoopEnabled ? "on" : "off"}`}
+              aria-pressed={isLoopEnabled}
+              className="gap-1.5 font-heading text-xs"
+              onClick={toggleLoop}
+              size="sm"
+              type="button"
+              variant={isLoopEnabled ? "default" : "neutral"}
+            >
+              <Repeat2 aria-hidden="true" className="size-3.5" />
+              Loop {isLoopEnabled ? "on" : "off"}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -271,10 +291,11 @@ export function AudioPlayerCard({
             </div>
 
             <Button
-              aria-label="Reset audio playback"
+              aria-label={isContinuous ? "Reset audio playback" : "Replay current segment"}
               className="size-10 shrink-0"
-              onClick={() => seek(0)}
+              onClick={onReplaySegment ?? (() => seek(0))}
               size="icon"
+              title={isContinuous ? "Reset audio playback" : "Replay current segment"}
               variant="neutral"
             >
               <RotateCcw className="size-4" />

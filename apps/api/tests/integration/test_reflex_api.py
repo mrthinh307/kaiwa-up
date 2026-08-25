@@ -13,7 +13,7 @@ from app.integrations.ai.providers.fake import FakeAiGateway
 from app.main import app
 from app.models.attempt import AiEvaluation, ExerciseAttempt, ReviewSchedule
 from app.models.content import LearningContent, ReflexExercise
-from app.models.enums import ContentStatus, ContentType, JlptLevel
+from app.models.enums import ContentStatus, ContentType, JlptLevel, PracticeMethod
 from app.models.gamification import XpTransaction
 from app.models.user import User, UserProgress
 
@@ -85,6 +85,7 @@ async def test_evaluate_reflex_persists_result_schedule_and_exp(
         select(ExerciseAttempt).where(ExerciseAttempt.content_id == content.id)
     )
     assert attempt is not None
+    assert attempt.practice_method == PracticeMethod.REFLEX
     assert attempt.response_started_on_time is True
     assert await db_session.scalar(
         select(AiEvaluation).where(AiEvaluation.attempt_id == attempt.id)

@@ -19,7 +19,16 @@ function normalize(str) {
 function getFastApiOpenApiSchema() {
   const output = execSync(
     'uv --directory apps/api run python -c "import json; from app.main import app; print(json.dumps(app.openapi(), indent=2))"',
-    { cwd: rootDir, encoding: "utf-8" },
+    {
+      cwd: rootDir,
+      encoding: "utf-8",
+      env: {
+        ...process.env,
+        APP_NAME: "Kaiwa App API",
+        DEBUG: "false",
+        ENVIRONMENT: "development",
+      },
+    },
   );
   return output.trim();
 }

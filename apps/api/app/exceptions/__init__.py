@@ -8,6 +8,7 @@ from app.exceptions.ai import (
     AiRateLimitError,
     AiTimeoutError,
 )
+from app.exceptions.attempt import AttemptAlreadyInProgressError
 from app.exceptions.auth import (
     EmailAlreadyExistsException,
     ForbiddenException,
@@ -30,6 +31,7 @@ from app.exceptions.learning_content import (
     TranscriptNotFoundError,
     TranscriptProviderError,
 )
+from app.exceptions.storage import StorageUnavailableError
 from app.exceptions.translation import (
     TranslationContentUnavailableError,
     TranslationEvaluationInProgressError,
@@ -51,6 +53,7 @@ __all__ = [
     "AiRateLimitError",
     "AiTimeoutError",
     "AppError",
+    "AttemptAlreadyInProgressError",
     "DictationAttemptNotInProgressError",
     "DictationContentUnavailableError",
     "DictationExperienceAlreadyAwardedError",
@@ -64,6 +67,7 @@ __all__ = [
     "LearningContentAlreadyPublishedError",
     "LearningContentNotReadyError",
     "NotFoundError",
+    "StorageUnavailableError",
     "TranscriptNotFoundError",
     "TranscriptProviderError",
     "TranslationContentUnavailableError",

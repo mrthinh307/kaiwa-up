@@ -3,6 +3,8 @@ import type { Metadata } from "next";
 import { client, getShadowingContent } from "@kaiwa-app/api-client";
 import { notFound, redirect } from "next/navigation";
 
+import { getServerApiBaseUrl } from "@/lib/server-api-base-url";
+
 import { ShadowingScreen } from "../_components/shadowing-screen";
 
 type ShadowingLessonPageProps = {
@@ -11,7 +13,7 @@ type ShadowingLessonPageProps = {
 
 async function fetchShadowingLesson(lessonId: string) {
   client.setConfig({
-    baseUrl: process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000",
+    baseUrl: getServerApiBaseUrl(),
   });
 
   try {

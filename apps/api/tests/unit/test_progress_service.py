@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 from app.models.attempt import ExerciseAttempt
-from app.models.enums import AttemptStatus, ContentType, JlptLevel
+from app.models.enums import AttemptStatus, ContentType, JlptLevel, PracticeMethod
 from app.repositories.progress import (
     AttemptDetailRow,
     AttemptHistoryRow,
@@ -25,6 +25,11 @@ async def test_summary_counts_merged_shadowing_dictation_content() -> None:
             ContentType.SHADOWING_DICTATION: 3,
             ContentType.LISTENING_TRANSLATION: 1,
         },
+        {
+            PracticeMethod.SHADOWING: 1,
+            PracticeMethod.DICTATION: 1,
+            PracticeMethod.LISTENING_TRANSLATION: 1,
+        },
     )
     repository.get_in_progress_lessons.return_value = [
         InProgressLessonRow(
@@ -32,6 +37,7 @@ async def test_summary_counts_merged_shadowing_dictation_content() -> None:
             content_id=uuid.uuid4(),
             content_title="Ongoing lesson",
             content_type=ContentType.REFLEX,
+            practice_method=PracticeMethod.REFLEX,
             difficulty=JlptLevel.N4,
             attempt_number=2,
         )
@@ -40,6 +46,8 @@ async def test_summary_counts_merged_shadowing_dictation_content() -> None:
     summary = await ProgressService(repository).get_summary(uuid.uuid4())
 
     assert summary.model_dump(mode="json") == {
+        "shadowing_completed": 1,
+        "dictation_completed": 1,
         "shadowing_dictation_completed": 3,
         "reflex_completed": 0,
         "listening_translation_completed": 1,
@@ -51,6 +59,7 @@ async def test_summary_counts_merged_shadowing_dictation_content() -> None:
                 "content_id": str(summary.in_progress_lessons[0].content_id),
                 "content_title": "Ongoing lesson",
                 "content_type": "reflex",
+                "practice_method": "reflex",
                 "difficulty": "N4",
                 "attempt_number": 2,
             }
@@ -67,6 +76,7 @@ async def test_list_attempts_forwards_status_and_search_query() -> None:
     await ProgressService(repository).list_attempts(
         user_id,
         content_type=ContentType.SHADOWING_DICTATION,
+        practice_method=PracticeMethod.DICTATION,
         content_id=None,
         status=AttemptStatus.IN_PROGRESS,
         search_query="weather",
@@ -77,6 +87,7 @@ async def test_list_attempts_forwards_status_and_search_query() -> None:
     repository.list_attempts.assert_awaited_once_with(
         user_id,
         content_type=ContentType.SHADOWING_DICTATION,
+        practice_method=PracticeMethod.DICTATION,
         content_id=None,
         status=AttemptStatus.IN_PROGRESS,
         search_query="weather",
@@ -95,6 +106,7 @@ async def test_list_attempts_converts_decimal_score_to_float() -> None:
                 content_id=uuid.uuid4(),
                 content_title="Listening lesson",
                 content_type=ContentType.SHADOWING_DICTATION,
+                practice_method=PracticeMethod.SHADOWING,
                 attempt_number=1,
                 status=AttemptStatus.COMPLETED,
                 score=Decimal("87.50"),
@@ -107,6 +119,7 @@ async def test_list_attempts_converts_decimal_score_to_float() -> None:
     response = await ProgressService(repository).list_attempts(
         uuid.uuid4(),
         content_type=None,
+        practice_method=None,
         content_id=None,
         status=None,
         search_query=None,
@@ -127,6 +140,7 @@ async def test_attempt_detail_converts_decimal_score_to_float() -> None:
         user_id=user_id,
         content_id=uuid.uuid4(),
         attempt_number=1,
+        practice_method=PracticeMethod.DICTATION,
         status=AttemptStatus.COMPLETED,
         score=Decimal("92.50"),
         started_at=datetime(2026, 8, 12, tzinfo=UTC),
@@ -139,4 +153,5 @@ async def test_attempt_detail_converts_decimal_score_to_float() -> None:
     response = await ProgressService(repository).get_attempt_detail(user_id, attempt.id)
 
     assert response.score == 92.5
+    assert response.practice_method == PracticeMethod.DICTATION
     assert isinstance(response.score, float)

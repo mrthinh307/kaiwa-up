@@ -9,6 +9,7 @@ class ReadinessResponse(BaseModel):
     timestamp: datetime
     app_name: str
     database: Literal["ok"]
+    release_sha: str
 
     @field_serializer("timestamp")
     def serialize_timestamp(self, value: datetime) -> str:

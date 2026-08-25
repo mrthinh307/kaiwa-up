@@ -7,9 +7,10 @@ from typing import Any
 
 from fastapi import UploadFile
 
-from app.exceptions import ForbiddenError, NotFoundError
+from app.exceptions import AttemptAlreadyInProgressError, ForbiddenError, NotFoundError
 from app.exceptions.shadowing import (
     ShadowingAttemptNotFoundError,
+    ShadowingAttemptNotInProgressError,
     ShadowingAudioTooLargeError,
     ShadowingContentNotFoundError,
     ShadowingInvalidAudioError,
@@ -17,7 +18,7 @@ from app.exceptions.shadowing import (
 )
 from app.integrations.ai.base import AiGateway
 from app.models.attempt import ExerciseAttempt, Recording
-from app.models.enums import AttemptStatus, ContentType
+from app.models.enums import AttemptStatus, ContentType, PracticeMethod
 from app.repositories.gamification import GamificationRepository
 from app.repositories.recording import RecordingRepository
 from app.schemas.shadowing import (
@@ -103,25 +104,11 @@ class ShadowingService:
             raise ShadowingAudioTooLargeError()
 
         try:
-            attempt: ExerciseAttempt
-            if attempt_id is None:
-                await self.repository.lock_user(user_id)
-                attempt_number = await self.repository.get_next_attempt_number(
-                    user_id=user_id,
-                    content_id=content_id,
-                )
-                attempt = await self.repository.create_attempt(
-                    user_id=user_id,
-                    content_id=content_id,
-                    attempt_number=attempt_number,
-                )
-            else:
-                existing_attempt = await self.repository.get_attempt(attempt_id)
-                if existing_attempt is None or existing_attempt.content_id != content_id:
-                    raise NotFoundError("Attempt not found")
-                if existing_attempt.user_id != user_id:
-                    raise ForbiddenError()
-                attempt = existing_attempt
+            attempt = await self._get_or_create_attempt(
+                user_id=user_id,
+                content_id=content_id,
+                attempt_id=attempt_id,
+            )
 
             storage_key, duration_seconds = await self.storage_service.save_audio(
                 user_id=user_id,
@@ -192,25 +179,11 @@ class ShadowingService:
             raise ShadowingAudioTooLargeError()
 
         try:
-            attempt: ExerciseAttempt
-            if attempt_id is None:
-                await self.repository.lock_user(user_id)
-                attempt_number = await self.repository.get_next_attempt_number(
-                    user_id=user_id,
-                    content_id=content_id,
-                )
-                attempt = await self.repository.create_attempt(
-                    user_id=user_id,
-                    content_id=content_id,
-                    attempt_number=attempt_number,
-                )
-            else:
-                existing_attempt = await self.repository.get_attempt(attempt_id)
-                if existing_attempt is None or existing_attempt.content_id != content_id:
-                    raise NotFoundError("Attempt not found")
-                if existing_attempt.user_id != user_id:
-                    raise ForbiddenError()
-                attempt = existing_attempt
+            attempt = await self._get_or_create_attempt(
+                user_id=user_id,
+                content_id=content_id,
+                attempt_id=attempt_id,
+            )
 
             storage_key, file_duration_seconds = await self.storage_service.save_audio(
                 user_id=user_id,
@@ -441,51 +414,125 @@ class ShadowingService:
                     ).strip()
 
                     if is_continuous:
-                        continuous_rec = recordings[0]
-                        audio_bytes = await self.storage_service.get_audio_bytes(
+                        cont_data = (attempt.answer_payload or {}).get("continuous_recording", {})
+                        continuous_rec: Recording | None = None
+                        rec_id_str = (
+                            str(cont_data.get("recording_id", ""))
+                            if isinstance(cont_data, dict)
+                            else ""
+                        )
+                        storage_key_str = (
+                            str(cont_data.get("storage_key", ""))
+                            if isinstance(cont_data, dict)
+                            else ""
+                        )
+
+                        for rec in recordings:
+                            if rec_id_str and str(rec.id) == rec_id_str:
+                                continuous_rec = rec
+                                break
+                            if storage_key_str and rec.storage_key == storage_key_str:
+                                continuous_rec = rec
+                                break
+
+                        if continuous_rec is None and recordings:
+                            continuous_rec = recordings[-1]
+
+                        target_storage_key = (
                             continuous_rec.storage_key
+                            if continuous_rec
+                            else (
+                                storage_key_str
+                                or (recordings[-1].storage_key if recordings else None)
+                            )
                         )
-                        stt_result = await self.ai_gateway.transcribe(
-                            audio=audio_bytes,
-                            filename="continuous.webm",
-                            language="ja",
-                            prompt_hint=ref_script or None,
-                        )
-                        await self.repository.update_recording_transcription(
-                            continuous_rec, stt_result.text
-                        )
-                        eval_result = await self.ai_gateway.evaluate_shadowing(
-                            reference_transcript=ref_script,
-                            user_transcript=stt_result.text,
-                        )
-                        await self.repository.create_ai_evaluation(
-                            attempt_id=attempt.id,
-                            recording_id=continuous_rec.id,
-                            similarity_score=Decimal(str(round(eval_result.score, 2))),
-                            feedback=eval_result.feedback,
-                            details={
-                                "corrections": [c.model_dump() for c in eval_result.corrections],
-                                "hints": eval_result.hints,
-                                "is_acceptable": eval_result.is_acceptable,
-                                "user_transcript": stt_result.text,
-                            },
-                            completed_at=completed_at,
-                        )
-                        ai_feedback = ShadowingAiFeedback(
-                            similarity_score=float(eval_result.score),
-                            feedback=eval_result.feedback,
-                            corrections=[
-                                ShadowingCorrection(
-                                    original=c.original,
-                                    corrected=c.corrected,
-                                    reason=c.reason,
+
+                        if target_storage_key:
+                            audio_bytes = await self.storage_service.get_audio_bytes(
+                                target_storage_key
+                            )
+                            prompt_hint = (
+                                ref_script[:200] if len(ref_script) > 200 else ref_script
+                            ) or None
+
+                            stt_result = await self.ai_gateway.transcribe(
+                                audio=audio_bytes,
+                                filename="continuous.webm",
+                                language="ja",
+                                prompt_hint=prompt_hint,
+                            )
+                            if continuous_rec is not None:
+                                await self.repository.update_recording_transcription(
+                                    continuous_rec, stt_result.text
                                 )
-                                for c in eval_result.corrections
-                            ],
-                            hints=eval_result.hints,
-                            user_transcript=stt_result.text,
-                        )
-                        updated_payload["continuous_transcript"] = stt_result.text
+
+                            recognized_text = stt_result.text.strip()
+                            if recognized_text:
+                                eval_result = await self.ai_gateway.evaluate_shadowing(
+                                    reference_transcript=ref_script,
+                                    user_transcript=recognized_text,
+                                )
+                                await self.repository.create_ai_evaluation(
+                                    attempt_id=attempt.id,
+                                    recording_id=continuous_rec.id if continuous_rec else None,
+                                    similarity_score=Decimal(str(round(eval_result.score, 2))),
+                                    feedback=eval_result.feedback,
+                                    details={
+                                        "corrections": [
+                                            c.model_dump() for c in eval_result.corrections
+                                        ],
+                                        "hints": eval_result.hints,
+                                        "is_acceptable": eval_result.is_acceptable,
+                                        "user_transcript": recognized_text,
+                                    },
+                                    completed_at=completed_at,
+                                )
+                                ai_feedback = ShadowingAiFeedback(
+                                    similarity_score=float(eval_result.score),
+                                    feedback=eval_result.feedback,
+                                    corrections=[
+                                        ShadowingCorrection(
+                                            original=c.original,
+                                            corrected=c.corrected,
+                                            reason=c.reason,
+                                        )
+                                        for c in eval_result.corrections
+                                    ],
+                                    hints=eval_result.hints,
+                                    user_transcript=recognized_text,
+                                )
+                                updated_payload["continuous_transcript"] = recognized_text
+                            else:
+                                no_speech_feedback = (
+                                    "Không nhận diện được giọng nói trong bản thu âm. "
+                                    "Bạn hãy thử phát âm to, rõ ràng hơn và kiểm tra "
+                                    "thiết bị micro."
+                                )
+                                no_speech_hints = [
+                                    "Kiểm tra âm lượng micro và khoảng cách thu âm.",
+                                    "Phát âm rõ ràng theo câu mẫu tiếng Nhật.",
+                                ]
+                                await self.repository.create_ai_evaluation(
+                                    attempt_id=attempt.id,
+                                    recording_id=continuous_rec.id if continuous_rec else None,
+                                    similarity_score=Decimal("0.00"),
+                                    feedback=no_speech_feedback,
+                                    details={
+                                        "corrections": [],
+                                        "hints": no_speech_hints,
+                                        "is_acceptable": False,
+                                        "user_transcript": "",
+                                    },
+                                    completed_at=completed_at,
+                                )
+                                ai_feedback = ShadowingAiFeedback(
+                                    similarity_score=0.0,
+                                    feedback=no_speech_feedback,
+                                    corrections=[],
+                                    hints=no_speech_hints,
+                                    user_transcript="",
+                                )
+                                updated_payload["continuous_transcript"] = ""
                     else:
                         segment_transcripts: dict[str, str] = {}
                         raw_payload_segs = (attempt.answer_payload or {}).get("segments")
@@ -667,17 +714,31 @@ class ShadowingService:
         user_continuous_recording_url: str | None = None
         user_continuous_duration_seconds: int | None = None
 
+        continuous_rec: Recording | None = None
         if is_continuous:
             cont_data = (attempt.answer_payload or {}).get("continuous_recording", {})
             storage_key = cont_data.get("storage_key") if isinstance(cont_data, dict) else None
-            if not storage_key and recordings:
-                storage_key = recordings[0].storage_key
+            rec_id_str = cont_data.get("recording_id") if isinstance(cont_data, dict) else None
+
+            for r in recordings:
+                if rec_id_str and str(r.id) == str(rec_id_str):
+                    continuous_rec = r
+                    break
+                if storage_key and r.storage_key == storage_key:
+                    continuous_rec = r
+                    break
+
+            if continuous_rec is None and recordings:
+                continuous_rec = recordings[-1]
+
+            if not storage_key and continuous_rec:
+                storage_key = continuous_rec.storage_key
             if storage_key:
                 user_continuous_recording_url = self.storage_service.get_playback_url(storage_key)
             if isinstance(cont_data, dict) and "duration_seconds" in cont_data:
                 user_continuous_duration_seconds = int(cont_data["duration_seconds"])
-            elif recordings:
-                user_continuous_duration_seconds = int((recordings[0].duration_ms or 0) // 1000)
+            elif continuous_rec:
+                user_continuous_duration_seconds = int((continuous_rec.duration_ms or 0) // 1000)
 
         raw_payload_segments = (attempt.answer_payload or {}).get("segments")
         payload_segments = raw_payload_segments if isinstance(raw_payload_segments, list) else []
@@ -799,10 +860,15 @@ class ShadowingService:
             completed_count = attempt.correct_count or total_count
 
         user_continuous_transcript = None
-        if is_continuous and recordings and recordings[0].transcription_ja:
-            user_continuous_transcript = recordings[0].transcription_ja
-        elif ai_feedback and ai_feedback.user_transcript:
-            user_continuous_transcript = ai_feedback.user_transcript
+        if is_continuous:
+            if continuous_rec and continuous_rec.transcription_ja:
+                user_continuous_transcript = continuous_rec.transcription_ja
+            elif ai_feedback and ai_feedback.user_transcript:
+                user_continuous_transcript = ai_feedback.user_transcript
+            elif (attempt.answer_payload or {}).get("continuous_transcript"):
+                user_continuous_transcript = str(
+                    (attempt.answer_payload or {}).get("continuous_transcript")
+                )
 
         return ShadowingAttemptReviewResponse(
             attempt_id=attempt.id,
@@ -897,6 +963,43 @@ class ShadowingService:
             continuous_recording=continuous_summary,
             total_attempts=total_attempts,
         )
+
+    async def _get_or_create_attempt(
+        self,
+        *,
+        user_id: uuid.UUID,
+        content_id: uuid.UUID,
+        attempt_id: uuid.UUID | None,
+    ) -> ExerciseAttempt:
+        if attempt_id is None:
+            await self.repository.lock_user(user_id)
+            existing_row = await self.repository.get_latest_in_progress_attempt(
+                user_id=user_id,
+                content_id=content_id,
+            )
+            if existing_row is not None:
+                raise AttemptAlreadyInProgressError(
+                    attempt_id=existing_row[0].id,
+                    practice_method=PracticeMethod.SHADOWING,
+                )
+            attempt_number = await self.repository.get_next_attempt_number(
+                user_id=user_id,
+                content_id=content_id,
+            )
+            return await self.repository.create_attempt(
+                user_id=user_id,
+                content_id=content_id,
+                attempt_number=attempt_number,
+            )
+
+        attempt = await self.repository.get_attempt(attempt_id)
+        if attempt is None or attempt.content_id != content_id:
+            raise ShadowingAttemptNotFoundError()
+        if attempt.user_id != user_id:
+            raise ForbiddenError()
+        if attempt.status != AttemptStatus.IN_PROGRESS:
+            raise ShadowingAttemptNotInProgressError()
+        return attempt
 
     @staticmethod
     def _is_valid_segment(transcript_ja: list[dict[str, Any]] | None, segment_id: str) -> bool:

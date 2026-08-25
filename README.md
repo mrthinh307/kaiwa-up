@@ -101,7 +101,8 @@ The health endpoint should return:
 {
   "status": "ok",
   "timestamp": "2026-08-06T14:30:00.000Z",
-  "app_name": "Kaiwa App API"
+  "app_name": "Kaiwa App API",
+  "release_sha": "local"
 }
 ```
 
@@ -173,26 +174,29 @@ make test-api
 The API tests use `DATABASE_URL_TEST`. Each test runs in its own transaction and rolls back after
 completion, so test data is not persisted.
 
-Pull-request CI starts a disposable PostgreSQL 16 service on the GitHub Actions runner, applies all
+Pull-request CI starts a disposable PostgreSQL 18 service on the GitHub Actions runner, applies all
 Alembic migrations, and runs pytest with four parallel workers. The database is isolated per CI job
 and removed automatically when the job finishes, so pull requests do not use the shared Neon test
 branch or require its connection secret.
 
 ## CI
 
-Pull requests automatically run the repository CI pipeline. The backend job runs:
+Pull requests and pushes to `master` run the repository CI pipeline. The backend job runs:
 
 - `uv run ruff check .`
 - `uv run ruff format --check .`
 - `uv run mypy`
-- `uv run alembic upgrade head` against a disposable PostgreSQL 16 service
+- `uv run alembic upgrade head` against a disposable PostgreSQL 18 service
 - `uv run pytest -n 4 --dist loadfile --durations=20`
+- production Docker image build
 
 The frontend job runs:
 
 - `pnpm lint:web`
 - `pnpm --filter web typecheck`
+- `pnpm check:api-client`
 - `pnpm format:check`
+- `pnpm build:web`
 
 See `.github/workflows/ci.yml` for the exact CI configuration.
 
@@ -216,15 +220,31 @@ To check if generated artifacts are synchronized with the FastAPI backend:
 pnpm check:api-client
 ```
 
-Frontend applications configure the API base URL via `NEXT_PUBLIC_API_BASE_URL` in `apps/web/.env`:
+For local development, `NEXT_PUBLIC_API_BASE_URL` may point browser requests directly to FastAPI.
+Production uses the server-only `API_BASE_URL`; Next.js rewrites same-origin `/api/*` requests to
+FastAPI so backend credentials are never exposed through `NEXT_PUBLIC_*`:
 
-```ts
-import { client, healthCheckApiV1HealthGet } from "@kaiwa-app/api-client";
-
-client.setConfig({
-  baseUrl: process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000",
-});
+```dotenv
+// apps/web/.env.local
+API_BASE_URL=http://localhost:8000
+NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
 ```
+
+## Deployment
+
+The current Phase 1 demo is deployed manually without repository-admin approval:
+
+- Frontend: <https://kaiwa-up-demo.vercel.app>
+- Backend: <https://kaiwa-api.onrender.com>
+- Backend readiness: <https://kaiwa-api.onrender.com/api/v1/ready>
+
+The backend currently runs on Render from an immutable private GHCR image; the frontend is deployed
+with Vercel CLI. Automated CD, `render.yaml`, and the Git-backed Render service belong to Phase 2 and
+must remain disabled until the repository admin configures the required GitHub App, environment,
+secrets, and branch protection.
+
+See [`docs/11-deployment.md`](docs/11-deployment.md) for the current PowerShell deployment commands,
+smoke checks, rollback procedure, provider IDs, and the Phase 2 transition boundary.
 
 ## Project structure
 

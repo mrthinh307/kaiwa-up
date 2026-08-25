@@ -1,7 +1,8 @@
 import type { DashboardAttemptStatus, DashboardPracticeMode } from "./dashboard-api-adapter";
 
 const DASHBOARD_PRACTICE_MODES = [
-  "shadowing_dictation",
+  "shadowing",
+  "dictation",
   "reflex",
   "listening_translation",
 ] as const satisfies readonly DashboardPracticeMode[];

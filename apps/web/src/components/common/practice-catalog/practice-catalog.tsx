@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import type { JlptDifficulty } from "@/types/practice-catalog";
 
+import { PracticeProgressProvider } from "@/components/common/practice-progress/practice-progress-provider";
 import { Button } from "@/components/ui/button";
 import {
   type PracticeCatalogViewModel,
@@ -13,7 +14,6 @@ import { cn } from "@/lib/utils";
 import { PracticeCatalogFilterSheet } from "./practice-catalog-filter-sheet";
 import { PracticeCatalogPagination } from "./practice-catalog-pagination";
 import { PracticeCatalogPaginationScroll } from "./practice-catalog-pagination-scroll";
-import { PracticeCatalogProgressProvider } from "./practice-catalog-progress-provider";
 import { PracticeCatalogSearch } from "./practice-catalog-search";
 import { PracticeLessonCard } from "./practice-lesson-card";
 import { PracticePreviewProvider } from "./practice-preview-provider";
@@ -90,7 +90,7 @@ export function PracticeCatalog({
 
       {hasLessons ? (
         <>
-          <PracticeCatalogProgressProvider>
+          <PracticeProgressProvider>
             <PracticePreviewProvider>
               <ul
                 className={cn(
@@ -109,7 +109,7 @@ export function PracticeCatalog({
                 ))}
               </ul>
             </PracticePreviewProvider>
-          </PracticeCatalogProgressProvider>
+          </PracticeProgressProvider>
           <PracticeCatalogPagination
             ariaLabel="Lesson catalog pages"
             basePath="/lessons"

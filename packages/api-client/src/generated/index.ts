@@ -241,6 +241,7 @@ export type {
   PaginatedResponseLearningContentItem,
   PaginatedResponseProgressAttemptItem,
   PaginatedResponseTranslationLessonItem,
+  PracticeMethod,
   ProgressAttemptDetail,
   ProgressAttemptItem,
   ProgressInProgressLesson,

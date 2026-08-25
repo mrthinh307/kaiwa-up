@@ -7,7 +7,7 @@ from sqlalchemy import ColumnElement, func, select
 
 from app.models.attempt import ExerciseAttempt
 from app.models.content import LearningContent
-from app.models.enums import AttemptStatus, ContentType, JlptLevel
+from app.models.enums import AttemptStatus, ContentType, JlptLevel, PracticeMethod
 from app.repositories.base import BaseRepository
 
 
@@ -16,6 +16,7 @@ class AttemptHistoryRow(NamedTuple):
     content_id: UUID
     content_title: str
     content_type: ContentType
+    practice_method: PracticeMethod | None
     attempt_number: int
     status: AttemptStatus
     score: Decimal | None
@@ -27,6 +28,7 @@ class InProgressLessonRow(NamedTuple):
     content_id: UUID
     content_title: str
     content_type: ContentType
+    practice_method: PracticeMethod | None
     difficulty: JlptLevel
     attempt_number: int
 
@@ -42,6 +44,7 @@ class ProgressRepository(BaseRepository):
         user_id: UUID,
         *,
         content_type: ContentType | None,
+        practice_method: PracticeMethod | None,
         content_id: UUID | None,
         status: AttemptStatus | None = None,
         search_query: str | None = None,
@@ -49,6 +52,8 @@ class ProgressRepository(BaseRepository):
         conditions: list[ColumnElement[bool]] = [ExerciseAttempt.user_id == user_id]
         if content_type is not None:
             conditions.append(LearningContent.content_type == content_type)
+        if practice_method is not None:
+            conditions.append(ExerciseAttempt.practice_method == practice_method)
         if content_id is not None:
             conditions.append(ExerciseAttempt.content_id == content_id)
         if status is not None:
@@ -57,7 +62,9 @@ class ProgressRepository(BaseRepository):
             conditions.append(LearningContent.title.ilike(f"%{search_query}%"))
         return tuple(conditions)
 
-    async def get_summary(self, user_id: UUID) -> tuple[int, dict[ContentType, int]]:
+    async def get_summary(
+        self, user_id: UUID
+    ) -> tuple[int, dict[ContentType, int], dict[PracticeMethod, int]]:
         total_attempts = (
             await self.session.scalar(
                 select(func.count())
@@ -78,13 +85,30 @@ class ProgressRepository(BaseRepository):
             )
         ).all()
         completed_by_type = {content_type: count for content_type, count in completed_rows}
-        return total_attempts, completed_by_type
+        completed_method_rows = (
+            await self.session.execute(
+                select(ExerciseAttempt.practice_method, func.count())
+                .where(
+                    ExerciseAttempt.user_id == user_id,
+                    ExerciseAttempt.status == AttemptStatus.COMPLETED,
+                    ExerciseAttempt.practice_method.is_not(None),
+                )
+                .group_by(ExerciseAttempt.practice_method)
+            )
+        ).all()
+        completed_by_method = {
+            practice_method: count
+            for practice_method, count in completed_method_rows
+            if practice_method is not None
+        }
+        return total_attempts, completed_by_type, completed_by_method
 
     async def list_attempts(
         self,
         user_id: UUID,
         *,
         content_type: ContentType | None = None,
+        practice_method: PracticeMethod | None = None,
         content_id: UUID | None = None,
         status: AttemptStatus | None = None,
         search_query: str | None = None,
@@ -94,6 +118,7 @@ class ProgressRepository(BaseRepository):
         conditions = self._history_conditions(
             user_id,
             content_type=content_type,
+            practice_method=practice_method,
             content_id=content_id,
             status=status,
             search_query=search_query,
@@ -114,6 +139,7 @@ class ProgressRepository(BaseRepository):
                     ExerciseAttempt.content_id,
                     LearningContent.title,
                     LearningContent.content_type,
+                    ExerciseAttempt.practice_method,
                     ExerciseAttempt.attempt_number,
                     ExerciseAttempt.status,
                     ExerciseAttempt.score,
@@ -135,6 +161,7 @@ class ProgressRepository(BaseRepository):
                 content_id=row.content_id,
                 content_title=row.title,
                 content_type=row.content_type,
+                practice_method=row.practice_method,
                 attempt_number=row.attempt_number,
                 status=row.status,
                 score=row.score,
@@ -152,6 +179,7 @@ class ProgressRepository(BaseRepository):
                     ExerciseAttempt.content_id,
                     LearningContent.title,
                     LearningContent.content_type,
+                    ExerciseAttempt.practice_method,
                     LearningContent.difficulty,
                     ExerciseAttempt.attempt_number,
                 )
@@ -170,6 +198,7 @@ class ProgressRepository(BaseRepository):
                 content_id=row.content_id,
                 content_title=row.title,
                 content_type=row.content_type,
+                practice_method=row.practice_method,
                 difficulty=row.difficulty,
                 attempt_number=row.attempt_number,
             )

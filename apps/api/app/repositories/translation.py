@@ -16,6 +16,7 @@ from app.models.enums import (
     ContentStatus,
     ContentType,
     JlptLevel,
+    PracticeMethod,
 )
 from app.models.gamification import XpTransaction
 from app.models.user import User, UserProgress
@@ -53,6 +54,7 @@ class TranslationRepository(BaseRepository):
                 ExerciseAttempt.user_id == user_id,
                 ExerciseAttempt.content_id == LearningContent.id,
                 ExerciseAttempt.status == AttemptStatus.COMPLETED,
+                ExerciseAttempt.practice_method == PracticeMethod.LISTENING_TRANSLATION,
             )
         ).label("is_completed")
         total = (
@@ -99,6 +101,7 @@ class TranslationRepository(BaseRepository):
                         ExerciseAttempt.user_id == user_id,
                         ExerciseAttempt.content_id == content_id,
                         ExerciseAttempt.status == AttemptStatus.COMPLETED,
+                        ExerciseAttempt.practice_method == PracticeMethod.LISTENING_TRANSLATION,
                     )
                 )
             )
@@ -125,6 +128,7 @@ class TranslationRepository(BaseRepository):
                 ExerciseAttempt.user_id == user_id,
                 ExerciseAttempt.content_id == content_id,
                 ExerciseAttempt.status == AttemptStatus.IN_PROGRESS,
+                ExerciseAttempt.practice_method == PracticeMethod.LISTENING_TRANSLATION,
             )
             .order_by(ExerciseAttempt.attempt_number.desc())
             .limit(1)
@@ -145,6 +149,7 @@ class TranslationRepository(BaseRepository):
             user_id=user_id,
             content_id=content_id,
             attempt_number=attempt_number,
+            practice_method=PracticeMethod.LISTENING_TRANSLATION,
             status=AttemptStatus.IN_PROGRESS,
             submitted_at=submitted_at,
             answer_payload={"translation_vi": translation_vi},
@@ -204,6 +209,7 @@ class TranslationRepository(BaseRepository):
             .where(
                 ExerciseAttempt.id == attempt_id,
                 ExerciseAttempt.user_id == user_id,
+                ExerciseAttempt.practice_method == PracticeMethod.LISTENING_TRANSLATION,
             )
             .with_for_update()
         )
@@ -249,6 +255,7 @@ class TranslationRepository(BaseRepository):
                     ExerciseAttempt.user_id == user_id,
                     ExerciseAttempt.content_id == content_id,
                     ExerciseAttempt.status == AttemptStatus.COMPLETED,
+                    ExerciseAttempt.practice_method == PracticeMethod.LISTENING_TRANSLATION,
                     AiEvaluation.status == AiEvaluationStatus.COMPLETED,
                 )
                 .order_by(ExerciseAttempt.attempt_number.desc())

@@ -11,7 +11,14 @@ from app.api.dependencies.auth import get_current_user
 from app.main import app
 from app.models.attempt import ExerciseAttempt, Recording
 from app.models.content import LearningContent
-from app.models.enums import AttemptStatus, ContentStatus, ContentType, JlptLevel, RecordingKind
+from app.models.enums import (
+    AttemptStatus,
+    ContentStatus,
+    ContentType,
+    JlptLevel,
+    PracticeMethod,
+    RecordingKind,
+)
 from app.models.gamification import XpTransaction
 from app.models.user import User, UserProgress
 
@@ -95,6 +102,7 @@ async def test_record_segment_creates_attempt_automatically(
     assert attempt.user_id == user.id
     assert attempt.content_id == content.id
     assert attempt.attempt_number == 1
+    assert attempt.practice_method == PracticeMethod.SHADOWING
     assert attempt.status == AttemptStatus.IN_PROGRESS
 
     # Verify Recording created in DB
@@ -149,6 +157,111 @@ async def test_record_segment_reuses_provided_attempt_id(
         .all()
     )
     assert len(attempts) == 1
+
+
+@pytest.mark.asyncio
+async def test_record_segment_without_attempt_id_rejects_existing_shadowing_attempt(
+    client: httpx.AsyncClient, db_session: AsyncSession
+) -> None:
+    user = await create_test_user(db_session, email="shadowing-duplicate@example.com")
+    content = await create_shadowing_content(db_session, slug="shadowing-duplicate")
+    app.dependency_overrides[get_current_user] = lambda: user
+
+    first_response = await client.post(
+        f"/api/v1/shadowing/{content.id}/record-segment",
+        files={"audio_file": ("first.webm", BytesIO(b"first-audio"), "audio/webm")},
+        data={"segment_id": "0"},
+    )
+    second_response = await client.post(
+        f"/api/v1/shadowing/{content.id}/record-segment",
+        files={"audio_file": ("second.webm", BytesIO(b"second-audio"), "audio/webm")},
+        data={"segment_id": "1"},
+    )
+
+    assert first_response.status_code == 201
+    assert second_response.status_code == 409
+    assert second_response.json()["error"] == {
+        "status": 409,
+        "code": "attempt_already_in_progress",
+        "message": "An attempt is already in progress for this practice method",
+        "details": {
+            "attempt_id": first_response.json()["attempt_id"],
+            "practice_method": "shadowing",
+        },
+    }
+
+
+@pytest.mark.asyncio
+async def test_dictation_attempt_does_not_block_shadowing_recording(
+    client: httpx.AsyncClient, db_session: AsyncSession
+) -> None:
+    user = await create_test_user(db_session, email="shadowing-cross-method@example.com")
+    content = await create_shadowing_content(db_session, slug="shadowing-cross-method")
+    dictation_attempt = ExerciseAttempt(
+        user_id=user.id,
+        content_id=content.id,
+        attempt_number=1,
+        practice_method=PracticeMethod.DICTATION,
+        status=AttemptStatus.IN_PROGRESS,
+        answer_payload={},
+    )
+    db_session.add(dictation_attempt)
+    await db_session.flush()
+    app.dependency_overrides[get_current_user] = lambda: user
+
+    response = await client.post(
+        f"/api/v1/shadowing/{content.id}/record-segment",
+        files={"audio_file": ("shadow.webm", BytesIO(b"shadow-audio"), "audio/webm")},
+        data={"segment_id": "0"},
+    )
+
+    assert response.status_code == 201
+    assert response.json()["attempt_id"] != str(dictation_attempt.id)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("practice_method", [PracticeMethod.DICTATION, None])
+async def test_shadowing_operations_reject_wrong_method_and_legacy_attempts(
+    client: httpx.AsyncClient,
+    db_session: AsyncSession,
+    practice_method: PracticeMethod | None,
+) -> None:
+    user = await create_test_user(
+        db_session,
+        email=f"shadowing-wrong-method-{practice_method}@example.com",
+    )
+    content = await create_shadowing_content(
+        db_session,
+        slug=f"shadowing-wrong-method-{practice_method}",
+    )
+    attempt = ExerciseAttempt(
+        user_id=user.id,
+        content_id=content.id,
+        attempt_number=1,
+        practice_method=practice_method,
+        status=AttemptStatus.IN_PROGRESS,
+        answer_payload={},
+    )
+    db_session.add(attempt)
+    await db_session.flush()
+    app.dependency_overrides[get_current_user] = lambda: user
+
+    record_response = await client.post(
+        f"/api/v1/shadowing/{content.id}/record-segment",
+        files={"audio_file": ("wrong.webm", BytesIO(b"wrong-audio"), "audio/webm")},
+        data={"segment_id": "0", "attempt_id": str(attempt.id)},
+    )
+    submit_response = await client.post(
+        f"/api/v1/shadowing/{content.id}/submit",
+        json={"attempt_id": str(attempt.id), "replay_count": 0},
+    )
+    review_response = await client.get(f"/api/v1/shadowing/attempts/{attempt.id}/review")
+    resume_response = await client.get(f"/api/v1/shadowing/{content.id}/in-progress")
+
+    assert record_response.status_code == 404
+    assert submit_response.status_code == 404
+    assert review_response.status_code == 404
+    assert resume_response.status_code == 404
 
 
 @pytest.mark.asyncio
@@ -366,6 +479,7 @@ async def test_submit_shadowing_attempt_zero_completion_no_xp(
         user_id=user.id,
         content_id=content.id,
         attempt_number=1,
+        practice_method=PracticeMethod.SHADOWING,
         status=AttemptStatus.IN_PROGRESS,
         answer_payload={},
     )
@@ -858,3 +972,104 @@ async def test_submit_shadowing_succeeds_even_when_ai_gateway_fails(
     assert submit_data["score"] == 100.0
     assert submit_data["xp_earned"] == 50
     assert submit_data["ai_feedback"] is None
+
+
+@pytest.mark.asyncio
+async def test_continuous_mode_multiple_takes_evaluates_latest_recording(
+    client: httpx.AsyncClient, db_session: AsyncSession
+):
+    """Verifies that when a user re-records in Continuous Mode, the latest take is evaluated."""
+    from app.api.dependencies.ai import get_ai_gateway
+
+    user = await create_test_user(db_session, email="continuous_rerecord@example.com")
+    content = await create_shadowing_content(db_session, slug="shadowing-continuous-rerecord")
+    content.audio_duration_ms = 10000
+    await db_session.flush()
+
+    mock_ai = MockShadowingAiGateway(score=92, text="いらっしゃいませ。最新テイク。")
+    app.dependency_overrides[get_current_user] = lambda: user
+    app.dependency_overrides[get_ai_gateway] = lambda: mock_ai
+
+    # Take 1 (discarded short take)
+    res_take1 = await client.post(
+        f"/api/v1/shadowing/{content.id}/record-continuous",
+        files={"audio_file": ("take1.webm", BytesIO(b"take1" * 100), "audio/webm")},
+        data={"duration_seconds": 2},
+    )
+    assert res_take1.status_code == 201
+    attempt_id = res_take1.json()["attempt_id"]
+
+    # Take 2 (active take)
+    res_take2 = await client.post(
+        f"/api/v1/shadowing/{content.id}/record-continuous",
+        files={"audio_file": ("take2.webm", BytesIO(b"take2" * 500), "audio/webm")},
+        data={"duration_seconds": 10, "attempt_id": attempt_id},
+    )
+    assert res_take2.status_code == 201
+    latest_recording_id = res_take2.json()["recording_id"]
+
+    # Submit attempt
+    res_submit = await client.post(
+        f"/api/v1/shadowing/{content.id}/submit",
+        json={"attempt_id": attempt_id, "replay_count": 0},
+    )
+    assert res_submit.status_code == 200
+    submit_data = res_submit.json()
+    assert submit_data["ai_feedback"] is not None
+    assert submit_data["ai_feedback"]["similarity_score"] == 92.0
+    assert submit_data["ai_feedback"]["user_transcript"] == "いらっしゃいませ。最新テイク。"
+
+    # Check that latest recording was updated
+    latest_rec = await db_session.scalar(
+        select(Recording).where(Recording.id == uuid.UUID(latest_recording_id))
+    )
+    assert latest_rec is not None
+    assert latest_rec.transcription_ja == "いらっしゃいませ。最新テイク。"
+
+    # Review returns latest take
+    res_review = await client.get(f"/api/v1/shadowing/attempts/{attempt_id}/review")
+    assert res_review.status_code == 200
+    rev_data = res_review.json()
+    assert rev_data["ai_feedback"] is not None
+    assert rev_data["user_continuous_transcript"] == "いらっしゃいませ。最新テイク。"
+
+
+@pytest.mark.asyncio
+async def test_continuous_mode_empty_speech_generates_graceful_feedback(
+    client: httpx.AsyncClient, db_session: AsyncSession
+):
+    """Verifies that silent or unrecognized audio produces friendly pedagogical feedback."""
+    from app.api.dependencies.ai import get_ai_gateway
+
+    user = await create_test_user(db_session, email="continuous_silent@example.com")
+    content = await create_shadowing_content(db_session, slug="shadowing-continuous-silent")
+    content.audio_duration_ms = 10000
+    await db_session.flush()
+
+    mock_ai = MockShadowingAiGateway(score=0, text="")  # STT returns empty text
+    app.dependency_overrides[get_current_user] = lambda: user
+    app.dependency_overrides[get_ai_gateway] = lambda: mock_ai
+
+    res_rec = await client.post(
+        f"/api/v1/shadowing/{content.id}/record-continuous",
+        files={"audio_file": ("continuous.webm", BytesIO(b"silence" * 500), "audio/webm")},
+        data={"duration_seconds": 10},
+    )
+    attempt_id = res_rec.json()["attempt_id"]
+
+    res_submit = await client.post(
+        f"/api/v1/shadowing/{content.id}/submit",
+        json={"attempt_id": attempt_id, "replay_count": 0},
+    )
+    assert res_submit.status_code == 200
+    submit_data = res_submit.json()
+
+    # Informational feedback should provide helpful advice rather than being null
+    assert submit_data["ai_feedback"] is not None
+    assert submit_data["ai_feedback"]["similarity_score"] == 0.0
+    assert "Không nhận diện được giọng nói" in submit_data["ai_feedback"]["feedback"]
+    assert len(submit_data["ai_feedback"]["hints"]) > 0
+
+    # Official score remains intact
+    assert submit_data["score"] == 100.0
+    assert submit_data["xp_earned"] == 50

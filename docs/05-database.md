@@ -109,6 +109,7 @@ erDiagram
         UUID user_id FK
         UUID content_id FK
         INTEGER attempt_number
+        VARCHAR practice_method
         VARCHAR status
         NUMERIC score
         JSONB answer_payload
@@ -344,6 +345,7 @@ status = 'PUBLISHED'` phục vụ catalog đã xuất bản theo loại, cấp �
 | `user_id` | UUID | Không | - | FK `users.id` ON DELETE CASCADE | User thực hiện attempt. |
 | `content_id` | UUID | Không | - | FK `learning_contents.id` ON DELETE RESTRICT | Nội dung được làm; RESTRICT ngăn xóa bài đã có lịch sử. |
 | `attempt_number` | INTEGER | Không | - | UNIQUE cùng `user_id`, `content_id` | Số thứ tự lần làm cùng một nội dung; application khởi tạo `1`. |
+| `practice_method` | VARCHAR(32) | Có | - | CHECK `exercise_attempts_practice_method` | Phương thức thực tế: `SHADOWING`, `DICTATION`, `REFLEX` hoặc `LISTENING_TRANSLATION`; NULL chỉ dành cho dữ liệu legacy không xác định chắc chắn. |
 | `status` | VARCHAR(32) | Không | - | CHECK `attempt_status` | `IN_PROGRESS` hoặc `COMPLETED`. |
 | `started_at` | TIMESTAMPTZ | Không | `now()` | - | Thời điểm bắt đầu attempt. |
 | `submitted_at` | TIMESTAMPTZ | Có | - | - | Thời điểm user nộp; NULL khi attempt còn đang làm. |
@@ -357,7 +359,11 @@ status = 'PUBLISHED'` phục vụ catalog đã xuất bản theo loại, cấp �
 
 UNIQUE `uq_exercise_attempts_order` trên `(user_id, content_id, attempt_number)` ngăn trùng số lần
 làm. Index `(user_id, completed_at DESC) INCLUDE (content_id, status, score)` phục vụ lịch sử user
-bằng index-only scan; index `(content_id, completed_at DESC)` phục vụ thống kê theo nội dung.
+bằng index-only scan; index `(content_id, completed_at DESC)` phục vụ thống kê theo nội dung. Partial
+UNIQUE index `uq_exercise_attempts_in_progress_practice_method` trên
+`(user_id, content_id, practice_method)` khi `status = 'IN_PROGRESS'` và `practice_method IS NOT NULL`
+đảm bảo mỗi phương thức chỉ có một attempt đang dở trên cùng nội dung; các hàng legacy NULL không bị
+ép suy đoán hoặc loại bỏ.
 
 #### Bảng `recordings`
 
