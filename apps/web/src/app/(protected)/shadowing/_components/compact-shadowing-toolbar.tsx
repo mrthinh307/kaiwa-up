@@ -9,15 +9,16 @@ import {
   Headphones,
   LoaderCircle,
   Radio,
+  Sparkles,
   Trophy,
 } from "lucide-react";
 import Link from "next/link";
+import { useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
-  DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -32,7 +33,7 @@ type CompactShadowingToolbarProps = {
   isCompleting: boolean;
   lessonTitle: string;
   mode?: "segmented" | "continuous";
-  onComplete: () => void;
+  onComplete: (requestAiReview: boolean) => void;
   recordedCount: number;
   settings?: ReactNode;
   totalSegments: number;
@@ -49,9 +50,20 @@ export function CompactShadowingToolbar({
   settings,
   totalSegments,
 }: CompactShadowingToolbarProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [submittingAction, setSubmittingAction] = useState<"no-ai" | "ai" | null>(null);
+
   const isContinuous = mode === "continuous";
   const isAllRecorded = !isContinuous && recordedCount === totalSegments && totalSegments > 0;
   const unrecordedCount = Math.max(0, totalSegments - recordedCount);
+
+  const isAiSubmitting = isCompleting && submittingAction === "ai";
+  const isNoAiSubmitting = isCompleting && submittingAction === "no-ai";
+
+  const handleFinishOption = (requestAiReview: boolean) => {
+    setSubmittingAction(requestAiReview ? "ai" : "no-ai");
+    onComplete(requestAiReview);
+  };
 
   return (
     <header
@@ -91,44 +103,38 @@ export function CompactShadowingToolbar({
       <div className="col-start-3 row-start-1 flex items-center gap-2">
         {settings}
 
-        {isAllRecorded ? (
-          <Button
-            className="font-heading"
-            disabled={isCompleting}
-            onClick={onComplete}
-            size="sm"
-            type="button"
-          >
-            {isCompleting ? (
-              <LoaderCircle aria-hidden="true" className="animate-spin" />
-            ) : (
-              <Trophy aria-hidden="true" />
-            )}
-            <span>{isCompleting ? "Finishing..." : "Finish"}</span>
-          </Button>
-        ) : (
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button disabled={isCompleting} size="sm" type="button" variant="default">
-                {isCompleting ? (
-                  <LoaderCircle aria-hidden="true" className="animate-spin" />
-                ) : (
-                  <Flag aria-hidden="true" />
-                )}
-                <span>{isCompleting ? "Finishing..." : "Finish"}</span>
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-md">
-              <DialogHeader>
-                <DialogTitle>Finish this attempt?</DialogTitle>
-                <DialogDescription className="leading-relaxed">
-                  {isContinuous
-                    ? "Completing now will calculate your score and EXP based on your continuous practice duration."
-                    : `You have recorded ${recordedCount} of ${totalSegments} segments. Completing now will calculate your score and EXP based only on completed recordings.`}
-                </DialogDescription>
-              </DialogHeader>
+        <Dialog onOpenChange={setIsOpen} open={isOpen}>
+          <DialogTrigger asChild>
+            <Button
+              className="font-heading"
+              disabled={isCompleting}
+              size="sm"
+              type="button"
+              variant={isAllRecorded ? "default" : "default"}
+            >
+              {isCompleting ? (
+                <LoaderCircle aria-hidden="true" className="size-4 animate-spin" />
+              ) : isAllRecorded ? (
+                <Trophy aria-hidden="true" className="size-4" />
+              ) : (
+                <Flag aria-hidden="true" className="size-4" />
+              )}
+              <span>{isCompleting ? "Finishing..." : "Finish"}</span>
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="w-full max-w-[calc(100vw-2rem)] sm:max-w-xl min-w-0 overflow-hidden">
+            <DialogHeader>
+              <DialogTitle>Finish Shadowing Practice</DialogTitle>
+              <DialogDescription className="leading-relaxed">
+                {isContinuous
+                  ? "Completing now will calculate your official score and EXP based on your continuous practice duration."
+                  : `You have recorded ${recordedCount} of ${totalSegments} segments. Your official score and EXP will be calculated based on completed recordings.`}
+              </DialogDescription>
+            </DialogHeader>
 
-              <div className="space-y-2.5 rounded-base border-2 border-border bg-secondary-background p-4 text-xs leading-relaxed sm:text-sm">
+            <div className="space-y-3">
+              {/* Practice Status Box */}
+              <div className="space-y-2 rounded-base border-2 border-border bg-secondary-background p-3.5 text-xs leading-relaxed sm:text-sm">
                 {!isContinuous && unrecordedCount > 0 ? (
                   <p className="flex items-start gap-2 text-foreground/80">
                     <AlertTriangle
@@ -139,7 +145,7 @@ export function CompactShadowingToolbar({
                       <strong>
                         {unrecordedCount} unrecorded segment{unrecordedCount === 1 ? "" : "s"}
                       </strong>{" "}
-                      will receive 0 points.
+                      will receive 0 points toward official score.
                     </span>
                   </p>
                 ) : (
@@ -147,31 +153,71 @@ export function CompactShadowingToolbar({
                     <CheckCircle2 aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-main" />
                     <span>
                       {isContinuous
-                        ? "Your continuous recording session will be saved and reviewed."
+                        ? "Your continuous recording session is ready for submission."
                         : "All segments have been recorded."}
                     </span>
                   </p>
                 )}
               </div>
 
-              <DialogFooter className="mt-4 flex gap-2 sm:justify-end">
-                <DialogClose asChild>
-                  <Button disabled={isCompleting} type="button" variant="neutral">
-                    Keep practicing
-                  </Button>
-                </DialogClose>
-                <Button disabled={isCompleting} onClick={onComplete} type="button">
-                  {isCompleting ? (
-                    <LoaderCircle aria-hidden="true" className="animate-spin" />
+              {/* Optional AI Review Note Card */}
+              <div className="rounded-base border-2 border-border/80 bg-background p-3.5 space-y-1.5">
+                <div className="flex items-center gap-2 font-heading text-xs sm:text-sm text-foreground">
+                  <Sparkles aria-hidden="true" className="size-4 text-main" />
+                  <span>Optional AI Recording Review</span>
+                </div>
+                <p className="text-xs text-foreground/75 leading-relaxed">
+                  Choose whether you want AI to analyze your recording for speech accuracy,
+                  pronunciation corrections, and learning tips. AI review is informational only and
+                  does not impact your score or EXP.
+                </p>
+              </div>
+            </div>
+
+            <DialogFooter className="mt-2 flex flex-col gap-2.5 sm:flex-col">
+              <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2">
+                <Button
+                  className="w-full justify-center"
+                  disabled={isCompleting}
+                  onClick={() => handleFinishOption(false)}
+                  type="button"
+                  variant="neutral"
+                >
+                  {isNoAiSubmitting ? (
+                    <LoaderCircle aria-hidden="true" className="size-4 animate-spin" />
                   ) : (
-                    <Flag aria-hidden="true" />
+                    <Flag aria-hidden="true" className="size-4" />
                   )}
-                  Confirm & finish
+                  <span>{isNoAiSubmitting ? "Finishing..." : "Finish without AI Review"}</span>
                 </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        )}
+                <Button
+                  className="w-full justify-center bg-main text-main-foreground"
+                  disabled={isCompleting}
+                  onClick={() => handleFinishOption(true)}
+                  type="button"
+                >
+                  {isAiSubmitting ? (
+                    <LoaderCircle aria-hidden="true" className="size-4 animate-spin" />
+                  ) : (
+                    <Sparkles aria-hidden="true" className="size-4" />
+                  )}
+                  <span>
+                    {isAiSubmitting ? "Reviewing & Finishing..." : "Finish & Request AI Review"}
+                  </span>
+                </Button>
+              </div>
+              <Button
+                className="w-full justify-center"
+                disabled={isCompleting}
+                onClick={() => setIsOpen(false)}
+                type="button"
+                variant="neutral"
+              >
+                Keep practicing
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </header>
   );

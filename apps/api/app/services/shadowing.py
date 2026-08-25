@@ -258,6 +258,7 @@ class ShadowingService:
         content_id: uuid.UUID,
         attempt_id: uuid.UUID,
         replay_count: int = 0,
+        request_ai_review: bool = False,
     ) -> ShadowingSubmitResponse:
         try:
             row = await self.repository.get_attempt_for_update(attempt_id)
@@ -407,7 +408,7 @@ class ShadowingService:
 
             # Informational AI evaluation (does NOT affect score or EXP)
             ai_feedback: ShadowingAiFeedback | None = None
-            if self.ai_gateway is not None and recordings:
+            if request_ai_review and self.ai_gateway is not None and recordings:
                 try:
                     ref_script = " ".join(
                         str(s.get("script", "")) for s in transcript_segments if isinstance(s, dict)

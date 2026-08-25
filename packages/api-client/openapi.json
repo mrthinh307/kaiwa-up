@@ -5416,6 +5416,11 @@
             "minimum": 0.0,
             "title": "Replay Count",
             "default": 0
+          },
+          "request_ai_review": {
+            "type": "boolean",
+            "title": "Request Ai Review",
+            "default": false
           }
         },
         "type": "object",

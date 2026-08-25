@@ -39,6 +39,7 @@ class ShadowingRecordingPlaybackResponse(BaseModel):
 class ShadowingSubmitRequest(BaseModel):
     attempt_id: uuid.UUID
     replay_count: int = Field(default=0, ge=0)
+    request_ai_review: bool = Field(default=False)
 
 
 class ShadowingUserProgressSummary(BaseModel):

@@ -134,6 +134,7 @@ async def submit_attempt(
         content_id=content_id,
         attempt_id=payload.attempt_id,
         replay_count=payload.replay_count,
+        request_ai_review=payload.request_ai_review,
     )
 
 

@@ -1552,6 +1552,10 @@ export type ShadowingSubmitRequest = {
    * Replay Count
    */
   replay_count?: number;
+  /**
+   * Request Ai Review
+   */
+  request_ai_review?: boolean;
 };
 
 /**
