@@ -102,6 +102,7 @@ export function DictationWorkstation({
   totalSegments,
 }: DictationWorkstationProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const isComposingRef = useRef(false);
   const audioRef = useRef<HTMLAudioElement>(null);
   const scheduledPlaybackTimeoutRef = useRef<number | null>(null);
   const shouldContinuePlaybackRef = useRef(false);
@@ -109,6 +110,7 @@ export function DictationWorkstation({
   const previousSegmentIndexRef = useRef(activeSegment.segment_index);
   const lastPlaybackRequestRef = useRef(playbackRequest);
   const [isLoopEnabled, setIsLoopEnabled] = useState(false);
+  const [answerDraft, setAnswerDraft] = useState(activeAnswer);
 
   const youtubeVideoId = useMemo(() => getYouTubeVideoId(audioUrl), [audioUrl]);
 
@@ -177,6 +179,18 @@ export function DictationWorkstation({
   }, [activeSegment.segment_index, activeSegment.start_time_ms]);
 
   useEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea || isComposingRef.current) {
+      return;
+    }
+
+    if (textarea.value !== activeAnswer) {
+      textarea.value = activeAnswer;
+    }
+    setAnswerDraft(activeAnswer);
+  }, [activeAnswer, activeSegment.segment_index]);
+
+  useEffect(() => {
     if (playbackRequest === lastPlaybackRequestRef.current) {
       return;
     }
@@ -200,7 +214,7 @@ export function DictationWorkstation({
 
     textarea.style.height = "auto";
     textarea.style.height = `${Math.min(Math.max(textarea.scrollHeight, 80), 220)}px`;
-  }, [activeAnswer]);
+  }, [answerDraft]);
 
   const handleReplayClick = () => {
     onReplay();
@@ -238,7 +252,7 @@ export function DictationWorkstation({
     clearScheduledPlayback();
   }, [clearScheduledPlayback]);
 
-  const hasAnswer = Boolean(activeAnswer.trim());
+  const hasAnswer = Boolean(answerDraft.trim());
   const isChecked = Boolean(activeResult);
   const isCorrect = activeResult?.is_correct;
 
@@ -360,10 +374,22 @@ export function DictationWorkstation({
             autoComplete="off"
             className="mt-2 min-h-20 max-h-56 resize-none bg-secondary-background p-3.5 text-base leading-relaxed sm:text-lg"
             disabled={isChecking}
+            defaultValue={activeAnswer}
             id="dictation-segment-answer"
             lang="ja"
             maxLength={500}
-            onChange={(event) => onAnswerChange(event.target.value)}
+            onChange={(event) => {
+              setAnswerDraft(event.target.value);
+              onAnswerChange(event.target.value);
+            }}
+            onCompositionEnd={(event) => {
+              isComposingRef.current = false;
+              setAnswerDraft(event.currentTarget.value);
+              onAnswerChange(event.currentTarget.value);
+            }}
+            onCompositionStart={() => {
+              isComposingRef.current = true;
+            }}
             onKeyDown={(event) => {
               if (
                 event.key === "Enter" &&
@@ -377,14 +403,13 @@ export function DictationWorkstation({
             placeholder="聞こえた日本語を入力してください…"
             ref={textareaRef}
             spellCheck={false}
-            value={activeAnswer}
           />
           <div
             className="mt-2.5 flex flex-wrap items-center justify-between gap-1 text-[11px] text-foreground/60 sm:text-xs"
             id="dictation-answer-help"
           >
             <span>Punctuation and spaces do not affect comparison.</span>
-            <span>{activeAnswer.length}/500</span>
+            <span>{answerDraft.length}/500</span>
           </div>
         </div>
 
