@@ -237,11 +237,12 @@ The current Phase 1 demo is deployed manually without repository-admin approval:
 - Frontend: <https://kaiwa-up-demo.vercel.app>
 - Backend: <https://kaiwa-api.onrender.com>
 - Backend readiness: <https://kaiwa-api.onrender.com/api/v1/ready>
+- Verified release: `33c72b4996e59604b982dcc1866bb76ebd4a2fb6`
 
 The backend currently runs on Render from an immutable private GHCR image; the frontend is deployed
 with Vercel CLI. Automated CD, `render.yaml`, and the Git-backed Render service belong to Phase 2 and
-must remain disabled until the repository admin configures the required GitHub App, environment,
-secrets, and branch protection.
+remain gated by `PRODUCTION_CD_ENABLED=false` until the repository admin configures the required
+GitHub App, environment, secrets, and branch protection.
 
 See [`docs/11-deployment.md`](docs/11-deployment.md) for the current PowerShell deployment commands,
 smoke checks, rollback procedure, provider IDs, and the Phase 2 transition boundary.

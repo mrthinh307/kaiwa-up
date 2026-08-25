@@ -2,27 +2,28 @@
 
 ## 0. Deployment đang chạy (Phase 1)
 
-Trạng thái dưới đây đã được kiểm tra ngày 2026-08-23. Đây là deployment demo hiện tại, không phải
+Trạng thái dưới đây đã được kiểm tra ngày 2026-08-25. Đây là deployment demo hiện tại, không phải
 luồng CD trong `.github/workflows/deploy.yml`:
 
 | Thành phần | Giá trị hiện tại | Cách triển khai |
 | --- | --- | --- |
-| Frontend | `https://kaiwa-up-demo.vercel.app` | Vercel project `kaiwa-up-demo` (`prj_EPYNl4fujiwPZy1RVO9hzwnHmFfW`), deployment `dpl_DSyVvfs1bfYxKizuTs8kqBhbySXf`, Root Directory `apps/web`, deploy thủ công bằng Vercel CLI |
-| Backend | `https://kaiwa-api.onrender.com` | Render service `srv-da5b8rou01pc73elhp30`, latest verified deploy `dep-da5bq3jbc2fs738guulg`, runtime `image`, Auto-Deploy tắt |
-| Backend image | `ghcr.io/theanhnguyenc/kaiwa-api:051a0aea594b` | Private GHCR, Render đọc bằng credential chỉ có `read:packages` |
-| Database | Neon PostgreSQL 18 tại Singapore | Pooled URL cho runtime, direct URL cho Alembic |
+| Frontend | `https://kaiwa-up-demo.vercel.app` | Vercel project `kaiwa-up-demo` (`prj_EPYNl4fujiwPZy1RVO9hzwnHmFfW`), deployment `dpl_6uf4PaKScNgGgp9tNDJnbqFXDbvA`, Root Directory `apps/web`, deploy thủ công bằng Vercel CLI |
+| Backend | `https://kaiwa-api.onrender.com` | Render service `srv-da5b8rou01pc73elhp30`, latest verified deploy `dep-da6mh849v7es73ecs750`, runtime `image`, Auto-Deploy tắt |
+| Backend image | `ghcr.io/theanhnguyenc/kaiwa-api:33c72b4996e5` | Private GHCR, Render đọc bằng credential chỉ có `read:packages` |
+| Database | Neon PostgreSQL 18 tại Singapore, migration `9c4e1a7b2d6f` | Pooled URL cho runtime, direct URL cho Alembic |
 | Recording | Cloudinary, folder `kaiwa-up` | FastAPI upload trực tiếp bằng credential server-only |
-| Release | `051a0aea594b2a05442038d4a540a5e6241360fe` | `/api/v1/health` và `/api/v1/ready` công khai SHA |
+| Release | `33c72b4996e59604b982dcc1866bb76ebd4a2fb6` | `/api/v1/health` và `/api/v1/ready` công khai SHA |
 
 Render service hiện tại được tạo từ **Existing Image**, không được quản lý bởi `render.yaml` và không
 thể checkout một Git commit từ deploy hook. Vercel hiện được deploy từ một `git archive` không chứa
 `.git`, vì metadata author của các commit hiện có chưa được Vercel nhận là thành viên project. Hai
 cách này là đường manual deployment của Phase 1.
 
-`render.yaml` và `.github/workflows/deploy.yml` mô tả trạng thái mục tiêu của Phase 2. Chỉ bật workflow
-đó sau khi admin phê duyệt GitHub App, tạo GitHub Environment `production`, cấu hình secrets và chuyển
-backend sang Render Git-backed service. Không trỏ deploy hook của image-backed service hiện tại vào
-workflow CD vì nó không đảm bảo chạy đúng `DEPLOY_SHA`.
+`render.yaml` và `.github/workflows/deploy.yml` mô tả trạng thái mục tiêu của Phase 2. Workflow chỉ
+deploy khi repository variable `PRODUCTION_CD_ENABLED=true`. Chỉ bật biến này sau khi admin phê duyệt
+GitHub App, tạo GitHub Environment `production`, cấu hình secrets và chuyển backend sang Render
+Git-backed service. Không trỏ deploy hook của image-backed service hiện tại vào workflow CD vì nó
+không đảm bảo chạy đúng `DEPLOY_SHA`.
 
 ## 1. Kiến trúc P0
 
@@ -65,12 +66,14 @@ repository, Render/Vercel GitHub App vẫn có thể cần organization owner ph
 
 Repository admin hoặc custom role tương đương cấu hình `production` environment, deployment
 protection và branch protection cho `master`. Sau đó thêm các secrets/variables ở mục 4.5 và bật
-workflow release. Manual deployment của Phase 1 vẫn là đường phục hồi khi CD gặp sự cố.
+workflow release bằng repository variable `PRODUCTION_CD_ENABLED=true`. Manual deployment của Phase 1
+vẫn là đường phục hồi khi CD gặp sự cố.
 
 ## 3. Luồng phát hành CD
 
 Mục này mô tả workflow đã chuẩn bị trong source nhưng **chưa được bật cho production hiện tại**.
-Backend image-backed của Phase 1 phải được chuyển sang Git-backed trước khi kích hoạt.
+Backend image-backed của Phase 1 phải được chuyển sang Git-backed và cấu hình
+`PRODUCTION_CD_ENABLED=true` trước khi kích hoạt.
 
 Pull request vào `dev` hoặc `master` chạy CI:
 
@@ -190,6 +193,7 @@ Tạo repository variable:
 | Tên | Giá trị |
 | --- | --- |
 | `RENDER_BACKEND_URL` | URL Render không có dấu `/` cuối |
+| `PRODUCTION_CD_ENABLED` | Giữ `false` ở Phase 1; chỉ đặt `true` sau khi hoàn tất toàn bộ Phase 2 |
 
 Nên cấu hình branch protection cho `master`: yêu cầu pull request, CI pass và không cho push trực
 tiếp. Nếu repository hỗ trợ protected environment, thêm required reviewer cho environment
