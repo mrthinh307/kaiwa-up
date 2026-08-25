@@ -133,7 +133,7 @@ def parse_tutor_reply(content: str) -> TutorReply:
 def parse_transcription_result(data: dict[str, Any], *, language: str) -> TranscriptionResult:
     """Build a TranscriptionResult from a provider transcription payload."""
     text = data.get("text")
-    if not isinstance(text, str) or not text.strip():
+    if not isinstance(text, str):
         raise AiInvalidResponseError("AI provider returned a transcription without text")
 
     segments: list[TranscriptionSegment] = []

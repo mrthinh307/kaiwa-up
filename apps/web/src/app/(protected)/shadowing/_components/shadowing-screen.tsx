@@ -298,58 +298,62 @@ export function ShadowingScreen({ lesson }: ShadowingScreenProps) {
     }
   };
 
-  const handleFinishAttempt = useCallback(async () => {
-    if (!currentAttemptId) {
-      toast.error("No recordings found", {
-        description: isContinuous
-          ? "Please record your shadowing voice before finishing."
-          : "Please record at least one segment before completing the attempt.",
-      });
-      return;
-    }
+  const handleFinishAttempt = useCallback(
+    async (requestAiReview: boolean = false) => {
+      if (!currentAttemptId) {
+        toast.error("No recordings found", {
+          description: isContinuous
+            ? "Please record your shadowing voice before finishing."
+            : "Please record at least one segment before completing the attempt.",
+        });
+        return;
+      }
 
-    setIsSubmitting(true);
-    try {
-      const submitRes = await submitShadowingAttempt({
-        body: {
-          attempt_id: currentAttemptId,
-          replay_count: 0,
-        },
-        path: {
-          content_id: lesson.id,
-        },
-      });
-
-      if (submitRes.data) {
-        const reviewRes = await getShadowingAttemptReview({
-          path: {
+      setIsSubmitting(true);
+      try {
+        const submitRes = await submitShadowingAttempt({
+          body: {
             attempt_id: currentAttemptId,
+            replay_count: 0,
+            request_ai_review: requestAiReview,
+          },
+          path: {
+            content_id: lesson.id,
           },
         });
 
-        if (reviewRes.data) {
-          setReview(reviewRes.data);
-          setIsReviewMode(true);
-        } else {
-          toast.success("Practice completed!");
-          setIsReviewMode(false);
-          setIsStarted(false);
+        if (submitRes.data) {
+          const reviewRes = await getShadowingAttemptReview({
+            path: {
+              attempt_id: currentAttemptId,
+            },
+          });
+
+          if (reviewRes.data) {
+            setReview(reviewRes.data);
+            setIsReviewMode(true);
+          } else {
+            toast.success("Practice completed!");
+            setIsReviewMode(false);
+            setIsStarted(false);
+          }
+        } else if (submitRes.error) {
+          const errorMsg =
+            typeof submitRes.error === "object" && "message" in submitRes.error
+              ? String(submitRes.error.message)
+              : "Failed to finalize attempt";
+          toast.error("Could not complete attempt", { description: errorMsg });
         }
-      } else if (submitRes.error) {
-        const errorMsg =
-          typeof submitRes.error === "object" && "message" in submitRes.error
-            ? String(submitRes.error.message)
-            : "Failed to finalize attempt";
-        toast.error("Could not complete attempt", { description: errorMsg });
+      } catch (err: unknown) {
+        toast.error("Could not complete attempt", {
+          description: err instanceof Error ? err.message : "An unexpected error occurred",
+        });
+      } finally {
+        setIsSubmitting(false);
       }
-    } catch (err: unknown) {
-      toast.error("Could not complete attempt", {
-        description: err instanceof Error ? err.message : "An unexpected error occurred",
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  }, [currentAttemptId, isContinuous, lesson.id]);
+    },
+    [currentAttemptId, isContinuous, lesson.id],
+  );
 
   const handleRetry = () => {
     setReview(null);

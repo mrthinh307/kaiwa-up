@@ -3,6 +3,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, File, Form, Path, UploadFile, status
 
+from app.api.dependencies.ai import AiGatewayDep
 from app.api.dependencies.auth import CurrentUser
 from app.api.dependencies.database import DatabaseSession
 from app.repositories.recording import RecordingRepository
@@ -125,13 +126,15 @@ async def submit_attempt(
     payload: ShadowingSubmitRequest,
     current_user: CurrentUser,
     session: DatabaseSession,
+    ai_gateway: AiGatewayDep,
 ) -> ShadowingSubmitResponse:
-    service = ShadowingService(RecordingRepository(session))
+    service = ShadowingService(RecordingRepository(session), ai_gateway=ai_gateway)
     return await service.submit_attempt(
         user_id=current_user.id,
         content_id=content_id,
         attempt_id=payload.attempt_id,
         replay_count=payload.replay_count,
+        request_ai_review=payload.request_ai_review,
     )
 
 
@@ -150,8 +153,9 @@ async def get_attempt_review(
     attempt_id: Annotated[uuid.UUID, Path(description="Shadowing attempt ID")],
     current_user: CurrentUser,
     session: DatabaseSession,
+    ai_gateway: AiGatewayDep,
 ) -> ShadowingAttemptReviewResponse:
-    service = ShadowingService(RecordingRepository(session))
+    service = ShadowingService(RecordingRepository(session), ai_gateway=ai_gateway)
     return await service.get_attempt_review(
         user_id=current_user.id,
         attempt_id=attempt_id,

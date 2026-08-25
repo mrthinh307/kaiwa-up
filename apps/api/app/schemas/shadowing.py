@@ -39,12 +39,28 @@ class ShadowingRecordingPlaybackResponse(BaseModel):
 class ShadowingSubmitRequest(BaseModel):
     attempt_id: uuid.UUID
     replay_count: int = Field(default=0, ge=0)
+    request_ai_review: bool = Field(default=False)
 
 
 class ShadowingUserProgressSummary(BaseModel):
     total_exp: int
     current_level: int
     exp_to_next_level: int
+
+
+class ShadowingCorrection(BaseModel):
+    original: str
+    corrected: str
+    reason: str
+
+
+class ShadowingAiFeedback(BaseModel):
+    similarity_score: float | None = None
+    fluency_score: float | None = None
+    feedback: str | None = None
+    corrections: list[ShadowingCorrection] = Field(default_factory=list)
+    hints: list[str] = Field(default_factory=list)
+    user_transcript: str | None = None
 
 
 class ShadowingSubmitResponse(BaseModel):
@@ -57,6 +73,7 @@ class ShadowingSubmitResponse(BaseModel):
     message: str = "Bạn đã hoàn thành bài luyện."
     user_progress: ShadowingUserProgressSummary
     completed_at: datetime
+    ai_feedback: ShadowingAiFeedback | None = None
 
 
 class ShadowingSegmentReviewItem(BaseModel):
@@ -68,6 +85,8 @@ class ShadowingSegmentReviewItem(BaseModel):
     recording_id: uuid.UUID | None = None
     playback_url: str | None = None
     duration_seconds: int | None = None
+    user_transcript: str | None = None
+    similarity_score: float | None = None
 
 
 class ShadowingAttemptReviewResponse(BaseModel):
@@ -86,6 +105,8 @@ class ShadowingAttemptReviewResponse(BaseModel):
     material_duration_seconds: float | None = None
     user_continuous_recording_url: str | None = None
     user_continuous_duration_seconds: int | None = None
+    user_continuous_transcript: str | None = None
+    ai_feedback: ShadowingAiFeedback | None = None
     segments: list[ShadowingSegmentReviewItem]
 
 
