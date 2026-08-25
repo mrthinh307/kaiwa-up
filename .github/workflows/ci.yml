@@ -1,0 +1,103 @@
+# .github/workflows/ci.yml
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [dev, master]
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend (quality, migration, test, container)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: kaiwa_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d kaiwa_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    defaults:
+      run:
+        working-directory: apps/api
+    env:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/kaiwa_test
+      DATABASE_URL_TEST: postgresql+asyncpg://postgres:postgres@localhost:5432/kaiwa_test
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10.0.1
+        with:
+          python-version: "3.13"
+
+      - name: Install dependencies
+        run: uv sync --locked
+
+      - name: Lint (ruff)
+        run: uv run ruff check .
+
+      - name: Format check (ruff)
+        run: uv run ruff format --check .
+
+      - name: Type check (mypy)
+        run: uv run mypy
+
+      - name: Run migration on local PostgreSQL
+        run: uv run alembic upgrade head
+
+      - name: Run tests in parallel
+        run: uv run pytest -n 4 --dist loadfile --durations=20
+
+      - name: Build production container
+        run: docker build --tag kaiwa-api:ci .
+
+  frontend:
+    name: Frontend (quality, contract, build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10.0.1
+        with:
+          python-version: "3.13"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install backend dependencies for API contract check
+        run: uv --directory apps/api sync --locked
+
+      - name: Lint
+        run: pnpm lint:web
+
+      - name: Type check
+        run: pnpm --filter web typecheck
+
+      - name: Verify generated API client
+        run: pnpm check:api-client
+
+      - name: Format check (prettier)
+        run: pnpm format:check
+
+      - name: Production build
+        run: pnpm build:web

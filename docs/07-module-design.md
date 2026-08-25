@@ -149,7 +149,7 @@ Quan hệ chi tiết được trình bày theo từng luồng nghiệp vụ đ�
 | Luồng nghiệp vụ       | Các module phối hợp                                          | Cách phối hợp                                                                |
 | --------------------- | ------------------------------------------------------------ | ----------------------------------------------------------------------------- |
 | Đăng ký tài khoản     | Auth, User/Profile                                           | Auth tạo tài khoản; User/Profile tạo hồ sơ ban đầu                            |
-| Chuẩn bị bài học      | Learning Content, Media/Storage                              | Content quản lý đề/transcript; Media cung cấp URL audio Cloudinary            |
+| Chuẩn bị bài học      | Learning Content, Media/Storage                              | Content quản lý đề/transcript; Media cung cấp URL video YouTube                |
 | Luyện Shadowing       | Shadowing, Content, Media, Progress, AI Gateway              | Tải bài/audio, xử lý bản ghi tạm, đánh giá tùy chọn và ghi kết quả            |
 | Luyện Dictation       | Dictation, Content, Media, Progress                          | Tải đề/audio, chấm đáp án ở backend và ghi kết quả                            |
 | Luyện phản xạ         | Reflex, Content, Media, Progress, AI Gateway, Review         | Tải prompt, xử lý audio tạm, đánh giá phản hồi và yêu cầu cập nhật lịch ôn    |
@@ -204,7 +204,7 @@ hợp. Repository chỉ ghi dữ liệu theo yêu cầu và không tự `commit(
 | Auth                          | P0          | Đăng ký, đăng nhập, đăng xuất và xác thực JWT           | Credential và trạng thái JWT nếu cần         |
 | User / Profile                | P0          | Hồ sơ và thông tin công khai của người học              | User profile                                  |
 | Learning Content              | Hỗ trợ P0   | Nội dung, cấu trúc và đáp án bài luyện                  | Lesson, exercise, prompt, answer              |
-| Media / Storage               | Hỗ trợ P0   | Audio bài học trên Cloudinary và audio người dùng tạm   | File Cloudinary; không lưu audio người dùng   |
+| Media / Storage               | Hỗ trợ P0   | Video YouTube cho bài học và audio người dùng tạm       | URL YouTube; không lưu BLOB trong PostgreSQL  |
 | Shadowing                     | P0          | Luồng luyện nghe, ghi âm và tự so sánh                  | Kết quả riêng của Shadowing                   |
 | Dictation                     | P0          | Điền nội dung còn thiếu và chấm đáp án                  | Kết quả riêng của Dictation                   |
 | Progress / Attempt            | P0          | Lịch sử làm bài, completion và tiến độ                  | Attempt, completion, learning progress        |
@@ -321,57 +321,56 @@ Do MVP chưa có giao diện quản trị, nội dung có thể được tạo b
 
 ### 6.5. Media / Storage
 
-**Mục tiêu:** quản lý hai lifecycle khác nhau: audio bài học được lưu lâu dài trên Cloudinary và audio
-người dùng chỉ tồn tại tạm thời để xử lý.
+**Mục tiêu:** quản lý hai lifecycle khác nhau: media bài học được phát từ YouTube, còn audio người
+dùng được lưu tạm hoặc trong private object storage theo chính sách lưu trữ recording.
 
 Backend — audio bài học:
 
-- Cloudinary lưu file audio bài học và cung cấp URL phát audio.
+- YouTube lưu video nguồn và cung cấp URL dùng để phát audio bài học.
 - PostgreSQL lưu `audio_url` cùng nội dung bài học; không lưu binary audio.
 - Seed script chịu trách nhiệm liên kết `audio_url` với lesson/exercise và tránh tạo dữ liệu trùng.
 - Backend trả URL cho frontend; không cần proxy file trong luồng phát audio thông thường.
 
 Frontend:
 
-- Tải và phát audio bài học trực tiếp từ URL Cloudinary do API trả về.
+- Phát audio bài học qua YouTube player từ URL do API trả về.
 - Xin quyền microphone, hiển thị rõ trạng thái ghi âm và giữ bản ghi dưới dạng `Blob` trong phiên hiện
   tại để người dùng phát lại.
-- Gửi audio tạm tới FastAPI khi cần AI xử lý; không chứa Cloudinary/AI credential.
+- Gửi audio tạm tới FastAPI khi cần AI xử lý; không chứa YouTube/AI credential.
 
-Sở hữu: integration Cloudinary cho audio bài học và lifecycle file tạm của audio người dùng. Learning
-Content sở hữu quan hệ giữa lesson/exercise và `audio_url`; không có persistent media record cho bản
-ghi người dùng.
+Sở hữu: integration YouTube cho media bài học và lifecycle audio người dùng. Learning Content sở hữu
+quan hệ giữa lesson/exercise và `audio_url`; bảng `recordings` sở hữu metadata và `storage_key` của
+bản ghi người dùng, không lưu binary audio trong PostgreSQL.
 
-Phụ thuộc: Cloudinary cho audio bài học và filesystem/temp-file abstraction cho audio người dùng.
+Phụ thuộc: YouTube cho audio bài học và temp-file/private object-storage abstraction cho audio người dùng.
 Learning Content, Shadowing, Reflex và Listening & Translation sử dụng module này.
 
 ### 6.6. Shadowing
 
-**Mục tiêu:** điều phối trải nghiệm nghe, đọc đuổi theo, ghi âm và so sánh.
+**Mục tiêu:** điều phối trải nghiệm nghe, đọc đuổi theo, ghi âm đa chế độ (Dual-Mode: Segment-by-Segment & Continuous), khôi phục phiên dở dang và tự so sánh giọng nói.
 
 Backend:
 
-- Lấy bài Shadowing đã publish từ Learning Content.
-- Xác thực quyền truy cập bài học.
-- Nhận audio người dùng dưới dạng file tạm khi cần đánh giá; không lưu tham chiếu bản ghi lâu dài.
-- Xác định điều kiện hoàn thành Shadowing cơ bản.
-- Gửi kết quả hoàn thành sang Progress/Attempt.
-- Với P1, yêu cầu AI Gateway đánh giá khi tính năng được bật; lỗi AI không làm mất khả năng tự so
-  sánh hoặc kết quả luyện cơ bản.
-- Với P2, có thể gọi Pronunciation Analysis để phân tích ngữ điệu, trọng âm, nhịp điệu và độ chính
-  xác từng âm.
+- Cung cấp API chi tiết bài học (`GET /{content_id}`) kèm transcript phân đoạn và API khôi phục phiên (`GET /{content_id}/in-progress`).
+- Hỗ trợ ghi âm từng câu (`POST /{content_id}/record-segment`) và ghi âm liên tục (`POST /{content_id}/record-continuous`).
+- Lưu trữ bản ghi âm người dùng lâu dài trên Storage Service và liên kết vào bảng `recordings` (`kind="SHADOWING"`, `attempt_id`, `storage_key`, `duration_seconds`).
+- Chấm điểm bài học và nộp bài (`POST /{content_id}/submit`):
+  - Chế độ Segment: Tính theo tỷ lệ câu hoàn thành (`completed_segments / total_segments * 100`).
+  - Chế độ Continuous: Tính theo tỷ lệ thời lượng thực hành (`duration / total_duration * 100`).
+  - Cấp thưởng EXP qua `GamificationService` (Base 15 EXP, First-time bonus +10 EXP, High-score bonus +5 EXP, trừ nhẹ khi nghe lại).
+- Cung cấp API Review (`GET /attempts/{attempt_id}/review`) sinh playback URL cho từng bản ghi âm và audio bài học gốc.
 
 Frontend:
 
-- Sở hữu route danh sách và chi tiết bài Shadowing.
-- Điều phối audio gốc, ẩn/hiện transcript, microphone, ghi âm và phát lại.
-- Giữ state phát/ghi âm cục bộ trong feature.
-- Hiển thị fallback tự so sánh khi AI không khả dụng.
+- Sở hữu route danh sách bài học và workstation Shadowing tại `apps/web/src/app/(protected)/shadowing/`.
+- Module hóa các component: `ShadowingStartPanel`, `CompactShadowingToolbar`, `AudioPlayerCard`, `RecorderCard`, `TranscriptCard`, `ShadowingSettingsSheet`, `ShadowingResult`.
+- Điều phối âm lượng thực tế của player (100% on-load) và đồng bộ highlight câu đang phát (`Speaking`) với video theo thời gian thực.
+- Hỗ trợ hệ thống phím tắt (`useShadowingShortcuts`): `Space` (Play/Pause), `R` (Toggle Record), `←` / `→` (Previous/Next Segment).
+- Màn hình Review 2 cột cuộn độc lập (`ScrollArea`) giúp người dùng nghe lại câu gốc và câu ghi âm để tự đối chiếu ngữ điệu.
 
-Sở hữu: rule hoàn thành và kết quả chuyên biệt của Shadowing. Attempt chung thuộc Progress; audio
-người dùng chỉ là file tạm do Media quản lý; lesson/transcript thuộc Learning Content.
+Sở hữu: rule thực hành kép, lưu trữ recording, tính điểm và review của Shadowing. Attempt chung thuộc Progress/`exercise_attempts`, được phân biệt bằng `practice_method`; audio bài học thuộc Learning Content.
 
-Phụ thuộc: Auth/User, Learning Content, Media/Storage, Progress/Attempt và AI Gateway ở P1.
+Phụ thuộc: Auth/User, Learning Content, Media/Storage, Progress/Attempt và Gamification.
 
 ### 6.7. Dictation
 
@@ -429,20 +428,9 @@ Backend P0:
 - Bảo đảm một sự kiện hoàn thành không được cộng EXP hai lần.
 - Quản lý tập trung cơ chế EXP riêng của từng loại bài; module luyện tập chỉ gửi reward context đã
   chuẩn hóa, không tự cập nhật EXP.
-- Tính tổng EXP và level theo bảng mốc cố định đã chốt:
-
-| Level | Tổng EXP tối thiểu |
-| ----: | -----------------: |
-|     1 |                  0 |
-|     2 |                100 |
-|     3 |                250 |
-|     4 |                450 |
-|     5 |                700 |
-|     6 |              1.000 |
-|     7 |              1.400 |
-|     8 |              1.900 |
-|     9 |              2.500 |
-|    10 |              3.200 |
+- Tính level không giới hạn bằng công thức: từ level `L` lên `L+1` cần `50 × L` EXP; tổng EXP tối
+  thiểu của level `L` là `25 × L × (L-1)`.
+- Khóa dòng `user_progress` khi cấp thưởng để các attempt đồng thời không ghi đè tổng EXP của nhau.
 
 Backend P1:
 
@@ -577,10 +565,10 @@ Backend:
 
 ```text
 weekly_exp DESC
-→ reached_exp_at ASC
+→ user_id ASC
 ```
 
-- Người có EXP tuần cao hơn đứng trước; nếu bằng điểm, người đạt mức EXP đó sớm hơn đứng trước.
+- Người có EXP tuần cao hơn đứng trước; nếu bằng điểm, sắp `user_id ASC` trước khi gán rank.
 - Trả thứ hạng, tên hiển thị, avatar nếu có, EXP tuần và vị trí của người dùng hiện tại.
 - MVP có thể tính trực tiếp từ EXP ledger; chưa cần Redis hoặc cache riêng.
 
@@ -624,19 +612,27 @@ giá câu trả lời tự do bằng AI.
 
 Backend:
 
-- Tạo/kết thúc conversation và lưu message theo đúng thứ tự.
-- Nhận câu trả lời dạng text; dạng voice dùng Media file tạm và AI Gateway Speech-to-Text khi được bật.
-- Gửi context cần thiết qua AI Gateway, chuẩn hóa phản hồi và lưu lịch sử nếu feature cho phép.
+- Tạo conversation và lưu message theo đúng thứ tự.
+- Xóa conversation thuộc user hiện tại cùng toàn bộ message liên quan.
+- Tạo conversation từ topic/difficulty bắt buộc và scenario tùy chọn do user nhập.
+- Phase 2 chỉ nhận câu trả lời dạng text; voice dùng Media file tạm và Speech-to-Text ở giai đoạn sau.
+- Gửi context giới hạn qua AI Gateway, chuẩn hóa message tiếng Nhật và `text_meaning` theo ngôn ngữ
+  được chọn.
+- Cho phép user chọn ngôn ngữ giải thích feedback (`vi`, `en`, `ja`) và lưu lựa chọn này theo
+  conversation; `text_meaning.language` của message và answer hint phải khớp lựa chọn đó.
+- Chuẩn hóa feedback bằng structured schema; backend validate `explanation_language`, cấu trúc JSON
+  và quy tắc follow-up question, sau đó repair provider response tối đa một lần.
 - Kiểm tra ownership của conversation và giới hạn context để kiểm soát chi phí/token.
-- Xác định timeout, retry và trạng thái lỗi mà không làm mất message đã được ghi nhận hợp lệ.
+- Dùng `client_message_id` để retry không tạo user message trùng.
+- Xác định timeout, retry và trạng thái lỗi mà không làm mất user message đã được ghi nhận hợp lệ.
 
 Frontend:
 
-- Sở hữu route `/ai-tutor`, màn hình chọn chủ đề/độ khó và giao diện hội thoại.
+- Sở hữu route `/ai-tutor`, form nhập topic, chọn difficulty, nhập scenario tùy chọn và giao diện hội thoại.
 - Hiển thị trạng thái AI đang xử lý, lỗi có thể thử lại và lịch sử phiên.
 - Không gọi trực tiếp AI provider hoặc chứa API key.
 
-Sở hữu: conversation, message, topic, difficulty và normalized tutor feedback.
+Sở hữu: conversation, message, topic, difficulty, scenario, status và normalized tutor feedback.
 
 Phụ thuộc: Auth/User, AI Gateway và Media/Storage nếu hỗ trợ voice.
 
@@ -762,7 +758,7 @@ Model không chứa HTTP concern. Business rule liên quan nhiều aggregate ho�
 
 ### 7.7. Integration port và adapter
 
-Khi triển khai AI và Cloudinary, thêm boundary rõ ràng, ví dụ:
+Khi triển khai AI và YouTube, thêm boundary rõ ràng, ví dụ:
 
 ```text
 app/
@@ -772,13 +768,13 @@ app/
     │   └── provider.py      # SDK-specific adapter
     └── storage/
         ├── base.py
-        └── cloudinary.py    # Adapter cho audio bài học
+        └── youtube.py       # Adapter/validation cho URL media bài học
 ```
 
 - Service phụ thuộc interface/port, không phụ thuộc SDK class cụ thể.
 - Adapter chịu trách nhiệm authentication với provider, timeout, serialization và mapping lỗi.
 - Dependency/app factory chọn implementation theo cấu hình môi trường.
-- File audio người dùng tạm không đi qua Cloudinary adapter; dùng temp-file abstraction có cleanup
+- File audio người dùng tạm không đi qua YouTube adapter; dùng temp-file abstraction có cleanup
   bắt buộc sau khi AI xử lý.
 
 ## 8. Tổ chức module frontend
@@ -944,7 +940,7 @@ Các boundary cần ưu tiên test:
 - Shadowing/Reflex vẫn có fallback khi AI lỗi.
 - Audio người dùng được xóa cả khi AI thành công, timeout hoặc trả lỗi.
 - Review schedule chỉ lấy dữ liệu của người dùng hiện tại và ánh xạ đúng các ngưỡng điểm đã chốt.
-- Leaderboard chỉ tính EXP đúng khoảng tuần và sắp xếp tie theo `reached_exp_at ASC`.
+- Leaderboard chỉ tính EXP đúng khoảng tuần và phá hòa theo `user_id ASC`.
 - AI Tutor không cho người dùng đọc hoặc gửi message vào conversation của người khác.
 
 Kế hoạch và công cụ test chi tiết thuộc `10-testing-plan.md`.

@@ -22,7 +22,7 @@ Mục tiêu:
 | Backend               | FastAPI                             |
 | Database              | PostgreSQL                          |
 | Database Cloud        | Neon                                |
-| Lưu trữ audio bài học | Cloudinary                          |
+| Nguồn audio bài học | YouTube (cho shadowing/dictation), Cloudinary (cho reflex)                                |
 | Xử lý AI              | Chưa chốt nhà cung cấp hoặc mô hình |
 | Xác thực              | JWT                                 |
 | Triển khai Frontend   | Chưa chốt                           |
@@ -39,7 +39,7 @@ KaiwaUp sử dụng kiến trúc client-server.
 * **Next.js** chịu trách nhiệm xây dựng giao diện và xử lý tương tác của người dùng.
 * **FastAPI** chịu trách nhiệm xử lý nghiệp vụ, xác thực, quản lý dữ liệu và tích hợp AI.
 * **PostgreSQL trên Neon** lưu dữ liệu nghiệp vụ.
-* **Cloudinary** lưu audio của các bài học.
+* **YouTube** lưu video nguồn dùng để phát audio của các bài học.
 * Dịch vụ AI xử lý Speech-to-Text và đánh giá câu trả lời.
 
 ```mermaid
@@ -52,7 +52,7 @@ flowchart LR
 
     DB[(PostgreSQL<br/>Neon)]
 
-    CL[Cloudinary]
+    YT[YouTube]
 
     AI[AI Services]
 
@@ -62,7 +62,7 @@ flowchart LR
 
     BE -->|SQLAlchemy| DB
 
-    FE -->|Tải audio bài học| CL
+    FE -->|YouTube player| YT
 
     FE -->|Gửi audio tạm thời| BE
 
@@ -82,7 +82,7 @@ Frontend chịu trách nhiệm:
 * Quản lý trạng thái giao diện.
 * Gửi yêu cầu đến FastAPI.
 * Hiển thị dữ liệu nhận được từ backend.
-* Phát audio bài học từ Cloudinary.
+* Phát audio bài học bằng YouTube player từ URL do API trả về.
 * Xin quyền truy cập microphone.
 * Ghi âm giọng nói của người dùng.
 * Phát lại bản ghi âm tạm thời.
@@ -156,15 +156,16 @@ PostgreSQL không lưu:
 
 ---
 
-## 4.4. Cloudinary
+## 4.4. YouTube
 
-Cloudinary được sử dụng để lưu trữ audio bài học.
+YouTube được sử dụng làm nguồn media cho audio bài học. `learning_contents.audio_url` lưu URL video
+YouTube, không phải URL file `.mp3` trực tiếp.
 
-Cloudinary chịu trách nhiệm:
+YouTube chịu trách nhiệm:
 
-* Lưu file audio của các bài học.
-* Cung cấp URL để phát audio.
-* Phân phối audio cho frontend.
+* Lưu video nguồn của các bài học.
+* Cung cấp URL video để phát phần âm thanh.
+* Phân phối media cho frontend qua YouTube player.
 
 PostgreSQL chỉ lưu thông tin tham chiếu:
 
@@ -175,12 +176,13 @@ audio_url
 Ví dụ:
 
 ```text
-https://res.cloudinary.com/<cloud-name>/video/upload/lesson-01.mp3
+https://www.youtube.com/watch?v=<video_id>
 ```
 
-Frontend có thể tải và phát audio trực tiếp từ Cloudinary.
+Frontend phát nội dung qua YouTube IFrame Player hoặc thư viện player tương thích; không truyền URL
+YouTube trực tiếp cho thẻ HTML `<audio>`.
 
-Backend không cần tải lại audio từ Cloudinary trong các trường hợp phát bài học thông thường.
+Backend không proxy luồng media YouTube trong trường hợp phát bài học thông thường.
 
 ---
 
@@ -439,60 +441,69 @@ Thiết kế module frontend chi tiết được mô tả trong `07-module-desig
 sequenceDiagram
     participant U as User
     participant FE as Next.js
-    participant CL as Cloudinary
+    participant YT as YouTube
     participant BE as FastAPI
-    participant AI as AI Service
+    participant Storage as Local / Cloud Storage
     participant DB as Neon PostgreSQL
 
     U->>FE: Mở bài Shadowing
+    FE->>BE: GET /api/v1/shadowing/{content_id} & /in-progress
+    BE->>DB: Truy vấn learning_content & in-progress attempt theo practice_method
+    DB-->>BE: Dữ liệu bài học + transcript + in-progress state
+    BE-->>FE: Transcript, audio_url, và trạng thái attempt dở dang
 
-    FE->>BE: Lấy thông tin bài học
+    alt Chọn chế độ & Bắt đầu
+        U->>FE: Chọn Continuous hoặc Segment-by-Segment (hoặc Resume)
+        FE->>YT: Đồng bộ YouTube audio & volume (100%)
+    end
 
-    BE->>DB: Truy vấn bài học
+    alt Chế độ Segment-by-Segment
+        loop Từng câu (Segment)
+            U->>FE: Bấm Record Segment #i (hoặc phím R)
+            FE->>FE: Ghi âm giọng nói qua MediaRecorder
+            U->>FE: Bấm Stop Recording (hoặc phím R)
+            FE->>BE: POST /api/v1/shadowing/{content_id}/record-segment
+            BE->>Storage: Lưu file audio (storage_key)
+            BE->>DB: Lưu recordings (kind="SHADOWING") & cập nhật attempt payload
+            DB-->>BE: Recording đã lưu
+            BE-->>FE: Cập nhật trạng thái câu #i đã ghi âm
+        end
+    else Chế độ Continuous
+        U->>FE: Bấm Start Continuous Recording (hoặc phím R)
+        FE->>YT: Phát audio bài học từ đầu
+        FE->>FE: Ghi âm liên tục toàn bộ bài
+        U->>FE: Bấm Stop Recording (hoặc phím R)
+        FE->>BE: POST /api/v1/shadowing/{content_id}/record-continuous
+        BE->>Storage: Lưu file audio toàn bài
+        BE->>DB: Lưu recordings & cập nhật attempt payload
+        BE-->>FE: Lưu bản ghi liên tục thành công
+    end
 
-    DB-->>BE: Dữ liệu bài học
+    U->>FE: Bấm Finish / Hoàn thành bài
+    FE->>BE: POST /api/v1/shadowing/{content_id}/submit
+    BE->>BE: Tính điểm (theo tỷ lệ segment hoặc thời lượng continuous)
+    BE->>BE: Tính thưởng EXP (Base 15 EXP, First-time bonus +10, High-score bonus)
+    BE->>DB: Cập nhật status="completed", lưu xp_transactions
+    BE-->>FE: Kết quả điểm số, EXP nhận được
 
-    BE-->>FE: Transcript và audio_url
-
-    FE->>CL: Tải audio
-
-    CL-->>FE: Audio bài học
-
-    U->>FE: Bắt đầu ghi âm
-
-    U->>FE: Nhấn Stop Recording
-
-    FE->>FE: Kiểm tra thời lượng bản ghi
-
-    FE->>BE: Gửi audio tạm thời
-
-    BE->>AI: Chuyển audio thành text
-
-    AI-->>BE: Transcript người dùng
-
-    BE->>AI: Đánh giá mức độ khớp
-
-    AI-->>BE: Điểm và nhận xét
-
-    BE->>BE: Tính mức độ hoàn thành
-
-    BE->>BE: Tính EXP
-
-    BE->>DB: Lưu kết quả và EXP
-
-    BE-->>FE: Trả kết quả
-
-    FE-->>U: Hiển thị điểm và nhận xét
+    FE->>BE: GET /api/v1/shadowing/attempts/{attempt_id}/review
+    BE->>Storage: Sinh URL phát lại (playback_url) cho từng bản ghi
+    BE-->>FE: Dữ liệu Review (Audio gốc + Bản ghi người dùng theo từng câu/toàn bài)
+    FE-->>U: Hiển thị màn hình Review so sánh 2 cột cuộn mượt mà
 ```
 
-Quy tắc MVP:
+Quy tắc thực hành và chấm điểm Shadowing:
 
-* Một câu Shadowing được tính là hoàn thành khi người dùng nhấn **Stop Recording**.
-* Bản ghi phải có thời lượng lớn hơn **2 giây**.
-* Số câu hoàn thành được dùng để tính tỷ lệ hoàn thành.
-* EXP được tính theo cơ chế riêng của Shadowing.
-* Audio của người dùng chỉ được xử lý tạm thời và bị xóa sau khi hoàn thành xử lý.
-* Bản ghi vẫn có thể được giữ trong bộ nhớ trình duyệt để người dùng phát lại trong phiên hiện tại.
+* **Dual-Mode**:
+  * **Segment-by-Segment**: Người dùng chọn từng câu, nghe và ghi âm riêng cho từng segment. Điểm số = `(số câu đã ghi âm / tổng số câu) * 100`.
+  * **Continuous Shadowing**: Người dùng nghe và đọc đuổi liên tục từ đầu đến cuối một lần duy nhất. Điểm số = `min(100.0, (thời lượng ghi âm / tổng thời lượng bài học) * 100)`.
+* **Lưu trữ bản ghi**: Các bản ghi âm của người dùng được lưu trữ qua Storage Service và gắn liên kết với bảng `recordings` (loại `SHADOWING`, có `storage_key`, `duration_seconds`, `attempt_id`).
+* **Tính điểm và EXP**:
+  * EXP cơ bản: 15 EXP khi hoàn thành bài.
+  * Thưởng lần đầu hoàn thành: +10 EXP.
+  * Thưởng điểm cao (Score >= 80%): +5 EXP.
+  * Khấu trừ nghe lại (Replay penalty): Giảm dần nếu nghe lại nhiều lần.
+* **Màn hình Review**: Cung cấp giao diện so sánh 2 cột với danh sách câu cuộn độc lập (`ScrollArea`), cho phép nghe lại audio gốc và nghe lại từng đoạn giọng nói của người dùng để tự đối chiếu ngữ điệu.
 
 ---
 
@@ -540,6 +551,12 @@ Quy tắc MVP:
 * Không tính lại số lần làm lại vào tỷ lệ hoàn thành ban đầu.
 * Tỷ lệ hoàn thành được tính dựa trên số câu đã được submit so với tổng số câu.
 * EXP được tính theo tỷ lệ hoàn thành và cơ chế riêng của Dictation.
+  * `0%`: `0 EXP`.
+  * Trên `0%` và dưới `5%`: `5 EXP`.
+  * Từ `5%` đến dưới `25%`: `15 EXP`.
+  * Từ `25%` đến dưới `50%`: `25 EXP`.
+  * Từ `50%` đến dưới `75%`: `40 EXP`.
+  * Từ `75%` trở lên: `50 EXP`.
 * Kết quả kiểm tra đáp án được lưu để hiển thị lại cho người dùng.
 
 ---
@@ -650,7 +667,8 @@ Bảng trên là cấu hình ban đầu và có thể thay đổi sau khi thử 
 * Frontend chỉ hiển thị EXP nhận được.
 * Không tin dữ liệu EXP do frontend gửi lên.
 * Mỗi lần cộng EXP phải được lưu lịch sử.
-* Cơ chế tính EXP chi tiết sẽ được xác định sau.
+* Mỗi attempt hoàn thành chỉ tạo tối đa một bút toán EXP; tổng EXP được cập nhật dưới khóa dòng để
+  tránh lost update khi nhiều attempt hoàn thành đồng thời.
 
 ---
 
@@ -662,7 +680,7 @@ Bảng trên là cấu hình ban đầu và có thể thay đổi sau khi thử 
 | Dictation      | Số câu đã Submit lần đầu chia cho tổng số câu |
 | Phản xạ 3 giây | Câu được hoàn thành lần đầu                   |
 | Nghe và dịch   | Số câu đã Submit lần đầu chia cho tổng số câu |
-| AI Tutor       | Chưa thuộc phạm vi MVP                        |
+| AI Tutor       | Conversation/message history; không có EXP hoặc lesson completion trong Phase 2 |
 
 Bản ghi Shadowing hợp lệ khi:
 
@@ -676,26 +694,9 @@ Thời lượng bản ghi > 2 giây
 
 ## 11.3. Cấp độ
 
-Cấp độ được xác định dựa trên tổng EXP.
-
-MVP sử dụng bảng mốc EXP cố định.
-
-Ví dụ:
-
-| Level | Tổng EXP tối thiểu |
-| ----: | -----------------: |
-|     1 |                  0 |
-|     2 |                100 |
-|     3 |                250 |
-|     4 |                450 |
-|     5 |                700 |
-|     6 |              1.000 |
-|     7 |              1.400 |
-|     8 |              1.900 |
-|     9 |              2.500 |
-|    10 |              3.200 |
-
-Bảng mốc EXP có thể được lưu trong database hoặc cấu hình tại backend.
+Cấp độ được xác định trực tiếp từ tổng EXP, không dùng bảng mốc và không có giới hạn level được
+định nghĩa trước. Từ level `L` lên `L+1` cần `50 × L` EXP; tổng EXP tối thiểu của level `L` là
+`25 × L × (L-1)`. Backend là nguồn tính toán có thẩm quyền; frontend chỉ hiển thị kết quả API.
 
 ---
 
@@ -707,13 +708,13 @@ Thứ tự sắp xếp:
 
 ```text
 weekly_exp DESC
-→ reached_exp_at ASC
+→ user_id ASC
 ```
 
 Quy tắc:
 
 1. Người có EXP tuần cao hơn đứng trước.
-2. Nếu bằng EXP, người đạt mức EXP đó sớm hơn đứng trước.
+2. Nếu bằng EXP, sắp `user_id` tăng dần trước khi gán rank để kết quả có thể tái tạo.
 
 Dữ liệu leaderboard có thể được tính trực tiếp từ lịch sử EXP trong MVP.
 
@@ -742,15 +743,15 @@ backend/
 │   └── listening_translation.json
 │
 └── scripts/
-    └── seed_database.py
+    └── seed_data.py
 ```
 
 Quy trình thêm bài học:
 
 ```text
-Thêm audio lên Cloudinary
+Đăng video nguồn lên YouTube
         ↓
-Lấy audio_url
+Lấy URL video YouTube làm audio_url
         ↓
 Thêm nội dung bài học vào file JSON
         ↓
@@ -839,9 +840,7 @@ Các thông tin sau phải lưu trong biến môi trường:
 DATABASE_URL
 JWT_SECRET_KEY
 AI_API_KEY
-CLOUDINARY_CLOUD_NAME
-CLOUDINARY_API_KEY
-CLOUDINARY_API_SECRET
+YOUTUBE_API_KEY
 ```
 
 Không được:
@@ -879,23 +878,29 @@ Khi đó có thể bổ sung một `PronunciationAnalysisService` riêng mà kh�
 
 ## 16.2. AI Tutor
 
-AI Tutor chưa được phát triển trong MVP.
+AI Tutor được triển khai ở Phase 2 dưới dạng text-only. Voice input chưa thuộc contract hiện tại.
 
-Trong tương lai có thể bổ sung:
+Các thành phần chính:
 
 ```text
-AITutorService
-ConversationService
-ConversationRepository
+AI Tutor Router
+    ↓
+TutorService → TutorRepository → tutor_sessions / tutor_messages
+    ↓
+AI Gateway interface → provider adapter
 ```
 
-AI Tutor có thể hỗ trợ:
+Luồng backend:
 
-* Hội thoại bằng văn bản.
-* Hội thoại bằng giọng nói.
-* Nhận xét ngữ pháp.
-* Gợi ý cách diễn đạt tự nhiên.
-* Lưu lịch sử hội thoại.
+1. Router xác thực user, parse request và gọi `TutorService`.
+2. Service validate topic/difficulty bắt buộc và scenario tùy chọn do user nhập rồi tạo conversation.
+3. Service gửi prompt/context giới hạn qua AI Gateway; provider không được lộ ra frontend.
+4. Service chuẩn hóa reply, correction, natural expression và tối đa 3 `answer_hints`.
+5. Repository lưu message theo `sequence_number`; `client_message_id` dùng để retry idempotent.
+6. User chỉ được đọc hoặc gửi message trong conversation của chính mình.
+
+Nếu AI Gateway timeout hoặc chưa sẵn sàng, API trả `503 service_unavailable`; user message đã được
+ghi nhận không bị mất và frontend có thể retry bằng cùng `client_message_id`.
 
 ---
 
@@ -928,17 +933,17 @@ Tính năng này cần bổ sung:
 | Tổ chức frontend   | App Router, route-first colocation và private folder   |
 | Backend            | FastAPI                                                |
 | Database           | PostgreSQL trên Neon                                   |
-| Audio bài học      | Cloudinary                                             |
+| Audio bài học      | Video YouTube, phát qua YouTube player                 |
 | Audio người dùng   | Xử lý tạm thời và xóa sau khi xử lý                    |
 | Shadowing MVP      | Speech-to-Text → so sánh nội dung → AI nhận xét        |
 | Shadowing nâng cao | Phân tích ngữ điệu, ngữ âm và nhấn nhá trong tương lai |
 | Phản xạ 3 giây     | AI chấm điểm và đưa nhận xét                           |
 | Lặp lại ngắt quãng | Xác định lịch ôn dựa trên điểm AI                      |
-| AI Tutor           | Chưa phát triển trong MVP                              |
+| AI Tutor           | Phase 2 text-only; deploy bị block bởi issue #88       |
 | EXP                | Mỗi chức năng có cơ chế tính riêng                     |
-| Level              | Dựa trên tổng EXP và bảng mốc cố định                  |
+| Level              | Công thức tăng dần `50 × level hiện tại`, không có trần |
 | Leaderboard        | Dựa trên EXP theo tuần                                 |
-| Khi bằng EXP       | Người đạt mốc EXP sớm hơn đứng trước                   |
+| Khi bằng EXP       | Sắp `user_id ASC` trước khi gán rank                   |
 | Nội dung bài học   | JSON + seed script                                     |
 | Admin UI           | Không thuộc phạm vi MVP                                |
 | Cache              | Chưa sử dụng Redis trong MVP                           |
@@ -957,3 +962,90 @@ Các nội dung sau sẽ được làm rõ trong các tài liệu tiếp theo:
 * Nhà cung cấp hoặc mô hình AI.
 * Nền tảng triển khai frontend và backend.
 * Quy tắc xử lý lỗi và retry khi dịch vụ AI không phản hồi.
+
+# 19. AI Gateway
+
+AI Gateway cô lập provider AI/STT khỏi business module. Reflex, Tutor, Translation và STT service chỉ
+phụ thuộc interface `AiGateway`; việc chọn provider, xây prompt, giới hạn và chuẩn hóa kết quả được
+quản lý tập trung. API key chỉ tồn tại ở backend (`.env`), không xuất hiện trong business module và
+không bị log dưới mọi hình thức.
+
+```mermaid
+flowchart TD
+    A[Reflex Service] --> E[AI Gateway Interface]
+    B[Tutor Service] --> E
+    C[Translation Service] --> E
+    D[STT Service] --> E
+
+    E --> F[Prompt Manager]
+    E --> G[Token / Usage Limiter]
+    E --> H[Concurrency Limiter]
+    E --> I[Timeout + Retry + Backoff]
+    E --> J[Response Validator]
+    E --> K[Provider Adapter]
+
+    K --> L[Provider A]
+    K --> M[Provider B]
+    K --> O[Fake Adapter]
+```
+
+Trách nhiệm từng thành phần:
+
+- **Prompt Manager**: xây dựng prompt riêng cho Reflex, Translation và AI Tutor.
+- **Token / Usage Limiter**: giới hạn token mỗi request, budget theo window và số lần gọi mỗi user.
+- **Concurrency Limiter**: giới hạn số gọi AI song song toàn cục và trên mỗi user.
+- **Timeout + Retry + Backoff**: retry có giới hạn với backoff; chỉ retry timeout, 429, 5xx hoặc lỗi
+  kết nối.
+- **Response Validator**: chuẩn hóa transcript, score, feedback, correction, hints về contract nội bộ.
+- **Provider Adapter**: cô lập SDK/HTTP và payload riêng của từng provider; cho phép đổi provider hoặc
+  dùng Fake Adapter khi test mà không sửa business service.
+
+Provider được chọn theo cấu hình (STT và LLM có thể dùng provider khác nhau); khi provider không khả
+dụng có thể fallback sang provider khác.
+
+### 19.1. Cấu trúc code
+
+AI Gateway nằm trong `apps/api/app/integrations/ai/`, chia theo chức năng:
+
+```text
+integrations/ai/
+├── __init__.py          # export public + FallbackAiGateway + RoutedAiGateway + build_ai_gateway(settings)
+├── base.py              # interface chung AiGateway (STT, Reflex, Shadowing, Translation, Tutor) + AiProviderConfig + HTTP helpers
+├── contracts.py         # contract chuẩn hóa: transcript, score, feedback, correction, hints + parser
+├── policy.py            # timeout, retry giới hạn, backoff
+├── prompts/             # prompt theo từng chức năng
+│   ├── common.py        # prompt chung: JSON schema chuẩn + persona + helper build_json_instruction
+│   ├── speech2text.py   # build_stt_instruction
+│   ├── reflex.py        # build_reflex_eval_prompt
+│   ├── shadowing.py     # build_shadowing_eval_prompt
+│   ├── translation.py   # build_translation_eval_prompt
+│   └── tutor.py         # build_tutor_messages
+└── providers/           # adapter provider (dùng httpx, không dùng SDK)
+    ├── base.py          # BaseAiGateway: triển khai chung mọi LLM capability qua _chat/transcribe
+    ├── openai.py        # OpenAiProviderConfig + OpenAiCompatibleAiGateway (OpenAI, Groq, ...)
+    └── fake.py          # FakeAiGateway cho dev/test
+```
+
+- **Interface chung**: business module chỉ phụ thuộc protocol `AiGateway` (5 capability: `transcribe`,
+  `evaluate_reflex`, `evaluate_shadowing`, `evaluate_translation`, `generate_tutor_reply`); không biết
+  provider cụ thể, không lộ API key hay payload riêng của provider.
+- **Triển khai chung**: `providers/base.py` (`BaseAiGateway`) dùng chung mọi LLM capability
+  (reflex/shadowing/translation/tutor + timeout/retry qua `_call`); provider chỉ triển khai `_chat` và
+  `transcribe`. `FakeAiGateway` kế thừa base, chỉ override `_chat` (trả JSON mẫu), `transcribe`,
+  `generate_tutor_reply` và `_call` (chạy thẳng).
+- **Routing theo chức năng**: `build_ai_gateway(settings)` chia 3 lane — `tutor` (generate_tutor_reply),
+  `evaluate` (reflex/shadowing/translation), `stt` (transcribe). Mỗi lane có provider primary + fallback
+  riêng (`AI_<LANE>_PROVIDER` / `AI_<LANE>_FALLBACK_PROVIDERS`); lane rỗng hoặc `fake` dùng
+  `FakeAiGateway`. Cùng 1 provider cho cả 3 lane → trả adapter đơn, khác nhau → `RoutedAiGateway`.
+- **Provider theo dialect**: `OpenAiCompatibleAiGateway` phục vụ mọi API tương thích OpenAI (OpenAI,
+  Groq...); cắm dịch vụ mới chỉ cần thêm config `AI_<NAME>_*` + đăng ký trong `_provider_registry` —
+  không cần file adapter mới nếu cùng dialect. Không dùng Gemini/GeminiAiGateway nữa.
+- **Prompt chung** (`prompts/common.py`): các JSON schema chuẩn (transcription/evaluation/tutor),
+  persona dùng chung và helper `build_json_instruction`; prompt riêng từng chức năng kế thừa từ đây để
+  tránh trùng lặp schema.
+- **Error**: các `Ai*Error` kế thừa `AppError`, định nghĩa trong `app/exceptions/ai.py` và được global
+  handler serialize theo error envelope chuẩn (status/code/message/details).
+- **Cấu hình**: thông số dùng chung (model override, temperature, top_p, max output tokens, timeout,
+  retry) và riêng từng provider (API key, base_url, model) đều qua `app/core/config.py` (biến `AI_*`
+  trong `.env`). `build_ai_gateway(settings)` chọn provider + fallback và dùng `FakeAiGateway` khi chưa
+  cấu hình key hoặc `AI_PROVIDER=fake`.

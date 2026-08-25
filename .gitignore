@@ -17,6 +17,7 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 .venv/
+storage/
 
 # IDE and operating system
 .idea/
@@ -24,4 +25,11 @@ __pycache__/
 Thumbs.db
 
 .codegraph/
+.env
 
+.pnpm-store/
+
+# Local provider CLI context
+.neon
+
+.vercel

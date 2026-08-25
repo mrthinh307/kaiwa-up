@@ -1,0 +1,141 @@
+import uuid
+from typing import Annotated
+
+from fastapi import APIRouter, Path, status
+
+from app.api.dependencies.auth import CurrentUser
+from app.api.dependencies.database import DatabaseSession
+from app.repositories.dictation import DictationRepository
+from app.schemas.dictation import (
+    DictationAttemptReviewResponse,
+    DictationCompleteRequest,
+    DictationCompleteResponse,
+    DictationResumeResponse,
+    DictationSegmentCheckRequest,
+    DictationSegmentCheckResponse,
+    DictationStartResponse,
+)
+from app.schemas.error import ErrorResponse
+from app.services.dictation import DictationService
+
+router = APIRouter(prefix="/dictation", tags=["Dictation"])
+
+
+@router.get(
+    "/{content_id}/in-progress",
+    operation_id="getInProgressDictationAttempt",
+    response_model=DictationResumeResponse,
+    summary="Resume the latest in-progress Dictation attempt",
+    responses={
+        status.HTTP_401_UNAUTHORIZED: {"model": ErrorResponse},
+        status.HTTP_404_NOT_FOUND: {"model": ErrorResponse},
+        status.HTTP_409_CONFLICT: {"model": ErrorResponse},
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {"model": ErrorResponse},
+    },
+)
+async def get_in_progress_dictation_attempt(
+    content_id: Annotated[uuid.UUID, Path(description="Published dictation content ID")],
+    current_user: CurrentUser,
+    session: DatabaseSession,
+) -> DictationResumeResponse:
+    service = DictationService(DictationRepository(session))
+    return await service.resume_attempt(user_id=current_user.id, content_id=content_id)
+
+
+@router.post(
+    "/segments/check",
+    operation_id="checkDictationSegment",
+    response_model=DictationSegmentCheckResponse,
+    summary="Check a Dictation segment answer",
+    responses={
+        status.HTTP_400_BAD_REQUEST: {"model": ErrorResponse},
+        status.HTTP_401_UNAUTHORIZED: {"model": ErrorResponse},
+        status.HTTP_403_FORBIDDEN: {"model": ErrorResponse},
+        status.HTTP_404_NOT_FOUND: {"model": ErrorResponse},
+        status.HTTP_409_CONFLICT: {"model": ErrorResponse},
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {"model": ErrorResponse},
+    },
+)
+async def check_dictation_segment(
+    request: DictationSegmentCheckRequest,
+    current_user: CurrentUser,
+    session: DatabaseSession,
+) -> DictationSegmentCheckResponse:
+    service = DictationService(DictationRepository(session))
+    return await service.check_segment(
+        user_id=current_user.id,
+        attempt_id=request.attempt_id,
+        segment_index=request.segment_index,
+        user_answer=request.user_answer,
+    )
+
+
+@router.post(
+    "/complete",
+    operation_id="completeDictationAttempt",
+    response_model=DictationCompleteResponse,
+    summary="Complete a Dictation attempt",
+    responses={
+        status.HTTP_401_UNAUTHORIZED: {"model": ErrorResponse},
+        status.HTTP_403_FORBIDDEN: {"model": ErrorResponse},
+        status.HTTP_404_NOT_FOUND: {"model": ErrorResponse},
+        status.HTTP_409_CONFLICT: {"model": ErrorResponse},
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {"model": ErrorResponse},
+    },
+)
+async def complete_dictation_attempt(
+    request: DictationCompleteRequest,
+    current_user: CurrentUser,
+    session: DatabaseSession,
+) -> DictationCompleteResponse:
+    service = DictationService(DictationRepository(session))
+    return await service.complete_attempt(
+        user_id=current_user.id,
+        attempt_id=request.attempt_id,
+    )
+
+
+@router.get(
+    "/attempts/{attempt_id}",
+    operation_id="getDictationAttempt",
+    response_model=DictationAttemptReviewResponse,
+    summary="Review a Dictation attempt",
+    responses={
+        status.HTTP_401_UNAUTHORIZED: {"model": ErrorResponse},
+        status.HTTP_403_FORBIDDEN: {"model": ErrorResponse},
+        status.HTTP_404_NOT_FOUND: {"model": ErrorResponse},
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {"model": ErrorResponse},
+    },
+)
+async def get_dictation_attempt(
+    attempt_id: Annotated[uuid.UUID, Path(description="Dictation attempt ID")],
+    current_user: CurrentUser,
+    session: DatabaseSession,
+) -> DictationAttemptReviewResponse:
+    service = DictationService(DictationRepository(session))
+    return await service.get_attempt_review(
+        user_id=current_user.id,
+        attempt_id=attempt_id,
+    )
+
+
+@router.post(
+    "/{content_id}/start",
+    operation_id="startDictationAttempt",
+    response_model=DictationStartResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Start a dictation attempt",
+    responses={
+        status.HTTP_401_UNAUTHORIZED: {"model": ErrorResponse},
+        status.HTTP_404_NOT_FOUND: {"model": ErrorResponse},
+        status.HTTP_409_CONFLICT: {"model": ErrorResponse},
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {"model": ErrorResponse},
+    },
+)
+async def start_dictation_attempt(
+    content_id: Annotated[uuid.UUID, Path(description="Published dictation content ID")],
+    current_user: CurrentUser,
+    session: DatabaseSession,
+) -> DictationStartResponse:
+    service = DictationService(DictationRepository(session))
+    return await service.start_attempt(user_id=current_user.id, content_id=content_id)

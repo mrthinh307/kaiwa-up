@@ -139,8 +139,9 @@ Dashboard hiển thị:
 * Lời chào và thông tin người dùng.
 * Cấp độ hiện tại.
 * Tổng EXP.
-* Tiến độ học tập.
-* Các bài học hoặc bài luyện được đề xuất.
+* Số bài hoàn thành tách riêng theo Shadowing, Dictation, Reflex và Listening Translation.
+* Các Lesson đang làm dở; chọn card sẽ mở trực tiếp practice route tương ứng.
+* Attempt History có filter theo từng Practice method và trạng thái.
 * Các bài cần ôn lại.
 * Thành tích gần đây.
 * Vị trí hiện tại trên bảng xếp hạng nếu có.
@@ -160,58 +161,70 @@ flowchart TD
 
 # 6. Luồng luyện Shadowing kép
 
+Shadowing và Dictation dùng chung Lesson catalog. Mỗi Lesson card có action riêng cho từng Practice
+method; Dashboard điều hướng trực tiếp tới đúng workstation dựa trên `practice_method` của Attempt
+đang dở.
+
 ## 6.1. Luồng chính
 
 ```mermaid
 flowchart TD
-    A[User mở danh sách bài Shadowing] --> B[Chọn bài học]
+    A[User mở Lessons] --> B[Chọn Shadowing trên Lesson card]
+    B --> C1[Màn hình Preview / Bắt đầu Shadowing]
 
-    B --> C[Hiển thị thông tin bài học]
-    C --> D[Chọn hiển thị hoặc ẩn văn bản]
+    C1 --> D{Có Shadowing attempt in-progress?}
+    D -- Có --> E[Nút Tiếp tục bài học - Resume]
+    D -- Không --> F[Chọn chế độ: Segment-by-Segment hoặc Continuous]
+    E --> G[Màn hình Workstation Shadowing]
+    F --> G
 
-    D --> E[Nhấn phát audio gốc]
-    E --> F[Nghe và đọc đuổi theo audio]
+    G --> H[Đồng bộ âm lượng & Audio/Video Player]
+    G --> I[Hiển thị / Ẩn Transcript tiếng Nhật]
 
-    F --> G[Nhấn bắt đầu ghi âm]
-    G --> H{Đã cấp quyền microphone?}
+    subgraph SegmentPractice [Chế độ Luyện từng câu]
+        G --> J1[Chọn câu cần luyện hoặc bấm Next/Prev]
+        J1 --> K1[Audio tự tua đến mốc thời gian của câu]
+        K1 --> L1[Bấm Ghi âm câu #i - phím R]
+        L1 --> M1[Đọc đuổi theo câu tiếng Nhật]
+        M1 --> N1[Bấm Dừng ghi âm - phím R]
+        N1 --> O1[Lưu bản ghi câu #i & nghe lại voice]
+    end
 
-    H -- Không --> I[Thông báo cần cấp quyền microphone]
-    I --> J[Người dùng cấp quyền]
-    J --> G
+    subgraph ContinuousPractice [Chế độ Đọc liên tục]
+        G --> J2[Bấm Bắt đầu ghi âm liên tục - phím R]
+        J2 --> K2[Video tự động phát toàn bộ bài]
+        K2 --> L2[Đọc đuổi liên tục theo video]
+        L2 --> M2[Bấm Dừng ghi âm - phím R]
+        M2 --> N2[Lưu bản ghi & nghe lại toàn bộ voice]
+    end
 
-    H -- Có --> K[Ghi âm giọng nói]
+    O1 --> P[Bấm Hoàn thành / Finish]
+    N2 --> P
 
-    K --> L[Nhấn kết thúc ghi âm]
-    L --> M[Lưu bản ghi âm]
+    P --> Q{Đã có bản ghi hợp lệ?}
+    Q -- Chưa --> R[Thông báo yêu cầu ghi âm trước khi hoàn thành]
+    Q -- Đã có --> S[POST /submit - Tính điểm & EXP]
 
-    M --> N[Phát lại audio gốc]
-    N --> O[Phát lại bản ghi âm]
-
-    O --> P{Có đánh giá AI?}
-
-    P -- Có --> Q[AI phân tích bản ghi]
-    Q --> R[Hiển thị nhận xét]
-
-    P -- Không --> S[Người dùng tự so sánh]
-
-    R --> T[Hoàn thành bài]
-    S --> T
-
-    T --> U[Lưu kết quả]
-    U --> V[Cộng EXP]
-    V --> W[Cập nhật tiến độ]
+    S --> T[Màn hình Review kết quả 2 cột]
+    T --> U[Nghe lại Audio gốc]
+    T --> V[Nghe lại Bản ghi âm của người dùng]
+    T --> W[Tự so sánh và nhận thưởng EXP]
+    T --> X[Luyện lại bài hoặc Quay lại danh sách]
 ```
 
-## 6.2. Luồng lỗi
+## 6.2. Các phím tắt hỗ trợ trong quá trình luyện tập
 
-* Audio không tải được.
-* Người dùng không cấp quyền microphone.
-* Trình duyệt không hỗ trợ ghi âm.
-* Ghi âm bị lỗi hoặc bị gián đoạn.
-* Không thể lưu bản ghi âm.
-* Dịch vụ AI không phản hồi.
+* `Space` / `Ctrl+Space` / `Cmd+Space`: Phát hoặc tạm dừng video / audio bài học.
+* `R` / `Alt+R`: Bật hoặc dừng ghi âm giọng nói (tự động bỏ qua khi đang gõ phím trong ô nhập liệu).
+* `→` / `Ctrl+→` / `Cmd+→`: Chuyển sang câu tiếp theo (chế độ Segment).
+* `←` / `Ctrl+←` / `Cmd+←`: Quay lại câu trước đó (chế độ Segment).
 
-Nếu AI gặp lỗi, hệ thống vẫn cho phép người dùng nghe lại audio gốc và bản ghi âm để tự so sánh.
+## 6.3. Luồng lỗi và xử lý ngoại lệ
+
+* **Audio không tải được**: Hiển thị cảnh báo lỗi tải audio; người dùng vẫn có thể ghi âm để tự luyện tập.
+* **Người dùng từ chối quyền microphone**: Hiển thị cảnh báo yêu cầu cấp quyền microphone trong trình duyệt kèm nút thử lại.
+* **Tải lên bản ghi thất bại**: Hiển thị Toast thông báo lỗi mạng; bản ghi được lưu tạm trong bộ nhớ cục bộ.
+* **Tiếp tục phiên đang dở**: Tự động khôi phục danh sách các câu đã ghi âm trước đó.
 
 ---
 
@@ -221,9 +234,9 @@ Nếu AI gặp lỗi, hệ thống vẫn cho phép người dùng nghe lại aud
 
 ```mermaid
 flowchart TD
-    A[User mở danh sách bài Dictation] --> B[Chọn bài học]
+    A[User mở Lessons] --> B2[Chọn Dictation trên Lesson card]
 
-    B --> C[Hiển thị đoạn hội thoại có chỗ trống]
+    B2 --> C[Hiển thị đoạn hội thoại có chỗ trống]
 
     C --> D[Phát audio]
     D --> E[Người dùng nghe]
@@ -338,45 +351,38 @@ Trong phiên bản đầu:
 
 ```mermaid
 flowchart TD
-    A[User mở AI Tutor] --> B[Chọn chủ đề]
-
-    B --> C[Chọn mức độ khó]
-    C --> D[Nhấn bắt đầu]
-
-    D --> E[Hệ thống tạo phiên hội thoại]
-    E --> F[AI gửi câu mở đầu]
-
-    F --> G{Cách trả lời}
-
+    A[User mở AI Tutor] --> B[Nhập chủ đề]
+    B --> C[Nhập scenario tùy chọn]
+    C --> D[Chọn mức độ khó]
+    D --> E[Nhấn bắt đầu]
+    E --> F[Tạo conversation từ topic, difficulty và scenario]
+    F --> G[AI gửi câu mở đầu và feedback.answer_hints]
     G --> H[Nhập văn bản]
-    G --> I[Ghi âm giọng nói]
-
-    H --> J[Gửi câu trả lời]
-    I --> K[Chuyển giọng nói thành văn bản]
-    K --> J
-
-    J --> L[AI phân tích ngữ cảnh]
-    L --> M[AI phản hồi]
-
-    M --> N[Hiển thị câu trả lời và nhận xét]
-
-    N --> O{Tiếp tục hội thoại?}
-
-    O -- Có --> G
-    O -- Không --> P[Kết thúc phiên]
-
-    P --> Q[Lưu lịch sử hội thoại]
+    H --> I[Gửi text kèm client_message_id]
+    I --> J[Backend kiểm tra ownership và retry key]
+    J --> K[Ghi user message]
+    K --> L[Gửi context giới hạn qua AI Gateway]
+    L --> M[AI trả reply và feedback chuẩn hóa]
+    M --> N[Lưu AI message theo sequence]
+    N --> O[Hiển thị phản hồi và gợi ý]
+    O --> P{Tiếp tục hội thoại?}
+    P -- Có --> H
+    P -- Không --> R[Lưu lịch sử hội thoại]
 ```
 
 ## 10.2. Luồng lỗi
 
 * Không thể tạo phiên hội thoại.
 * AI không phản hồi.
-* Không thể chuyển giọng nói thành văn bản.
 * Nội dung gửi lên không hợp lệ.
 * Kết nối bị gián đoạn.
+* Retry với cùng `client_message_id` phải trả lại kết quả cũ, không tạo user message trùng.
+* Nếu turn trước còn chờ AI, message mới nhận `409 tutor_response_pending`; frontend phải retry turn
+  cũ bằng đúng `client_message_id`.
 
 Nếu AI gặp lỗi, hệ thống phải hiển thị thông báo và cho phép người dùng thử lại.
+User message hợp lệ đã ghi nhận không bị mất khi AI timeout; retry tiếp tục dùng cùng
+`client_message_id`.
 
 ---
 
@@ -394,27 +400,32 @@ flowchart TD
     D --> E{Muốn nghe lại?}
 
     E -- Có --> C
-    E -- Không --> F{Loại bài tập}
+    E -- Không --> F[Nhập bản dịch tiếng Việt dạng free-text]
 
-    F -- Nhập bản dịch --> G[Nhập ý chính bằng tiếng Việt]
-    F -- Chọn đáp án --> H[Chọn câu có nghĩa tương đương]
+    F --> G[Nộp bản dịch]
+    G --> H[Hệ thống lưu bản dịch]
+    H --> I[AI đánh giá mức độ truyền tải đúng ý]
 
-    G --> I[Nộp câu trả lời]
-    H --> I
+    I --> J{AI đánh giá thành công?}
 
-    I --> J[Hệ thống kiểm tra]
+    J -- Không --> K[Hiển thị lỗi và cho phép thử lại]
+    K --> I
 
-    J --> K[Hiển thị đáp án hoặc nội dung tham khảo]
-    K --> L[Hiển thị giải thích]
+    J -- Có --> L[Hiển thị điểm, ý đúng, ý thiếu và gợi ý]
+    L --> M[Hiển thị bản dịch tham khảo]
 
-    L --> M[Lưu kết quả]
-    M --> N[Cộng EXP]
-    N --> O[Cập nhật tiến độ]
+    M --> N[Lưu kết quả và hoàn thành attempt]
+    N --> O[Cộng EXP một lần]
+    O --> P[Cập nhật tiến độ]
 ```
 
 ---
 
 # 12. Luồng nhận EXP và tăng cấp
+
+Cấp được tính từ tổng EXP, không tra bảng mốc: từ level `L` lên `L+1` cần thêm `50 × L` EXP.
+Việc ghi sổ EXP, cộng `user_progress.total_exp` và tính lại `current_level` nằm trong cùng
+transaction; hệ thống khóa tiến độ của user để hai attempt hoàn thành đồng thời không làm mất EXP.
 
 ```mermaid
 flowchart TD
@@ -517,7 +528,7 @@ flowchart TD
 
 ---
 
-# 16. Các điểm cần thống nhất trước khi triển khai
+# 16. Các điểm thiết kế còn mở ngoài quyết định Phase 2
 
 Các nội dung sau cần được chốt trong giai đoạn thiết kế kiến trúc và database:
 
@@ -525,10 +536,7 @@ Các nội dung sau cần được chốt trong giai đoạn thiết kế kiến
 2. Bản ghi âm của người dùng có cần lưu lâu dài hay chỉ xử lý tạm thời.
 3. AI đánh giá Shadowing bằng cách nào.
 4. AI đánh giá phản xạ dựa trên tiêu chí nào.
-5. AI Tutor có hỗ trợ giọng nói ngay trong MVP hay chỉ hỗ trợ văn bản.
-6. Thuật toán lặp lại ngắt quãng được sử dụng.
-7. Công thức tính EXP.
-8. Công thức xác định cấp độ.
-9. Quy tắc xếp hạng khi người dùng bằng EXP.
-10. Điều kiện hoàn thành từng loại bài tập.
-11. Cách quản lý và thêm mới nội dung bài học khi chưa có giao diện quản trị.
+5. Thuật toán lặp lại ngắt quãng được sử dụng.
+6. Quy tắc EXP thưởng thêm ngoài `base_exp`, nếu có.
+7. Điều kiện hoàn thành từng loại bài tập.
+8. Cách quản lý và thêm mới nội dung bài học khi chưa có giao diện quản trị.

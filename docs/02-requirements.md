@@ -200,82 +200,93 @@ Người dùng có thể xem danh sách các bài luyện Shadowing.
 
 * Tên bài học.
 * Mô tả ngắn.
-* Cấp độ hoặc độ khó.
+* Cấp độ hoặc độ khó (N5–N1).
 * Thời lượng audio.
-* Trạng thái hoàn thành.
+* Trạng thái hoàn thành / Lần làm bài gần nhất.
 
 ---
 
-### FR-SHADOW-02 — Phát audio gốc
+### FR-SHADOW-02 — Chế độ luyện tập kép (Dual-Mode)
 
 **Mô tả:**
-Người dùng có thể phát audio tiếng Nhật của bài học.
+Người dùng có thể lựa chọn 1 trong 2 hình thức luyện tập phù hợp với mục tiêu học:
+
+* **Luyện từng câu (Segment-by-Segment)**: Chia bài học thành từng câu ngắn có timestamp (`start_time_ms`, `end_time_ms`), cho phép nghe và ghi âm độc lập cho từng câu.
+* **Đọc liên tục (Continuous Shadowing)**: Phát toàn bộ audio bài học từ đầu đến cuối để người dùng đọc đuổi liên tục trong một bản ghi âm duy nhất.
+
+---
+
+### FR-SHADOW-03 — Phát media và đồng bộ âm lượng
+
+**Mô tả:**
+Người dùng có thể phát audio/video tiếng Nhật của bài học.
 
 **Hệ thống phải hỗ trợ:**
 
-* Phát audio.
-* Tạm dừng audio.
-* Phát lại audio.
-* Hiển thị thời gian phát.
-* Điều chỉnh âm lượng.
+* Phát audio/video gốc (YouTube embed hoặc direct audio).
+* Tạm dừng, tua theo thanh thời gian hoặc tua theo mốc segment.
+* Tự động đồng bộ âm lượng thực tế của player (100%) ngay từ lần tải đầu tiên.
+* Chuyển đổi linh hoạt giữa các tốc độ phát (`0.8x`, `1.0x`, `1.2x`).
+* Bật/tắt hiển thị khung video YouTube để tập trung vào nghe.
 
 ---
 
-### FR-SHADOW-03 — Hiển thị hoặc ẩn văn bản
+### FR-SHADOW-04 — Hiển thị và đồng bộ văn bản (Transcript)
 
 **Mô tả:**
-Người dùng có thể lựa chọn hiển thị hoặc ẩn nội dung văn bản tương ứng với audio.
+Người dùng có thể lựa chọn hiển thị hoặc ẩn transcript tiếng Nhật, đồng thời theo dõi vị trí câu đang phát theo thời gian thực.
 
 **Quy tắc:**
 
-* Người dùng có thể thay đổi trạng thái hiển thị trong quá trình luyện tập.
-* Khi chọn ẩn văn bản, nội dung tiếng Nhật không được hiển thị.
+* Cho phép ẩn/hiện transcript bất kỳ lúc nào.
+* Highlight câu đang phát (`Speaking`) đồng bộ theo thời gian thực của video và tự động cuộn đến câu tương ứng trong danh sách.
+* Bấm vào bất kỳ câu nào trong transcript sẽ tự động tua video đến mốc thời gian của câu đó.
 
 ---
 
-### FR-SHADOW-04 — Ghi âm bài đọc
+### FR-SHADOW-05 — Ghi âm giọng nói và phím tắt thao tác
 
 **Mô tả:**
-Người dùng có thể sử dụng microphone để ghi âm giọng nói trong quá trình đọc đuổi theo audio gốc.
+Hệ thống cho phép ghi âm giọng nói qua microphone và cung cấp phím tắt tiện lợi.
 
 **Hệ thống phải:**
 
-* Yêu cầu quyền truy cập microphone.
-* Cho phép bắt đầu ghi âm.
-* Cho phép kết thúc ghi âm.
-* Hiển thị trạng thái đang ghi âm.
-* Thông báo khi người dùng từ chối quyền truy cập microphone.
+* Yêu cầu và xử lý quyền truy cập microphone.
+* Hỗ trợ bắt đầu/dừng ghi âm cho từng segment hoặc ghi âm liên tục.
+* Hỗ trợ phím tắt:
+  * `Space` / `Ctrl+Space`: Phát hoặc dừng video.
+  * `R` / `Alt+R`: Bật hoặc dừng ghi âm (có kiểm tra tránh kích hoạt khi đang gõ ô text).
+  * `→` / `←`: Chuyển câu tiếp theo / câu trước đó (chế độ Segment).
+* Hiển thị trực quan thời lượng ghi âm và sóng/trạng thái đang thu âm.
 
 ---
 
-### FR-SHADOW-05 — Phát lại và so sánh
+### FR-SHADOW-06 — Khôi phục phiên làm bài dở dang (Resume)
 
 **Mô tả:**
-Người dùng có thể phát lại audio gốc và bản ghi âm của bản thân để tự so sánh.
-
-**Hệ thống phải hỗ trợ:**
-
-* Phát lại audio gốc.
-* Phát lại bản ghi âm của người dùng.
-* Cho phép người dùng nghe lại nhiều lần (loop mode hoặc bấm nghe lại)
-* Hiển thị thông tin hoặc thời lượng của từng audio nếu khả thi.
+Nếu người dùng rời khỏi bài học khi chưa nộp bài, hệ thống lưu lại trạng thái `in_progress` và danh sách các câu đã ghi âm để người dùng có thể tiếp tục (Resume) mà không bị mất dữ liệu đã làm.
 
 ---
 
-### FR-SHADOW-06 — Đánh giá bằng AI
+### FR-SHADOW-07 — Màn hình kết quả Review và tự so sánh
 
 **Mô tả:**
-Hệ thống có thể sử dụng AI để phân tích bản ghi âm của người dùng và đưa ra phản hồi hỗ trợ.
+Sau khi hoàn thành nộp bài, người dùng xem lại toàn bộ bài học trên giao diện 2 cột cuộn độc lập:
 
-**Phản hồi dự kiến:**
+* Cột bên trái: Player phát video/audio gốc và player phát bản ghi âm toàn bài (chế độ Continuous).
+* Cột bên phải: Danh sách transcript cuộn mượt mà (`ScrollArea`), cho phép bấm nghe lại audio gốc từng câu và nghe lại bản ghi âm tương ứng của người dùng để tự so sánh phát âm, ngữ điệu.
 
-* Mức độ tương đồng với nội dung gốc.
-* Các từ hoặc đoạn có thể phát âm chưa chính xác.
-* Nhận xét tổng quan.
-* Gợi ý cải thiện.
+---
 
-**Ghi chú:**
-Chức năng đánh giá tự động bằng AI phụ thuộc vào công nghệ được lựa chọn và sẽ được xác định rõ trong tài liệu kiến trúc. Nếu không thể triển khai trong thời gian dự án, chức năng phát lại và tự so sánh vẫn phải hoạt động.
+### FR-SHADOW-08 — Tính điểm và cộng thưởng EXP
+
+**Mô tả:**
+Hệ thống tự động đánh giá mức độ hoàn thành bài và cấp điểm kinh nghiệm (EXP) vào hồ sơ người dùng:
+
+* **Điểm số**:
+  * Chế độ Segment: Tính theo tỷ lệ số câu đã ghi âm trên tổng số câu (`completed_segments / total_segments * 100`).
+  * Chế độ Continuous: Tính theo tỷ lệ thời lượng ghi âm trên thời lượng bài học (`min(100.0, duration / total_duration * 100)`).
+* **EXP**: Cơ bản 15 EXP, cộng thưởng 10 EXP cho lần đầu hoàn thành, thưởng 5 EXP khi đạt điểm cao (>= 80%), và trừ nhẹ EXP nếu nghe lại quá nhiều lần.
 
 ---
 
@@ -346,7 +357,20 @@ Người dùng nhận điểm kinh nghiệm sau khi hoàn thành bài tập.
 * Có thể cộng thêm EXP dựa trên kết quả hoặc hiệu suất.
 * Hệ thống phải lưu lịch sử thay đổi EXP.
 
-Công thức tính EXP sẽ được xác định chi tiết sau khi thống nhất cơ chế gamification.
+Mỗi nội dung có `base_exp > 0`. Khi một attempt có ít nhất một câu trả lời không rỗng chuyển sang
+`COMPLETED`, backend ghi đúng một bút toán EXP cho attempt đó và cập nhật tổng EXP trong cùng
+transaction. Attempt hoàn tất mà chưa trả lời câu nào nhận `0 EXP` và không tạo bút toán EXP.
+
+Riêng Dictation, EXP dựa trên tỷ lệ segment có câu trả lời không rỗng so với tổng số segment:
+
+| Tỷ lệ hoàn thành | EXP |
+| ---------------- | --: |
+| `0%`             |   0 |
+| `> 0%` và `< 5%` |   5 |
+| `>= 5%` và `< 25%` | 15 |
+| `>= 25%` và `< 50%` | 25 |
+| `>= 50%` và `< 75%` | 40 |
+| `>= 75%`         |  50 |
 
 ---
 
@@ -362,7 +386,8 @@ Cấp độ của người dùng được xác định dựa trên tổng EXP.
 * Hiển thị EXP cần thiết để đạt cấp độ tiếp theo.
 * Tự động tăng cấp khi người dùng đạt đủ EXP.
 
-Công thức tăng cấp sẽ được xác định trong giai đoạn thiết kế.
+Không có level tối đa được định nghĩa trước. Từ level `L` lên `L+1` cần thêm `50 × L` EXP; tổng
+EXP tối thiểu để đạt level `L` là `25 × L × (L-1)`.
 
 ---
 
@@ -401,7 +426,8 @@ Hệ thống hiển thị bảng xếp hạng người dùng dựa trên EXP nh�
 * Hiển thị vị trí của người dùng hiện tại.
 * Làm mới dữ liệu xếp hạng theo chu kỳ tuần.
 
-Quy tắc xử lý trường hợp bằng điểm sẽ được xác định trong giai đoạn thiết kế.
+Nếu bằng EXP tuần, hệ thống sắp theo `user_id ASC` trước khi gán `rank` để kết quả xác định và có thể
+tái tạo từ cùng một tập dữ liệu.
 
 ---
 
@@ -483,9 +509,9 @@ Người dùng có thể bắt đầu một phiên luyện hội thoại với A
 
 Người dùng có thể chọn:
 
-* Chủ đề hội thoại.
-* Mức độ khó.
-* Tình huống giao tiếp nếu có.
+* Chủ đề hội thoại do user nhập, bắt buộc.
+* Mức độ khó JLPT, bắt buộc.
+* Scenario/bối cảnh do user nhập, tùy chọn.
 
 ---
 
@@ -494,7 +520,9 @@ Người dùng có thể chọn:
 Người dùng có thể gửi câu trả lời cho AI bằng:
 
 * Văn bản.
-* Giọng nói nếu chức năng xử lý giọng nói được triển khai.
+
+Voice input không thuộc Phase 2 và chỉ được bổ sung ở giai đoạn sau khi có contract
+Speech-to-Text/Voice riêng.
 
 ---
 
@@ -506,6 +534,7 @@ AI Tutor có thể:
 * Phản hồi theo ngữ cảnh hội thoại.
 * Sửa lỗi ngữ pháp hoặc cách dùng từ.
 * Gợi ý cách diễn đạt tự nhiên hơn.
+* Đưa ra tối đa 3 gợi ý trả lời ngắn, mỗi gợi ý có nghĩa tiếng Việt.
 * Khuyến khích người dùng tiếp tục hội thoại.
 
 ---
@@ -515,11 +544,12 @@ AI Tutor có thể:
 Hệ thống có thể lưu:
 
 * Nội dung cuộc hội thoại.
-* Chủ đề.
-* Thời gian tạo.
-* Các phản hồi hoặc nhận xét của AI.
+* Topic, scenario snapshot, difficulty và trạng thái phiên.
+* Thời gian tạo/kết thúc và thứ tự message.
+* Các feedback, correction và answer hints của AI.
 
-Người dùng có thể xem lại lịch sử hội thoại nếu chức năng này được triển khai trong phạm vi dự án.
+Người dùng có thể xem lại lịch sử hội thoại của chính mình. Không được đọc hoặc gửi message vào
+conversation của user khác.
 
 ---
 
@@ -540,12 +570,9 @@ Hệ thống hỗ trợ:
 
 ### FR-TRANS-02 — Trả lời bằng bản dịch
 
-Hệ thống hỗ trợ một hoặc nhiều hình thức:
+Người dùng bắt buộc nhập bản dịch hoặc ý chính bằng tiếng Việt dạng free-text.
 
-* Người dùng nhập ý chính bằng tiếng Việt.
-* Người dùng chọn câu tiếng Việt có ý nghĩa tương đương.
-
-Hình thức bài tập cụ thể sẽ được xác định trong giai đoạn thiết kế.
+Hệ thống không cung cấp quiz hoặc lựa chọn trắc nghiệm thay cho việc nhập bản dịch.
 
 ---
 
@@ -553,9 +580,9 @@ Hình thức bài tập cụ thể sẽ được xác định trong giai đoạn
 
 Sau khi nộp bài, hệ thống phải:
 
-* Hiển thị đáp án hoặc nội dung tham khảo.
-* Hiển thị kết quả đúng hoặc sai đối với câu hỏi lựa chọn.
-* Hiển thị giải thích nếu có.
+* Dùng AI đánh giá mức độ truyền tải đúng ý, không yêu cầu khớp từng từ.
+* Hiển thị điểm, ý đúng, ý thiếu và gợi ý cải thiện.
+* Hiển thị bản dịch tham khảo.
 * Lưu kết quả học tập.
 
 ---
@@ -669,13 +696,8 @@ Phiên bản MVP được xem là hoàn thành khi:
 
 Các nội dung sau chưa được quyết định và sẽ được xác định trong các tài liệu tiếp theo:
 
-* Công nghệ cơ sở dữ liệu.
 * Dịch vụ hoặc mô hình AI.
 * Cách chuyển giọng nói thành văn bản.
 * Cách đánh giá phát âm và nội dung câu trả lời.
-* Cách lưu trữ audio.
-* Công thức tính EXP và cấp độ.
-* Quy tắc xếp hạng khi nhiều người có cùng điểm.
 * Thuật toán lặp lại ngắt quãng.
-* Hình thức triển khai hệ thống.
 * Cách quản lý nội dung bài học khi chưa có giao diện quản trị.

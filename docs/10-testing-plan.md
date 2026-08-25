@@ -14,8 +14,9 @@ Hệ thống tập trung xử lý logic phức tạp ở Backend (được xây 
 5. **Phản xạ 3 giây & Lặp lại ngắt quãng (Spaced Repetition):** Trả lời tình huống trong 3 giây, ghi âm, AI đánh giá và lên lịch ôn tập.
 
 ### 1.2. Các tính năng phụ (Secondary Features - Ưu tiên thấp hơn)
-1. **AI Tutor 1-1:** Luyện hội thoại trực tiếp với AI (bằng giọng nói/văn bản).
-2. **Nghe và dịch:** Nghe hội thoại và dịch ý chính sang tiếng Việt hoặc chọn đáp án tương đương.
+1. **AI Tutor 1-1:** Luyện hội thoại trực tiếp với AI bằng văn bản trong Phase 2; voice input để
+   giai đoạn sau.
+2. **Nghe và dịch:** Nghe hội thoại, nhập bản dịch tiếng Việt dạng free-text và nhận đánh giá theo ý nghĩa từ AI.
 
 ---
 
@@ -25,7 +26,7 @@ Một mốc phát triển chỉ được đánh giá là "Pass" ở giai đoạn
 
 * **Tỷ lệ thực thi (Execution Rate):** Thực thi 100% các test case đã được xác định cho milestone hiện tại.
 * **Tỷ lệ Pass (Pass Rate):** Đạt `>= 90%` tổng số test case của milestone hiện tại. Đặc biệt, **Core features phải đạt 100% Pass**.
-* **Độ phủ mã nguồn (Code Coverage):** Backend core logic nên hướng tới `>= 60%` ở giai đoạn đầu; khi hệ thống ổn định hơn có thể nâng dần lên `>= 75%` cho các module nghiệp vụ chính. *(Các phần đơn giản không chứa logic nghiệp vụ như UI thuần, Getter/Setter, DTOs có thể không bắt buộc unit test ở giai đoạn đầu).* 
+* **Độ phủ mã nguồn (Code Coverage):** Backend core logic nên hướng tới `>= 60%` ở giai đoạn đầu; khi hệ thống ổn định hơn có thể nâng dần lên `>= 75%` cho các module nghiệp vụ chính. *(Các phần đơn giản không chứa logic nghiệp vụ như UI thuần, Getter/Setter, DTOs có thể không bắt buộc unit test ở giai đoạn đầu).*
 * **Tiêu chuẩn về Lỗi (Bug Status):**
   * **0** lỗi Blocker / Critical.
   * **0** lỗi Major mở trong các core flows.
@@ -57,8 +58,8 @@ Do đặc thù dự án tập trung logic vào Backend, chiến lược kiểm t
 Đảm bảo các module nội bộ và dịch vụ bên ngoài giao tiếp chính xác.
 * **Tích hợp Database (PostgreSQL):** Dựng một database test sạch và tách biệt với môi trường production để chạy integration test ở local và CI. Cách dựng DB có thể là docker compose riêng hoặc một cấu hình test độc lập, miễn là không ảnh hưởng đến Neon DB.
 * **Tích hợp Dịch vụ bên thứ 3 (3rd-party Services):** Áp dụng kỹ thuật **Mocking** để giả lập phản hồi của các dịch vụ bên ngoài, giúp quá trình test diễn ra nhanh, ổn định và không tốn phí API:
-  * **Cloudinary:** Mock dịch vụ lưu trữ audio/media.
-  * **Gemini API & WebSpeech:** Mock xử lý AI chấm điểm, speech-to-text và text-to-speech.
+  * **YouTube:** Mock player/API và validation URL media bài học.
+  * **AI API (openai-compatible) & WebSpeech:** Mock xử lý AI chấm điểm, speech-to-text và text-to-speech.
 
 ### 3.3. End-to-End Test (E2E Test)
 Kết hợp linh hoạt giữa kiểm thử thủ công và tự động hóa để đảm bảo chất lượng trải nghiệm người dùng cuối.
@@ -128,11 +129,12 @@ Kiểm tra luồng người dùng phát audio, thu âm giọng nói đuổi theo
 
 ## Kết quả mong đợi (Expected Results)
 - Hệ thống ghi âm rõ ràng, không bị ngắt quãng.
-- Backend gọi mock Gemini API thành công và trả về kết quả đánh giá (phát âm, độ trôi chảy).
+- Backend gọi mock AI API (openai-compatible) thành công và trả về kết quả đánh giá (phát âm, độ trôi chảy).
 - Giao diện hiển thị điểm số và highlight các từ phát âm sai trong vòng 5 giây.
 
 ## Kết quả thực tế (Actual Results)
-- Tính năng hoạt động đúng luồng. Audio lưu thành công lên mock Cloudinary. Nhận điểm phản hồi trong 3 giây.
+- Tính năng hoạt động đúng luồng. URL YouTube hợp lệ được phát qua mock player. Nhận điểm phản hồi
+  trong 3 giây.
 - **Kết luận:** PASS.
 ```
 
@@ -144,5 +146,9 @@ Kiểm tra luồng người dùng phát audio, thu âm giọng nói đuổi theo
 2. **Shadowing:** danh sách bài học, phát audio, ghi âm, chấm điểm mock.
 3. **Dictation:** nghe, nhập đáp án, kiểm tra kết quả đúng/sai.
 4. **Gamification:** cộng EXP, cập nhật cấp độ, hiển thị trạng thái tiến độ.
+
+Các test database của Gamification phải bao phủ thêm: hai attempt cấp EXP đồng thời không làm mất
+điểm, một attempt không được cấp thưởng hai lần, xóa attempt vẫn giữ `xp_transactions`, và CHECK
+constraint từ chối EXP/level/score/rank ngoài miền hợp lệ.
 5. **Phản xạ 3 giây / Spaced Repetition:** gửi câu trả lời, nhận phản hồi, tạo lịch ôn tập.
 6. **AI Tutor / Nghe và dịch:** chỉ cần có smoke test hoặc manual test tối thiểu ở giai đoạn đầu, sau đó mở rộng khi luồng chính đã ổn định.

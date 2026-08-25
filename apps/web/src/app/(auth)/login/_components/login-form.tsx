@@ -1,7 +1,8 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Eye, EyeOff } from "lucide-react";
+import { CheckCircle2, Eye, EyeOff } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -9,34 +10,71 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useAuth } from "@/hooks/use-auth";
+import { normalizeApiFieldName, parseApiFailure } from "@/lib/api-errors";
+import { getSafeInternalPath } from "@/lib/safe-redirect";
 
-import { submitAuthPreview } from "../../_utils/auth-preview-adapter";
 import { loginSchema, type LoginValues } from "../../_validations/auth-schemas";
 
-export function LoginForm() {
+type LoginFormProps = {
+  isRegistered: boolean;
+  nextPath: string | undefined;
+};
+
+export function LoginForm({ isRegistered, nextPath }: LoginFormProps) {
+  const auth = useAuth();
+  const router = useRouter();
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const {
     formState: { errors, isSubmitting },
     handleSubmit,
     register,
+    setError,
   } = useForm<LoginValues>({
     defaultValues: { email: "", password: "" },
     resolver: zodResolver(loginSchema),
   });
 
   const handleLogin = async (values: LoginValues) => {
-    const nextResult = await submitAuthPreview("login", values);
+    const result = await auth.login(values);
 
-    if (nextResult.kind === "error") {
-      toast.error("We could not log you in", { description: nextResult.message });
+    if (result.kind === "error") {
+      const failure = parseApiFailure(result);
+
+      if (failure.status === 401) {
+        setError("root.server", { message: "Email or password is incorrect." });
+      } else {
+        for (const fieldError of failure.fieldErrors) {
+          const field = normalizeApiFieldName(fieldError.field);
+          if (field === "email" || field === "password") {
+            setError(field, { message: fieldError.message });
+          }
+        }
+      }
+
+      if (failure.fieldErrors.length === 0 && failure.status !== 401) {
+        setError("root.server", { message: failure.message });
+      }
+
+      toast.error("We could not log you in", { description: failure.message });
       return;
     }
 
-    toast.success("Preview complete", { description: nextResult.message });
+    router.replace(getSafeInternalPath(nextPath));
+    router.refresh();
   };
 
   return (
     <form className="space-y-5" onSubmit={handleSubmit(handleLogin)} noValidate>
+      {isRegistered && (
+        <div
+          className="flex gap-3 rounded-base border-2 border-border bg-main p-3 text-sm text-main-foreground"
+          role="status"
+        >
+          <CheckCircle2 aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
+          <p>Your account is ready. Log in to continue.</p>
+        </div>
+      )}
       <div className="space-y-2">
         <Label htmlFor="login-email">Email</Label>
         <Input
@@ -82,6 +120,12 @@ export function LoginForm() {
           </p>
         )}
       </div>
+
+      {errors.root?.server?.message && (
+        <p className="text-sm text-destructive" role="alert">
+          {errors.root.server.message}
+        </p>
+      )}
 
       <Button className="w-full" disabled={isSubmitting} type="submit">
         {isSubmitting ? "Logging in…" : "Log in"}

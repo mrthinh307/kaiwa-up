@@ -20,4 +20,3 @@ def configure_logging() -> None:
             "root": {"handlers": ["default"], "level": "INFO"},
         }
     )
-

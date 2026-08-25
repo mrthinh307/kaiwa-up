@@ -12,12 +12,18 @@ colors:
   ring: "oklch(0% 0 0)"
   destructive: "oklch(59.2% 0.249 27.5)"
   destructive-foreground: "oklch(0% 0 0)"
+  rank-gold: "#facc00"
+  rank-silver: "#c7cdd4"
+  rank-bronze: "#cd7f32"
   overlay: "oklch(0% 0 0 / 0.8)"
   dark-background: "oklch(29.23% 0.0626 270.49)"
   dark-surface: "oklch(23.93% 0 0)"
   dark-foreground: "oklch(92.49% 0 0)"
   dark-ring: "oklch(100% 0 0)"
   dark-destructive: "oklch(70.4% 0.191 22.216)"
+  dark-rank-gold: "#e0b700"
+  dark-rank-silver: "#aeb7c2"
+  dark-rank-bronze: "#b96a32"
   chart-1: "#5294ff"
   chart-2: "#ff4d50"
   chart-3: "#facc00"
@@ -25,55 +31,55 @@ colors:
   chart-5: "#7a83ff"
 typography:
   display-desktop:
-    fontFamily: "DM Sans, Noto Sans JP, sans-serif"
+    fontFamily: "Space Grotesk, Noto Sans JP, sans-serif"
     fontSize: 48px
     fontWeight: 700
     lineHeight: 72px
     letterSpacing: 0px
   display-mobile:
-    fontFamily: "DM Sans, Noto Sans JP, sans-serif"
+    fontFamily: "Space Grotesk, Noto Sans JP, sans-serif"
     fontSize: 24px
     fontWeight: 700
     lineHeight: 36px
     letterSpacing: 0px
   section-title-desktop:
-    fontFamily: "DM Sans, Noto Sans JP, sans-serif"
+    fontFamily: "Space Grotesk, Noto Sans JP, sans-serif"
     fontSize: 60px
     fontWeight: 700
     lineHeight: 75px
     letterSpacing: 0px
   section-title-mobile:
-    fontFamily: "DM Sans, Noto Sans JP, sans-serif"
+    fontFamily: "Space Grotesk, Noto Sans JP, sans-serif"
     fontSize: 30px
     fontWeight: 700
     lineHeight: 37.5px
     letterSpacing: 0px
   heading-card:
-    fontFamily: "DM Sans, Noto Sans JP, sans-serif"
+    fontFamily: "Space Grotesk, Noto Sans JP, sans-serif"
     fontSize: 24px
     fontWeight: 700
     lineHeight: 32px
     letterSpacing: 0px
   body-large:
-    fontFamily: "DM Sans, Noto Sans JP, sans-serif"
+    fontFamily: "Space Grotesk, Noto Sans JP, sans-serif"
     fontSize: 20px
     fontWeight: 500
     lineHeight: 28px
     letterSpacing: 0px
   body:
-    fontFamily: "DM Sans, Noto Sans JP, sans-serif"
+    fontFamily: "Space Grotesk, Noto Sans JP, sans-serif"
     fontSize: 16px
     fontWeight: 500
     lineHeight: 24px
     letterSpacing: 0px
   body-small:
-    fontFamily: "DM Sans, Noto Sans JP, sans-serif"
+    fontFamily: "Space Grotesk, Noto Sans JP, sans-serif"
     fontSize: 14px
     fontWeight: 500
     lineHeight: 20px
     letterSpacing: 0px
   label:
-    fontFamily: "DM Sans, Noto Sans JP, sans-serif"
+    fontFamily: "Space Grotesk, Noto Sans JP, sans-serif"
     fontSize: 14px
     fontWeight: 500
     lineHeight: 20px
@@ -213,12 +219,19 @@ Before implementing or modifying frontend UI:
 1. Read this file and the nearest `AGENTS.md`.
 2. Inspect `globals.css` instead of inventing theme variables.
 3. Search `apps/web/src/components/ui` and existing feature components before creating a component.
-4. Reuse an installed component and its documented variants whenever it satisfies the behavior.
-5. Compose layout with Tailwind utilities and semantic color classes; do not copy raw hex or OKLCH
+4. Reuse an installed Neobrutalism primitive and its documented variants whenever it satisfies the
+   behavior.
+5. If the primitive is not installed, search the official
+   [Neobrutalism component documentation](https://www.neobrutalism.dev/docs) and install its
+   upstream registry component when available.
+6. Create a custom primitive only when neither `apps/web/src/components/ui` nor the official
+   Neobrutalism library provides an appropriate component. Compose product-specific behavior around
+   primitives instead of duplicating their implementation.
+7. Compose layout with Tailwind utilities and semantic color classes; do not copy raw hex or OKLCH
    values into JSX.
-6. Keep Server Components by default. Add `"use client"` only for interaction, hooks, or browser
+8. Keep Server Components by default. Add `"use client"` only for interaction, hooks, or browser
    APIs.
-7. Verify at a compact mobile viewport and a desktop viewport, then run lint, typecheck, and a
+9. Verify at a compact mobile viewport and a desktop viewport, then run lint, typecheck, and a
    production build for rendering-impacting changes.
 
 ### Product character
@@ -278,10 +291,15 @@ semantic token use does not guarantee that every custom composition has sufficie
 They are not an alternate UI accent palette. Pair color with text, icons, labels, or patterns so
 meaning never depends on color alone.
 
+Leaderboard podium surfaces use the dedicated `rank-gold`, `rank-silver`, and `rank-bronze` tokens.
+These colors communicate first, second, and third place only; do not reuse them as general accents or
+button colors. Pair every podium color with its numeric rank and medal icon, and use
+`text-main-foreground` for content placed on these surfaces in both themes.
+
 ## Typography
 
-The global sans stack is DM Sans followed by Noto Sans JP. DM Sans gives the Latin interface its
-compact, geometric voice; Noto Sans JP supplies Japanese glyphs without requiring per-element font
+The global sans stack is Space Grotesk followed by Noto Sans JP. Space Grotesk gives the Latin interface
+its compact, geometric voice; Noto Sans JP supplies Japanese glyphs without requiring per-element font
 classes. Code and technical identifiers use the system monospace stack.
 
 | Role               | Compact         | Desktop                             | Weight | Typical use                       |
@@ -387,7 +405,10 @@ shadow.
 
 The installed components in `apps/web/src/components/ui` are the default building blocks. Reuse
 their props, states, data attributes, accessibility behavior, and variants. Feature components may
-compose these primitives but should not duplicate their implementation.
+compose these primitives but should not duplicate their implementation. When a required primitive
+is missing locally, use the official [Neobrutalism component catalog](https://www.neobrutalism.dev/docs)
+as the second source of truth and install the upstream component. Custom primitives are permitted
+only when both sources lack a suitable component.
 
 ### Buttons and actions
 
@@ -465,7 +486,7 @@ Badge, surrounding status treatment, or a documented product-specific component.
 - Use 2px component borders, 4px section borders, 5px component radius, and the shared hard shadow.
 - Alternate full-width surfaces to create hierarchy without adding new colors.
 - Keep one obvious primary action per local decision area.
-- Use DM Sans for interface text and Noto Sans JP as the automatic Japanese fallback.
+- Use Space Grotesk for interface text and Noto Sans JP as the automatic Japanese fallback.
 - Give Japanese examples, translations, audio controls, feedback, and progress a clear visual order.
 - Preserve semantic HTML, focus visibility, reduced-motion behavior, and meaningful accessible names.
 - Check the existing Landing Page for composition precedent before inventing a new marketing pattern.

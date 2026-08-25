@@ -1,0 +1,53 @@
+import { JLPT_DIFFICULTIES, type JlptDifficulty } from "@/types/practice-catalog";
+
+import type { PracticeLearningStatus } from "./practice-catalog-api";
+
+export type PracticeCatalogQueryParams = Readonly<Record<string, number | string | undefined>>;
+
+export function buildPracticeCatalogHref({
+  basePath,
+  params,
+}: {
+  basePath: string;
+  params: PracticeCatalogQueryParams;
+}): string {
+  const searchParams = new URLSearchParams();
+
+  Object.entries(params)
+    .sort(([leftKey], [rightKey]) => leftKey.localeCompare(rightKey))
+    .forEach(([key, value]) => {
+      if (value !== undefined && value !== "") {
+        searchParams.set(key, String(value));
+      }
+    });
+
+  const query = searchParams.toString();
+
+  return query ? `${basePath}?${query}` : basePath;
+}
+
+export function parseCatalogPage(value: string | undefined): number {
+  if (!value) {
+    return 1;
+  }
+
+  const parsedPage = Number.parseInt(value, 10);
+
+  return Number.isSafeInteger(parsedPage) && parsedPage > 0 ? parsedPage : 1;
+}
+
+export function parseCatalogSearchQuery(value: string | undefined): string | undefined {
+  const normalizedQuery = value?.trim().replace(/\s+/g, " ");
+
+  return normalizedQuery ? normalizedQuery.slice(0, 100) : undefined;
+}
+
+export function parseJlptDifficulty(value: string | undefined): JlptDifficulty | undefined {
+  return JLPT_DIFFICULTIES.find((difficulty) => difficulty === value);
+}
+
+export function parsePracticeLearningStatus(
+  value: string | undefined,
+): PracticeLearningStatus | undefined {
+  return value === "learned" || value === "not_learned" ? value : undefined;
+}

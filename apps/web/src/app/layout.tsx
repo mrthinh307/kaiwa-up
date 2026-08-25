@@ -1,15 +1,16 @@
 import type { Metadata } from "next";
 
-import { DM_Sans, Noto_Sans_JP } from "next/font/google";
+import { Noto_Sans_JP, Space_Grotesk } from "next/font/google";
 
-import { ThemeProvider } from "@/components/common/theme-provider";
+import { ThemeProvider } from "@/components/common/theme/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
+import { AuthProvider } from "@/providers/auth-provider";
 
 import "./globals.css";
 
-const dmSans = DM_Sans({
-  variable: "--font-dm-sans",
-  subsets: ["latin"],
+const spaceGrotesk = Space_Grotesk({
+  variable: "--font-space-grotesk",
+  subsets: ["latin", "latin-ext", "vietnamese"],
   display: "swap",
 });
 
@@ -26,17 +27,23 @@ export const metadata: Metadata = {
     "Practice Japanese listening, pronunciation, and natural responses with Dual Shadowing, Dictation, 3-Second Reflex, and AI-guided conversations.",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
   return (
     <html
       lang="en"
-      className={`${dmSans.variable} ${notoSansJp.variable} h-full scroll-smooth antialiased`}
+      className={`${spaceGrotesk.variable} ${notoSansJp.variable} h-full scroll-smooth antialiased`}
       suppressHydrationWarning
     >
       <body suppressHydrationWarning className="flex min-h-full flex-col">
         <ThemeProvider>
-          {children}
-          <Toaster position="top-right" />
+          <AuthProvider>
+            {children}
+            <Toaster position="top-right" />
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>

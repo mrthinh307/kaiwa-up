@@ -1,0 +1,75 @@
+services:
+  - type: web
+    name: kaiwa-api
+    runtime: docker
+    plan: free
+    region: singapore
+    repo: https://github.com/awesome-academy/python-naitei26_kaiwa-practice
+    branch: master
+    autoDeployTrigger: off
+    dockerfilePath: ./apps/api/Dockerfile
+    dockerContext: ./apps/api
+    healthCheckPath: /api/v1/ready
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: DEBUG
+        value: false
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: CORS_ORIGINS
+        sync: false
+      - key: REFRESH_COOKIE_SECURE
+        value: true
+      - key: REFRESH_COOKIE_SAMESITE
+        value: lax
+      - key: LEADERBOARD_REBUILD_ENABLED
+        value: false
+      - key: CLOUDINARY_URL
+        sync: false
+      - key: CLOUDINARY_FOLDER
+        value: kaiwa-up
+      - key: AI_TUTOR_PROVIDER
+        value: openai
+      - key: AI_TUTOR_FALLBACK_PROVIDERS
+        value: groq
+      - key: AI_EVAL_PROVIDER
+        value: openai
+      - key: AI_EVAL_FALLBACK_PROVIDERS
+        value: groq
+      - key: AI_STT_PROVIDER
+        value: openai
+      - key: AI_STT_FALLBACK_PROVIDERS
+        value: groq
+      - key: AI_TEMPERATURE
+        value: "0.2"
+      - key: AI_TOP_P
+        value: "1.0"
+      - key: AI_MAX_OUTPUT_TOKENS
+        value: "1000"
+      - key: AI_TIMEOUT_SECONDS
+        value: "30"
+      - key: AI_MAX_RETRIES
+        value: "2"
+      - key: AI_RETRY_BACKOFF_SECONDS
+        value: "0.5"
+      - key: AI_MAX_RETRY_BACKOFF_SECONDS
+        value: "8"
+      - key: AI_OPENAI_API_KEY
+        sync: false
+      - key: AI_OPENAI_BASE_URL
+        value: https://api.openai.com/v1
+      - key: AI_OPENAI_LLM_MODEL
+        value: gpt-4o-mini
+      - key: AI_OPENAI_STT_MODEL
+        value: whisper-1
+      - key: AI_GROQ_API_KEY
+        sync: false
+      - key: AI_GROQ_BASE_URL
+        value: https://api.groq.com/openai/v1
+      - key: AI_GROQ_LLM_MODEL
+        value: llama-3.3-70b-versatile
+      - key: AI_GROQ_STT_MODEL
+        value: whisper-large-v3

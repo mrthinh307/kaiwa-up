@@ -18,6 +18,8 @@
   "chat.useNestedAgentsMdFiles": true,
   "python-envs.defaultEnvManager": "ms-python.python:venv",
   "python-envs.workspaceSearchPaths": ["./**/.venv"],
+  "mypy-type-checker.cwd": "${workspaceFolder}/apps/api",
+  "mypy-type-checker.args": ["--config-file", "pyproject.toml"],
   "[javascript][javascriptreact][typescript][typescriptreact][json][jsonc][css][yaml]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode"
   },

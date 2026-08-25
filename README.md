@@ -101,7 +101,8 @@ The health endpoint should return:
 {
   "status": "ok",
   "timestamp": "2026-08-06T14:30:00.000Z",
-  "app_name": "Kaiwa App API"
+  "app_name": "Kaiwa App API",
+  "release_sha": "local"
 }
 ```
 
@@ -142,13 +143,108 @@ Check formatting without modifying files:
 pnpm format:check
 ```
 
+## Backend workflow
+
+For API development and testing, the repository exposes commands that keep the backend migration and test flow separate from development and production data.
+
+1. Install API dependencies:
+
+```bash
+make install-api
+```
+
+2. Set up an isolated test database:
+
+- Copy `apps/api/.env.example` to `apps/api/.env`
+- Add `DATABASE_URL_TEST` pointing to an isolated PostgreSQL database. A Neon test branch can be
+  used for local smoke, migration, and production-like verification.
+
+3. Apply migrations to the test database:
+
+```bash
+make migrate-api-test
+```
+
+4. Run the API backend test suite:
+
+```bash
+make test-api
+```
+
+The API tests use `DATABASE_URL_TEST`. Each test runs in its own transaction and rolls back after
+completion, so test data is not persisted.
+
+Pull-request CI starts a disposable PostgreSQL 18 service on the GitHub Actions runner, applies all
+Alembic migrations, and runs pytest with four parallel workers. The database is isolated per CI job
+and removed automatically when the job finishes, so pull requests do not use the shared Neon test
+branch or require its connection secret.
+
+## CI
+
+Pull requests and pushes to `master` run the repository CI pipeline. The backend job runs:
+
+- `uv run ruff check .`
+- `uv run ruff format --check .`
+- `uv run mypy`
+- `uv run alembic upgrade head` against a disposable PostgreSQL 18 service
+- `uv run pytest -n 4 --dist loadfile --durations=20`
+- production Docker image build
+
+The frontend job runs:
+
+- `pnpm lint:web`
+- `pnpm --filter web typecheck`
+- `pnpm check:api-client`
+- `pnpm format:check`
+- `pnpm build:web`
+
+See `.github/workflows/ci.yml` for the exact CI configuration.
+
 ## API client generation
 
-The `packages/api-client` workspace is reserved for types and client functions generated from the FastAPI OpenAPI schema. The generator is currently a placeholder, so the following command will exit with an explanatory error until an OpenAPI generator is configured:
+The `@kaiwa-app/api-client` workspace package hosts auto-generated TypeScript models and client functions created directly from the FastAPI OpenAPI 3.1.0 schema using `@hey-api/openapi-ts`.
+
+To generate or update the API client:
 
 ```bash
 make generate-api-client
+# or
+pnpm generate:api-client
 ```
+
+This extracts the deterministic OpenAPI schema from FastAPI (`apps/api`), saves `packages/api-client/openapi.json`, and updates `@kaiwa-app/api-client` with typed SDK functions.
+
+To check if generated artifacts are synchronized with the FastAPI backend:
+
+```bash
+pnpm check:api-client
+```
+
+For local development, `NEXT_PUBLIC_API_BASE_URL` may point browser requests directly to FastAPI.
+Production uses the server-only `API_BASE_URL`; Next.js rewrites same-origin `/api/*` requests to
+FastAPI so backend credentials are never exposed through `NEXT_PUBLIC_*`:
+
+```dotenv
+// apps/web/.env.local
+API_BASE_URL=http://localhost:8000
+NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
+```
+
+## Deployment
+
+The current Phase 1 demo is deployed manually without repository-admin approval:
+
+- Frontend: <https://kaiwa-up-demo.vercel.app>
+- Backend: <https://kaiwa-api.onrender.com>
+- Backend readiness: <https://kaiwa-api.onrender.com/api/v1/ready>
+
+The backend currently runs on Render from an immutable private GHCR image; the frontend is deployed
+with Vercel CLI. Automated CD, `render.yaml`, and the Git-backed Render service belong to Phase 2 and
+must remain disabled until the repository admin configures the required GitHub App, environment,
+secrets, and branch protection.
+
+See [`docs/11-deployment.md`](docs/11-deployment.md) for the current PowerShell deployment commands,
+smoke checks, rollback procedure, provider IDs, and the Phase 2 transition boundary.
 
 ## Project structure
 
