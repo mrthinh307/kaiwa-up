@@ -5081,6 +5081,17 @@
             "type": "string",
             "title": "Storage Key"
           },
+          "playback_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Playback Url"
+          },
           "duration_seconds": {
             "type": "integer",
             "title": "Duration Seconds"
@@ -5217,6 +5228,28 @@
           "duration_seconds": {
             "type": "integer",
             "title": "Duration Seconds"
+          },
+          "storage_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Storage Key"
+          },
+          "playback_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Playback Url"
           },
           "created_at": {
             "type": "string",

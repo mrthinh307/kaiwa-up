@@ -114,12 +114,15 @@ class ShadowingRecordedSegmentSummary(BaseModel):
     segment_id: str
     recording_id: uuid.UUID
     duration_seconds: int
+    storage_key: str | None = None
+    playback_url: str | None = None
     created_at: datetime
 
 
 class ShadowingContinuousRecordingSummary(BaseModel):
     recording_id: uuid.UUID
     storage_key: str
+    playback_url: str | None = None
     duration_seconds: int
     created_at: datetime | None = None
 

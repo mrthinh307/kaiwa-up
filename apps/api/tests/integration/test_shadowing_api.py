@@ -1196,3 +1196,326 @@ async def test_segmented_mode_without_ai_review_skips_ai_evaluation(
     submit_data = res_submit.json()
     assert submit_data["score"] == 50.0
     assert submit_data["ai_feedback"] is None
+
+
+@pytest.mark.asyncio
+async def test_segmented_mode_multiple_segments_with_ai_review(
+    client: httpx.AsyncClient, db_session: AsyncSession
+):
+    """Verifies that multiple segments are transcribed safely and evaluated together."""
+    from app.api.dependencies.ai import get_ai_gateway
+    from app.models.attempt import AiEvaluation
+
+    user = await create_test_user(db_session, email="segmented_multi_ai@example.com")
+    content = await create_shadowing_content(
+        db_session,
+        slug="shadowing-segmented-multi-ai",
+        transcript_ja=[
+            {"start_time_ms": 0, "end_time_ms": 3000, "script": "いらっしゃいませ。"},
+            {"start_time_ms": 3000, "end_time_ms": 6000, "script": "何をお探しですか？"},
+        ],
+    )
+    await db_session.flush()
+
+    mock_ai = MockShadowingAiGateway(score=92, text="いらっしゃいませ。何をお探しですか？")
+    app.dependency_overrides[get_current_user] = lambda: user
+    app.dependency_overrides[get_ai_gateway] = lambda: mock_ai
+
+    # Record Segment 0
+    res_seg0 = await client.post(
+        f"/api/v1/shadowing/{content.id}/record-segment",
+        files={"audio_file": ("seg0.webm", BytesIO(b"0" * 40000), "audio/webm")},
+        data={"segment_id": "0"},
+    )
+    assert res_seg0.status_code == 201
+    attempt_id = res_seg0.json()["attempt_id"]
+
+    # Record Segment 1
+    res_seg1 = await client.post(
+        f"/api/v1/shadowing/{content.id}/record-segment",
+        files={"audio_file": ("seg1.webm", BytesIO(b"0" * 40000), "audio/webm")},
+        data={"segment_id": "1", "attempt_id": attempt_id},
+    )
+    assert res_seg1.status_code == 201
+
+    # Submit with AI review
+    res_submit = await client.post(
+        f"/api/v1/shadowing/{content.id}/submit",
+        json={"attempt_id": attempt_id, "replay_count": 0, "request_ai_review": True},
+    )
+    assert res_submit.status_code == 200
+    submit_data = res_submit.json()
+    assert submit_data["status"] == "completed"
+    assert submit_data["score"] == 100.0
+    assert submit_data["xp_earned"] == 50
+    assert submit_data["ai_feedback"] is not None
+    assert submit_data["ai_feedback"]["similarity_score"] == 92.0
+
+    # Verify AiEvaluation in DB
+    ai_eval = await db_session.scalar(
+        select(AiEvaluation).where(AiEvaluation.attempt_id == uuid.UUID(attempt_id))
+    )
+    assert ai_eval is not None
+    assert ai_eval.similarity_score == Decimal("92.00")
+
+    # Verify Review endpoint
+    res_review = await client.get(f"/api/v1/shadowing/attempts/{attempt_id}/review")
+    assert res_review.status_code == 200
+    review_data = res_review.json()
+    assert review_data["ai_feedback"] is not None
+    assert review_data["ai_feedback"]["similarity_score"] == 92.0
+    assert review_data["completed_segments"] == 2
+
+
+@pytest.mark.asyncio
+async def test_segmented_mode_empty_speech_generates_graceful_feedback(
+    client: httpx.AsyncClient, db_session: AsyncSession
+):
+    """Verifies that empty speech in segment mode provides friendly fallback feedback."""
+    from app.api.dependencies.ai import get_ai_gateway
+
+    user = await create_test_user(db_session, email="segmented_silent@example.com")
+    content = await create_shadowing_content(db_session, slug="shadowing-segmented-silent")
+    await db_session.flush()
+
+    mock_ai = MockShadowingAiGateway(score=0, text="")
+    app.dependency_overrides[get_current_user] = lambda: user
+    app.dependency_overrides[get_ai_gateway] = lambda: mock_ai
+
+    res_seg0 = await client.post(
+        f"/api/v1/shadowing/{content.id}/record-segment",
+        files={"audio_file": ("seg0.webm", BytesIO(b"0" * 40000), "audio/webm")},
+        data={"segment_id": "0"},
+    )
+    assert res_seg0.status_code == 201
+    attempt_id = res_seg0.json()["attempt_id"]
+
+    res_submit = await client.post(
+        f"/api/v1/shadowing/{content.id}/submit",
+        json={"attempt_id": attempt_id, "replay_count": 0, "request_ai_review": True},
+    )
+    assert res_submit.status_code == 200
+    submit_data = res_submit.json()
+    assert submit_data["score"] == 50.0
+    assert submit_data["ai_feedback"] is not None
+    assert submit_data["ai_feedback"]["similarity_score"] == 0.0
+    assert "Không nhận diện được giọng nói" in submit_data["ai_feedback"]["feedback"]
+
+
+def test_parse_json_content_handles_markdown_code_fences():
+    from app.integrations.ai.contracts import parse_json_content
+
+    # Plain JSON
+    assert parse_json_content('{"key": "value"}') == {"key": "value"}
+
+    # Markdown json fence
+    fenced = '```json\n{"score": 85, "is_acceptable": true}\n```'
+    assert parse_json_content(fenced) == {"score": 85, "is_acceptable": True}
+
+    # Markdown fence without language
+    fenced_no_lang = '```\n{"score": 90}\n```'
+    assert parse_json_content(fenced_no_lang) == {"score": 90}
+
+    # Markdown fence with leading/trailing commentary
+    fenced_with_text = (
+        'Here is the evaluation result:\n```json\n{"score": 75}\n```\nHope this helps!'
+    )
+    assert parse_json_content(fenced_with_text) == {"score": 75}
+
+
+@pytest.mark.asyncio
+async def test_in_progress_attempt_returns_playback_urls_for_all_recorded_segments(
+    client: httpx.AsyncClient, db_session: AsyncSession
+):
+    """Verifies that in-progress attempt endpoint returns valid playback URLs for restoration."""
+    from app.api.dependencies.ai import get_ai_gateway
+
+    user = await create_test_user(db_session, email="in_prog_urls@example.com")
+    content = await create_shadowing_content(
+        db_session,
+        slug="shadowing-in-prog-urls",
+        transcript_ja=[
+            {"start_time_ms": 0, "end_time_ms": 3000, "script": "おはようございます。"},
+            {"start_time_ms": 3000, "end_time_ms": 6000, "script": "お元気ですか？"},
+        ],
+    )
+    await db_session.flush()
+
+    app.dependency_overrides[get_current_user] = lambda: user
+    app.dependency_overrides[get_ai_gateway] = lambda: MockShadowingAiGateway()
+
+    # Record segment 0
+    res_seg0 = await client.post(
+        f"/api/v1/shadowing/{content.id}/record-segment",
+        files={"audio_file": ("seg0.webm", BytesIO(b"0" * 40000), "audio/webm")},
+        data={"segment_id": "0"},
+    )
+    assert res_seg0.status_code == 201
+    attempt_id = res_seg0.json()["attempt_id"]
+
+    # Query in-progress
+    res_in_prog = await client.get(f"/api/v1/shadowing/{content.id}/in-progress")
+    assert res_in_prog.status_code == 200
+    in_prog_data = res_in_prog.json()
+    assert in_prog_data["attempt_id"] == attempt_id
+    assert len(in_prog_data["recorded_segments"]) == 1
+    seg_summary = in_prog_data["recorded_segments"][0]
+    assert seg_summary["segment_id"] == "0"
+    assert seg_summary["playback_url"] is not None
+    assert seg_summary["playback_url"].startswith("http")
+
+
+@pytest.mark.asyncio
+async def test_in_progress_continuous_returns_playback_url(
+    client: httpx.AsyncClient, db_session: AsyncSession
+):
+    """Verifies that continuous in-progress attempt returns playback URL."""
+    from app.api.dependencies.ai import get_ai_gateway
+
+    user = await create_test_user(db_session, email="in_prog_cont_urls@example.com")
+    content = await create_shadowing_content(db_session, slug="shadowing-in-prog-cont-urls")
+    await db_session.flush()
+
+    app.dependency_overrides[get_current_user] = lambda: user
+    app.dependency_overrides[get_ai_gateway] = lambda: MockShadowingAiGateway()
+
+    res_cont = await client.post(
+        f"/api/v1/shadowing/{content.id}/record-continuous",
+        files={"audio_file": ("cont.webm", BytesIO(b"0" * 40000), "audio/webm")},
+        data={"duration_seconds": 10},
+    )
+    assert res_cont.status_code == 201
+    attempt_id = res_cont.json()["attempt_id"]
+
+    res_in_prog = await client.get(f"/api/v1/shadowing/{content.id}/in-progress")
+    assert res_in_prog.status_code == 200
+    in_prog_data = res_in_prog.json()
+    assert in_prog_data["attempt_id"] == attempt_id
+    assert in_prog_data["mode"] == "continuous"
+    assert in_prog_data["continuous_recording"] is not None
+    assert in_prog_data["continuous_recording"]["playback_url"] is not None
+
+
+@pytest.mark.asyncio
+async def test_resume_and_submit_attempt_with_ai_review(
+    client: httpx.AsyncClient, db_session: AsyncSession
+):
+    """Verifies resuming an in-progress attempt and finishing with AI review."""
+    from app.api.dependencies.ai import get_ai_gateway
+
+    user = await create_test_user(db_session, email="resume_with_ai@example.com")
+    content = await create_shadowing_content(
+        db_session,
+        slug="shadowing-resume-ai",
+        transcript_ja=[
+            {"start_time_ms": 0, "end_time_ms": 3000, "script": "おはよう。"},
+            {"start_time_ms": 3000, "end_time_ms": 6000, "script": "また明日。"},
+        ],
+    )
+    await db_session.flush()
+
+    mock_ai = MockShadowingAiGateway(score=95, text="おはよう。また明日。")
+    app.dependency_overrides[get_current_user] = lambda: user
+    app.dependency_overrides[get_ai_gateway] = lambda: mock_ai
+
+    # Session 1: Record segment 0
+    res_seg0 = await client.post(
+        f"/api/v1/shadowing/{content.id}/record-segment",
+        files={"audio_file": ("seg0.webm", BytesIO(b"0" * 40000), "audio/webm")},
+        data={"segment_id": "0"},
+    )
+    assert res_seg0.status_code == 201
+    attempt_id = res_seg0.json()["attempt_id"]
+
+    # Session 2 (Resumed): Record segment 1 using attempt_id
+    res_seg1 = await client.post(
+        f"/api/v1/shadowing/{content.id}/record-segment",
+        files={"audio_file": ("seg1.webm", BytesIO(b"0" * 40000), "audio/webm")},
+        data={"segment_id": "1", "attempt_id": attempt_id},
+    )
+    assert res_seg1.status_code == 201
+
+    # Submit resumed attempt with AI review
+    res_submit = await client.post(
+        f"/api/v1/shadowing/{content.id}/submit",
+        json={"attempt_id": attempt_id, "replay_count": 0, "request_ai_review": True},
+    )
+    assert res_submit.status_code == 200
+    submit_data = res_submit.json()
+    assert submit_data["status"] == "completed"
+    assert submit_data["score"] == 100.0
+    assert submit_data["xp_earned"] == 50
+    assert submit_data["ai_feedback"] is not None
+    assert submit_data["ai_feedback"]["similarity_score"] == 95.0
+
+
+@pytest.mark.asyncio
+async def test_segment_recording_assignment_skipped_segments_remain_unrecorded(
+    client: httpx.AsyncClient, db_session: AsyncSession
+):
+    """Verifies that skipping Segment 0 and recording Segment 1 leaves Segment 0 unrecorded."""
+    from app.api.dependencies.ai import get_ai_gateway
+
+    user = await create_test_user(db_session, email="skip_seg0@example.com")
+    content = await create_shadowing_content(
+        db_session,
+        slug="shadowing-skip-seg0",
+        transcript_ja=[
+            {"start_time_ms": 0, "end_time_ms": 3000, "script": "最初の文。"},
+            {"start_time_ms": 3000, "end_time_ms": 6000, "script": "二番目の文。"},
+            {"start_time_ms": 6000, "end_time_ms": 9000, "script": "三番目の文。"},
+        ],
+    )
+    await db_session.flush()
+
+    mock_ai = MockShadowingAiGateway(score=88, text="二番目の文。")
+    app.dependency_overrides[get_current_user] = lambda: user
+    app.dependency_overrides[get_ai_gateway] = lambda: mock_ai
+
+    # Record ONLY Segment 1 (skipping Segment 0 and Segment 2)
+    res_seg1 = await client.post(
+        f"/api/v1/shadowing/{content.id}/record-segment",
+        files={"audio_file": ("seg1.webm", BytesIO(b"0" * 40000), "audio/webm")},
+        data={"segment_id": "1"},
+    )
+    assert res_seg1.status_code == 201
+    attempt_id = res_seg1.json()["attempt_id"]
+    recording_id_1 = res_seg1.json()["recording_id"]
+
+    # Submit attempt
+    res_submit = await client.post(
+        f"/api/v1/shadowing/{content.id}/submit",
+        json={"attempt_id": attempt_id, "replay_count": 0, "request_ai_review": False},
+    )
+    assert res_submit.status_code == 200
+    submit_data = res_submit.json()
+    # 1 of 3 completed -> score = round(1/3 * 100, 2) = 33.33
+    assert submit_data["score"] == 33.33
+
+    # Review attempt: verify Segment 0 and Segment 2 are NOT recorded!
+    res_review = await client.get(f"/api/v1/shadowing/attempts/{attempt_id}/review")
+    assert res_review.status_code == 200
+    review_data = res_review.json()
+    assert review_data["total_segments"] == 3
+    assert review_data["completed_segments"] == 1
+
+    segments = review_data["segments"]
+    assert len(segments) == 3
+
+    # Segment 0: Skipped
+    assert segments[0]["segment_index"] == 0
+    assert segments[0]["recorded"] is False
+    assert segments[0]["recording_id"] is None
+    assert segments[0]["playback_url"] is None
+
+    # Segment 1: Recorded
+    assert segments[1]["segment_index"] == 1
+    assert segments[1]["recorded"] is True
+    assert segments[1]["recording_id"] == recording_id_1
+    assert segments[1]["playback_url"] is not None
+
+    # Segment 2: Skipped
+    assert segments[2]["segment_index"] == 2
+    assert segments[2]["recorded"] is False
+    assert segments[2]["recording_id"] is None
+    assert segments[2]["playback_url"] is None

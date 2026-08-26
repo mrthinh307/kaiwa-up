@@ -1330,6 +1330,10 @@ export type ShadowingContinuousRecordingSummary = {
    */
   storage_key: string;
   /**
+   * Playback Url
+   */
+  playback_url?: string | null;
+  /**
    * Duration Seconds
    */
   duration_seconds: number;
@@ -1434,6 +1438,14 @@ export type ShadowingRecordedSegmentSummary = {
    * Duration Seconds
    */
   duration_seconds: number;
+  /**
+   * Storage Key
+   */
+  storage_key?: string | null;
+  /**
+   * Playback Url
+   */
+  playback_url?: string | null;
   /**
    * Created At
    */

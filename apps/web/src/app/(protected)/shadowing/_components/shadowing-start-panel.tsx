@@ -52,8 +52,11 @@ export function ShadowingStartPanel({
 }: ShadowingStartPanelProps) {
   const [userSelectedMode, setUserSelectedMode] = useState<"segmented" | "continuous" | null>(null);
 
-  const selectedMode =
-    userSelectedMode ?? (inProgressAttempt?.mode === "continuous" ? "continuous" : "segmented");
+  const selectedMode = inProgressAttempt
+    ? inProgressAttempt.mode === "continuous"
+      ? "continuous"
+      : "segmented"
+    : (userSelectedMode ?? "segmented");
 
   const youtubeVideoId = useMemo(
     () => (lesson.audio_url ? getYouTubeVideoId(lesson.audio_url) : undefined),
@@ -260,8 +263,12 @@ export function ShadowingStartPanel({
                     selectedMode === "segmented"
                       ? "bg-main/15 border-main shadow-shadow ring-2 ring-main/20"
                       : "bg-background hover:bg-secondary-background",
+                    inProgressAttempt &&
+                      selectedMode !== "segmented" &&
+                      "opacity-50 cursor-not-allowed",
                   )}
-                  onClick={() => setUserSelectedMode("segmented")}
+                  disabled={Boolean(inProgressAttempt)}
+                  onClick={() => !inProgressAttempt && setUserSelectedMode("segmented")}
                   type="button"
                 >
                   <div className="flex items-center justify-between w-full">
@@ -285,8 +292,12 @@ export function ShadowingStartPanel({
                     selectedMode === "continuous"
                       ? "bg-main/15 border-main shadow-shadow ring-2 ring-main/20"
                       : "bg-background hover:bg-secondary-background",
+                    inProgressAttempt &&
+                      selectedMode !== "continuous" &&
+                      "opacity-50 cursor-not-allowed",
                   )}
-                  onClick={() => setUserSelectedMode("continuous")}
+                  disabled={Boolean(inProgressAttempt)}
+                  onClick={() => !inProgressAttempt && setUserSelectedMode("continuous")}
                   type="button"
                 >
                   <div className="flex items-center justify-between w-full">
@@ -321,38 +332,26 @@ export function ShadowingStartPanel({
 
           <div className="space-y-3 p-5 pt-0 sm:p-6 sm:pt-0">
             {inProgressAttempt ? (
-              <div className="flex flex-col gap-2">
-                <Button
-                  className="min-h-12 w-full font-heading text-base"
-                  disabled={isRestoring || isStarting}
-                  onClick={onResume}
-                  size="lg"
-                  type="button"
-                >
-                  {isRestoring ? (
-                    <>
-                      <LoaderCircle aria-hidden="true" className="animate-spin" />
-                      Loading attempt...
-                    </>
-                  ) : (
-                    <>
-                      <RotateCcw aria-hidden="true" />
-                      Resume Attempt (
-                      {inProgressAttempt.mode === "continuous" ? "Continuous" : "Segmented"})
-                    </>
-                  )}
-                </Button>
-                <Button
-                  className="w-full font-heading"
-                  disabled={isRestoring || isStarting}
-                  onClick={() => onStart(selectedMode)}
-                  size="sm"
-                  type="button"
-                  variant="neutral"
-                >
-                  Start new {selectedMode} attempt instead
-                </Button>
-              </div>
+              <Button
+                className="min-h-12 w-full font-heading text-base"
+                disabled={isRestoring || isStarting}
+                onClick={onResume}
+                size="lg"
+                type="button"
+              >
+                {isRestoring ? (
+                  <>
+                    <LoaderCircle aria-hidden="true" className="animate-spin" />
+                    Loading attempt...
+                  </>
+                ) : (
+                  <>
+                    <RotateCcw aria-hidden="true" />
+                    Resume Attempt (
+                    {inProgressAttempt.mode === "continuous" ? "Continuous" : "Segmented"})
+                  </>
+                )}
+              </Button>
             ) : (
               <Button
                 className="min-h-12 w-full font-heading text-base"
