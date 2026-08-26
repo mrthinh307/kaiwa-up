@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     REFRESH_COOKIE_SECURE: bool = False
     REFRESH_COOKIE_SAMESITE: Literal["lax", "strict", "none"] = "lax"
 
-    leaderboard_rebuild_interval_hours: int = 1
+    leaderboard_rebuild_interval_minutes: int = 1
     leaderboard_rebuild_enabled: bool = True
 
     STORAGE_DIR: str = "storage"
