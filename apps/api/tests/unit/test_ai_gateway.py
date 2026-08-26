@@ -123,11 +123,13 @@ class _CountingGateway(FakeAiGateway):
         *,
         reference_transcript: str,
         user_transcript: str,
+        is_segment_mode: bool = False,
     ) -> EvaluationResult:
         self.calls.append("evaluate_shadowing")
         return await super().evaluate_shadowing(
             reference_transcript=reference_transcript,
             user_transcript=user_transcript,
+            is_segment_mode=is_segment_mode,
         )
 
     async def evaluate_translation(
