@@ -110,6 +110,11 @@ export function ShadowingScreen({ lesson }: ShadowingScreenProps) {
   }, [lesson.id]);
 
   const handleStart = (mode: "segmented" | "continuous") => {
+    if (inProgressAttempt) {
+      handleResume();
+      return;
+    }
+
     setIsStarting(true);
     setPracticeMode(mode);
     setSelectedSegmentIndex(0);
@@ -134,12 +139,13 @@ export function ShadowingScreen({ lesson }: ShadowingScreenProps) {
 
     if (mode === "continuous") {
       setContinuousDurationSeconds(inProgressAttempt.continuous_recording?.duration_seconds ?? 0);
-      setContinuousAudioUrl(null);
+      setContinuousAudioUrl(inProgressAttempt.continuous_recording?.playback_url ?? null);
     } else {
       const initialMap: Record<string, SegmentRecordState> = {};
       for (const seg of inProgressAttempt.recorded_segments ?? []) {
         initialMap[seg.segment_id] = {
           durationSeconds: seg.duration_seconds,
+          playbackUrl: seg.playback_url ?? undefined,
           recorded: true,
           recordingId: seg.recording_id,
         };
@@ -359,6 +365,11 @@ export function ShadowingScreen({ lesson }: ShadowingScreenProps) {
     setReview(null);
     setIsReviewMode(false);
     setIsStarted(false);
+    setInProgressAttempt(null);
+    setCurrentAttemptId(null);
+    setRecordedSegments({});
+    setContinuousDurationSeconds(0);
+    setContinuousAudioUrl(null);
   };
 
   // 1. Preview / Start Panel Mode

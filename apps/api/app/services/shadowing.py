@@ -382,7 +382,7 @@ class ShadowingService:
                         if dur_s >= 2 or dur_ms >= 2000:
                             valid_segment_ids.add(str(seg.get("segment_id")))
 
-                if not valid_segment_ids and recordings:
+                if not payload_segments and recordings:
                     for idx, rec in enumerate(recordings):
                         if (rec.duration_ms or 0) >= 2000:
                             valid_segment_ids.add(str(idx))
@@ -473,21 +473,31 @@ class ShadowingService:
                                     reference_transcript=ref_script,
                                     user_transcript=recognized_text,
                                 )
-                                await self.repository.create_ai_evaluation(
-                                    attempt_id=attempt.id,
-                                    recording_id=continuous_rec.id if continuous_rec else None,
-                                    similarity_score=Decimal(str(round(eval_result.score, 2))),
-                                    feedback=eval_result.feedback,
-                                    details={
-                                        "corrections": [
-                                            c.model_dump() for c in eval_result.corrections
-                                        ],
-                                        "hints": eval_result.hints,
-                                        "is_acceptable": eval_result.is_acceptable,
-                                        "user_transcript": recognized_text,
-                                    },
-                                    completed_at=completed_at,
-                                )
+                                cont_rec_id = continuous_rec.id if continuous_rec else None
+                                sim_score = Decimal(str(round(eval_result.score, 2)))
+                                try:
+                                    async with self.repository.session.begin_nested():
+                                        await self.repository.create_ai_evaluation(
+                                            attempt_id=attempt.id,
+                                            recording_id=cont_rec_id,
+                                            similarity_score=sim_score,
+                                            feedback=eval_result.feedback,
+                                            details={
+                                                "corrections": [
+                                                    c.model_dump() for c in eval_result.corrections
+                                                ],
+                                                "hints": eval_result.hints,
+                                                "is_acceptable": eval_result.is_acceptable,
+                                                "user_transcript": recognized_text,
+                                            },
+                                            completed_at=completed_at,
+                                        )
+                                except Exception as db_exc:
+                                    logger.warning(
+                                        "Failed to persist continuous AiEvaluation record: %s",
+                                        db_exc,
+                                    )
+
                                 ai_feedback = ShadowingAiFeedback(
                                     similarity_score=float(eval_result.score),
                                     feedback=eval_result.feedback,
@@ -513,19 +523,28 @@ class ShadowingService:
                                     "Kiểm tra âm lượng micro và khoảng cách thu âm.",
                                     "Phát âm rõ ràng theo câu mẫu tiếng Nhật.",
                                 ]
-                                await self.repository.create_ai_evaluation(
-                                    attempt_id=attempt.id,
-                                    recording_id=continuous_rec.id if continuous_rec else None,
-                                    similarity_score=Decimal("0.00"),
-                                    feedback=no_speech_feedback,
-                                    details={
-                                        "corrections": [],
-                                        "hints": no_speech_hints,
-                                        "is_acceptable": False,
-                                        "user_transcript": "",
-                                    },
-                                    completed_at=completed_at,
-                                )
+                                cont_rec_id = continuous_rec.id if continuous_rec else None
+                                try:
+                                    async with self.repository.session.begin_nested():
+                                        await self.repository.create_ai_evaluation(
+                                            attempt_id=attempt.id,
+                                            recording_id=cont_rec_id,
+                                            similarity_score=Decimal("0.00"),
+                                            feedback=no_speech_feedback,
+                                            details={
+                                                "corrections": [],
+                                                "hints": no_speech_hints,
+                                                "is_acceptable": False,
+                                                "user_transcript": "",
+                                            },
+                                            completed_at=completed_at,
+                                        )
+                                except Exception as db_exc:
+                                    logger.warning(
+                                        "Failed to persist empty speech AiEvaluation record: %s",
+                                        db_exc,
+                                    )
+
                                 ai_feedback = ShadowingAiFeedback(
                                     similarity_score=0.0,
                                     feedback=no_speech_feedback,
@@ -554,12 +573,12 @@ class ShadowingService:
                             for idx, rec in enumerate(recordings):
                                 seg_rec_map[str(idx)] = rec
 
-                        async def process_segment(
-                            seg_id: str, rec: Recording, ref_text: str
-                        ) -> None:
+                        async def transcribe_segment_task(
+                            seg_id: str, storage_key: str, ref_text: str
+                        ) -> tuple[str, str | None]:
                             try:
                                 audio_bytes = await self.storage_service.get_audio_bytes(
-                                    rec.storage_key
+                                    storage_key
                                 )
                                 stt = await self.ai_gateway.transcribe(  # type: ignore[union-attr]
                                     audio=audio_bytes,
@@ -567,14 +586,14 @@ class ShadowingService:
                                     language="ja",
                                     prompt_hint=ref_text or None,
                                 )
-                                await self.repository.update_recording_transcription(rec, stt.text)
-                                segment_transcripts[seg_id] = stt.text
+                                return seg_id, stt.text
                             except Exception as exc:
                                 logger.warning(
                                     "STT transcription failed for segment %s: %s",
                                     seg_id,
                                     exc,
                                 )
+                                return seg_id, None
 
                         tasks = []
                         for idx, seg_data in enumerate(transcript_segments):
@@ -585,10 +604,24 @@ class ShadowingService:
                                 else ""
                             )
                             if seg_id in seg_rec_map:
-                                tasks.append(process_segment(seg_id, seg_rec_map[seg_id], ref_text))
+                                tasks.append(
+                                    transcribe_segment_task(
+                                        seg_id, seg_rec_map[seg_id].storage_key, ref_text
+                                    )
+                                )
 
                         if tasks:
-                            await asyncio.gather(*tasks, return_exceptions=True)
+                            results = await asyncio.gather(*tasks, return_exceptions=True)
+                            for res in results:
+                                if isinstance(res, tuple) and len(res) == 2:
+                                    s_id, text_result = res
+                                    if text_result is not None:
+                                        segment_transcripts[s_id] = text_result
+                                        rec_to_update = seg_rec_map.get(s_id)
+                                        if rec_to_update is not None:
+                                            await self.repository.update_recording_transcription(
+                                                rec_to_update, text_result
+                                            )
 
                         combined_user_transcript = " ".join(
                             segment_transcripts.get(str(i), "")
@@ -600,21 +633,29 @@ class ShadowingService:
                                 reference_transcript=ref_script,
                                 user_transcript=combined_user_transcript,
                             )
-                            await self.repository.create_ai_evaluation(
-                                attempt_id=attempt.id,
-                                similarity_score=Decimal(str(round(eval_result.score, 2))),
-                                feedback=eval_result.feedback,
-                                details={
-                                    "corrections": [
-                                        c.model_dump() for c in eval_result.corrections
-                                    ],
-                                    "hints": eval_result.hints,
-                                    "is_acceptable": eval_result.is_acceptable,
-                                    "user_transcript": combined_user_transcript,
-                                    "segment_transcripts": segment_transcripts,
-                                },
-                                completed_at=completed_at,
-                            )
+                            try:
+                                async with self.repository.session.begin_nested():
+                                    await self.repository.create_ai_evaluation(
+                                        attempt_id=attempt.id,
+                                        similarity_score=Decimal(str(round(eval_result.score, 2))),
+                                        feedback=eval_result.feedback,
+                                        details={
+                                            "corrections": [
+                                                c.model_dump() for c in eval_result.corrections
+                                            ],
+                                            "hints": eval_result.hints,
+                                            "is_acceptable": eval_result.is_acceptable,
+                                            "user_transcript": combined_user_transcript,
+                                            "segment_transcripts": segment_transcripts,
+                                        },
+                                        completed_at=completed_at,
+                                    )
+                            except Exception as db_exc:
+                                logger.warning(
+                                    "Failed to persist segment AiEvaluation record: %s",
+                                    db_exc,
+                                )
+
                             ai_feedback = ShadowingAiFeedback(
                                 similarity_score=float(eval_result.score),
                                 feedback=eval_result.feedback,
@@ -628,6 +669,44 @@ class ShadowingService:
                                 ],
                                 hints=eval_result.hints,
                                 user_transcript=combined_user_transcript,
+                            )
+                            updated_payload["segment_transcripts"] = segment_transcripts
+                        else:
+                            no_speech_feedback = (
+                                "Không nhận diện được giọng nói trong các đoạn thu âm. "
+                                "Bạn hãy thử phát âm to, rõ ràng hơn và kiểm tra thiết bị micro."
+                            )
+                            no_speech_hints = [
+                                "Kiểm tra âm lượng micro và khoảng cách thu âm.",
+                                "Phát âm rõ ràng theo từng đoạn câu mẫu tiếng Nhật.",
+                            ]
+                            try:
+                                async with self.repository.session.begin_nested():
+                                    await self.repository.create_ai_evaluation(
+                                        attempt_id=attempt.id,
+                                        similarity_score=Decimal("0.00"),
+                                        feedback=no_speech_feedback,
+                                        details={
+                                            "corrections": [],
+                                            "hints": no_speech_hints,
+                                            "is_acceptable": False,
+                                            "user_transcript": "",
+                                            "segment_transcripts": segment_transcripts,
+                                        },
+                                        completed_at=completed_at,
+                                    )
+                            except Exception as db_exc:
+                                logger.warning(
+                                    "Failed to persist empty segment AiEvaluation record: %s",
+                                    db_exc,
+                                )
+
+                            ai_feedback = ShadowingAiFeedback(
+                                similarity_score=0.0,
+                                feedback=no_speech_feedback,
+                                corrections=[],
+                                hints=no_speech_hints,
+                                user_transcript="",
                             )
                             updated_payload["segment_transcripts"] = segment_transcripts
                 except Exception as exc:
@@ -805,7 +884,7 @@ class ShadowingService:
             rec = None
             if rec_id_str and rec_id_str in recordings_by_id:
                 rec = recordings_by_id[rec_id_str]
-            elif not is_continuous and index < len(recordings):
+            elif not payload_segments and not is_continuous and index < len(recordings):
                 rec = recordings[index]
 
             is_recorded = False
@@ -915,6 +994,8 @@ class ShadowingService:
 
         transcript_segments = content.transcript_ja or []
         total_count = len(transcript_segments)
+        recordings = await self.repository.get_recordings_by_attempt(attempt.id)
+        recordings_by_id = {str(r.id): r for r in recordings}
 
         mode_str = (attempt.answer_payload or {}).get("mode")
         is_continuous = mode_str == ShadowingMode.CONTINUOUS.value or "continuous_recording" in (
@@ -927,12 +1008,33 @@ class ShadowingService:
             cont_data = (attempt.answer_payload or {}).get("continuous_recording", {})
             if isinstance(cont_data, dict) and "recording_id" in cont_data:
                 with contextlib.suppress(Exception):
+                    rec_id = uuid.UUID(str(cont_data["recording_id"]))
+                    storage_key = str(cont_data.get("storage_key", ""))
+                    if not storage_key and str(rec_id) in recordings_by_id:
+                        storage_key = recordings_by_id[str(rec_id)].storage_key
+                    playback_url = (
+                        self.storage_service.get_playback_url(storage_key) if storage_key else None
+                    )
                     continuous_summary = ShadowingContinuousRecordingSummary(
-                        recording_id=uuid.UUID(str(cont_data["recording_id"])),
-                        storage_key=str(cont_data.get("storage_key", "")),
+                        recording_id=rec_id,
+                        storage_key=storage_key,
+                        playback_url=playback_url,
                         duration_seconds=int(cont_data.get("duration_seconds", 0)),
                         created_at=attempt.started_at,
                     )
+            elif recordings:
+                last_rec = recordings[-1]
+                storage_key = last_rec.storage_key
+                playback_url = (
+                    self.storage_service.get_playback_url(storage_key) if storage_key else None
+                )
+                continuous_summary = ShadowingContinuousRecordingSummary(
+                    recording_id=last_rec.id,
+                    storage_key=storage_key,
+                    playback_url=playback_url,
+                    duration_seconds=int((last_rec.duration_ms or 0) // 1000),
+                    created_at=last_rec.created_at,
+                )
 
         raw_payload_segments = (attempt.answer_payload or {}).get("segments")
         payload_segments = raw_payload_segments if isinstance(raw_payload_segments, list) else []
@@ -943,11 +1045,19 @@ class ShadowingService:
                 try:
                     rec_id = uuid.UUID(str(seg["recording_id"]))
                     dur_s = int(seg.get("duration_seconds", 0))
+                    storage_key = str(seg.get("storage_key", ""))
+                    if not storage_key and str(rec_id) in recordings_by_id:
+                        storage_key = recordings_by_id[str(rec_id)].storage_key
+                    playback_url = (
+                        self.storage_service.get_playback_url(storage_key) if storage_key else None
+                    )
                     recorded_summaries.append(
                         ShadowingRecordedSegmentSummary(
                             segment_id=str(seg["segment_id"]),
                             recording_id=rec_id,
                             duration_seconds=dur_s,
+                            storage_key=storage_key or None,
+                            playback_url=playback_url,
                             created_at=attempt.started_at,
                         )
                     )

@@ -31,7 +31,7 @@ def configure_scheduler() -> bool:
     scheduler.add_job(
         _rebuild_weekly_leaderboard,
         trigger="interval",
-        hours=settings.leaderboard_rebuild_interval_hours,
+        minutes=settings.leaderboard_rebuild_interval_minutes,
         id="rebuild_weekly_leaderboard",
         replace_existing=True,
         coalesce=True,

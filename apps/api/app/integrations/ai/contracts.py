@@ -1,6 +1,7 @@
 """Normalized AI result contracts and response parsing helpers."""
 
 import json
+import re
 from typing import Any, Literal, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
@@ -103,10 +104,23 @@ M = TypeVar("M", bound=BaseModel)
 
 def parse_json_content(content: str) -> dict[str, Any]:
     """Parse provider JSON text into a mapping or raise AiInvalidResponseError."""
+    raw = content.strip()
+    if raw.startswith("```"):
+        raw = re.sub(r"^```(?:json)?\s*", "", raw, flags=re.IGNORECASE)
+        raw = re.sub(r"\s*```$", "", raw)
+        raw = raw.strip()
     try:
-        data = json.loads(content)
-    except json.JSONDecodeError as exc:
-        raise AiInvalidResponseError("AI provider returned invalid JSON") from exc
+        data = json.loads(raw)
+    except json.JSONDecodeError as exc_json:
+        start = raw.find("{")
+        end = raw.rfind("}")
+        if start != -1 and end != -1 and end > start:
+            try:
+                data = json.loads(raw[start : end + 1])
+            except json.JSONDecodeError as exc:
+                raise AiInvalidResponseError("AI provider returned invalid JSON") from exc
+        else:
+            raise AiInvalidResponseError("AI provider returned invalid JSON") from exc_json
     if not isinstance(data, dict):
         raise AiInvalidResponseError("AI provider returned a non-object JSON value")
     return data
