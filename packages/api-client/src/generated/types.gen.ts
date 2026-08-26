@@ -1206,6 +1206,10 @@ export type ShadowingAiFeedback = {
    * User Transcript
    */
   user_transcript?: string | null;
+  /**
+   * Words
+   */
+  words?: Array<ShadowingWordFeedback>;
 };
 
 /**
@@ -1550,6 +1554,10 @@ export type ShadowingSegmentReviewItem = {
    * Similarity Score
    */
   similarity_score?: number | null;
+  /**
+   * Words
+   */
+  words?: Array<ShadowingWordFeedback>;
 };
 
 /**
@@ -1624,6 +1632,26 @@ export type ShadowingUserProgressSummary = {
    */
   exp_to_next_level: number;
 };
+
+/**
+ * ShadowingWordFeedback
+ */
+export type ShadowingWordFeedback = {
+  /**
+   * Word
+   */
+  word: string;
+  status: ShadowingWordStatus;
+  /**
+   * User Word
+   */
+  user_word?: string | null;
+};
+
+/**
+ * ShadowingWordStatus
+ */
+export type ShadowingWordStatus = "correct" | "incorrect" | "missing";
 
 /**
  * TranscriptSegment

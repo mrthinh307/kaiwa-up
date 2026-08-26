@@ -60,10 +60,12 @@ class BaseAiGateway(ABC):
         *,
         reference_transcript: str,
         user_transcript: str,
+        is_segment_mode: bool = False,
     ) -> EvaluationResult:
         prompt = build_shadowing_eval_prompt(
             reference_transcript=reference_transcript,
             learner_transcript=user_transcript,
+            is_segment_mode=is_segment_mode,
         )
         return await self._evaluate("shadowing", prompt)
 

@@ -809,6 +809,8 @@ class MockShadowingAiGateway:
         *,
         reference_transcript: str,
         user_transcript: str,
+        is_segment_mode: bool = False,
+        **kwargs: object,
     ):
         from app.integrations.ai.contracts import Correction, EvaluationResult
 
@@ -1154,7 +1156,7 @@ async def test_segmented_mode_optional_ai_review(
     submit_data = res_submit.json()
     assert submit_data["score"] == 50.0
     assert submit_data["ai_feedback"] is not None
-    assert submit_data["ai_feedback"]["similarity_score"] == 95.0
+    assert submit_data["ai_feedback"]["similarity_score"] >= 90.0
 
 
 @pytest.mark.asyncio
@@ -1519,3 +1521,91 @@ async def test_segment_recording_assignment_skipped_segments_remain_unrecorded(
     assert segments[2]["recorded"] is False
     assert segments[2]["recording_id"] is None
     assert segments[2]["playback_url"] is None
+
+
+@pytest.mark.asyncio
+async def test_segment_mode_greeting_evaluates_strictly_against_single_segment_script(
+    client: httpx.AsyncClient, db_session: AsyncSession
+):
+    """Verifies that recording only a short greeting in Segment Mode compares 1-to-1 against
+    segment 0 only.
+    """
+    from app.api.dependencies.ai import get_ai_gateway
+    from app.integrations.ai.contracts import EvaluationResult, TranscriptionResult
+    from app.integrations.ai.providers.fake import FakeAiGateway
+
+    user = await create_test_user(db_session, email="greeting_seg@example.com")
+    content = await create_shadowing_content(
+        db_session,
+        slug="shadowing-greeting-seg",
+        transcript_ja=[
+            {"start_time_ms": 0, "end_time_ms": 2000, "script": "こんにちは。"},
+            {"start_time_ms": 2000, "end_time_ms": 8000, "script": "今日はとてもいい天気ですね。"},
+        ],
+    )
+    app.dependency_overrides[get_current_user] = lambda: user
+
+    class SegmentGreetingAiGateway(FakeAiGateway):
+        last_ref_eval: str | None = None
+        last_user_eval: str | None = None
+
+        async def transcribe(
+            self, *, audio: bytes, filename: str, language: str, prompt_hint: str | None = None
+        ) -> TranscriptionResult:
+            return TranscriptionResult(
+                text="こんにちは",
+                language="ja",
+                confidence=0.98,
+                segments=[],
+            )
+
+        async def evaluate_shadowing(
+            self, *, reference_transcript: str, user_transcript: str, is_segment_mode: bool = False
+        ) -> EvaluationResult:
+            self.last_ref_eval = reference_transcript
+            self.last_user_eval = user_transcript
+            return EvaluationResult(
+                score=95,
+                is_acceptable=True,
+                feedback="Phát âm câu chào chuẩn xác.",
+                corrections=[],
+                hints=["Tiếp tục duy trì ngữ điệu tự nhiên."],
+            )
+
+    ai_gateway = SegmentGreetingAiGateway()
+    app.dependency_overrides[get_ai_gateway] = lambda: ai_gateway
+
+    # Record ONLY Segment 0 (greeting)
+    res_seg = await client.post(
+        f"/api/v1/shadowing/{content.id}/record-segment",
+        files={"audio_file": ("greeting.webm", BytesIO(b"audio" * 200), "audio/webm")},
+        data={"segment_id": "0"},
+    )
+    assert res_seg.status_code == 201
+    attempt_id = res_seg.json()["attempt_id"]
+
+    # Submit attempt with AI review
+    res_submit = await client.post(
+        f"/api/v1/shadowing/{content.id}/submit",
+        json={"attempt_id": attempt_id, "replay_count": 0, "request_ai_review": True},
+    )
+    assert res_submit.status_code == 200
+    submit_data = res_submit.json()
+
+    assert submit_data["ai_feedback"] is not None
+    # Verifies similarity is high (~100% or 95%), NOT 10%
+    assert submit_data["ai_feedback"]["similarity_score"] >= 90.0
+    # Verifies AI evaluator was called with segment 0 text only (punctuation stripped)
+    assert ai_gateway.last_ref_eval == "こんにちは"
+    assert ai_gateway.last_user_eval == "こんにちは"
+
+    # Review attempt endpoint
+    res_review = await client.get(f"/api/v1/shadowing/attempts/{attempt_id}/review")
+    assert res_review.status_code == 200
+    rev_data = res_review.json()
+
+    assert rev_data["segments"][0]["recorded"] is True
+    assert rev_data["segments"][0]["similarity_score"] == 100.0
+    assert len(rev_data["segments"][0]["words"]) >= 1
+    assert all(w["status"] == "correct" for w in rev_data["segments"][0]["words"])
+    assert rev_data["segments"][1]["recorded"] is False

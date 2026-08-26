@@ -4830,6 +4830,13 @@
               }
             ],
             "title": "User Transcript"
+          },
+          "words": {
+            "items": {
+              "$ref": "#/components/schemas/ShadowingWordFeedback"
+            },
+            "type": "array",
+            "title": "Words"
           }
         },
         "type": "object",
@@ -5431,6 +5438,13 @@
               }
             ],
             "title": "Similarity Score"
+          },
+          "words": {
+            "items": {
+              "$ref": "#/components/schemas/ShadowingWordFeedback"
+            },
+            "type": "array",
+            "title": "Words"
           }
         },
         "type": "object",
@@ -5541,6 +5555,36 @@
         "type": "object",
         "required": ["total_exp", "current_level", "exp_to_next_level"],
         "title": "ShadowingUserProgressSummary"
+      },
+      "ShadowingWordFeedback": {
+        "properties": {
+          "word": {
+            "type": "string",
+            "title": "Word"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ShadowingWordStatus"
+          },
+          "user_word": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Word"
+          }
+        },
+        "type": "object",
+        "required": ["word", "status"],
+        "title": "ShadowingWordFeedback"
+      },
+      "ShadowingWordStatus": {
+        "type": "string",
+        "enum": ["correct", "incorrect", "missing"],
+        "title": "ShadowingWordStatus"
       },
       "TranscriptSegment": {
         "properties": {

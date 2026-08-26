@@ -48,6 +48,18 @@ class ShadowingUserProgressSummary(BaseModel):
     exp_to_next_level: int
 
 
+class ShadowingWordStatus(enum.StrEnum):
+    CORRECT = "correct"
+    INCORRECT = "incorrect"
+    MISSING = "missing"
+
+
+class ShadowingWordFeedback(BaseModel):
+    word: str
+    status: ShadowingWordStatus
+    user_word: str | None = None
+
+
 class ShadowingCorrection(BaseModel):
     original: str
     corrected: str
@@ -61,6 +73,7 @@ class ShadowingAiFeedback(BaseModel):
     corrections: list[ShadowingCorrection] = Field(default_factory=list)
     hints: list[str] = Field(default_factory=list)
     user_transcript: str | None = None
+    words: list[ShadowingWordFeedback] = Field(default_factory=list)
 
 
 class ShadowingSubmitResponse(BaseModel):
@@ -87,6 +100,7 @@ class ShadowingSegmentReviewItem(BaseModel):
     duration_seconds: int | None = None
     user_transcript: str | None = None
     similarity_score: float | None = None
+    words: list[ShadowingWordFeedback] = Field(default_factory=list)
 
 
 class ShadowingAttemptReviewResponse(BaseModel):

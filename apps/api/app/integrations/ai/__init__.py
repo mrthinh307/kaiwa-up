@@ -64,11 +64,13 @@ class FallbackAiGateway:
         *,
         reference_transcript: str,
         user_transcript: str,
+        is_segment_mode: bool = False,
     ) -> EvaluationResult:
         return await self._try_providers(
             lambda provider: provider.evaluate_shadowing(
                 reference_transcript=reference_transcript,
                 user_transcript=user_transcript,
+                is_segment_mode=is_segment_mode,
             )
         )
 
@@ -162,10 +164,12 @@ class RoutedAiGateway:
         *,
         reference_transcript: str,
         user_transcript: str,
+        is_segment_mode: bool = False,
     ) -> EvaluationResult:
         return await self._evaluate.evaluate_shadowing(
             reference_transcript=reference_transcript,
             user_transcript=user_transcript,
+            is_segment_mode=is_segment_mode,
         )
 
     async def evaluate_translation(
