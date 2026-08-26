@@ -85,6 +85,7 @@ class AiGateway(Protocol):
         *,
         reference_transcript: str,
         user_transcript: str,
+        is_segment_mode: bool = False,
     ) -> EvaluationResult: ...
 
     async def evaluate_translation(

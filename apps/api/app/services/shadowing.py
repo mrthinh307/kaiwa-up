@@ -3,8 +3,10 @@ import contextlib
 import logging
 import uuid
 from decimal import ROUND_HALF_UP, Decimal
+from difflib import SequenceMatcher
 from typing import Any
 
+import pykakasi
 from fastapi import UploadFile
 
 from app.exceptions import AttemptAlreadyInProgressError, ForbiddenError, NotFoundError
@@ -35,6 +37,8 @@ from app.schemas.shadowing import (
     ShadowingSegmentReviewItem,
     ShadowingSubmitResponse,
     ShadowingUserProgressSummary,
+    ShadowingWordFeedback,
+    ShadowingWordStatus,
 )
 from app.services.leveling import level_for_total_exp, minimum_exp_for_level
 from app.services.storage import StorageService
@@ -43,6 +47,102 @@ from app.utils.datetime_utils import utc_now
 logger = logging.getLogger(__name__)
 
 MAX_AUDIO_SIZE_BYTES = 10 * 1024 * 1024  # 10MB
+
+_KAKASI = pykakasi.kakasi()  # type: ignore[no-untyped-call]
+_PUNCTUATION_CHARS = set(
+    " \t\n\r\u3000、。！？「」『』・…〜～（）【】：；―“”‘’.,!?;:'\"()[]{}-–—/\\"
+)
+
+
+def strip_punctuation(text: str) -> str:
+    """Strip Japanese and ASCII punctuation and whitespace."""
+    if not text:
+        return ""
+    return "".join(c for c in text if c not in _PUNCTUATION_CHARS)
+
+
+def tokenize_japanese_text(text: str) -> list[dict[str, str]]:
+    """Tokenize Japanese text into word/chunk dictionaries with orig, hira, kana."""
+    clean = strip_punctuation(text)
+    if not clean:
+        return []
+    result = _KAKASI.convert(clean)
+    return [{"orig": item["orig"], "hira": item["hira"], "kana": item["kana"]} for item in result]
+
+
+def compute_word_diffs(ref_text: str, user_text: str) -> list[ShadowingWordFeedback]:
+    """Compute word-level alignment and status tagging between reference and user transcripts."""
+    ref_tokens = tokenize_japanese_text(ref_text)
+    user_tokens = tokenize_japanese_text(user_text)
+
+    if not ref_tokens:
+        return []
+
+    clean_user = strip_punctuation(user_text)
+    if not clean_user:
+        return [
+            ShadowingWordFeedback(
+                word=tok["orig"],
+                status=ShadowingWordStatus.MISSING,
+                user_word=None,
+            )
+            for tok in ref_tokens
+        ]
+
+    ref_token_slices = []
+    curr = 0
+    for tok in ref_tokens:
+        h_len = len(tok["hira"])
+        ref_token_slices.append((curr, curr + h_len, tok))
+        curr += h_len
+    ref_hira_full = "".join(tok["hira"] for tok in ref_tokens)
+    user_hira_full = "".join(tok["hira"] for tok in user_tokens)
+
+    matcher = SequenceMatcher(None, ref_hira_full, user_hira_full)
+    matching_blocks = matcher.get_matching_blocks()
+    opcodes = matcher.get_opcodes()
+
+    word_feedbacks: list[ShadowingWordFeedback] = []
+    for start, end, tok in ref_token_slices:
+        tok_len = end - start
+        if tok_len == 0:
+            continue
+        matched_chars = 0
+        for b_ref, _b_user, b_len in matching_blocks:
+            overlap_start = max(start, b_ref)
+            overlap_end = min(end, b_ref + b_len)
+            if overlap_end > overlap_start:
+                matched_chars += overlap_end - overlap_start
+
+        match_ratio = matched_chars / tok_len if tok_len > 0 else 0.0
+        if match_ratio >= 0.7:
+            word_feedbacks.append(
+                ShadowingWordFeedback(
+                    word=tok["orig"],
+                    status=ShadowingWordStatus.CORRECT,
+                    user_word=tok["orig"],
+                )
+            )
+        else:
+            replaced_user_chunks = []
+            for tag, i1, i2, j1, j2 in opcodes:
+                if tag in ("replace", "insert") and not (i2 <= start or i1 >= end):
+                    replaced_user_chunks.append(user_hira_full[j1:j2])
+            user_word = "".join(replaced_user_chunks) if replaced_user_chunks else None
+            status = (
+                ShadowingWordStatus.INCORRECT
+                if (user_word or match_ratio > 0.1)
+                else ShadowingWordStatus.MISSING
+            )
+            word_feedbacks.append(
+                ShadowingWordFeedback(
+                    word=tok["orig"],
+                    status=status,
+                    user_word=user_word,
+                )
+            )
+
+    return word_feedbacks
 
 
 def calculate_shadowing_score(*, completed_count: int, total_count: int) -> Decimal:
@@ -469,9 +569,14 @@ class ShadowingService:
 
                             recognized_text = stt_result.text.strip()
                             if recognized_text:
+                                clean_ref = strip_punctuation(ref_script)
+                                clean_user = strip_punctuation(recognized_text)
+                                continuous_words = compute_word_diffs(ref_script, recognized_text)
+
                                 eval_result = await self.ai_gateway.evaluate_shadowing(
-                                    reference_transcript=ref_script,
-                                    user_transcript=recognized_text,
+                                    reference_transcript=clean_ref or ref_script,
+                                    user_transcript=clean_user or recognized_text,
+                                    is_segment_mode=False,
                                 )
                                 cont_rec_id = continuous_rec.id if continuous_rec else None
                                 sim_score = Decimal(str(round(eval_result.score, 2)))
@@ -489,6 +594,7 @@ class ShadowingService:
                                                 "hints": eval_result.hints,
                                                 "is_acceptable": eval_result.is_acceptable,
                                                 "user_transcript": recognized_text,
+                                                "words": [w.model_dump() for w in continuous_words],
                                             },
                                             completed_at=completed_at,
                                         )
@@ -511,6 +617,7 @@ class ShadowingService:
                                     ],
                                     hints=eval_result.hints,
                                     user_transcript=recognized_text,
+                                    words=continuous_words,
                                 )
                                 updated_payload["continuous_transcript"] = recognized_text
                             else:
@@ -536,6 +643,7 @@ class ShadowingService:
                                                 "hints": no_speech_hints,
                                                 "is_acceptable": False,
                                                 "user_transcript": "",
+                                                "words": [],
                                             },
                                             completed_at=completed_at,
                                         )
@@ -551,6 +659,7 @@ class ShadowingService:
                                     corrections=[],
                                     hints=no_speech_hints,
                                     user_transcript="",
+                                    words=[],
                                 )
                                 updated_payload["continuous_transcript"] = ""
                     else:
@@ -623,21 +732,82 @@ class ShadowingService:
                                                 rec_to_update, text_result
                                             )
 
-                        combined_user_transcript = " ".join(
-                            segment_transcripts.get(str(i), "")
-                            for i in range(len(transcript_segments))
-                        ).strip()
+                        segment_evaluations: dict[str, dict[str, Any]] = {}
+                        segment_sim_scores: list[float] = []
 
-                        if combined_user_transcript:
-                            eval_result = await self.ai_gateway.evaluate_shadowing(
-                                reference_transcript=ref_script,
-                                user_transcript=combined_user_transcript,
+                        for idx, seg_data in enumerate(transcript_segments):
+                            seg_id = str(idx)
+                            seg_ref_text = (
+                                str(seg_data.get("script", ""))
+                                if isinstance(seg_data, dict)
+                                else ""
                             )
+                            seg_user_text = segment_transcripts.get(seg_id, "").strip()
+                            if seg_id in seg_rec_map and seg_user_text:
+                                seg_words = compute_word_diffs(seg_ref_text, seg_user_text)
+                                correct_count = sum(
+                                    1 for w in seg_words if w.status == ShadowingWordStatus.CORRECT
+                                )
+                                total_words = len(seg_words)
+                                seg_sim = (
+                                    round((correct_count / total_words) * 100, 2)
+                                    if total_words > 0
+                                    else 100.0
+                                )
+                                segment_sim_scores.append(seg_sim)
+                                segment_evaluations[seg_id] = {
+                                    "similarity_score": seg_sim,
+                                    "words": [w.model_dump() for w in seg_words],
+                                    "user_transcript": seg_user_text,
+                                }
+                            elif seg_id in seg_rec_map:
+                                seg_words = compute_word_diffs(seg_ref_text, "")
+                                segment_sim_scores.append(0.0)
+                                segment_evaluations[seg_id] = {
+                                    "similarity_score": 0.0,
+                                    "words": [w.model_dump() for w in seg_words],
+                                    "user_transcript": "",
+                                }
+
+                        recorded_seg_ids = [
+                            s_id
+                            for s_id in sorted(segment_evaluations.keys(), key=lambda x: int(x))
+                            if segment_evaluations[s_id].get("user_transcript")
+                        ]
+
+                        if recorded_seg_ids:
+                            recorded_ref_parts = [
+                                str(transcript_segments[int(s_id)].get("script", ""))
+                                for s_id in recorded_seg_ids
+                                if int(s_id) < len(transcript_segments)
+                            ]
+                            recorded_user_parts = [
+                                str(segment_evaluations[s_id]["user_transcript"])
+                                for s_id in recorded_seg_ids
+                            ]
+                            eval_ref_text = " ".join(recorded_ref_parts).strip()
+                            eval_user_text = " ".join(recorded_user_parts).strip()
+
+                            clean_eval_ref = strip_punctuation(eval_ref_text)
+                            clean_eval_user = strip_punctuation(eval_user_text)
+
+                            eval_result = await self.ai_gateway.evaluate_shadowing(
+                                reference_transcript=clean_eval_ref or eval_ref_text,
+                                user_transcript=clean_eval_user or eval_user_text,
+                                is_segment_mode=True,
+                            )
+
+                            final_score = (
+                                segment_sim_scores[0]
+                                if len(segment_sim_scores) == 1
+                                else float(eval_result.score)
+                            )
+
                             try:
                                 async with self.repository.session.begin_nested():
                                     await self.repository.create_ai_evaluation(
                                         attempt_id=attempt.id,
-                                        similarity_score=Decimal(str(round(eval_result.score, 2))),
+                                        similarity_score=Decimal(str(round(final_score, 2))),
                                         feedback=eval_result.feedback,
                                         details={
                                             "corrections": [
@@ -645,8 +815,9 @@ class ShadowingService:
                                             ],
                                             "hints": eval_result.hints,
                                             "is_acceptable": eval_result.is_acceptable,
-                                            "user_transcript": combined_user_transcript,
+                                            "user_transcript": eval_user_text,
                                             "segment_transcripts": segment_transcripts,
+                                            "segment_evaluations": segment_evaluations,
                                         },
                                         completed_at=completed_at,
                                     )
@@ -657,7 +828,7 @@ class ShadowingService:
                                 )
 
                             ai_feedback = ShadowingAiFeedback(
-                                similarity_score=float(eval_result.score),
+                                similarity_score=final_score,
                                 feedback=eval_result.feedback,
                                 corrections=[
                                     ShadowingCorrection(
@@ -668,7 +839,8 @@ class ShadowingService:
                                     for c in eval_result.corrections
                                 ],
                                 hints=eval_result.hints,
-                                user_transcript=combined_user_transcript,
+                                user_transcript=eval_user_text,
+                                words=[],
                             )
                             updated_payload["segment_transcripts"] = segment_transcripts
                         else:
@@ -692,6 +864,7 @@ class ShadowingService:
                                             "is_acceptable": False,
                                             "user_transcript": "",
                                             "segment_transcripts": segment_transcripts,
+                                            "segment_evaluations": segment_evaluations,
                                         },
                                         completed_at=completed_at,
                                     )
@@ -707,6 +880,7 @@ class ShadowingService:
                                 corrections=[],
                                 hints=no_speech_hints,
                                 user_transcript="",
+                                words=[],
                             )
                             updated_payload["segment_transcripts"] = segment_transcripts
                 except Exception as exc:
@@ -832,8 +1006,13 @@ class ShadowingService:
 
         ai_evaluation = await self.repository.get_latest_ai_evaluation(attempt_id)
         ai_feedback: ShadowingAiFeedback | None = None
+        details_dict: dict[str, Any] = {}
+        segment_evaluations: dict[str, Any] = {}
+
         if ai_evaluation is not None:
             details_dict = ai_evaluation.details if isinstance(ai_evaluation.details, dict) else {}
+            raw_seg_evals = details_dict.get("segment_evaluations")
+            segment_evaluations = raw_seg_evals if isinstance(raw_seg_evals, dict) else {}
             raw_corrections = details_dict.get("corrections", [])
             corrections_list: list[ShadowingCorrection] = []
             if isinstance(raw_corrections, list):
@@ -848,6 +1027,22 @@ class ShadowingService:
                         )
             raw_hints = details_dict.get("hints", [])
             hints_list = [str(h) for h in raw_hints] if isinstance(raw_hints, list) else []
+
+            raw_words = details_dict.get("words", [])
+            words_list: list[ShadowingWordFeedback] = []
+            if isinstance(raw_words, list):
+                for w in raw_words:
+                    if isinstance(w, dict) and "word" in w and "status" in w:
+                        words_list.append(
+                            ShadowingWordFeedback(
+                                word=str(w.get("word", "")),
+                                status=ShadowingWordStatus(w.get("status", "correct")),
+                                user_word=str(w.get("user_word"))
+                                if w.get("user_word") is not None
+                                else None,
+                            )
+                        )
+
             ai_feedback = ShadowingAiFeedback(
                 similarity_score=float(ai_evaluation.similarity_score)
                 if ai_evaluation.similarity_score is not None
@@ -861,6 +1056,7 @@ class ShadowingService:
                 user_transcript=str(details_dict.get("user_transcript"))
                 if details_dict.get("user_transcript")
                 else None,
+                words=words_list,
             )
 
         review_segments: list[ShadowingSegmentReviewItem] = []
@@ -922,6 +1118,34 @@ class ShadowingService:
                 if isinstance(seg_transcripts, dict) and seg_str_id in seg_transcripts:
                     user_transcript_seg = str(seg_transcripts[seg_str_id])
 
+            seg_eval = segment_evaluations.get(seg_str_id, {})
+            seg_sim_score = (
+                float(seg_eval["similarity_score"])
+                if isinstance(seg_eval, dict) and seg_eval.get("similarity_score") is not None
+                else None
+            )
+            raw_seg_words = seg_eval.get("words", []) if isinstance(seg_eval, dict) else []
+            seg_words: list[ShadowingWordFeedback] = []
+            if isinstance(raw_seg_words, list) and raw_seg_words:
+                for w in raw_seg_words:
+                    if isinstance(w, dict) and "word" in w and "status" in w:
+                        seg_words.append(
+                            ShadowingWordFeedback(
+                                word=str(w.get("word", "")),
+                                status=ShadowingWordStatus(w.get("status", "correct")),
+                                user_word=str(w.get("user_word"))
+                                if w.get("user_word") is not None
+                                else None,
+                            )
+                        )
+            elif is_recorded and user_transcript_seg and script:
+                seg_words = compute_word_diffs(script, user_transcript_seg)
+                if seg_sim_score is None:
+                    correct_c = sum(1 for w in seg_words if w.status == ShadowingWordStatus.CORRECT)
+                    seg_sim_score = (
+                        round((correct_c / len(seg_words)) * 100, 2) if seg_words else 100.0
+                    )
+
             review_segments.append(
                 ShadowingSegmentReviewItem(
                     segment_index=index,
@@ -933,6 +1157,8 @@ class ShadowingService:
                     playback_url=playback_url,
                     duration_seconds=duration_s,
                     user_transcript=user_transcript_seg,
+                    similarity_score=seg_sim_score,
+                    words=seg_words,
                 )
             )
 
@@ -949,6 +1175,13 @@ class ShadowingService:
                 user_continuous_transcript = str(
                     (attempt.answer_payload or {}).get("continuous_transcript")
                 )
+
+        if is_continuous and ai_feedback and not ai_feedback.words and user_continuous_transcript:
+            ref_script_full = " ".join(
+                str(s.get("script", "")) for s in transcript_segments if isinstance(s, dict)
+            ).strip()
+            if ref_script_full:
+                ai_feedback.words = compute_word_diffs(ref_script_full, user_continuous_transcript)
 
         return ShadowingAttemptReviewResponse(
             attempt_id=attempt.id,

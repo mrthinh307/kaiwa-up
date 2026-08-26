@@ -304,6 +304,8 @@ export type {
   ShadowingSubmitRequest,
   ShadowingSubmitResponse,
   ShadowingUserProgressSummary,
+  ShadowingWordFeedback,
+  ShadowingWordStatus,
   StartDictationAttemptData,
   StartDictationAttemptError,
   StartDictationAttemptErrors,

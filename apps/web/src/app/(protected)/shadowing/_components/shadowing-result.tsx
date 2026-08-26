@@ -1,6 +1,6 @@
 "use client";
 
-import type { ShadowingAttemptReviewResponse } from "@kaiwa-app/api-client";
+import type { ShadowingAttemptReviewResponse, ShadowingWordFeedback } from "@kaiwa-app/api-client";
 
 import {
   AlertCircle,
@@ -35,6 +35,72 @@ import { useAudioPlayer } from "../_hooks/use-audio-player";
 import { useShadowingShortcuts } from "../_hooks/use-shadowing-shortcuts";
 import { formatShadowingDuration } from "../_utils/shadowing-formatters";
 import { AudioPlayerCard } from "./audio-player-card";
+
+interface ShadowingWordTokensProps {
+  fallbackText: string;
+  words?: ShadowingWordFeedback[];
+}
+
+function ShadowingWordTokens({ fallbackText, words }: ShadowingWordTokensProps) {
+  if (!words || words.length === 0) {
+    return (
+      <p className="font-heading text-lg sm:text-xl leading-relaxed text-foreground mb-3">
+        {fallbackText}
+      </p>
+    );
+  }
+
+  return (
+    <div className="font-heading text-lg sm:text-xl leading-relaxed text-foreground mb-3 flex flex-wrap gap-x-1.5 gap-y-1 items-baseline">
+      {words.map((w, wIdx) => {
+        if (w.status === "incorrect") {
+          return (
+            <span
+              className="relative group inline-block bg-destructive/15 text-destructive underline decoration-destructive decoration-wavy underline-offset-4 px-1 py-0.5 rounded cursor-help font-bold"
+              key={wIdx}
+              title={
+                w.user_word
+                  ? `Recognized: "${w.user_word}" (Expected: "${w.word}")`
+                  : `Expected: "${w.word}"`
+              }
+            >
+              {w.word}
+              {w.user_word && (
+                <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover:flex flex-col items-center bg-popover text-popover-foreground text-[11px] font-sans px-2.5 py-1 rounded shadow-md z-30 whitespace-nowrap border border-border">
+                  <span>
+                    Recognized: <strong className="text-destructive">{w.user_word}</strong>
+                  </span>
+                  <span className="text-[10px] text-foreground/60">Expected: {w.word}</span>
+                </span>
+              )}
+            </span>
+          );
+        }
+        if (w.status === "missing") {
+          return (
+            <span
+              className="relative group inline-block bg-chart-3/20 text-chart-3 underline decoration-chart-3 decoration-dashed underline-offset-4 px-1 py-0.5 rounded cursor-help font-bold"
+              key={wIdx}
+              title={`Missing word: "${w.word}"`}
+            >
+              {w.word}
+              <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover:flex flex-col items-center bg-popover text-popover-foreground text-[11px] font-sans px-2.5 py-1 rounded shadow-md z-30 whitespace-nowrap border border-border">
+                <span>
+                  Omitted: <strong>{w.word}</strong>
+                </span>
+              </span>
+            </span>
+          );
+        }
+        return (
+          <span className="text-foreground" key={wIdx}>
+            {w.word}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
 
 interface ShadowingResultProps {
   onPracticeAgain: () => void;
@@ -368,6 +434,30 @@ export function ShadowingResult({ onPracticeAgain, review }: ShadowingResultProp
                       </p>
                     </div>
                   )}
+
+                  {review.ai_feedback?.words && review.ai_feedback.words.length > 0 && (
+                    <div className="rounded-base border-2 border-border/70 bg-background p-3.5 space-y-2">
+                      <p className="text-xs font-heading text-foreground/70 flex items-center gap-1.5">
+                        <Sparkles className="size-3.5 text-main" /> Word-Level Accuracy Breakdown:
+                      </p>
+                      <ShadowingWordTokens
+                        fallbackText={review.user_continuous_transcript ?? ""}
+                        words={review.ai_feedback.words}
+                      />
+                      <div className="flex flex-wrap items-center gap-3 pt-1 text-[11px] text-foreground/60 border-t border-border/40">
+                        <span className="flex items-center gap-1">
+                          <span className="size-2 rounded-full bg-foreground/40" /> Normal: Correct
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <span className="size-2 rounded-full bg-destructive" /> Red wavy:
+                          Mispronounced
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <span className="size-2 rounded-full bg-chart-3" /> Amber dashed: Omitted
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}
@@ -552,6 +642,21 @@ export function ShadowingResult({ onPracticeAgain, review }: ShadowingResultProp
 
                           {!isContinuous && (
                             <>
+                              {segment.similarity_score !== null &&
+                                segment.similarity_score !== undefined && (
+                                  <span
+                                    className={cn(
+                                      "font-heading text-xs px-2 py-0.5 rounded-base border",
+                                      segment.similarity_score >= 80
+                                        ? "border-success/40 bg-success/10 text-success"
+                                        : segment.similarity_score >= 50
+                                          ? "border-chart-3/40 bg-chart-3/10 text-chart-3"
+                                          : "border-destructive/40 bg-destructive/10 text-destructive",
+                                    )}
+                                  >
+                                    Accuracy: {Number(segment.similarity_score).toFixed(0)}%
+                                  </span>
+                                )}
                               {segment.recorded ? (
                                 <span className="inline-flex items-center gap-1 font-heading text-xs text-success">
                                   <CheckCircle2 className="size-3.5" />
@@ -572,10 +677,8 @@ export function ShadowingResult({ onPracticeAgain, review }: ShadowingResultProp
                           )}
                         </div>
 
-                        {/* Japanese Script */}
-                        <p className="font-heading text-lg sm:text-xl leading-relaxed text-foreground mb-3">
-                          {segment.script}
-                        </p>
+                        {/* Japanese Script with Word-Level Status */}
+                        <ShadowingWordTokens fallbackText={segment.script} words={segment.words} />
 
                         {/* Recognized Voice Transcript (if available) */}
                         {segment.user_transcript && (
