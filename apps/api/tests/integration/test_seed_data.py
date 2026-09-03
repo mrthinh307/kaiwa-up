@@ -1,3 +1,5 @@
+from datetime import UTC, datetime
+
 import pytest
 from sqlalchemy import func, select
 
@@ -7,6 +9,7 @@ from app.models.content import LearningContent, ReflexExercise, TranslationExerc
 from app.models.enums import AttemptStatus, ContentStatus, ContentType, JlptLevel, UserRole
 from app.models.gamification import Achievement, XpTransaction
 from app.models.user import User
+from app.utils.datetime_utils import week_start_for
 from scripts.seed_data import (
     ACHIEVEMENTS,
     REFLEX_LESSONS,
@@ -230,7 +233,15 @@ async def test_seed_xp_transactions_is_idempotent(db_session) -> None:
     transaction_count = await db_session.scalar(
         select(func.count()).select_from(XpTransaction).where(XpTransaction.user_id == user.id)
     )
+    week_start = week_start_for(datetime.now(UTC).date())
+    week_start_at = datetime.combine(week_start, datetime.min.time(), tzinfo=UTC)
+    transaction_times = (
+        await db_session.scalars(
+            select(XpTransaction.created_at).where(XpTransaction.user_id == user.id)
+        )
+    ).all()
 
     assert first_created == 10
     assert second_created == 0
     assert transaction_count == 10
+    assert all(created_at >= week_start_at for created_at in transaction_times)

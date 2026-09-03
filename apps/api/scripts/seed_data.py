@@ -1,7 +1,7 @@
 import argparse
 import asyncio
 import logging
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import TypedDict
 
@@ -23,10 +23,13 @@ from app.models.enums import (
 )
 from app.models.gamification import Achievement, WeeklyLeaderboardEntry, XpTransaction
 from app.models.user import User, UserProgress
+from app.repositories.leaderboard import LeaderboardRepository
 from app.repositories.learning_content import LearningContentRepository
 from app.schemas.learning_content import LearningContentCreate
+from app.services.leaderboard import LeaderboardService
 from app.services.learning_content import LearningContentService
 from app.services.leveling import level_for_total_exp
+from app.utils.datetime_utils import utc_now, week_start_for
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("seed_data")
@@ -624,12 +627,15 @@ async def seed_xp_transactions(
     seeded_users: list[User],
     attempt: ExerciseAttempt,
 ) -> int:
-    """Create the deterministic sample XP transactions once per seed identity."""
+    """Create deterministic sample XP transactions once per current UTC week."""
     created_count = 0
+    now = utc_now()
+    week_start = week_start_for(now.date())
+    week_start_at = datetime.combine(week_start, datetime.min.time(), tzinfo=UTC)
 
     for i in range(10):
         target_user = seeded_users[i % len(seeded_users)]
-        reason = f"Completed daily exercise #{i + 1}"
+        reason = f"Demo weekly exercise {week_start.isoformat()} #{i + 1}"
         if i == 0:
             xp_query = select(XpTransaction).where(XpTransaction.attempt_id == attempt.id)
         else:
@@ -650,7 +656,7 @@ async def seed_xp_transactions(
                 attempt_id=attempt.id if i == 0 else None,
                 amount=50,
                 reason=reason,
-                created_at=datetime.now(UTC) - timedelta(hours=i * 2),
+                created_at=max(week_start_at, now - timedelta(hours=i * 2)),
             )
         )
         created_count += 1
@@ -813,26 +819,10 @@ async def seed_data(clean: bool = False) -> dict[str, int]:
         stats["exp_entries"] = await seed_xp_transactions(session, seeded_users, attempt)
 
         # ==========================================
-        # 6. SEED WEEKLY LEADERBOARD
+        # 6. BUILD WEEKLY LEADERBOARD FROM THE XP LEDGER
         # ==========================================
-        today = date.today()
-        monday = today - timedelta(days=today.weekday())
-
-        for idx, u in enumerate(seeded_users):
-            leaderboard_query = select(WeeklyLeaderboardEntry).where(
-                WeeklyLeaderboardEntry.week_start == monday,
-                WeeklyLeaderboardEntry.user_id == u.id,
-            )
-            if not (await session.execute(leaderboard_query)).scalar_one_or_none():
-                leaderboard_entry = WeeklyLeaderboardEntry(
-                    week_start=monday,
-                    user_id=u.id,
-                    weekly_exp=(len(seeded_users) - idx) * 100,
-                    rank=idx + 1,
-                )
-                session.add(leaderboard_entry)
-
-        await session.commit()
+        leaderboard_service = LeaderboardService(LeaderboardRepository(session))
+        await leaderboard_service.rebuild_week(week_start=week_start_for(utc_now().date()))
         logger.info("Data seeding completed successfully!")
         return stats
 

@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -19,6 +19,7 @@ def test_configure_scheduler_uses_configured_minute_interval(
 ) -> None:
     monkeypatch.setattr(settings, "leaderboard_rebuild_enabled", True)
     monkeypatch.setattr(settings, "leaderboard_rebuild_interval_minutes", 10)
+    configured_at = datetime.now(UTC)
 
     try:
         assert configure_scheduler() is True
@@ -26,5 +27,7 @@ def test_configure_scheduler_uses_configured_minute_interval(
         job = scheduler.get_job("rebuild_weekly_leaderboard")
         assert job is not None
         assert job.trigger.interval == timedelta(minutes=10)
+        assert job.next_run_time is not None
+        assert configured_at <= job.next_run_time <= datetime.now(UTC)
     finally:
         scheduler.remove_job("rebuild_weekly_leaderboard")

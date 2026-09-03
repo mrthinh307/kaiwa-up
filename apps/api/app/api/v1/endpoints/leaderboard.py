@@ -1,4 +1,3 @@
-from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, Query
@@ -8,7 +7,7 @@ from app.api.dependencies.database import DatabaseSession
 from app.repositories.leaderboard import LeaderboardRepository
 from app.schemas.leaderboard import WeeklyLeaderboardData
 from app.services.leaderboard import LeaderboardService
-from app.utils.datetime_utils import week_start_for
+from app.utils.datetime_utils import utc_now, week_start_for
 
 router = APIRouter(prefix="/leaderboard", tags=["Leaderboard"])
 
@@ -30,6 +29,6 @@ async def get_weekly_leaderboard(
 ) -> WeeklyLeaderboardData:
     return await _leaderboard_service(session).get_weekly(
         user_id=current_user.id,
-        week_start=week_start_for(date.today()),
+        week_start=week_start_for(utc_now().date()),
         limit=limit,
     )

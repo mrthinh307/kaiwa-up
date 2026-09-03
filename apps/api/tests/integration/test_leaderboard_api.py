@@ -9,6 +9,7 @@ from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies.auth import get_current_user
+from app.api.v1.endpoints import leaderboard as leaderboard_endpoint
 from app.main import app
 from app.models.gamification import WeeklyLeaderboardEntry, XpTransaction
 from app.models.user import User
@@ -67,6 +68,31 @@ async def test_weekly_leaderboard_requires_auth(client: httpx.AsyncClient) -> No
     response = await client.get(LEADERBOARD_PATH)
 
     assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_weekly_leaderboard_uses_utc_week(
+    client: httpx.AsyncClient,
+    db_session: AsyncSession,
+    unique_email: Callable[[str], str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    current_user = await create_user(
+        session=db_session,
+        email=unique_email("leaderboard-utc-week"),
+        display_name="UTC Week",
+    )
+    sunday_utc = datetime(2026, 9, 6, 23, 30, tzinfo=UTC)
+    monkeypatch.setattr(leaderboard_endpoint, "utc_now", lambda: sunday_utc)
+
+    set_current_user(current_user)
+    try:
+        response = await client.get(LEADERBOARD_PATH)
+    finally:
+        cleanup_overrides()
+
+    assert response.status_code == 200
+    assert response.json()["week_start"] == "2026-08-31"
 
 
 @pytest.mark.asyncio
