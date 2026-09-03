@@ -17,7 +17,7 @@ export default async function ListeningTranslationPage() {
 
   return (
     <main className="px-5 py-10 sm:px-8 sm:py-12 lg:py-14">
-      <div className="mx-auto w-full max-w-[1200px]">
+      <div className="mx-auto w-full max-w-[1300px]">
         <ProtectedPageHeader
           description="Listen for meaning, write a natural Vietnamese translation, and receive semantic feedback from AI."
           eyebrow="Listening practice"
@@ -25,7 +25,7 @@ export default async function ListeningTranslationPage() {
           title="Listening & Translation"
         />
 
-        <div className="mt-10">
+        <div className="mt-8">
           <ListeningTranslationCatalog initialLessons={lessons} />
         </div>
       </div>

@@ -2,33 +2,23 @@
 
 import type { TranslationLessonItem } from "@kaiwa-app/api-client";
 
-import { AlertCircle, ArrowRight, CheckCircle2, Clock3, Headphones, Languages } from "lucide-react";
-import Link from "next/link";
-import { useEffect, useState } from "react";
+import { AlertCircle, FilterX, Headphones } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/hooks/use-auth";
 import { parseApiFailure } from "@/lib/api-errors";
 
+import type {
+  TranslationDifficultyFilter,
+  TranslationStatusFilter,
+} from "./listening-translation-filter-bar";
+
 import { requestListeningTranslationLessons } from "../_lib/listening-translation-client";
-
-function formatDuration(durationSeconds: number | null | undefined): string {
-  if (!durationSeconds) {
-    return "Self-paced";
-  }
-
-  const minutes = Math.floor(durationSeconds / 60);
-  const seconds = Math.round(durationSeconds % 60);
-
-  if (minutes === 0) {
-    return `${seconds} sec`;
-  }
-
-  return seconds === 0 ? `${minutes} min` : `${minutes} min ${seconds} sec`;
-}
+import { ListeningTranslationCard } from "./listening-translation-card";
+import { ListeningTranslationFilterBar } from "./listening-translation-filter-bar";
 
 export function ListeningTranslationCatalog({
   initialLessons,
@@ -38,6 +28,10 @@ export function ListeningTranslationCatalog({
   const { protectedRequest } = useAuth();
   const [lessons, setLessons] = useState(initialLessons);
   const [syncError, setSyncError] = useState<string | null>(null);
+
+  const [difficulty, setDifficulty] = useState<TranslationDifficultyFilter>("all");
+  const [status, setStatus] = useState<TranslationStatusFilter>("all");
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     let isActive = true;
@@ -67,16 +61,48 @@ export function ListeningTranslationCatalog({
     };
   }, [protectedRequest]);
 
+  const handleResetFilters = () => {
+    setDifficulty("all");
+    setStatus("all");
+    setSearchQuery("");
+  };
+
+  const hasActiveFilters =
+    difficulty !== "all" || status !== "all" || searchQuery.trim().length > 0;
+
+  const filteredLessons = useMemo(() => {
+    return lessons.filter((lesson) => {
+      if (difficulty !== "all" && lesson.difficulty !== difficulty) {
+        return false;
+      }
+      if (status === "completed" && !lesson.is_completed) {
+        return false;
+      }
+      if (status === "uncompleted" && lesson.is_completed) {
+        return false;
+      }
+      if (searchQuery.trim()) {
+        const query = searchQuery.trim().toLowerCase();
+        const matchesTitle = lesson.title.toLowerCase().includes(query);
+        const matchesTopic = lesson.topic?.toLowerCase().includes(query);
+        if (!matchesTitle && !matchesTopic) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [lessons, difficulty, status, searchQuery]);
+
   if (lessons.length === 0) {
     return (
       <section
         aria-labelledby="listening-translation-catalog-heading"
-        className="rounded-base border-4 border-border bg-secondary-background px-6 py-12 text-center shadow-shadow"
+        className="rounded-base border-2 border-border bg-secondary-background px-6 py-12 text-center shadow-shadow"
       >
-        <span className="mx-auto flex size-16 items-center justify-center rounded-full border-4 border-border bg-main text-main-foreground shadow-shadow">
-          <Languages aria-hidden="true" className="size-8" />
+        <span className="mx-auto flex size-16 items-center justify-center rounded-full border-2 border-border bg-main text-main-foreground shadow-shadow">
+          <Headphones aria-hidden="true" className="size-8" />
         </span>
-        <h2 className="mt-7 text-2xl" id="listening-translation-catalog-heading">
+        <h2 className="mt-7 text-2xl font-heading" id="listening-translation-catalog-heading">
           Listening lessons are on the way
         </h2>
         <p className="mx-auto mt-3 max-w-[560px] leading-relaxed text-foreground/70">
@@ -87,9 +113,9 @@ export function ListeningTranslationCatalog({
   }
 
   return (
-    <section aria-labelledby="listening-translation-catalog-heading">
+    <section aria-labelledby="listening-translation-catalog-heading" className="space-y-6">
       {syncError ? (
-        <Alert className="mb-6" variant="destructive">
+        <Alert variant="destructive">
           <AlertCircle aria-hidden="true" />
           <AlertTitle>Progress status unavailable</AlertTitle>
           <AlertDescription>
@@ -98,68 +124,59 @@ export function ListeningTranslationCatalog({
         </Alert>
       ) : null}
 
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="text-sm font-heading tracking-wide text-foreground/60 uppercase">
-            Practice catalog
-          </p>
-          <h2 className="mt-1 text-2xl sm:text-3xl" id="listening-translation-catalog-heading">
-            Choose a listening exercise
-          </h2>
+      {/* Header & Filter Bar Container */}
+      <div className="rounded-base border-2 border-border bg-secondary-background p-4 shadow-shadow sm:p-5">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <p className="text-xs font-heading uppercase tracking-wider text-foreground/60">
+              Practice catalog
+            </p>
+            <h2 className="mt-0.5 text-2xl font-heading" id="listening-translation-catalog-heading">
+              Choose a listening exercise
+            </h2>
+          </div>
+          <Badge variant="neutral">{lessons.length} lessons</Badge>
         </div>
-        <Badge variant="neutral">{lessons.length} lessons</Badge>
+
+        <ListeningTranslationFilterBar
+          hasActiveFilters={hasActiveFilters}
+          onDifficultyChange={setDifficulty}
+          onResetFilters={handleResetFilters}
+          onSearchChange={setSearchQuery}
+          onStatusChange={setStatus}
+          searchQuery={searchQuery}
+          selectedDifficulty={difficulty}
+          selectedStatus={status}
+          totalMatching={filteredLessons.length}
+          totalUnfiltered={lessons.length}
+        />
       </div>
 
-      <ul className="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-        {lessons.map((lesson) => (
-          <li className="flex" key={lesson.id}>
-            <Card className="w-full bg-secondary-background">
-              <CardHeader>
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge>{lesson.difficulty}</Badge>
-                    {lesson.is_completed ? (
-                      <Badge className="gap-1.5" variant="neutral">
-                        <CheckCircle2 aria-hidden="true" className="size-3.5" />
-                        Completed
-                      </Badge>
-                    ) : null}
-                  </div>
-                  <span className="flex items-center gap-1.5 text-xs font-heading text-foreground/65">
-                    <Clock3 aria-hidden="true" className="size-4" />
-                    {formatDuration(lesson.duration_seconds)}
-                  </span>
-                </div>
-                <CardTitle className="pt-4 text-xl leading-snug sm:text-2xl">
-                  {lesson.title}
-                </CardTitle>
-              </CardHeader>
-
-              <CardContent className="flex-1">
-                <p className="line-clamp-3 text-sm leading-relaxed text-foreground/70">
-                  {lesson.description ??
-                    "Listen carefully, understand the Japanese message, and translate it into Vietnamese."}
-                </p>
-                {lesson.topic ? (
-                  <p className="mt-4 flex items-center gap-2 text-xs font-heading tracking-wide uppercase">
-                    <Headphones aria-hidden="true" className="size-4" />
-                    {lesson.topic}
-                  </p>
-                ) : null}
-              </CardContent>
-
-              <CardFooter>
-                <Button asChild className="w-full">
-                  <Link href={`/listening-translation/${encodeURIComponent(lesson.id)}`}>
-                    {lesson.is_completed ? "View completed lesson" : "Start translating"}
-                    <ArrowRight aria-hidden="true" />
-                  </Link>
-                </Button>
-              </CardFooter>
-            </Card>
-          </li>
-        ))}
-      </ul>
+      {/* 3-Column Lessons Grid or Empty Search State */}
+      {filteredLessons.length === 0 ? (
+        <div className="rounded-base border-2 border-border bg-secondary-background px-6 py-12 text-center shadow-shadow">
+          <div className="mx-auto flex size-14 items-center justify-center rounded-full border-2 border-border bg-main text-main-foreground shadow-shadow">
+            <FilterX aria-hidden="true" className="size-7" />
+          </div>
+          <h3 className="mt-4 text-xl font-heading">No listening lessons found</h3>
+          <p className="mt-1 text-sm text-foreground/70">
+            {hasActiveFilters
+              ? "No lessons match your current filters. Try changing or clearing your filter criteria."
+              : "No listening exercises are available yet."}
+          </p>
+          {hasActiveFilters ? (
+            <Button className="mt-4" onClick={handleResetFilters} size="sm" variant="neutral">
+              Clear all filters
+            </Button>
+          ) : null}
+        </div>
+      ) : (
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {filteredLessons.map((lesson) => (
+            <ListeningTranslationCard key={lesson.id} lesson={lesson} />
+          ))}
+        </div>
+      )}
     </section>
   );
 }

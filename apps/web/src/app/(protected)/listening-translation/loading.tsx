@@ -1,5 +1,11 @@
-import { ProtectedRouteContentSkeleton } from "@/components/common/protected-route/protected-route-content-skeleton";
+import { ListeningTranslationSkeleton } from "./_components/listening-translation-skeleton";
 
 export default function ListeningTranslationLoading() {
-  return <ProtectedRouteContentSkeleton statusMessage="Loading Listening Translation lessons…" />;
+  return (
+    <main className="px-5 py-10 sm:px-8 sm:py-12 lg:py-14">
+      <div className="mx-auto w-full max-w-[1300px]">
+        <ListeningTranslationSkeleton />
+      </div>
+    </main>
+  );
 }
