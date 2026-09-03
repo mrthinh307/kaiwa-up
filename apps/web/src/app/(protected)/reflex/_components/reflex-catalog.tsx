@@ -1,9 +1,11 @@
 "use client";
 
-import { AlertCircle, FilterX, RotateCcw, Zap } from "lucide-react";
+import { AlertCircle, ArrowRight, CalendarClock, FilterX, RotateCcw, Zap } from "lucide-react";
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { parseApiFailure } from "@/lib/api-errors";
 
@@ -121,73 +123,89 @@ export function ReflexCatalog() {
   const dueCount = state.dueReviews.length;
 
   return (
-    <div className="space-y-10">
-      {/* 1. Stats Overview Bar */}
-      <ReflexStatsOverview
-        completedLessons={completedLessons}
-        dueCount={dueCount}
-        totalLessons={totalLessons}
-      />
-
-      {/* 2. Method Guide */}
-      <ReflexMethodGuide />
-
-      {/* 3. Due Reviews (Spaced Repetition) */}
-      <ReflexDueReviews dueReviews={state.dueReviews} />
-
-      {/* 4. All Lessons Section */}
-      <section aria-labelledby="all-reflex-title" className="space-y-6">
-        <div>
-          <h2 className="flex items-center gap-2 text-2xl font-heading" id="all-reflex-title">
-            <Zap aria-hidden="true" className="size-6" /> All Reflex lessons
-          </h2>
-          <p className="mt-1 text-sm text-foreground/70">
-            Build rapid conversation reflexes across all difficulty levels.
-          </p>
+    <div className="space-y-6">
+      {/* Mobile Priority Banner: if reviews are due */}
+      {dueCount > 0 && (
+        <div className="flex items-center justify-between gap-3 rounded-base border-2 border-chart-2 bg-chart-2/10 p-3 shadow-shadow lg:hidden">
+          <div className="flex items-center gap-2 text-sm font-heading">
+            <CalendarClock aria-hidden="true" className="size-4 text-chart-2" />
+            <span>
+              {dueCount} {dueCount === 1 ? "lesson" : "lessons"} due for review today
+            </span>
+          </div>
+          <Button asChild className="h-7 text-xs" size="sm">
+            <Link href={`/reflex/${state.dueReviews[0]?.lesson_id}`}>
+              Review <ArrowRight aria-hidden="true" className="size-3" />
+            </Link>
+          </Button>
         </div>
+      )}
 
-        {/* Filter Bar */}
-        <div className="rounded-base border-2 border-border bg-secondary-background p-4 shadow-shadow sm:p-5">
-          <ReflexFilterBar
-            hasActiveFilters={hasActiveFilters}
-            onDifficultyChange={setDifficulty}
-            onResetFilters={handleResetFilters}
-            onSearchChange={setSearchQuery}
-            onStatusChange={setStatus}
-            searchQuery={searchQuery}
-            selectedDifficulty={difficulty}
-            selectedStatus={status}
-            totalMatching={filteredLessons.length}
-            totalUnfiltered={totalLessons}
-          />
-        </div>
-
-        {/* Lesson Cards Grid */}
-        {filteredLessons.length === 0 ? (
-          <div className="rounded-base border-2 border-border bg-secondary-background px-6 py-12 text-center shadow-shadow">
-            <div className="mx-auto flex size-14 items-center justify-center rounded-full border-2 border-border bg-main text-main-foreground shadow-shadow">
-              <FilterX aria-hidden="true" className="size-7" />
+      {/* 2-Column Workstation Layout */}
+      <div className="grid gap-8 lg:grid-cols-12 lg:items-start">
+        {/* PRIMARY COLUMN: LESSONS (lg:col-span-8) */}
+        <section aria-labelledby="all-reflex-title" className="space-y-6 lg:col-span-8">
+          {/* Header & Filter Bar */}
+          <div className="rounded-base border-2 border-border bg-secondary-background p-4 shadow-shadow sm:p-5">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+              <h2 className="flex items-center gap-2 text-2xl font-heading" id="all-reflex-title">
+                <Zap aria-hidden="true" className="size-6" /> All Reflex lessons
+              </h2>
+              <Badge variant="neutral">{totalLessons} lessons</Badge>
             </div>
-            <h3 className="mt-4 text-xl font-heading">No reflex lessons found</h3>
-            <p className="mt-1 text-sm text-foreground/70">
-              {hasActiveFilters
-                ? "No lessons match your current filters. Try changing or clearing your filter criteria."
-                : "No Reflex lessons are available yet."}
-            </p>
-            {hasActiveFilters ? (
-              <Button className="mt-4" onClick={handleResetFilters} size="sm" variant="neutral">
-                Clear all filters
-              </Button>
-            ) : null}
+
+            <ReflexFilterBar
+              hasActiveFilters={hasActiveFilters}
+              onDifficultyChange={setDifficulty}
+              onResetFilters={handleResetFilters}
+              onSearchChange={setSearchQuery}
+              onStatusChange={setStatus}
+              searchQuery={searchQuery}
+              selectedDifficulty={difficulty}
+              selectedStatus={status}
+              totalMatching={filteredLessons.length}
+              totalUnfiltered={totalLessons}
+            />
           </div>
-        ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {filteredLessons.map((lesson) => (
-              <ReflexLessonCard key={lesson.id} lesson={lesson} />
-            ))}
-          </div>
-        )}
-      </section>
+
+          {/* Lesson Cards Grid (2 cols on sm+) */}
+          {filteredLessons.length === 0 ? (
+            <div className="rounded-base border-2 border-border bg-secondary-background px-6 py-12 text-center shadow-shadow">
+              <div className="mx-auto flex size-14 items-center justify-center rounded-full border-2 border-border bg-main text-main-foreground shadow-shadow">
+                <FilterX aria-hidden="true" className="size-7" />
+              </div>
+              <h3 className="mt-4 text-xl font-heading">No reflex lessons found</h3>
+              <p className="mt-1 text-sm text-foreground/70">
+                {hasActiveFilters
+                  ? "No lessons match your current filters. Try changing or clearing your filter criteria."
+                  : "No Reflex lessons are available yet."}
+              </p>
+              {hasActiveFilters ? (
+                <Button className="mt-4" onClick={handleResetFilters} size="sm" variant="neutral">
+                  Clear all filters
+                </Button>
+              ) : null}
+            </div>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2">
+              {filteredLessons.map((lesson) => (
+                <ReflexLessonCard key={lesson.id} lesson={lesson} />
+              ))}
+            </div>
+          )}
+        </section>
+
+        {/* SECONDARY SIDEBAR: WIDGETS (lg:col-span-4) */}
+        <aside className="space-y-6 lg:col-span-4 lg:sticky lg:top-6">
+          <ReflexDueReviews dueReviews={state.dueReviews} />
+          <ReflexStatsOverview
+            completedLessons={completedLessons}
+            dueCount={dueCount}
+            totalLessons={totalLessons}
+          />
+          <ReflexMethodGuide />
+        </aside>
+      </div>
     </div>
   );
 }

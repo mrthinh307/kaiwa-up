@@ -1,6 +1,6 @@
-import { CalendarClock, CheckCircle2, Layers } from "lucide-react";
+import { Layers } from "lucide-react";
 
-import { cn } from "@/lib/utils";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 type ReflexStatsOverviewProps = {
   completedLessons: number;
@@ -17,63 +17,47 @@ export function ReflexStatsOverview({
     totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
 
   return (
-    <div className="grid gap-4 sm:grid-cols-3">
-      <div className="flex items-center gap-4 rounded-base border-2 border-border bg-secondary-background p-4 shadow-shadow sm:p-5">
-        <span className="flex size-12 shrink-0 items-center justify-center rounded-base border-2 border-border bg-main text-main-foreground shadow-[2px_2px_0px_0px_var(--border)]">
-          <Layers aria-hidden="true" className="size-6" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="text-xs font-heading uppercase tracking-[0.12em] text-foreground/65">
-            Total Lessons
-          </p>
-          <p className="mt-0.5 text-2xl font-heading sm:text-3xl">{totalLessons}</p>
-          <p className="text-xs text-foreground/70">Reflex scenarios</p>
+    <Card className="border-2 bg-secondary-background">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Layers aria-hidden="true" className="size-5" /> Your progress
+          </CardTitle>
+          <span className="text-xs font-heading text-foreground/65">{completionPercent}%</span>
         </div>
-      </div>
-
-      <div className="flex items-center gap-4 rounded-base border-2 border-border bg-secondary-background p-4 shadow-shadow sm:p-5">
-        <span className="flex size-12 shrink-0 items-center justify-center rounded-base border-2 border-border bg-success/20 text-success shadow-[2px_2px_0px_0px_var(--border)]">
-          <CheckCircle2 aria-hidden="true" className="size-6" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-baseline justify-between gap-2">
-            <p className="text-xs font-heading uppercase tracking-[0.12em] text-foreground/65">
-              Completed
-            </p>
-            <span className="text-xs font-heading text-foreground/60">{completionPercent}%</span>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div>
+          <div className="flex items-baseline justify-between text-sm">
+            <span className="text-xs font-heading uppercase text-foreground/65">Completed</span>
+            <span className="font-heading">
+              {completedLessons} / {totalLessons}{" "}
+              <span className="text-xs font-base text-foreground/60">lessons</span>
+            </span>
           </div>
-          <p className="mt-0.5 text-2xl font-heading sm:text-3xl">
-            {completedLessons}
-            <span className="text-base font-base text-foreground/60"> / {totalLessons}</span>
-          </p>
-          <div className="mt-2 h-2 w-full overflow-hidden rounded-full border border-border bg-background">
+          <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full border border-border bg-background">
             <div
               className="h-full bg-main transition-all duration-300"
               style={{ width: `${completionPercent}%` }}
             />
           </div>
         </div>
-      </div>
 
-      <div className="flex items-center gap-4 rounded-base border-2 border-border bg-secondary-background p-4 shadow-shadow sm:p-5">
-        <span
-          className={cn(
-            "flex size-12 shrink-0 items-center justify-center rounded-base border-2 border-border shadow-[2px_2px_0px_0px_var(--border)]",
-            dueCount > 0 ? "bg-chart-2 text-main-foreground" : "bg-chart-3 text-main-foreground",
-          )}
-        >
-          <CalendarClock aria-hidden="true" className="size-6" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="text-xs font-heading uppercase tracking-[0.12em] text-foreground/65">
-            SRS Due Today
-          </p>
-          <p className="mt-0.5 text-2xl font-heading sm:text-3xl">{dueCount}</p>
-          <p className="text-xs text-foreground/70">
-            {dueCount === 0 ? "All caught up" : "Requires spaced review"}
-          </p>
+        <div className="grid grid-cols-2 gap-3 border-t-2 border-border pt-3">
+          <div className="rounded-base border border-border bg-background p-2.5">
+            <p className="text-[11px] font-heading uppercase tracking-wider text-foreground/60">
+              Total
+            </p>
+            <p className="mt-0.5 text-xl font-heading">{totalLessons}</p>
+          </div>
+          <div className="rounded-base border border-border bg-background p-2.5">
+            <p className="text-[11px] font-heading uppercase tracking-wider text-foreground/60">
+              SRS Due
+            </p>
+            <p className="mt-0.5 text-xl font-heading">{dueCount}</p>
+          </div>
         </div>
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }
