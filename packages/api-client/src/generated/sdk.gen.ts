@@ -22,6 +22,9 @@ import type {
   CreateTutorConversationData,
   CreateTutorConversationErrors,
   CreateTutorConversationResponses,
+  DeleteMyAvatarData,
+  DeleteMyAvatarErrors,
+  DeleteMyAvatarResponses,
   DeleteTutorConversationData,
   DeleteTutorConversationErrors,
   DeleteTutorConversationResponses,
@@ -138,6 +141,9 @@ import type {
   UpdateMeData,
   UpdateMeErrors,
   UpdateMeResponses,
+  UpdateMyAvatarData,
+  UpdateMyAvatarErrors,
+  UpdateMyAvatarResponses,
 } from "./types.gen";
 
 export type Options<
@@ -787,6 +793,39 @@ export const updateMe = <ThrowOnError extends boolean = false>(
     ...options,
     headers: {
       "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Delete My Avatar
+ *
+ * Remove the authenticated user's avatar.
+ */
+export const deleteMyAvatar = <ThrowOnError extends boolean = false>(
+  options?: Options<DeleteMyAvatarData, ThrowOnError>,
+): RequestResult<DeleteMyAvatarResponses, DeleteMyAvatarErrors, ThrowOnError> =>
+  (options?.client ?? client).delete<DeleteMyAvatarResponses, DeleteMyAvatarErrors, ThrowOnError>({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/api/v1/users/me/avatar",
+    ...options,
+  });
+
+/**
+ * Update My Avatar
+ *
+ * Replace the authenticated user's avatar.
+ */
+export const updateMyAvatar = <ThrowOnError extends boolean = false>(
+  options: Options<UpdateMyAvatarData, ThrowOnError>,
+): RequestResult<UpdateMyAvatarResponses, UpdateMyAvatarErrors, ThrowOnError> =>
+  (options.client ?? client).put<UpdateMyAvatarResponses, UpdateMyAvatarErrors, ThrowOnError>({
+    ...formDataBodySerializer,
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/api/v1/users/me/avatar",
+    ...options,
+    headers: {
+      "Content-Type": null,
       ...options.headers,
     },
   });

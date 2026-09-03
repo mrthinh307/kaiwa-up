@@ -92,6 +92,18 @@ export type BodyRecordShadowingSegment = {
 };
 
 /**
+ * Body_updateMyAvatar
+ */
+export type BodyUpdateMyAvatar = {
+  /**
+   * File
+   *
+   * A cropped 512 by 512 avatar image
+   */
+  file: Blob | File;
+};
+
+/**
  * ContentStatus
  */
 export type ContentStatus = "draft" | "published";
@@ -3640,6 +3652,80 @@ export type UpdateMeResponses = {
 };
 
 export type UpdateMeResponse = UpdateMeResponses[keyof UpdateMeResponses];
+
+export type DeleteMyAvatarData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/users/me/avatar";
+};
+
+export type DeleteMyAvatarErrors = {
+  /**
+   * Unauthorized
+   */
+  401: ErrorResponse;
+  /**
+   * Too Many Requests
+   */
+  429: ErrorResponse;
+};
+
+export type DeleteMyAvatarError = DeleteMyAvatarErrors[keyof DeleteMyAvatarErrors];
+
+export type DeleteMyAvatarResponses = {
+  /**
+   * Successful Response
+   */
+  200: UserResponse;
+};
+
+export type DeleteMyAvatarResponse = DeleteMyAvatarResponses[keyof DeleteMyAvatarResponses];
+
+export type UpdateMyAvatarData = {
+  body: BodyUpdateMyAvatar;
+  path?: never;
+  query?: never;
+  url: "/api/v1/users/me/avatar";
+};
+
+export type UpdateMyAvatarErrors = {
+  /**
+   * Unauthorized
+   */
+  401: ErrorResponse;
+  /**
+   * Content Too Large
+   */
+  413: ErrorResponse;
+  /**
+   * Unsupported Media Type
+   */
+  415: ErrorResponse;
+  /**
+   * Unprocessable Content
+   */
+  422: ErrorResponse;
+  /**
+   * Too Many Requests
+   */
+  429: ErrorResponse;
+  /**
+   * Service Unavailable
+   */
+  503: ErrorResponse;
+};
+
+export type UpdateMyAvatarError = UpdateMyAvatarErrors[keyof UpdateMyAvatarErrors];
+
+export type UpdateMyAvatarResponses = {
+  /**
+   * Successful Response
+   */
+  200: UserResponse;
+};
+
+export type UpdateMyAvatarResponse = UpdateMyAvatarResponses[keyof UpdateMyAvatarResponses];
 
 export type GetWeeklyLeaderboardData = {
   body?: never;
