@@ -4,7 +4,7 @@
 
 Kaiwa sử dụng PostgreSQL 15+. SQLAlchemy models trong `apps/api/app/models/` mô tả schema
 đích; Alembic migrations trong `apps/api/alembic/versions/` là lịch sử thay đổi dùng để triển khai
-schema. Tài liệu này phản ánh schema tại Alembic head `c9f1b4e8d2a6`.
+schema. Tài liệu này phản ánh schema tại Alembic head `a1b2c3d4e5f6`.
 
 Các nguyên tắc chính:
 
@@ -34,10 +34,14 @@ Ký hiệu Mermaid: `||` là đúng một, `o|` là không hoặc một và `o{`
 erDiagram
     USERS ||--|| USER_PROGRESS : has
     USERS ||--o{ AUTH_REFRESH_TOKENS : owns
+    USERS ||--o| AVATAR_MUTATION_WINDOWS : limits
     USERS {
         UUID id PK
         CITEXT email UK
         TEXT password_hash
+        TEXT avatar_url
+        VARCHAR avatar_storage_provider
+        TEXT avatar_storage_key
         VARCHAR role
         BOOLEAN is_active
         TIMESTAMPTZ created_at
@@ -48,6 +52,11 @@ erDiagram
         INTEGER total_exp
         SMALLINT current_level
         INTEGER completed_content_count
+    }
+    AVATAR_MUTATION_WINDOWS {
+        UUID user_id PK,FK
+        TIMESTAMPTZ window_started_at
+        INTEGER request_count
     }
     AUTH_REFRESH_TOKENS {
         UUID id PK
@@ -244,6 +253,8 @@ erDiagram
 | `password_hash` | TEXT | Không | - | - | Chuỗi hash mật khẩu; không lưu mật khẩu gốc và không trả trường này qua API. |
 | `display_name` | VARCHAR(255) | Có | - | - | Tên hiển thị công khai của user. |
 | `avatar_url` | TEXT | Có | - | - | URL ảnh đại diện; không chứa nội dung ảnh nhị phân. |
+| `avatar_storage_provider` | VARCHAR(32) | Có | - | - | Provider lưu asset avatar (`cloudinary` hoặc `local`); trường nội bộ. |
+| `avatar_storage_key` | TEXT | Có | - | - | Public ID hoặc key local để dọn asset; không trả qua API. |
 | `role` | VARCHAR(32) | Không | - | CHECK `user_role` | Quyền hệ thống: `USER` hoặc `ADMIN`; giá trị mặc định `USER` do application cấp. |
 | `is_active` | BOOLEAN | Không | - | - | Cho phép vô hiệu hóa đăng nhập mà không xóa dữ liệu; application mặc định `true`. |
 | `last_login_at` | TIMESTAMPTZ | Có | - | - | Lần đăng nhập thành công gần nhất; NULL khi chưa từng đăng nhập. |
@@ -259,6 +270,14 @@ erDiagram
 | `current_level` | SMALLINT | Không | - | - | Cấp cache suy ra từ `total_exp` bằng công thức tăng dần; application khởi tạo `1`. |
 | `completed_content_count` | INTEGER | Không | - | - | Số nội dung đã hoàn thành, dùng cho dashboard; application khởi tạo `0`. |
 | `updated_at` | TIMESTAMPTZ | Không | `now()` | - | Lần gần nhất dữ liệu tiến độ được tính lại. |
+
+#### Bảng `avatar_mutation_windows`
+
+| Trường | Kiểu dữ liệu | Null | Mặc định DB | Khóa / ràng buộc | Ý nghĩa |
+| --- | --- | --- | --- | --- | --- |
+| `user_id` | UUID | Không | - | PK, FK `users.id` ON DELETE CASCADE | User sở hữu cửa sổ giới hạn thao tác avatar. |
+| `window_started_at` | TIMESTAMPTZ | Không | - | - | Thời điểm bắt đầu cửa sổ 10 phút. |
+| `request_count` | INTEGER | Không | `0` | - | Số lần thay hoặc xóa avatar trong cửa sổ hiện tại. |
 
 #### Bảng `auth_refresh_tokens`
 

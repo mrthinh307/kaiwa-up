@@ -162,6 +162,7 @@ service do `render.yaml` quản lý để CD có thể deploy và xác minh đú
    dùng `packages/api-client`.
 3. Thêm production environment variable:
    - `API_BASE_URL=https://<render-service>.onrender.com`
+   - `CLOUDINARY_CLOUD_NAME=<Cloudinary cloud name>` (public value used by Next Image allowlisting)
 4. Không cấu hình `NEXT_PUBLIC_API_BASE_URL` trong production; browser phải dùng `/api` cùng origin.
 5. Phase 2: sau khi admin phê duyệt, kết nối Git integration để tạo PR Preview. Trong Ignored Build
    Step, bật system environment

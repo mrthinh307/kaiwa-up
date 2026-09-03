@@ -419,6 +419,23 @@ giá trị là `null`.
 
 ---
 
+#### `PUT /api/v1/users/me/avatar`
+* **Mục đích**: Thay ảnh đại diện của người dùng hiện tại.
+* **Yêu cầu xác thực**: Bearer Token
+* **Request Headers**: `Authorization: Bearer <jwt_access_token>`, `Content-Type: multipart/form-data`
+* **Request Body**: Trường `file`, ảnh JPG/PNG/WebP tĩnh, vuông 512×512, tối đa 2 MB.
+* **Response**: `200 OK` với `UserResponse` và `avatar_url` mới.
+* **Status Codes**: `401`, `413` (`avatar_too_large`), `415` (`avatar_unsupported_type`),
+  `422` (`avatar_invalid`), `429` (`avatar_rate_limited`), `503` (`storage_unavailable`).
+
+#### `DELETE /api/v1/users/me/avatar`
+* **Mục đích**: Xóa ảnh đại diện hiện tại và quay về chữ cái tên.
+* **Yêu cầu xác thực**: Bearer Token
+* **Response**: `200 OK` với `UserResponse` và `avatar_url: null`. Xóa lặp vẫn thành công.
+* **Status Codes**: `401`, `429` (`avatar_rate_limited`).
+
+---
+
 ### 3.4. Learning Content Module (P0/P1/P2)
 
 #### `GET /api/v1/lessons`
@@ -1800,7 +1817,7 @@ ra public contract.
 
 ### 4.1. Thống kê tài liệu
 * **Số lượng Module được mô tả**: 15 module (Health, Auth, User, Learning Content, Shadowing, Dictation, Progress, Gamification, Leaderboard, Dashboard, Reflex, Review, Listening & Translation, AI Tutor, Pronunciation Analysis).
-* **Tổng số API Endpoints được quy định**: 32 endpoints.
+* **Tổng số API Endpoints được quy định**: 34 endpoints.
 
 ### 4.2. Giả định (Assumptions Made)
 1. **YouTube Audio Delivery**: `audio_url` là URL video YouTube được trả trong metadata bài học.
@@ -1811,7 +1828,6 @@ ra public contract.
 3. **Weekly Leaderboard Reset**: Bảng xếp hạng tuần tự động reset theo chu kỳ tuần dựa trên hàm lọc timestamp `EXP ledger`.
 
 ### 4.3. Các mục TODO còn lại
-* **TODO-01 (Avatar Upload)**: Endpoint tải ảnh đại diện (`POST /api/v1/users/me/avatar`) tạm thời chưa khai báo do hạ tầng lưu trữ avatar chưa thống nhất trong thiết kế `07-module-design.md`.
 * **TODO-02 (AI Tutor Voice Input)**: Endpoint gửi giọng nói trực tiếp cho AI Tutor (`POST /api/v1/ai-tutor/conversations/{id}/voice-messages`) không thuộc Phase 2; sẽ được bổ sung ở giai đoạn sau khi mô hình Voice-to-Voice được chốt.
 
 ### 4.4. Đánh giá tính nhất quán tài liệu (Inconsistency Check)
