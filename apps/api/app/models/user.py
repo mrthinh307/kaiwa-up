@@ -33,6 +33,8 @@ class User(PrimaryKeyUuidMixin, TimestampMixin, Base):
     password_hash: Mapped[str] = mapped_column(Text, nullable=False)
     display_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     avatar_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    avatar_storage_provider: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    avatar_storage_key: Mapped[str | None] = mapped_column(Text, nullable=True)
     role: Mapped[UserRole] = mapped_column(
         Enum(UserRole, name="user_role", native_enum=False, length=32),
         nullable=False,
@@ -50,6 +52,18 @@ class User(PrimaryKeyUuidMixin, TimestampMixin, Base):
         back_populates="user",
         cascade="all, delete-orphan",
     )
+
+
+class AvatarMutationWindow(Base):
+    """Persistent per-user rate-limit window for avatar mutations."""
+
+    __tablename__ = "avatar_mutation_windows"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    window_started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    request_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
 
 class UserProgress(Base):

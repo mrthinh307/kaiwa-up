@@ -66,3 +66,26 @@ async def test_storage_service_does_not_fall_back_to_local_files_in_production(
         )
 
     assert not (tmp_path / "recordings").exists()
+
+
+@pytest.mark.asyncio
+async def test_storage_service_save_and_delete_avatar_locally(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "CLOUDINARY_URL", None)
+    monkeypatch.setattr(settings, "CLOUDINARY_CLOUD_NAME", None)
+    monkeypatch.setattr(settings, "CLOUDINARY_API_KEY", None)
+    monkeypatch.setattr(settings, "CLOUDINARY_API_SECRET", None)
+    storage = StorageService(storage_dir=str(tmp_path))
+    user_id = uuid.uuid4()
+    content = b"normalized-avatar"
+
+    url, provider, key = await storage.save_avatar(user_id=user_id, content=content)
+
+    assert url == f"/static/{key}"
+    assert provider == "local"
+    assert (tmp_path / key).read_bytes() == content
+
+    await storage.delete_avatar(provider=provider, storage_key=key)
+    assert not (tmp_path / key).exists()

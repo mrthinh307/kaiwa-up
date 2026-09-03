@@ -100,6 +100,64 @@ class StorageService:
         duration_seconds = max(1, file_size // 16000)
         return storage_key, duration_seconds
 
+    async def save_avatar(self, *, user_id: uuid.UUID, content: bytes) -> tuple[str, str, str]:
+        """Save a normalized avatar and return (url, provider, storage key)."""
+        avatar_id = uuid.uuid4()
+        public_id = str(avatar_id)
+        folder_prefix = getattr(settings, "CLOUDINARY_FOLDER", "kaiwa-up") or "kaiwa-up"
+        cloudinary_folder = f"{folder_prefix}/avatars/{user_id}"
+
+        if self._has_cloudinary:
+            try:
+                import io
+
+                result = await asyncio.to_thread(
+                    cloudinary.uploader.upload,
+                    io.BytesIO(content),
+                    resource_type="image",
+                    folder=cloudinary_folder,
+                    public_id=public_id,
+                    overwrite=False,
+                    format="webp",
+                )
+                secure_url = result.get("secure_url") or result.get("url")
+                returned_public_id = result.get("public_id")
+                if secure_url and returned_public_id:
+                    return str(secure_url), "cloudinary", str(returned_public_id)
+                raise StorageUnavailableError()
+            except Exception as exc:
+                logger.exception("Cloudinary avatar upload failed for user %s", user_id)
+                raise StorageUnavailableError() from exc
+
+        if settings.environment == "production":
+            raise StorageUnavailableError()
+
+        relative_key = f"{user_id}/{avatar_id}.webp"
+        target_dir = self.storage_dir.parent / "avatars" / str(user_id)
+        target_dir.mkdir(parents=True, exist_ok=True)
+        (target_dir / f"{avatar_id}.webp").write_bytes(content)
+        return f"/static/avatars/{relative_key}", "local", f"avatars/{relative_key}"
+
+    async def delete_avatar(self, *, provider: str | None, storage_key: str | None) -> None:
+        if not provider or not storage_key:
+            return
+        if provider == "cloudinary":
+            try:
+                await asyncio.to_thread(
+                    cloudinary.uploader.destroy,
+                    storage_key,
+                    resource_type="image",
+                    invalidate=True,
+                )
+            except Exception:
+                logger.exception("Avatar cleanup failed for asset %s", storage_key)
+        elif provider == "local":
+            target = self.storage_dir.parent / storage_key
+            try:
+                target.unlink(missing_ok=True)
+            except OSError:
+                logger.exception("Local avatar cleanup failed for asset %s", storage_key)
+
     def get_playback_url(self, storage_key: str) -> str:
         """Returns playback URL for a stored recording."""
         if storage_key.startswith("http://") or storage_key.startswith("https://"):

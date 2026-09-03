@@ -14,12 +14,13 @@ from app.models.gamification import (
     XpTransaction,
 )
 from app.models.tutor import TutorMessage, TutorSession
-from app.models.user import AuthRefreshToken, User, UserProgress
+from app.models.user import AuthRefreshToken, AvatarMutationWindow, User, UserProgress
 
 __all__ = [
     "Achievement",
     "AiEvaluation",
     "AuthRefreshToken",
+    "AvatarMutationWindow",
     "Base",
     "CreatedAtMixin",
     "ExerciseAttempt",

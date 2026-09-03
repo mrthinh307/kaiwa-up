@@ -15,6 +15,12 @@ from app.exceptions.auth import (
     InvalidCredentialsException,
     UnauthorizedException,
 )
+from app.exceptions.avatar import (
+    AvatarInvalidError,
+    AvatarRateLimitError,
+    AvatarTooLargeError,
+    AvatarUnsupportedTypeError,
+)
 from app.exceptions.base import AppError, ForbiddenError, NotFoundError
 from app.exceptions.dictation import (
     DictationAttemptNotInProgressError,
@@ -68,6 +74,10 @@ __all__ = [
     "LearningContentNotReadyError",
     "NotFoundError",
     "StorageUnavailableError",
+    "AvatarInvalidError",
+    "AvatarRateLimitError",
+    "AvatarTooLargeError",
+    "AvatarUnsupportedTypeError",
     "TranscriptNotFoundError",
     "TranscriptProviderError",
     "TranslationContentUnavailableError",

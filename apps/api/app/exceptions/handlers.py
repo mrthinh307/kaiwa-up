@@ -19,6 +19,7 @@ HTTP_ERROR_CODES = {
     status.HTTP_403_FORBIDDEN: "forbidden",
     status.HTTP_404_NOT_FOUND: "not_found",
     status.HTTP_405_METHOD_NOT_ALLOWED: "method_not_allowed",
+    status.HTTP_413_CONTENT_TOO_LARGE: "content_too_large",
     status.HTTP_409_CONFLICT: "conflict",
     status.HTTP_415_UNSUPPORTED_MEDIA_TYPE: "unsupported_media_type",
     status.HTTP_429_TOO_MANY_REQUESTS: "too_many_requests",
@@ -49,11 +50,18 @@ def error_response(
 
 
 async def app_error_handler(_: Request, exc: AppError) -> JSONResponse:
+    headers = None
+    if exc.code == "avatar_rate_limited":
+        retry_after = (
+            exc.details.get("retry_after_seconds", 600) if isinstance(exc.details, Mapping) else 600
+        )
+        headers = {"Retry-After": str(retry_after)}
     return error_response(
         status_code=exc.status_code,
         code=exc.code,
         message=exc.message,
         details=exc.details,
+        headers=headers,
     )
 
 
