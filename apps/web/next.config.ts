@@ -3,6 +3,7 @@ import type { NextConfig } from "next";
 import path from "node:path";
 
 const apiBaseUrl = process.env.API_BASE_URL?.replace(/\/$/, "");
+const cloudinaryCloudName = process.env.CLOUDINARY_CLOUD_NAME;
 const isVercel = process.env.VERCEL === "1";
 
 if (isVercel && !apiBaseUrl) {
@@ -22,6 +23,11 @@ const nextConfig: NextConfig = {
   },
   images: {
     remotePatterns: [
+      {
+        protocol: "https" as const,
+        hostname: "res.cloudinary.com",
+        pathname: cloudinaryCloudName ? `/${cloudinaryCloudName}/image/**` : "/**",
+      },
       {
         protocol: "https",
         hostname: "raw.githubusercontent.com",

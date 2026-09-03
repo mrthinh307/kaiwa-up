@@ -1,5 +1,7 @@
 import Image from "next/image";
+import { useState } from "react";
 
+import { getBrowserApiBaseUrl } from "@/lib/api-base-url";
 import { cn } from "@/lib/utils";
 
 type ProtectedUserAvatarProps = {
@@ -29,6 +31,11 @@ export function ProtectedUserAvatar({
   className,
   displayName,
 }: ProtectedUserAvatarProps) {
+  const [brokenAvatarUrl, setBrokenAvatarUrl] = useState<string | null>(null);
+  const resolvedAvatarUrl = avatarUrl?.startsWith("/")
+    ? `${getBrowserApiBaseUrl()}${avatarUrl}`
+    : avatarUrl;
+
   return (
     <span
       aria-hidden="true"
@@ -37,8 +44,16 @@ export function ProtectedUserAvatar({
         className,
       )}
     >
-      {avatarUrl ? (
-        <Image alt="" className="object-cover" fill sizes="20px" src={avatarUrl} />
+      {resolvedAvatarUrl && brokenAvatarUrl !== avatarUrl ? (
+        <Image
+          alt=""
+          className="object-cover"
+          fill
+          onError={() => setBrokenAvatarUrl(avatarUrl)}
+          sizes="20px"
+          src={resolvedAvatarUrl}
+          unoptimized={Boolean(avatarUrl?.startsWith("/"))}
+        />
       ) : (
         getInitials(displayName)
       )}

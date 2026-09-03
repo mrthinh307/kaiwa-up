@@ -1,9 +1,8 @@
-import Image from "next/image";
-
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
-import { formatMemberSince, getDisplayNameInitials } from "../_utils/profile-formatters";
+import { formatMemberSince } from "../_utils/profile-formatters";
+import { AvatarEditor } from "./avatar-editor";
 
 type ProfileIdentityCardProps = {
   avatarUrl: string | null;
@@ -22,29 +21,21 @@ export function ProfileIdentityCard({
 }: ProfileIdentityCardProps) {
   return (
     <Card className={cn("border-4 bg-main text-main-foreground", className)}>
-      <CardContent className="h-full flex flex-col justify-center items-center px-5 text-center sm:px-6 lg:py-2">
-        <div className="relative mb-6 flex size-24 items-center justify-center rounded-full border-2 border-border bg-secondary-background text-3xl font-heading text-foreground shadow-shadow sm:size-28 sm:text-4xl">
-          {avatarUrl ? (
-            <Image
-              alt={`${displayName}'s avatar`}
-              className="rounded-full object-cover"
-              fill
-              sizes="(min-width: 640px) 112px, 96px"
-              src={avatarUrl}
-            />
-          ) : (
-            <span aria-label={`${displayName}'s initials`}>
-              {getDisplayNameInitials(displayName)}
-            </span>
-          )}
+      <CardContent className="flex h-full flex-col items-center justify-between p-6 text-center sm:p-7">
+        <div className="flex w-full flex-col items-center">
+          <AvatarEditor avatarUrl={avatarUrl} displayName={displayName} />
+
+          <h2 className="mt-5 break-words text-2xl font-heading leading-tight text-foreground sm:text-3xl">
+            {displayName}
+          </h2>
+          <p className="mt-1.5 break-all text-sm font-base text-foreground/80 sm:text-base">
+            {email}
+          </p>
         </div>
 
-        <h2 className="break-words text-2xl leading-tight sm:text-3xl">{displayName}</h2>
-        <p className="mt-2 break-all text-sm sm:text-base">{email}</p>
-
-        <div className="mt-7 w-full border-t-2 border-border pt-5">
-          <p className="text-xs font-heading uppercase tracking-[0.12em]">Member since</p>
-          <p className="mt-1 text-base">{formatMemberSince(createdAt)}</p>
+        <div className="mt-8 w-full border-t-2 border-border pt-5">
+          <p className="text-xs font-heading uppercase tracking-[0.14em]">Member since</p>
+          <p className="mt-1 text-base font-base">{formatMemberSince(createdAt)}</p>
         </div>
       </CardContent>
     </Card>
