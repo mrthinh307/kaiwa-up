@@ -61,7 +61,7 @@ install-api:
 	cd apps/api && uv sync
 
 dev-api:
-	cd apps/api && uv run uvicorn app.main:app --reload
+	cd apps/api && uv run python -m uvicorn app.main:app --reload
 
 lint-api:
 	cd apps/api && uv run ruff check .
