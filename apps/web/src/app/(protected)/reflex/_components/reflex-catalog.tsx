@@ -1,32 +1,33 @@
 "use client";
 
-import { AlertCircle, CalendarClock, Check, ChevronRight, RotateCcw, Zap } from "lucide-react";
-import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { AlertCircle, FilterX, RotateCcw, Zap } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { parseApiFailure } from "@/lib/api-errors";
 
 import type { DueReview, ReflexLessonList } from "../_lib/reflex-api";
+import type { ReflexDifficultyFilter, ReflexStatusFilter } from "./reflex-filter-bar";
 
 import { listDueReviews, listReflexLessons } from "../_lib/reflex-api";
+import { ReflexDueReviews } from "./reflex-due-reviews";
+import { ReflexFilterBar } from "./reflex-filter-bar";
+import { ReflexLessonCard } from "./reflex-lesson-card";
+import { ReflexMethodGuide } from "./reflex-method-guide";
+import { ReflexSkeleton } from "./reflex-skeleton";
+import { ReflexStatsOverview } from "./reflex-stats-overview";
 
 type CatalogState =
-  | { status: "loading" }
+  | { dueReviews: DueReview[]; lessons: ReflexLessonList; status: "success" }
   | { message: string; status: "failed" }
-  | { dueReviews: DueReview[]; lessons: ReflexLessonList; status: "success" };
-
-function formatDueDate(value: string): string {
-  return new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" }).format(
-    new Date(value),
-  );
-}
+  | { status: "loading" };
 
 export function ReflexCatalog() {
   const [state, setState] = useState<CatalogState>({ status: "loading" });
+  const [difficulty, setDifficulty] = useState<ReflexDifficultyFilter>("all");
+  const [status, setStatus] = useState<ReflexStatusFilter>("all");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const loadCatalog = useCallback(async () => {
     try {
@@ -65,100 +66,124 @@ export function ReflexCatalog() {
     return () => window.clearTimeout(loadTimer);
   }, [loadCatalog]);
 
+  const handleResetFilters = () => {
+    setDifficulty("all");
+    setStatus("all");
+    setSearchQuery("");
+  };
+
+  const hasActiveFilters =
+    difficulty !== "all" || status !== "all" || searchQuery.trim().length > 0;
+
+  const filteredLessons = useMemo(() => {
+    if (state.status !== "success") return [];
+    return state.lessons.items.filter((lesson) => {
+      if (difficulty !== "all" && lesson.difficulty !== difficulty) {
+        return false;
+      }
+      if (status === "completed" && !lesson.is_completed) {
+        return false;
+      }
+      if (status === "uncompleted" && lesson.is_completed) {
+        return false;
+      }
+      if (searchQuery.trim()) {
+        const query = searchQuery.trim().toLowerCase();
+        if (!lesson.title.toLowerCase().includes(query)) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [state, difficulty, status, searchQuery]);
+
   if (state.status === "loading") {
-    return (
-      <p aria-live="polite" className="py-16 text-center font-heading">
-        Loading practice lessons...
-      </p>
-    );
+    return <ReflexSkeleton />;
   }
 
   if (state.status === "failed") {
     return (
       <Alert variant="destructive">
-        <AlertCircle />
+        <AlertCircle aria-hidden="true" />
         <AlertTitle>Unable to load Reflex lessons</AlertTitle>
         <AlertDescription>
           <p>{state.message}</p>
           <Button className="mt-4" onClick={handleRetry} size="sm" variant="neutral">
-            <RotateCcw /> Try again
+            <RotateCcw aria-hidden="true" /> Try again
           </Button>
         </AlertDescription>
       </Alert>
     );
   }
 
-  return (
-    <div className="grid gap-10">
-      <section aria-labelledby="due-reviews-title">
-        <div className="mb-5 flex items-center justify-between gap-4">
-          <h2 className="flex items-center gap-2 text-2xl font-heading" id="due-reviews-title">
-            <CalendarClock className="size-6" /> Due for review today
-          </h2>
-          <Badge>{state.dueReviews.length}</Badge>
-        </div>
-        {state.dueReviews.length === 0 ? (
-          <div className="rounded-base border-2 border-border bg-secondary-background p-6">
-            Nothing is due today. Your review schedule will appear after you complete a Reflex
-            lesson.
-          </div>
-        ) : (
-          <div className="grid gap-4 md:grid-cols-2">
-            {state.dueReviews.map((review) => (
-              <Card className="gap-4" key={review.lesson_id}>
-                <CardHeader>
-                  <CardTitle className="text-lg">{review.lesson_title}</CardTitle>
-                </CardHeader>
-                <CardContent className="flex items-end justify-between gap-4">
-                  <div className="text-sm">
-                    <p>
-                      Last score: <strong>{Math.round(review.last_score)}</strong>
-                    </p>
-                    <p className="text-foreground/70">Due: {formatDueDate(review.due_at)}</p>
-                  </div>
-                  <Button asChild size="icon" title="Review this lesson">
-                    <Link
-                      aria-label={`Review ${review.lesson_title}`}
-                      href={`/reflex/${review.lesson_id}`}
-                    >
-                      <ChevronRight />
-                    </Link>
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
-      </section>
+  const totalLessons = state.lessons.items.length;
+  const completedLessons = state.lessons.items.filter((lesson) => lesson.is_completed).length;
+  const dueCount = state.dueReviews.length;
 
-      <section aria-labelledby="all-reflex-title">
-        <h2 className="mb-5 flex items-center gap-2 text-2xl font-heading" id="all-reflex-title">
-          <Zap className="size-6" /> All Reflex lessons
-        </h2>
-        {state.lessons.items.length === 0 ? (
-          <p className="border-y-2 border-border py-10 text-center">
-            No Reflex lessons are available yet.
+  return (
+    <div className="space-y-10">
+      {/* 1. Stats Overview Bar */}
+      <ReflexStatsOverview
+        completedLessons={completedLessons}
+        dueCount={dueCount}
+        totalLessons={totalLessons}
+      />
+
+      {/* 2. Method Guide */}
+      <ReflexMethodGuide />
+
+      {/* 3. Due Reviews (Spaced Repetition) */}
+      <ReflexDueReviews dueReviews={state.dueReviews} />
+
+      {/* 4. All Lessons Section */}
+      <section aria-labelledby="all-reflex-title" className="space-y-6">
+        <div>
+          <h2 className="flex items-center gap-2 text-2xl font-heading" id="all-reflex-title">
+            <Zap aria-hidden="true" className="size-6" /> All Reflex lessons
+          </h2>
+          <p className="mt-1 text-sm text-foreground/70">
+            Build rapid conversation reflexes across all difficulty levels.
           </p>
+        </div>
+
+        {/* Filter Bar */}
+        <div className="rounded-base border-2 border-border bg-secondary-background p-4 shadow-shadow sm:p-5">
+          <ReflexFilterBar
+            hasActiveFilters={hasActiveFilters}
+            onDifficultyChange={setDifficulty}
+            onResetFilters={handleResetFilters}
+            onSearchChange={setSearchQuery}
+            onStatusChange={setStatus}
+            searchQuery={searchQuery}
+            selectedDifficulty={difficulty}
+            selectedStatus={status}
+            totalMatching={filteredLessons.length}
+            totalUnfiltered={totalLessons}
+          />
+        </div>
+
+        {/* Lesson Cards Grid */}
+        {filteredLessons.length === 0 ? (
+          <div className="rounded-base border-2 border-border bg-secondary-background px-6 py-12 text-center shadow-shadow">
+            <div className="mx-auto flex size-14 items-center justify-center rounded-full border-2 border-border bg-main text-main-foreground shadow-shadow">
+              <FilterX aria-hidden="true" className="size-7" />
+            </div>
+            <h3 className="mt-4 text-xl font-heading">No reflex lessons found</h3>
+            <p className="mt-1 text-sm text-foreground/70">
+              {hasActiveFilters
+                ? "No lessons match your current filters. Try changing or clearing your filter criteria."
+                : "No Reflex lessons are available yet."}
+            </p>
+            {hasActiveFilters ? (
+              <Button className="mt-4" onClick={handleResetFilters} size="sm" variant="neutral">
+                Clear all filters
+              </Button>
+            ) : null}
+          </div>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {state.lessons.items.map((lesson) => (
-              <Card className="gap-4" key={lesson.id}>
-                <CardHeader>
-                  <div className="flex items-start justify-between gap-3">
-                    <Badge variant="neutral">{lesson.difficulty}</Badge>
-                    {lesson.is_completed && <Check aria-label="Completed" className="size-5" />}
-                  </div>
-                  <CardTitle className="pt-3 text-xl leading-snug">{lesson.title}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <Button asChild className="w-full">
-                    <Link href={`/reflex/${lesson.id}`}>
-                      {lesson.is_completed ? "Practice again" : "Start"}
-                      <ChevronRight />
-                    </Link>
-                  </Button>
-                </CardContent>
-              </Card>
+            {filteredLessons.map((lesson) => (
+              <ReflexLessonCard key={lesson.id} lesson={lesson} />
             ))}
           </div>
         )}
