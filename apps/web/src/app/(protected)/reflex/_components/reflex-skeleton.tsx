@@ -5,9 +5,6 @@ export function ReflexSkeleton() {
     <div aria-busy="true" aria-label="Loading reflex catalog" className="space-y-6">
       <span className="sr-only">Loading reflex catalog…</span>
 
-      {/* Guide skeleton (full-width) */}
-      <Skeleton className="h-14 rounded-base border-2 border-border shadow-shadow" />
-
       {/* Due reviews skeleton (full-width) */}
       <Skeleton className="h-14 rounded-base border-2 border-border shadow-shadow" />
 

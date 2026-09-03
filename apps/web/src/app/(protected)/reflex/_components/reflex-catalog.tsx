@@ -15,7 +15,6 @@ import { listDueReviews, listReflexLessons } from "../_lib/reflex-api";
 import { ReflexDueReviews } from "./reflex-due-reviews";
 import { ReflexFilterBar } from "./reflex-filter-bar";
 import { ReflexLessonCard } from "./reflex-lesson-card";
-import { ReflexMethodGuide } from "./reflex-method-guide";
 import { ReflexSkeleton } from "./reflex-skeleton";
 
 type CatalogState =
@@ -120,13 +119,10 @@ export function ReflexCatalog() {
 
   return (
     <div className="space-y-6">
-      {/* 1. How It Works: Full-width collapsible method guide (default closed) */}
-      <ReflexMethodGuide />
-
-      {/* 2. Due for Review: Full-width collapsible review queue (default closed) */}
+      {/* 1. Due for Review: Full-width collapsible review queue (default closed) */}
       <ReflexDueReviews dueReviews={state.dueReviews} />
 
-      {/* 3. All Reflex Lessons: Full-row catalog and 3-column grid */}
+      {/* 2. All Reflex Lessons: Full-row catalog and 3-column grid */}
       <section aria-labelledby="all-reflex-title" className="space-y-6">
         {/* Header & Filter Bar */}
         <div className="rounded-base border-2 border-border bg-secondary-background p-4 shadow-shadow sm:p-5">
