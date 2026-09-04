@@ -37,6 +37,10 @@ from app.exceptions.learning_content import (
     TranscriptNotFoundError,
     TranscriptProviderError,
 )
+from app.exceptions.shadowing import (
+    ShadowingAttemptModeMismatchError,
+    ShadowingContentUnavailableError,
+)
 from app.exceptions.storage import StorageUnavailableError
 from app.exceptions.translation import (
     TranslationContentUnavailableError,
@@ -74,6 +78,8 @@ __all__ = [
     "LearningContentNotReadyError",
     "NotFoundError",
     "StorageUnavailableError",
+    "ShadowingAttemptModeMismatchError",
+    "ShadowingContentUnavailableError",
     "AvatarInvalidError",
     "AvatarRateLimitError",
     "AvatarTooLargeError",

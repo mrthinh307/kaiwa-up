@@ -5,11 +5,25 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 
 from app.models.enums import AttemptStatus
+from app.schemas.learning_content import ShadowingContentDetail
 
 
 class ShadowingMode(enum.StrEnum):
     SEGMENTED = "segmented"
     CONTINUOUS = "continuous"
+
+
+class ShadowingStartRequest(BaseModel):
+    mode: ShadowingMode
+
+
+class ShadowingStartResponse(BaseModel):
+    attempt_id: uuid.UUID
+    content_id: uuid.UUID
+    attempt_number: int = Field(ge=1)
+    mode: ShadowingMode
+    total_segments: int = Field(ge=1)
+    total_attempts: int = Field(ge=1)
 
 
 class ShadowingRecordSegmentResponse(BaseModel):
@@ -105,6 +119,7 @@ class ShadowingSegmentReviewItem(BaseModel):
 
 class ShadowingAttemptReviewResponse(BaseModel):
     attempt_id: uuid.UUID
+    attempt_number: int = Field(ge=1)
     content_id: uuid.UUID
     title: str
     difficulty: str
@@ -150,3 +165,8 @@ class ShadowingResumeResponse(BaseModel):
     recorded_segments: list[ShadowingRecordedSegmentSummary] = Field(default_factory=list)
     continuous_recording: ShadowingContinuousRecordingSummary | None = None
     total_attempts: int = 0
+
+
+class ShadowingAttemptPracticeResponse(BaseModel):
+    content: ShadowingContentDetail
+    attempt: ShadowingResumeResponse

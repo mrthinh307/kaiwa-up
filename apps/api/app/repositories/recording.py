@@ -52,6 +52,7 @@ class RecordingRepository(BaseRepository):
         user_id: uuid.UUID,
         content_id: uuid.UUID,
         attempt_number: int,
+        answer_payload: dict[str, object] | None = None,
     ) -> ExerciseAttempt:
         attempt = ExerciseAttempt(
             user_id=user_id,
@@ -59,7 +60,7 @@ class RecordingRepository(BaseRepository):
             attempt_number=attempt_number,
             practice_method=PracticeMethod.SHADOWING,
             status=AttemptStatus.IN_PROGRESS,
-            answer_payload={},
+            answer_payload=answer_payload or {},
         )
         self.session.add(attempt)
         await self.session.flush()
@@ -73,6 +74,24 @@ class RecordingRepository(BaseRepository):
             )
         )
         return result.scalar_one_or_none()
+
+    async def get_attempt_with_content(
+        self,
+        attempt_id: uuid.UUID,
+    ) -> tuple[ExerciseAttempt, LearningContent] | None:
+        result = (
+            await self.session.execute(
+                select(ExerciseAttempt, LearningContent)
+                .join(LearningContent, LearningContent.id == ExerciseAttempt.content_id)
+                .where(
+                    ExerciseAttempt.id == attempt_id,
+                    ExerciseAttempt.practice_method == PracticeMethod.SHADOWING,
+                )
+            )
+        ).first()
+        if result is None:
+            return None
+        return result[0], result[1]
 
     async def get_latest_in_progress_attempt(
         self,

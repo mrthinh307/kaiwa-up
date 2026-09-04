@@ -9,17 +9,72 @@ from app.api.dependencies.database import DatabaseSession
 from app.repositories.recording import RecordingRepository
 from app.schemas.error import ErrorResponse
 from app.schemas.shadowing import (
+    ShadowingAttemptPracticeResponse,
     ShadowingAttemptReviewResponse,
     ShadowingRecordContinuousResponse,
     ShadowingRecordingPlaybackResponse,
     ShadowingRecordSegmentResponse,
     ShadowingResumeResponse,
+    ShadowingStartRequest,
+    ShadowingStartResponse,
     ShadowingSubmitRequest,
     ShadowingSubmitResponse,
 )
 from app.services.shadowing import ShadowingService
 
 router = APIRouter(prefix="/shadowing", tags=["Shadowing"])
+
+
+@router.post(
+    "/{content_id}/start",
+    operation_id="startShadowingAttempt",
+    response_model=ShadowingStartResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Start a Shadowing attempt",
+    responses={
+        status.HTTP_401_UNAUTHORIZED: {"model": ErrorResponse},
+        status.HTTP_404_NOT_FOUND: {"model": ErrorResponse},
+        status.HTTP_409_CONFLICT: {"model": ErrorResponse},
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {"model": ErrorResponse},
+    },
+)
+async def start_shadowing_attempt(
+    content_id: Annotated[uuid.UUID, Path(description="Published shadowing content ID")],
+    payload: ShadowingStartRequest,
+    current_user: CurrentUser,
+    session: DatabaseSession,
+) -> ShadowingStartResponse:
+    service = ShadowingService(RecordingRepository(session))
+    return await service.start_attempt(
+        user_id=current_user.id,
+        content_id=content_id,
+        mode=payload.mode,
+    )
+
+
+@router.get(
+    "/attempts/{attempt_id}/practice",
+    operation_id="getShadowingAttemptPractice",
+    response_model=ShadowingAttemptPracticeResponse,
+    summary="Load an in-progress Shadowing attempt for practice",
+    responses={
+        status.HTTP_401_UNAUTHORIZED: {"model": ErrorResponse},
+        status.HTTP_403_FORBIDDEN: {"model": ErrorResponse},
+        status.HTTP_404_NOT_FOUND: {"model": ErrorResponse},
+        status.HTTP_409_CONFLICT: {"model": ErrorResponse},
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {"model": ErrorResponse},
+    },
+)
+async def get_shadowing_attempt_practice(
+    attempt_id: Annotated[uuid.UUID, Path(description="Shadowing attempt ID")],
+    current_user: CurrentUser,
+    session: DatabaseSession,
+) -> ShadowingAttemptPracticeResponse:
+    service = ShadowingService(RecordingRepository(session))
+    return await service.get_attempt_practice(
+        user_id=current_user.id,
+        attempt_id=attempt_id,
+    )
 
 
 @router.get(
@@ -119,6 +174,7 @@ async def record_continuous(
         status.HTTP_401_UNAUTHORIZED: {"model": ErrorResponse},
         status.HTTP_403_FORBIDDEN: {"model": ErrorResponse},
         status.HTTP_404_NOT_FOUND: {"model": ErrorResponse},
+        status.HTTP_409_CONFLICT: {"model": ErrorResponse},
     },
 )
 async def submit_attempt(

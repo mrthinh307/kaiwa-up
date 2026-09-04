@@ -8,23 +8,29 @@ from typing import Any
 
 import pykakasi
 from fastapi import UploadFile
+from pydantic import ValidationError
 
 from app.exceptions import AttemptAlreadyInProgressError, ForbiddenError, NotFoundError
 from app.exceptions.shadowing import (
+    ShadowingAttemptModeMismatchError,
     ShadowingAttemptNotFoundError,
     ShadowingAttemptNotInProgressError,
     ShadowingAudioTooLargeError,
     ShadowingContentNotFoundError,
+    ShadowingContentUnavailableError,
     ShadowingInvalidAudioError,
     ShadowingInvalidSegmentError,
 )
 from app.integrations.ai.base import AiGateway
 from app.models.attempt import ExerciseAttempt, Recording
-from app.models.enums import AttemptStatus, ContentType, PracticeMethod
+from app.models.content import LearningContent
+from app.models.enums import AttemptStatus, ContentStatus, ContentType, PracticeMethod
 from app.repositories.gamification import GamificationRepository
 from app.repositories.recording import RecordingRepository
+from app.schemas.learning_content import ShadowingContentDetail, TranscriptSegment
 from app.schemas.shadowing import (
     ShadowingAiFeedback,
+    ShadowingAttemptPracticeResponse,
     ShadowingAttemptReviewResponse,
     ShadowingContinuousRecordingSummary,
     ShadowingCorrection,
@@ -35,6 +41,7 @@ from app.schemas.shadowing import (
     ShadowingRecordSegmentResponse,
     ShadowingResumeResponse,
     ShadowingSegmentReviewItem,
+    ShadowingStartResponse,
     ShadowingSubmitResponse,
     ShadowingUserProgressSummary,
     ShadowingWordFeedback,
@@ -179,6 +186,61 @@ class ShadowingService:
         self.storage_service = storage_service or StorageService()
         self.ai_gateway = ai_gateway
 
+    async def start_attempt(
+        self,
+        *,
+        user_id: uuid.UUID,
+        content_id: uuid.UUID,
+        mode: ShadowingMode,
+    ) -> ShadowingStartResponse:
+        content = await self.repository.get_shadowing_content(content_id)
+        if content is None:
+            raise ShadowingContentNotFoundError()
+
+        transcript_segments = self._validated_transcript(content)
+        if not content.audio_url:
+            raise ShadowingContentUnavailableError()
+
+        try:
+            await self.repository.lock_user(user_id)
+            existing_row = await self.repository.get_latest_in_progress_attempt(
+                user_id=user_id,
+                content_id=content_id,
+            )
+            if existing_row is not None:
+                raise AttemptAlreadyInProgressError(
+                    attempt_id=existing_row[0].id,
+                    practice_method=PracticeMethod.SHADOWING,
+                )
+
+            attempt_number = await self.repository.get_next_attempt_number(
+                user_id=user_id,
+                content_id=content_id,
+            )
+            attempt = await self.repository.create_attempt(
+                user_id=user_id,
+                content_id=content_id,
+                attempt_number=attempt_number,
+                answer_payload={"mode": mode.value},
+            )
+            total_attempts = await self.repository.get_total_attempt_count(
+                user_id=user_id,
+                content_id=content_id,
+            )
+            await self.repository.session.commit()
+        except Exception:
+            await self.repository.session.rollback()
+            raise
+
+        return ShadowingStartResponse(
+            attempt_id=attempt.id,
+            content_id=content.id,
+            attempt_number=attempt.attempt_number,
+            mode=mode,
+            total_segments=len(transcript_segments),
+            total_attempts=total_attempts,
+        )
+
     async def record_segment(
         self,
         *,
@@ -195,20 +257,20 @@ class ShadowingService:
         if not self._is_valid_segment(content.transcript_ja, segment_id):
             raise ShadowingInvalidSegmentError()
 
-        file_content = await audio_file.read()
-        await audio_file.seek(0)
-
-        if not file_content:
-            raise ShadowingInvalidAudioError()
-        if len(file_content) > MAX_AUDIO_SIZE_BYTES:
-            raise ShadowingAudioTooLargeError()
-
         try:
             attempt = await self._get_or_create_attempt(
                 user_id=user_id,
                 content_id=content_id,
                 attempt_id=attempt_id,
+                requested_mode=ShadowingMode.SEGMENTED,
             )
+
+            file_content = await audio_file.read()
+            await audio_file.seek(0)
+            if not file_content:
+                raise ShadowingInvalidAudioError()
+            if len(file_content) > MAX_AUDIO_SIZE_BYTES:
+                raise ShadowingAudioTooLargeError()
 
             storage_key, duration_seconds = await self.storage_service.save_audio(
                 user_id=user_id,
@@ -270,20 +332,20 @@ class ShadowingService:
         if content is None:
             raise ShadowingContentNotFoundError()
 
-        file_content = await audio_file.read()
-        await audio_file.seek(0)
-
-        if not file_content:
-            raise ShadowingInvalidAudioError()
-        if len(file_content) > MAX_AUDIO_SIZE_BYTES:
-            raise ShadowingAudioTooLargeError()
-
         try:
             attempt = await self._get_or_create_attempt(
                 user_id=user_id,
                 content_id=content_id,
                 attempt_id=attempt_id,
+                requested_mode=ShadowingMode.CONTINUOUS,
             )
+
+            file_content = await audio_file.read()
+            await audio_file.seek(0)
+            if not file_content:
+                raise ShadowingInvalidAudioError()
+            if len(file_content) > MAX_AUDIO_SIZE_BYTES:
+                raise ShadowingAudioTooLargeError()
 
             storage_key, file_duration_seconds = await self.storage_service.save_audio(
                 user_id=user_id,
@@ -1185,6 +1247,7 @@ class ShadowingService:
 
         return ShadowingAttemptReviewResponse(
             attempt_id=attempt.id,
+            attempt_number=attempt.attempt_number,
             content_id=content.id,
             title=content.title,
             difficulty=content.difficulty.value,
@@ -1224,6 +1287,55 @@ class ShadowingService:
             user_id=user_id,
             content_id=content_id,
         )
+
+        return await self._build_resume_response(
+            attempt=attempt,
+            content=content,
+            total_attempts=total_attempts,
+        )
+
+    async def get_attempt_practice(
+        self,
+        *,
+        user_id: uuid.UUID,
+        attempt_id: uuid.UUID,
+    ) -> ShadowingAttemptPracticeResponse:
+        row = await self.repository.get_attempt_with_content(attempt_id)
+        if row is None:
+            raise ShadowingAttemptNotFoundError()
+
+        attempt, content = row
+        if attempt.user_id != user_id:
+            raise ForbiddenError()
+        if attempt.status != AttemptStatus.IN_PROGRESS:
+            raise ShadowingAttemptNotInProgressError()
+        if content.status != ContentStatus.PUBLISHED:
+            raise ShadowingContentNotFoundError()
+
+        self._validated_transcript(content)
+        if not content.audio_url:
+            raise ShadowingContentUnavailableError()
+
+        total_attempts = await self.repository.get_total_attempt_count(
+            user_id=user_id,
+            content_id=content.id,
+        )
+        return ShadowingAttemptPracticeResponse(
+            content=self._content_detail(content),
+            attempt=await self._build_resume_response(
+                attempt=attempt,
+                content=content,
+                total_attempts=total_attempts,
+            ),
+        )
+
+    async def _build_resume_response(
+        self,
+        *,
+        attempt: ExerciseAttempt,
+        content: LearningContent,
+        total_attempts: int,
+    ) -> ShadowingResumeResponse:
 
         transcript_segments = content.transcript_ja or []
         total_count = len(transcript_segments)
@@ -1314,6 +1426,7 @@ class ShadowingService:
         user_id: uuid.UUID,
         content_id: uuid.UUID,
         attempt_id: uuid.UUID | None,
+        requested_mode: ShadowingMode,
     ) -> ExerciseAttempt:
         if attempt_id is None:
             await self.repository.lock_user(user_id)
@@ -1334,6 +1447,7 @@ class ShadowingService:
                 user_id=user_id,
                 content_id=content_id,
                 attempt_number=attempt_number,
+                answer_payload={"mode": requested_mode.value},
             )
 
         attempt = await self.repository.get_attempt(attempt_id)
@@ -1343,7 +1457,41 @@ class ShadowingService:
             raise ForbiddenError()
         if attempt.status != AttemptStatus.IN_PROGRESS:
             raise ShadowingAttemptNotInProgressError()
+
+        stored_mode = (attempt.answer_payload or {}).get("mode")
+        if isinstance(stored_mode, str) and stored_mode != requested_mode.value:
+            raise ShadowingAttemptModeMismatchError(
+                attempt_mode=stored_mode,
+                requested_mode=requested_mode.value,
+            )
         return attempt
+
+    def _content_detail(self, content: LearningContent) -> ShadowingContentDetail:
+        transcript = self._validated_transcript(content)
+        return ShadowingContentDetail(
+            id=content.id,
+            title=content.title,
+            description=content.short_description,
+            content_type=content.content_type,
+            difficulty=content.difficulty,
+            topic=content.topic,
+            duration_seconds=(
+                content.audio_duration_ms / 1000 if content.audio_duration_ms is not None else None
+            ),
+            audio_url=content.audio_url,
+            published_at=content.published_at,
+            transcript=transcript,
+        )
+
+    @staticmethod
+    def _validated_transcript(content: LearningContent) -> list[TranscriptSegment]:
+        if not content.transcript_ja:
+            raise ShadowingContentUnavailableError()
+
+        try:
+            return [TranscriptSegment.model_validate(segment) for segment in content.transcript_ja]
+        except ValidationError as exc:
+            raise ShadowingContentUnavailableError() from exc
 
     @staticmethod
     def _is_valid_segment(transcript_ja: list[dict[str, Any]] | None, segment_id: str) -> bool:
