@@ -10,6 +10,7 @@ def test_all_expected_tables_registered() -> None:
     expected = {
         "users",
         "user_progress",
+        "avatar_mutation_windows",
         "auth_refresh_tokens",
         "achievements",
         "user_achievements",
