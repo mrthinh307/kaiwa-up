@@ -12,6 +12,7 @@ import { parseApiFailure } from "@/lib/api-errors";
 export type LessonPracticeMethod = Extract<PracticeMethod, "dictation" | "shadowing">;
 
 export type LessonPracticeProgress = {
+  activeAttemptIds: Readonly<Partial<Record<LessonPracticeMethod, string>>>;
   activeMethods: readonly LessonPracticeMethod[];
   hasLegacyInProgress: boolean;
 };
@@ -47,7 +48,11 @@ export function PracticeProgressProvider({ children }: { children: ReactNode }) 
 
         const mutableProgress = new Map<
           string,
-          { activeMethods: Set<LessonPracticeMethod>; hasLegacyInProgress: boolean }
+          {
+            activeAttemptIds: Partial<Record<LessonPracticeMethod, string>>;
+            activeMethods: Set<LessonPracticeMethod>;
+            hasLegacyInProgress: boolean;
+          }
         >();
 
         for (const lesson of response.data.in_progress_lessons ?? []) {
@@ -57,10 +62,12 @@ export function PracticeProgressProvider({ children }: { children: ReactNode }) 
 
           const current = mutableProgress.get(lesson.content_id) ?? {
             activeMethods: new Set<LessonPracticeMethod>(),
+            activeAttemptIds: {},
             hasLegacyInProgress: false,
           };
           if (lesson.practice_method === "shadowing" || lesson.practice_method === "dictation") {
             current.activeMethods.add(lesson.practice_method);
+            current.activeAttemptIds[lesson.practice_method] ??= lesson.id;
           } else if (lesson.practice_method === null) {
             current.hasLegacyInProgress = true;
           }
@@ -76,6 +83,7 @@ export function PracticeProgressProvider({ children }: { children: ReactNode }) 
             [...mutableProgress].map(([contentId, progress]) => [
               contentId,
               {
+                activeAttemptIds: progress.activeAttemptIds,
                 activeMethods: [...progress.activeMethods],
                 hasLegacyInProgress: progress.hasLegacyInProgress,
               },

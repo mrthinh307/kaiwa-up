@@ -12,15 +12,21 @@ import { cn } from "@/lib/utils";
 
 const PRACTICE_METHOD_CONFIG: Record<
   LessonPracticeMethod,
-  { getHref: (contentId: string) => string; icon: LucideIcon; label: string }
+  { getHref: (contentId: string, attemptId?: string) => string; icon: LucideIcon; label: string }
 > = {
   dictation: {
-    getHref: (contentId) => `/dictation/${encodeURIComponent(contentId)}`,
+    getHref: (contentId, attemptId) =>
+      attemptId
+        ? `/dictation/attempts/${encodeURIComponent(attemptId)}/practice`
+        : `/dictation/${encodeURIComponent(contentId)}`,
     icon: BookOpenCheck,
     label: "Dictation",
   },
   shadowing: {
-    getHref: (contentId) => `/shadowing/${encodeURIComponent(contentId)}`,
+    getHref: (contentId, attemptId) =>
+      attemptId
+        ? `/shadowing/attempts/${encodeURIComponent(attemptId)}/practice`
+        : `/shadowing/${encodeURIComponent(contentId)}`,
     icon: Mic2,
     label: "Shadowing",
   },
@@ -38,6 +44,7 @@ export function PracticeModeAction({
   const { errorMessage, isLoading, progressByContentId } = usePracticeProgress();
   const progress = progressByContentId.get(contentId);
   const isInProgress = progress?.activeMethods.includes(method) ?? false;
+  const activeAttemptId = progress?.activeAttemptIds[method];
   const hasLegacyInProgress = progress?.hasLegacyInProgress ?? false;
   const config = PRACTICE_METHOD_CONFIG[method];
   const Icon = config.icon;
@@ -59,7 +66,7 @@ export function PracticeModeAction({
         "grid min-h-16 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 rounded-base border-2 border-border bg-background px-2 py-2 outline-hidden transition-colors hover:bg-main hover:text-main-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-reduce:transition-none",
         isInProgress && "bg-main/15",
       )}
-      href={config.getHref(contentId)}
+      href={config.getHref(contentId, activeAttemptId)}
     >
       <span
         className={cn(
