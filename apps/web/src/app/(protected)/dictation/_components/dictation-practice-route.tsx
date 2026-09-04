@@ -31,7 +31,7 @@ export function DictationPracticeRoute({ attemptId }: { attemptId: string }) {
   }, [attemptId, router]);
 
   return (
-    <main className="px-3 py-2 sm:px-4 sm:py-2.5 lg:py-3">
+    <main className="px-4 py-6 sm:px-8 sm:py-8 lg:py-10">
       <div className="mx-auto w-full max-w-[1300px]">
         <DictationPracticeScreen
           attemptId={attemptId}
