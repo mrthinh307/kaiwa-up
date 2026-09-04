@@ -114,6 +114,14 @@ export type ContentStatus = "draft" | "published";
 export type ContentType = "shadowing_dictation" | "reflex" | "listening_translation";
 
 /**
+ * DictationAttemptPracticeResponse
+ */
+export type DictationAttemptPracticeResponse = {
+  content: DictationContentDetail;
+  attempt: DictationResumeResponse;
+};
+
+/**
  * DictationAttemptReviewResponse
  */
 export type DictationAttemptReviewResponse = {
@@ -121,15 +129,36 @@ export type DictationAttemptReviewResponse = {
    * Attempt Id
    */
   attempt_id: string;
+  content: DictationContentDetail;
+  /**
+   * Attempt Number
+   */
+  attempt_number: number;
   status: AttemptStatus;
   /**
    * Score
    */
   score: number | null;
   /**
+   * Correct Count
+   */
+  correct_count: number;
+  /**
+   * Total Count
+   */
+  total_count: number;
+  /**
    * Earned Exp
    */
   earned_exp: number;
+  /**
+   * Completed At
+   */
+  completed_at?: string | null;
+  /**
+   * Segments
+   */
+  segments: Array<DictationSegmentItem>;
   /**
    * Details
    */
@@ -271,6 +300,10 @@ export type DictationResumeResponse = {
    * Checked Segments
    */
   checked_segments?: Array<DictationSegmentCheckResponse>;
+  /**
+   * Total Attempts
+   */
+  total_attempts?: number;
 };
 
 /**
@@ -1225,6 +1258,14 @@ export type ShadowingAiFeedback = {
 };
 
 /**
+ * ShadowingAttemptPracticeResponse
+ */
+export type ShadowingAttemptPracticeResponse = {
+  content: ShadowingContentDetail;
+  attempt: ShadowingResumeResponse;
+};
+
+/**
  * ShadowingAttemptReviewResponse
  */
 export type ShadowingAttemptReviewResponse = {
@@ -1232,6 +1273,10 @@ export type ShadowingAttemptReviewResponse = {
    * Attempt Id
    */
   attempt_id: string;
+  /**
+   * Attempt Number
+   */
+  attempt_number: number;
   /**
    * Content Id
    */
@@ -1570,6 +1615,40 @@ export type ShadowingSegmentReviewItem = {
    * Words
    */
   words?: Array<ShadowingWordFeedback>;
+};
+
+/**
+ * ShadowingStartRequest
+ */
+export type ShadowingStartRequest = {
+  mode: ShadowingMode;
+};
+
+/**
+ * ShadowingStartResponse
+ */
+export type ShadowingStartResponse = {
+  /**
+   * Attempt Id
+   */
+  attempt_id: string;
+  /**
+   * Content Id
+   */
+  content_id: string;
+  /**
+   * Attempt Number
+   */
+  attempt_number: number;
+  mode: ShadowingMode;
+  /**
+   * Total Segments
+   */
+  total_segments: number;
+  /**
+   * Total Attempts
+   */
+  total_attempts: number;
 };
 
 /**
@@ -2640,6 +2719,102 @@ export type GetGamificationProfileResponses = {
 export type GetGamificationProfileResponse =
   GetGamificationProfileResponses[keyof GetGamificationProfileResponses];
 
+export type StartShadowingAttemptData = {
+  body: ShadowingStartRequest;
+  path: {
+    /**
+     * Content Id
+     *
+     * Published shadowing content ID
+     */
+    content_id: string;
+  };
+  query?: never;
+  url: "/api/v1/shadowing/{content_id}/start";
+};
+
+export type StartShadowingAttemptErrors = {
+  /**
+   * Unauthorized
+   */
+  401: ErrorResponse;
+  /**
+   * Not Found
+   */
+  404: ErrorResponse;
+  /**
+   * Conflict
+   */
+  409: ErrorResponse;
+  /**
+   * Unprocessable Content
+   */
+  422: ErrorResponse;
+};
+
+export type StartShadowingAttemptError =
+  StartShadowingAttemptErrors[keyof StartShadowingAttemptErrors];
+
+export type StartShadowingAttemptResponses = {
+  /**
+   * Successful Response
+   */
+  201: ShadowingStartResponse;
+};
+
+export type StartShadowingAttemptResponse =
+  StartShadowingAttemptResponses[keyof StartShadowingAttemptResponses];
+
+export type GetShadowingAttemptPracticeData = {
+  body?: never;
+  path: {
+    /**
+     * Attempt Id
+     *
+     * Shadowing attempt ID
+     */
+    attempt_id: string;
+  };
+  query?: never;
+  url: "/api/v1/shadowing/attempts/{attempt_id}/practice";
+};
+
+export type GetShadowingAttemptPracticeErrors = {
+  /**
+   * Unauthorized
+   */
+  401: ErrorResponse;
+  /**
+   * Forbidden
+   */
+  403: ErrorResponse;
+  /**
+   * Not Found
+   */
+  404: ErrorResponse;
+  /**
+   * Conflict
+   */
+  409: ErrorResponse;
+  /**
+   * Unprocessable Content
+   */
+  422: ErrorResponse;
+};
+
+export type GetShadowingAttemptPracticeError =
+  GetShadowingAttemptPracticeErrors[keyof GetShadowingAttemptPracticeErrors];
+
+export type GetShadowingAttemptPracticeResponses = {
+  /**
+   * Successful Response
+   */
+  200: ShadowingAttemptPracticeResponse;
+};
+
+export type GetShadowingAttemptPracticeResponse =
+  GetShadowingAttemptPracticeResponses[keyof GetShadowingAttemptPracticeResponses];
+
 export type GetInProgressShadowingAttemptData = {
   body?: never;
   path: {
@@ -2822,6 +2997,10 @@ export type SubmitShadowingAttemptErrors = {
    */
   404: ErrorResponse;
   /**
+   * Conflict
+   */
+  409: ErrorResponse;
+  /**
    * Validation Error
    */
   422: HttpValidationError;
@@ -2978,6 +3157,56 @@ export type GetShadowingRecordingResponses = {
 export type GetShadowingRecordingResponse =
   GetShadowingRecordingResponses[keyof GetShadowingRecordingResponses];
 
+export type GetDictationAttemptPracticeData = {
+  body?: never;
+  path: {
+    /**
+     * Attempt Id
+     *
+     * Dictation attempt ID
+     */
+    attempt_id: string;
+  };
+  query?: never;
+  url: "/api/v1/dictation/attempts/{attempt_id}/practice";
+};
+
+export type GetDictationAttemptPracticeErrors = {
+  /**
+   * Unauthorized
+   */
+  401: ErrorResponse;
+  /**
+   * Forbidden
+   */
+  403: ErrorResponse;
+  /**
+   * Not Found
+   */
+  404: ErrorResponse;
+  /**
+   * Conflict
+   */
+  409: ErrorResponse;
+  /**
+   * Unprocessable Content
+   */
+  422: ErrorResponse;
+};
+
+export type GetDictationAttemptPracticeError =
+  GetDictationAttemptPracticeErrors[keyof GetDictationAttemptPracticeErrors];
+
+export type GetDictationAttemptPracticeResponses = {
+  /**
+   * Successful Response
+   */
+  200: DictationAttemptPracticeResponse;
+};
+
+export type GetDictationAttemptPracticeResponse =
+  GetDictationAttemptPracticeResponses[keyof GetDictationAttemptPracticeResponses];
+
 export type GetInProgressDictationAttemptData = {
   body?: never;
   path: {
@@ -3114,6 +3343,56 @@ export type CompleteDictationAttemptResponses = {
 export type CompleteDictationAttemptResponse =
   CompleteDictationAttemptResponses[keyof CompleteDictationAttemptResponses];
 
+export type DeleteDictationAttemptData = {
+  body?: never;
+  path: {
+    /**
+     * Attempt Id
+     *
+     * Dictation attempt ID to delete
+     */
+    attempt_id: string;
+  };
+  query?: never;
+  url: "/api/v1/dictation/attempts/{attempt_id}";
+};
+
+export type DeleteDictationAttemptErrors = {
+  /**
+   * Unauthorized
+   */
+  401: ErrorResponse;
+  /**
+   * Forbidden
+   */
+  403: ErrorResponse;
+  /**
+   * Not Found
+   */
+  404: ErrorResponse;
+  /**
+   * Conflict
+   */
+  409: ErrorResponse;
+  /**
+   * Unprocessable Content
+   */
+  422: ErrorResponse;
+};
+
+export type DeleteDictationAttemptError =
+  DeleteDictationAttemptErrors[keyof DeleteDictationAttemptErrors];
+
+export type DeleteDictationAttemptResponses = {
+  /**
+   * Successful Response
+   */
+  204: void;
+};
+
+export type DeleteDictationAttemptResponse =
+  DeleteDictationAttemptResponses[keyof DeleteDictationAttemptResponses];
+
 export type GetDictationAttemptData = {
   body?: never;
   path: {
@@ -3204,6 +3483,56 @@ export type StartDictationAttemptResponses = {
 
 export type StartDictationAttemptResponse =
   StartDictationAttemptResponses[keyof StartDictationAttemptResponses];
+
+export type RestartDictationAttemptData = {
+  body?: never;
+  path: {
+    /**
+     * Attempt Id
+     *
+     * Dictation attempt ID to restart
+     */
+    attempt_id: string;
+  };
+  query?: never;
+  url: "/api/v1/dictation/attempts/{attempt_id}/restart";
+};
+
+export type RestartDictationAttemptErrors = {
+  /**
+   * Unauthorized
+   */
+  401: ErrorResponse;
+  /**
+   * Forbidden
+   */
+  403: ErrorResponse;
+  /**
+   * Not Found
+   */
+  404: ErrorResponse;
+  /**
+   * Conflict
+   */
+  409: ErrorResponse;
+  /**
+   * Unprocessable Content
+   */
+  422: ErrorResponse;
+};
+
+export type RestartDictationAttemptError =
+  RestartDictationAttemptErrors[keyof RestartDictationAttemptErrors];
+
+export type RestartDictationAttemptResponses = {
+  /**
+   * Successful Response
+   */
+  200: DictationStartResponse;
+};
+
+export type RestartDictationAttemptResponse =
+  RestartDictationAttemptResponses[keyof RestartDictationAttemptResponses];
 
 export type ListReflexLessonsData = {
   body?: never;

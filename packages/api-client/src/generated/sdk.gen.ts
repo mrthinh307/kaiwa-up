@@ -22,6 +22,9 @@ import type {
   CreateTutorConversationData,
   CreateTutorConversationErrors,
   CreateTutorConversationResponses,
+  DeleteDictationAttemptData,
+  DeleteDictationAttemptErrors,
+  DeleteDictationAttemptResponses,
   DeleteMyAvatarData,
   DeleteMyAvatarErrors,
   DeleteMyAvatarResponses,
@@ -33,6 +36,9 @@ import type {
   EvaluateReflexLessonResponses,
   GetDictationAttemptData,
   GetDictationAttemptErrors,
+  GetDictationAttemptPracticeData,
+  GetDictationAttemptPracticeErrors,
+  GetDictationAttemptPracticeResponses,
   GetDictationAttemptResponses,
   GetDictationContentData,
   GetDictationContentErrors,
@@ -63,6 +69,9 @@ import type {
   GetReflexLessonData,
   GetReflexLessonErrors,
   GetReflexLessonResponses,
+  GetShadowingAttemptPracticeData,
+  GetShadowingAttemptPracticeErrors,
+  GetShadowingAttemptPracticeResponses,
   GetShadowingAttemptReviewData,
   GetShadowingAttemptReviewErrors,
   GetShadowingAttemptReviewResponses,
@@ -126,12 +135,18 @@ import type {
   RegisterData,
   RegisterErrors,
   RegisterResponses,
+  RestartDictationAttemptData,
+  RestartDictationAttemptErrors,
+  RestartDictationAttemptResponses,
   SendTutorMessageData,
   SendTutorMessageErrors,
   SendTutorMessageResponses,
   StartDictationAttemptData,
   StartDictationAttemptErrors,
   StartDictationAttemptResponses,
+  StartShadowingAttemptData,
+  StartShadowingAttemptErrors,
+  StartShadowingAttemptResponses,
   SubmitListeningTranslationData,
   SubmitListeningTranslationErrors,
   SubmitListeningTranslationResponses,
@@ -335,6 +350,46 @@ export const getGamificationProfile = <ThrowOnError extends boolean = false>(
   });
 
 /**
+ * Start a Shadowing attempt
+ */
+export const startShadowingAttempt = <ThrowOnError extends boolean = false>(
+  options: Options<StartShadowingAttemptData, ThrowOnError>,
+): RequestResult<StartShadowingAttemptResponses, StartShadowingAttemptErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    StartShadowingAttemptResponses,
+    StartShadowingAttemptErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/api/v1/shadowing/{content_id}/start",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Load an in-progress Shadowing attempt for practice
+ */
+export const getShadowingAttemptPractice = <ThrowOnError extends boolean = false>(
+  options: Options<GetShadowingAttemptPracticeData, ThrowOnError>,
+): RequestResult<
+  GetShadowingAttemptPracticeResponses,
+  GetShadowingAttemptPracticeErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    GetShadowingAttemptPracticeResponses,
+    GetShadowingAttemptPracticeErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/api/v1/shadowing/attempts/{attempt_id}/practice",
+    ...options,
+  });
+
+/**
  * Resume the latest in-progress Shadowing attempt
  */
 export const getInProgressShadowingAttempt = <ThrowOnError extends boolean = false>(
@@ -477,6 +532,26 @@ export const getShadowingRecording = <ThrowOnError extends boolean = false>(
   });
 
 /**
+ * Load an in-progress Dictation attempt for practice
+ */
+export const getDictationAttemptPractice = <ThrowOnError extends boolean = false>(
+  options: Options<GetDictationAttemptPracticeData, ThrowOnError>,
+): RequestResult<
+  GetDictationAttemptPracticeResponses,
+  GetDictationAttemptPracticeErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    GetDictationAttemptPracticeResponses,
+    GetDictationAttemptPracticeErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/api/v1/dictation/attempts/{attempt_id}/practice",
+    ...options,
+  });
+
+/**
  * Resume the latest in-progress Dictation attempt
  */
 export const getInProgressDictationAttempt = <ThrowOnError extends boolean = false>(
@@ -537,6 +612,22 @@ export const completeDictationAttempt = <ThrowOnError extends boolean = false>(
   });
 
 /**
+ * Delete an in-progress Dictation attempt
+ */
+export const deleteDictationAttempt = <ThrowOnError extends boolean = false>(
+  options: Options<DeleteDictationAttemptData, ThrowOnError>,
+): RequestResult<DeleteDictationAttemptResponses, DeleteDictationAttemptErrors, ThrowOnError> =>
+  (options.client ?? client).delete<
+    DeleteDictationAttemptResponses,
+    DeleteDictationAttemptErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/api/v1/dictation/attempts/{attempt_id}",
+    ...options,
+  });
+
+/**
  * Review a Dictation attempt
  */
 export const getDictationAttempt = <ThrowOnError extends boolean = false>(
@@ -565,6 +656,22 @@ export const startDictationAttempt = <ThrowOnError extends boolean = false>(
   >({
     security: [{ scheme: "bearer", type: "http" }],
     url: "/api/v1/dictation/{content_id}/start",
+    ...options,
+  });
+
+/**
+ * Delete the current in-progress Dictation attempt and start fresh
+ */
+export const restartDictationAttempt = <ThrowOnError extends boolean = false>(
+  options: Options<RestartDictationAttemptData, ThrowOnError>,
+): RequestResult<RestartDictationAttemptResponses, RestartDictationAttemptErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    RestartDictationAttemptResponses,
+    RestartDictationAttemptErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/api/v1/dictation/attempts/{attempt_id}/restart",
     ...options,
   });
 

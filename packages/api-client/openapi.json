@@ -639,6 +639,182 @@
         }
       }
     },
+    "/api/v1/shadowing/{content_id}/start": {
+      "post": {
+        "tags": ["Shadowing"],
+        "summary": "Start a Shadowing attempt",
+        "operationId": "startShadowingAttempt",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "content_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Published shadowing content ID",
+              "title": "Content Id"
+            },
+            "description": "Published shadowing content ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShadowingStartRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShadowingStartResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          }
+        }
+      }
+    },
+    "/api/v1/shadowing/attempts/{attempt_id}/practice": {
+      "get": {
+        "tags": ["Shadowing"],
+        "summary": "Load an in-progress Shadowing attempt for practice",
+        "operationId": "getShadowingAttemptPractice",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "attempt_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Shadowing attempt ID",
+              "title": "Attempt Id"
+            },
+            "description": "Shadowing attempt ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShadowingAttemptPracticeResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          }
+        }
+      }
+    },
     "/api/v1/shadowing/{content_id}/in-progress": {
       "get": {
         "tags": ["Shadowing"],
@@ -1008,6 +1184,16 @@
             },
             "description": "Not Found"
           },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -1251,6 +1437,94 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/v1/dictation/attempts/{attempt_id}/practice": {
+      "get": {
+        "tags": ["Dictation"],
+        "summary": "Load an in-progress Dictation attempt for practice",
+        "operationId": "getDictationAttemptPractice",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "attempt_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Dictation attempt ID",
+              "title": "Attempt Id"
+            },
+            "description": "Dictation attempt ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DictationAttemptPracticeResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
           }
         }
       }
@@ -1587,6 +1861,85 @@
             "description": "Unprocessable Content"
           }
         }
+      },
+      "delete": {
+        "tags": ["Dictation"],
+        "summary": "Delete an in-progress Dictation attempt",
+        "operationId": "deleteDictationAttempt",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "attempt_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Dictation attempt ID to delete",
+              "title": "Attempt Id"
+            },
+            "description": "Dictation attempt ID to delete"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          }
+        }
       }
     },
     "/api/v1/dictation/{content_id}/start": {
@@ -1633,6 +1986,94 @@
               }
             },
             "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          }
+        }
+      }
+    },
+    "/api/v1/dictation/attempts/{attempt_id}/restart": {
+      "post": {
+        "tags": ["Dictation"],
+        "summary": "Delete the current in-progress Dictation attempt and start fresh",
+        "operationId": "restartDictationAttempt",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "attempt_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Dictation attempt ID to restart",
+              "title": "Attempt Id"
+            },
+            "description": "Dictation attempt ID to restart"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DictationStartResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
           },
           "404": {
             "content": {
@@ -3176,12 +3617,33 @@
         "enum": ["shadowing_dictation", "reflex", "listening_translation"],
         "title": "ContentType"
       },
+      "DictationAttemptPracticeResponse": {
+        "properties": {
+          "content": {
+            "$ref": "#/components/schemas/DictationContentDetail"
+          },
+          "attempt": {
+            "$ref": "#/components/schemas/DictationResumeResponse"
+          }
+        },
+        "type": "object",
+        "required": ["content", "attempt"],
+        "title": "DictationAttemptPracticeResponse"
+      },
       "DictationAttemptReviewResponse": {
         "properties": {
           "attempt_id": {
             "type": "string",
             "format": "uuid",
             "title": "Attempt Id"
+          },
+          "content": {
+            "$ref": "#/components/schemas/DictationContentDetail"
+          },
+          "attempt_number": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Attempt Number"
           },
           "status": {
             "$ref": "#/components/schemas/AttemptStatus"
@@ -3199,10 +3661,40 @@
             ],
             "title": "Score"
           },
+          "correct_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Correct Count"
+          },
+          "total_count": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Total Count"
+          },
           "earned_exp": {
             "type": "integer",
             "minimum": 0.0,
             "title": "Earned Exp"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "segments": {
+            "items": {
+              "$ref": "#/components/schemas/DictationSegmentItem"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Segments"
           },
           "details": {
             "items": {
@@ -3213,7 +3705,18 @@
           }
         },
         "type": "object",
-        "required": ["attempt_id", "status", "score", "earned_exp", "details"],
+        "required": [
+          "attempt_id",
+          "content",
+          "attempt_number",
+          "status",
+          "score",
+          "correct_count",
+          "total_count",
+          "earned_exp",
+          "segments",
+          "details"
+        ],
         "title": "DictationAttemptReviewResponse"
       },
       "DictationCompleteRequest": {
@@ -3430,6 +3933,11 @@
             },
             "type": "array",
             "title": "Checked Segments"
+          },
+          "total_attempts": {
+            "type": "integer",
+            "title": "Total Attempts",
+            "default": 0
           }
         },
         "type": "object",
@@ -4993,12 +5501,30 @@
         "type": "object",
         "title": "ShadowingAiFeedback"
       },
+      "ShadowingAttemptPracticeResponse": {
+        "properties": {
+          "content": {
+            "$ref": "#/components/schemas/ShadowingContentDetail"
+          },
+          "attempt": {
+            "$ref": "#/components/schemas/ShadowingResumeResponse"
+          }
+        },
+        "type": "object",
+        "required": ["content", "attempt"],
+        "title": "ShadowingAttemptPracticeResponse"
+      },
       "ShadowingAttemptReviewResponse": {
         "properties": {
           "attempt_id": {
             "type": "string",
             "format": "uuid",
             "title": "Attempt Id"
+          },
+          "attempt_number": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Attempt Number"
           },
           "content_id": {
             "type": "string",
@@ -5132,6 +5658,7 @@
         "type": "object",
         "required": [
           "attempt_id",
+          "attempt_number",
           "content_id",
           "title",
           "difficulty",
@@ -5601,6 +6128,58 @@
         "type": "object",
         "required": ["segment_index", "script", "recorded"],
         "title": "ShadowingSegmentReviewItem"
+      },
+      "ShadowingStartRequest": {
+        "properties": {
+          "mode": {
+            "$ref": "#/components/schemas/ShadowingMode"
+          }
+        },
+        "type": "object",
+        "required": ["mode"],
+        "title": "ShadowingStartRequest"
+      },
+      "ShadowingStartResponse": {
+        "properties": {
+          "attempt_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Attempt Id"
+          },
+          "content_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Content Id"
+          },
+          "attempt_number": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Attempt Number"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/ShadowingMode"
+          },
+          "total_segments": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Total Segments"
+          },
+          "total_attempts": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Total Attempts"
+          }
+        },
+        "type": "object",
+        "required": [
+          "attempt_id",
+          "content_id",
+          "attempt_number",
+          "mode",
+          "total_segments",
+          "total_attempts"
+        ],
+        "title": "ShadowingStartResponse"
       },
       "ShadowingSubmitRequest": {
         "properties": {
