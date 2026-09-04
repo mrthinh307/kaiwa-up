@@ -3,6 +3,7 @@
 import type { ShadowingContentDetail, ShadowingResumeResponse } from "@kaiwa-app/api-client";
 
 import {
+  AlertCircle,
   ArrowLeft,
   Bookmark,
   CheckCircle2,
@@ -24,6 +25,7 @@ import { useMemo, useState } from "react";
 
 import { PracticeMethodGuide } from "@/components/common/practice-catalog/practice-method-guide";
 import { ProtectedPageHeader } from "@/components/common/protected-route/protected-page-header";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -36,8 +38,11 @@ type ShadowingStartPanelProps = {
   isRestoring: boolean;
   isStarting: boolean;
   lesson: ShadowingContentDetail;
+  onRestore: () => void;
   onResume: () => void;
   onStart: (mode: "segmented" | "continuous") => void;
+  restoreError?: string;
+  startError?: string;
   totalAttempts: number;
 };
 
@@ -46,8 +51,11 @@ export function ShadowingStartPanel({
   isRestoring,
   isStarting,
   lesson,
+  onRestore,
   onResume,
   onStart,
+  restoreError,
+  startError,
   totalAttempts,
 }: ShadowingStartPanelProps) {
   const [userSelectedMode, setUserSelectedMode] = useState<"segmented" | "continuous" | null>(null);
@@ -130,8 +138,8 @@ export function ShadowingStartPanel({
             Synchronized speech practice
           </Badge>
           {totalAttempts > 0 && (
-            <Badge className="gap-1.5 bg-main/15 text-main font-heading" variant="neutral">
-              <History aria-hidden="true" className="size-3.5" />
+            <Badge className="gap-2" variant="neutral">
+              <History aria-hidden="true" />
               {totalAttempts} {totalAttempts === 1 ? "attempt" : "attempts"}
             </Badge>
           )}
@@ -249,89 +257,151 @@ export function ShadowingStartPanel({
               </div>
             </dl>
 
-            {/* Practice Mode Selector Cards */}
-            <div className="space-y-2 pt-2">
-              <p className="text-xs font-heading uppercase tracking-wide text-foreground/70">
-                Choose Practice Mode
-              </p>
-
-              <div className="grid grid-cols-1 gap-2.5">
-                {/* Segment-by-segment option */}
-                <button
-                  className={cn(
-                    "flex flex-col text-left p-3.5 rounded-base border-2 border-border transition-all",
-                    selectedMode === "segmented"
-                      ? "bg-main/15 border-main shadow-shadow ring-2 ring-main/20"
-                      : "bg-background hover:bg-secondary-background",
-                    inProgressAttempt &&
-                      selectedMode !== "segmented" &&
-                      "opacity-50 cursor-not-allowed",
-                  )}
-                  disabled={Boolean(inProgressAttempt)}
-                  onClick={() => !inProgressAttempt && setUserSelectedMode("segmented")}
-                  type="button"
-                >
-                  <div className="flex items-center justify-between w-full">
-                    <div className="flex items-center gap-2 font-heading text-sm">
-                      <ListOrdered className="size-4 text-main" />
-                      <span>Segment by Segment</span>
-                    </div>
-                    {selectedMode === "segmented" && (
-                      <CheckCircle2 className="size-4 text-main fill-main/20" />
-                    )}
-                  </div>
-                  <p className="mt-1 text-xs text-foreground/75 leading-relaxed">
-                    Audio pauses at each boundary. Record and self-compare prompt by prompt.
-                  </p>
-                </button>
-
-                {/* Continuous option */}
-                <button
-                  className={cn(
-                    "flex flex-col text-left p-3.5 rounded-base border-2 border-border transition-all",
-                    selectedMode === "continuous"
-                      ? "bg-main/15 border-main shadow-shadow ring-2 ring-main/20"
-                      : "bg-background hover:bg-secondary-background",
-                    inProgressAttempt &&
-                      selectedMode !== "continuous" &&
-                      "opacity-50 cursor-not-allowed",
-                  )}
-                  disabled={Boolean(inProgressAttempt)}
-                  onClick={() => !inProgressAttempt && setUserSelectedMode("continuous")}
-                  type="button"
-                >
-                  <div className="flex items-center justify-between w-full">
-                    <div className="flex items-center gap-2 font-heading text-sm">
-                      <Radio className="size-4 text-chart-3" />
-                      <span>Continuous Shadowing</span>
-                    </div>
-                    {selectedMode === "continuous" && (
-                      <CheckCircle2 className="size-4 text-main fill-main/20" />
-                    )}
-                  </div>
-                  <p className="mt-1 text-xs text-foreground/75 leading-relaxed">
-                    Play the full material without interruptions. Record one complete voice take.
-                  </p>
-                </button>
-              </div>
-            </div>
-
-            {inProgressAttempt && (
-              <div className="rounded-base border-2 border-border bg-background p-3 text-xs text-foreground/80">
-                <p className="font-heading text-main">
-                  Saved attempt ({inProgressAttempt.mode}):{" "}
-                  {inProgressAttempt.mode === "continuous"
-                    ? inProgressAttempt.continuous_recording
-                      ? "Continuous audio recorded"
-                      : "Session started"
-                    : `${inProgressAttempt.recorded_segments?.length ?? 0} of ${segmentCount} segments recorded`}
+            {inProgressAttempt ? (
+              <div className="space-y-2 pt-1">
+                <p className="text-xs font-heading uppercase tracking-wide text-foreground/70">
+                  Practice Mode
                 </p>
+                <div className="rounded-base border-2 border-border bg-background p-3.5 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 font-heading text-sm text-foreground">
+                      {inProgressAttempt.mode === "continuous" ? (
+                        <Radio aria-hidden="true" className="size-4 text-foreground" />
+                      ) : (
+                        <ListOrdered aria-hidden="true" className="size-4 text-foreground" />
+                      )}
+                      <span>
+                        {inProgressAttempt.mode === "continuous"
+                          ? "Continuous Shadowing"
+                          : "Segment by Segment"}
+                      </span>
+                    </div>
+                    <Badge className="text-xs font-heading" variant="neutral">
+                      Attempt #{inProgressAttempt.attempt_number}
+                    </Badge>
+                  </div>
+
+                  <div className="mt-3 border-t border-border/40 pt-2.5">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-heading text-foreground/70">Saved progress:</span>
+                      <span className="font-heading text-foreground">
+                        {inProgressAttempt.mode === "continuous"
+                          ? inProgressAttempt.continuous_recording
+                            ? "Continuous audio recorded"
+                            : "Session started"
+                          : `${inProgressAttempt.recorded_segments?.length ?? 0} of ${segmentCount} segments recorded`}
+                      </span>
+                    </div>
+
+                    {inProgressAttempt.mode === "segmented" && segmentCount > 0 && (
+                      <div className="mt-2 h-2 w-full overflow-hidden rounded-full border border-border/60 bg-secondary-background">
+                        <div
+                          className="h-full bg-foreground transition-all duration-300"
+                          style={{
+                            width: `${Math.min(
+                              100,
+                              Math.round(
+                                ((inProgressAttempt.recorded_segments?.length ?? 0) /
+                                  segmentCount) *
+                                  100,
+                              ),
+                            )}%`,
+                          }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2 pt-2">
+                <p className="text-xs font-heading uppercase tracking-wide text-foreground/70">
+                  Choose Practice Mode
+                </p>
+
+                <div className="grid grid-cols-1 gap-2.5">
+                  {/* Segment-by-segment option */}
+                  <button
+                    className={cn(
+                      "flex flex-col text-left p-3.5 rounded-base border-2 border-border transition-all",
+                      selectedMode === "segmented"
+                        ? "bg-main/15 border-main shadow-shadow ring-2 ring-main/20"
+                        : "bg-background hover:bg-secondary-background",
+                    )}
+                    onClick={() => setUserSelectedMode("segmented")}
+                    type="button"
+                  >
+                    <div className="flex items-center justify-between w-full">
+                      <div className="flex items-center gap-2 font-heading text-sm">
+                        <ListOrdered className="size-4 text-main" />
+                        <span>Segment by Segment</span>
+                      </div>
+                      {selectedMode === "segmented" && (
+                        <CheckCircle2 className="size-4 text-main fill-main/20" />
+                      )}
+                    </div>
+                    <p className="mt-1 text-xs text-foreground/75 leading-relaxed">
+                      Audio pauses at each boundary. Record and self-compare prompt by prompt.
+                    </p>
+                  </button>
+
+                  {/* Continuous option */}
+                  <button
+                    className={cn(
+                      "flex flex-col text-left p-3.5 rounded-base border-2 border-border transition-all",
+                      selectedMode === "continuous"
+                        ? "bg-main/15 border-main shadow-shadow ring-2 ring-main/20"
+                        : "bg-background hover:bg-secondary-background",
+                    )}
+                    onClick={() => setUserSelectedMode("continuous")}
+                    type="button"
+                  >
+                    <div className="flex items-center justify-between w-full">
+                      <div className="flex items-center gap-2 font-heading text-sm">
+                        <Radio className="size-4 text-chart-3" />
+                        <span>Continuous Shadowing</span>
+                      </div>
+                      {selectedMode === "continuous" && (
+                        <CheckCircle2 className="size-4 text-main fill-main/20" />
+                      )}
+                    </div>
+                    <p className="mt-1 text-xs text-foreground/75 leading-relaxed">
+                      Play the full material without interruptions. Record one complete voice take.
+                    </p>
+                  </button>
+                </div>
               </div>
             )}
+
+            {startError ? (
+              <Alert variant="destructive">
+                <AlertCircle aria-hidden="true" />
+                <AlertTitle>Unable to start attempt</AlertTitle>
+                <AlertDescription>{startError}</AlertDescription>
+              </Alert>
+            ) : null}
+            {restoreError ? (
+              <Alert variant="destructive">
+                <AlertCircle aria-hidden="true" />
+                <AlertTitle>Unable to check saved attempt</AlertTitle>
+                <AlertDescription>{restoreError}</AlertDescription>
+              </Alert>
+            ) : null}
           </div>
 
           <div className="space-y-3 p-5 pt-0 sm:p-6 sm:pt-0">
-            {inProgressAttempt ? (
+            {restoreError ? (
+              <Button
+                className="min-h-12 w-full font-heading text-base"
+                disabled={isRestoring || isStarting}
+                onClick={onRestore}
+                size="lg"
+                type="button"
+              >
+                <RotateCcw aria-hidden="true" />
+                Try checking again
+              </Button>
+            ) : inProgressAttempt ? (
               <Button
                 className="min-h-12 w-full font-heading text-base"
                 disabled={isRestoring || isStarting}

@@ -105,9 +105,14 @@ function ShadowingWordTokens({ fallbackText, words }: ShadowingWordTokensProps) 
 interface ShadowingResultProps {
   onPracticeAgain: () => void;
   review: ShadowingAttemptReviewResponse;
+  shouldCelebrate?: boolean;
 }
 
-export function ShadowingResult({ onPracticeAgain, review }: ShadowingResultProps) {
+export function ShadowingResult({
+  onPracticeAgain,
+  review,
+  shouldCelebrate = false,
+}: ShadowingResultProps) {
   const isContinuous = review.mode === "continuous";
   const [selectedReviewIndex, setSelectedReviewIndex] = useState(0);
   const [playingUserIndex, setPlayingUserIndex] = useState<number | null>(null);
@@ -293,7 +298,7 @@ export function ShadowingResult({ onPracticeAgain, review }: ShadowingResultProp
 
   return (
     <section aria-labelledby="shadowing-result-title" className="grid gap-6">
-      <ExpRewardOverlay expEarned={review.earned_exp ?? 0} />
+      {shouldCelebrate ? <ExpRewardOverlay expEarned={review.earned_exp ?? 0} /> : null}
 
       {/* Header Result Card */}
       <div className="flex flex-wrap items-center justify-between gap-4 border-b-2 border-border pb-5">

@@ -1,22 +1,17 @@
 "use client";
 
-import type {
-  ShadowingAttemptReviewResponse,
-  ShadowingContentDetail,
-  ShadowingResumeResponse,
-  TranscriptSegment,
-} from "@kaiwa-app/api-client";
+import type { ShadowingAttemptPracticeResponse, TranscriptSegment } from "@kaiwa-app/api-client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { useAuth } from "@/hooks/use-auth";
 import {
-  getInProgressShadowingAttempt,
-  getShadowingAttemptReview,
   recordShadowingContinuous,
   recordShadowingSegment,
   submitShadowingAttempt,
 } from "@/lib/api-client";
+import { parseApiFailure } from "@/lib/api-errors";
 
 import { useAudioPlayer } from "../_hooks/use-audio-player";
 import { useShadowingShortcuts } from "../_hooks/use-shadowing-shortcuts";
@@ -24,14 +19,8 @@ import { formatShadowingDuration } from "../_utils/shadowing-formatters";
 import { AudioPlayerCard } from "./audio-player-card";
 import { CompactShadowingToolbar } from "./compact-shadowing-toolbar";
 import { RecorderCard, type RecorderCardHandle } from "./recorder-card";
-import { ShadowingResult } from "./shadowing-result";
 import { ShadowingSettingsSheet } from "./shadowing-settings-sheet";
-import { ShadowingStartPanel } from "./shadowing-start-panel";
 import { TranscriptCard } from "./transcript-card";
-
-interface ShadowingScreenProps {
-  lesson: ShadowingContentDetail;
-}
 
 type SegmentRecordState = {
   durationSeconds: number;
@@ -40,135 +29,78 @@ type SegmentRecordState = {
   recordingId?: string;
 };
 
-export function ShadowingScreen({ lesson }: ShadowingScreenProps) {
-  const [isStarted, setIsStarted] = useState(false);
-  const [practiceMode, setPracticeMode] = useState<"segmented" | "continuous">("segmented");
-  const [selectedSegmentIndex, setSelectedSegmentIndex] = useState(0);
-  const [isRestoring, setIsRestoring] = useState(true);
-  const [isStarting, setIsStarting] = useState(false);
-  const [inProgressAttempt, setInProgressAttempt] = useState<ShadowingResumeResponse | null>(null);
-  const [totalAttempts, setTotalAttempts] = useState(0);
-  const [currentAttemptId, setCurrentAttemptId] = useState<string | null>(null);
-  const [recordedSegments, setRecordedSegments] = useState<Record<string, SegmentRecordState>>({});
-  const [continuousDurationSeconds, setContinuousDurationSeconds] = useState<number>(0);
-  const [continuousAudioUrl, setContinuousAudioUrl] = useState<string | null>(null);
+type ShadowingPracticeScreenProps = {
+  onAttemptCompleted: (attemptId: string) => void;
+  onAttemptNotInProgress: () => void;
+  practice: ShadowingAttemptPracticeResponse;
+};
 
-  const [review, setReview] = useState<ShadowingAttemptReviewResponse | null>(null);
-  const [isReviewMode, setIsReviewMode] = useState(false);
+function buildRecordedSegments(
+  practice: ShadowingAttemptPracticeResponse,
+): Record<string, SegmentRecordState> {
+  return Object.fromEntries(
+    (practice.attempt.recorded_segments ?? []).map((segment) => [
+      segment.segment_id,
+      {
+        durationSeconds: segment.duration_seconds,
+        playbackUrl: segment.playback_url ?? undefined,
+        recorded: true,
+        recordingId: segment.recording_id,
+      },
+    ]),
+  );
+}
+
+export function ShadowingPracticeScreen({
+  onAttemptCompleted,
+  onAttemptNotInProgress,
+  practice,
+}: ShadowingPracticeScreenProps) {
+  const { protectedRequest } = useAuth();
+  const { attempt, content: lesson } = practice;
+  const practiceMode = attempt.mode;
+  const currentAttemptId = attempt.attempt_id;
+  const [selectedSegmentIndex, setSelectedSegmentIndex] = useState(0);
+  const [recordedSegments, setRecordedSegments] = useState<Record<string, SegmentRecordState>>(() =>
+    buildRecordedSegments(practice),
+  );
+  const [continuousDurationSeconds, setContinuousDurationSeconds] = useState(
+    attempt.continuous_recording?.duration_seconds ?? 0,
+  );
+  const [continuousAudioUrl, setContinuousAudioUrl] = useState<string | null>(
+    attempt.continuous_recording?.playback_url ?? null,
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showVideo, setShowVideo] = useState(true);
   const [autoPlayDelaySeconds, setAutoPlayDelaySeconds] = useState(0.5);
-
   const recorderRef = useRef<RecorderCardHandle | null>(null);
 
   const transcriptSegments: TranscriptSegment[] = useMemo(
     () => (Array.isArray(lesson.transcript) ? lesson.transcript : []),
     [lesson.transcript],
   );
-
   const isContinuous = practiceMode === "continuous";
-
   const player = useAudioPlayer(lesson.audio_url ?? "", lesson.duration_seconds ?? 0, {
     segments: isContinuous ? [] : transcriptSegments,
   });
-
   const currentTimeMs = player.currentTime * 1000;
-
   const activeSegment = transcriptSegments[selectedSegmentIndex];
   const hasPreviousSegment = !isContinuous && selectedSegmentIndex > 0;
   const hasNextSegment = !isContinuous && selectedSegmentIndex < transcriptSegments.length - 1;
-
-  // Check for in-progress attempt on mount
-  useEffect(() => {
-    let isCancelled = false;
-
-    async function checkAttempt() {
-      setIsRestoring(true);
-      try {
-        const response = await getInProgressShadowingAttempt({
-          path: { content_id: lesson.id },
-        });
-
-        if (!isCancelled && response.data) {
-          setInProgressAttempt(response.data);
-          setTotalAttempts(response.data.total_attempts ?? 1);
-        }
-      } catch {
-        // 404 or other errors simply mean no in-progress attempt
-      } finally {
-        if (!isCancelled) {
-          setIsRestoring(false);
-        }
-      }
-    }
-
-    void checkAttempt();
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [lesson.id]);
-
-  const handleStart = (mode: "segmented" | "continuous") => {
-    if (inProgressAttempt) {
-      handleResume();
-      return;
-    }
-
-    setIsStarting(true);
-    setPracticeMode(mode);
-    setSelectedSegmentIndex(0);
-    setCurrentAttemptId(null);
-    setRecordedSegments({});
-    setContinuousDurationSeconds(0);
-    setContinuousAudioUrl(null);
-    setIsStarted(true);
-    setIsStarting(false);
-  };
-
-  const handleResume = () => {
-    if (!inProgressAttempt) {
-      handleStart("segmented");
-      return;
-    }
-
-    const mode = inProgressAttempt.mode === "continuous" ? "continuous" : "segmented";
-    setPracticeMode(mode);
-    setSelectedSegmentIndex(0);
-    setCurrentAttemptId(inProgressAttempt.attempt_id);
-
-    if (mode === "continuous") {
-      setContinuousDurationSeconds(inProgressAttempt.continuous_recording?.duration_seconds ?? 0);
-      setContinuousAudioUrl(inProgressAttempt.continuous_recording?.playback_url ?? null);
-    } else {
-      const initialMap: Record<string, SegmentRecordState> = {};
-      for (const seg of inProgressAttempt.recorded_segments ?? []) {
-        initialMap[seg.segment_id] = {
-          durationSeconds: seg.duration_seconds,
-          playbackUrl: seg.playback_url ?? undefined,
-          recorded: true,
-          recordingId: seg.recording_id,
-        };
-      }
-      setRecordedSegments(initialMap);
-    }
-
-    setIsStarted(true);
-  };
 
   const handleSelectSegment = useCallback(
     (index: number) => {
       if (index < 0 || index >= transcriptSegments.length) return;
 
       setSelectedSegmentIndex(index);
-      const seg = transcriptSegments[index];
-      if (!seg) return;
+      const segment = transcriptSegments[index];
+      if (!segment) return;
 
       if (isContinuous) {
-        player.seek(seg.start_time_ms / 1000);
+        player.seek(segment.start_time_ms / 1000);
         player.play();
       } else {
-        player.playSegment(seg.start_time_ms / 1000);
+        player.playSegment(segment.start_time_ms / 1000);
       }
     },
     [isContinuous, player, transcriptSegments],
@@ -188,7 +120,6 @@ export function ShadowingScreen({ lesson }: ShadowingScreenProps) {
 
   const handleReplaySegment = useCallback(() => {
     if (!activeSegment) return;
-
     player.playSegment(activeSegment.start_time_ms / 1000, activeSegment.end_time_ms / 1000);
   }, [activeSegment, player]);
 
@@ -196,9 +127,8 @@ export function ShadowingScreen({ lesson }: ShadowingScreenProps) {
     player.togglePlay();
   }, [player]);
 
-  // Connect keyboard shortcuts including recording toggle (R / Alt+R)
   useShadowingShortcuts({
-    disabled: !isStarted || isReviewMode,
+    disabled: isSubmitting,
     onNext: isContinuous ? undefined : handleNextSegment,
     onPrevious: isContinuous ? undefined : handlePreviousSegment,
     onTogglePlay: handleTogglePlay,
@@ -228,35 +158,35 @@ export function ShadowingScreen({ lesson }: ShadowingScreenProps) {
         setContinuousAudioUrl(localBlobUrl);
         setContinuousDurationSeconds(durationSeconds);
 
-        const response = await recordShadowingContinuous({
-          body: {
-            attempt_id: currentAttemptId ?? undefined,
-            audio_file: audioFile,
-            duration_seconds: durationSeconds,
-          },
-          path: {
-            content_id: lesson.id,
-          },
-        });
+        const response = await protectedRequest(() =>
+          recordShadowingContinuous({
+            body: {
+              attempt_id: currentAttemptId,
+              audio_file: audioFile,
+              duration_seconds: durationSeconds,
+            },
+            path: { content_id: lesson.id },
+          }),
+        );
 
         if (response.data) {
-          setCurrentAttemptId(response.data.attempt_id);
           setContinuousDurationSeconds(response.data.duration_seconds);
           toast.success("Continuous recording saved!");
-        } else if (response.error) {
-          const errorMsg =
-            typeof response.error === "object" && "message" in response.error
-              ? String(response.error.message)
-              : "Failed to upload continuous recording";
-          toast.error("Recording upload failed", { description: errorMsg });
+        } else {
+          const failure = parseApiFailure(response);
+          if (failure.code === "shadowing_attempt_not_in_progress") {
+            onAttemptNotInProgress();
+          } else {
+            toast.error("Recording upload failed", { description: failure.message });
+          }
         }
       } else {
-        const segmentIdx = targetSegmentIndex ?? selectedSegmentIndex;
-        const segmentId = String(segmentIdx);
+        const segmentIndex = targetSegmentIndex ?? selectedSegmentIndex;
+        const segmentId = String(segmentIndex);
         const localBlobUrl = URL.createObjectURL(audioBlob);
 
-        setRecordedSegments((prev) => ({
-          ...prev,
+        setRecordedSegments((currentSegments) => ({
+          ...currentSegments,
           [segmentId]: {
             durationSeconds,
             playbackUrl: localBlobUrl,
@@ -264,21 +194,20 @@ export function ShadowingScreen({ lesson }: ShadowingScreenProps) {
           },
         }));
 
-        const response = await recordShadowingSegment({
-          body: {
-            attempt_id: currentAttemptId ?? undefined,
-            audio_file: audioFile,
-            segment_id: segmentId,
-          },
-          path: {
-            content_id: lesson.id,
-          },
-        });
+        const response = await protectedRequest(() =>
+          recordShadowingSegment({
+            body: {
+              attempt_id: currentAttemptId,
+              audio_file: audioFile,
+              segment_id: segmentId,
+            },
+            path: { content_id: lesson.id },
+          }),
+        );
 
         if (response.data) {
-          setCurrentAttemptId(response.data.attempt_id);
-          setRecordedSegments((prev) => ({
-            ...prev,
+          setRecordedSegments((currentSegments) => ({
+            ...currentSegments,
             [segmentId]: {
               durationSeconds: response.data?.duration_seconds ?? durationSeconds,
               playbackUrl: localBlobUrl,
@@ -286,18 +215,19 @@ export function ShadowingScreen({ lesson }: ShadowingScreenProps) {
               recordingId: response.data?.recording_id,
             },
           }));
-          toast.success(`Segment #${segmentIdx + 1} recorded!`);
-        } else if (response.error) {
-          const errorMsg =
-            typeof response.error === "object" && "message" in response.error
-              ? String(response.error.message)
-              : "Failed to upload recording";
-          toast.error("Recording upload failed", { description: errorMsg });
+          toast.success(`Segment #${segmentIndex + 1} recorded!`);
+        } else {
+          const failure = parseApiFailure(response);
+          if (failure.code === "shadowing_attempt_not_in_progress") {
+            onAttemptNotInProgress();
+          } else {
+            toast.error("Recording upload failed", { description: failure.message });
+          }
         }
       }
-    } catch (err: unknown) {
+    } catch (error: unknown) {
       toast.error("Could not upload recording", {
-        description: err instanceof Error ? err.message : "An unexpected error occurred",
+        description: error instanceof Error ? error.message : "An unexpected error occurred",
       });
     } finally {
       setIsSubmitting(false);
@@ -306,7 +236,10 @@ export function ShadowingScreen({ lesson }: ShadowingScreenProps) {
 
   const handleFinishAttempt = useCallback(
     async (requestAiReview: boolean = false) => {
-      if (!currentAttemptId) {
+      const hasRecording = isContinuous
+        ? Boolean(continuousAudioUrl || continuousDurationSeconds > 0)
+        : Object.values(recordedSegments).some((segment) => segment.recorded);
+      if (!hasRecording) {
         toast.error("No recordings found", {
           description: isContinuous
             ? "Please record your shadowing voice before finishing."
@@ -317,90 +250,56 @@ export function ShadowingScreen({ lesson }: ShadowingScreenProps) {
 
       setIsSubmitting(true);
       try {
-        const submitRes = await submitShadowingAttempt({
-          body: {
-            attempt_id: currentAttemptId,
-            replay_count: 0,
-            request_ai_review: requestAiReview,
-          },
-          path: {
-            content_id: lesson.id,
-          },
-        });
-
-        if (submitRes.data) {
-          const reviewRes = await getShadowingAttemptReview({
-            path: {
+        const response = await protectedRequest(() =>
+          submitShadowingAttempt({
+            body: {
               attempt_id: currentAttemptId,
+              replay_count: 0,
+              request_ai_review: requestAiReview,
             },
-          });
+            path: { content_id: lesson.id },
+          }),
+        );
 
-          if (reviewRes.data) {
-            setReview(reviewRes.data);
-            setIsReviewMode(true);
+        if (response.data) {
+          onAttemptCompleted(response.data.attempt_id);
+        } else {
+          const failure = parseApiFailure(response);
+          if (failure.code === "shadowing_attempt_not_in_progress") {
+            onAttemptNotInProgress();
           } else {
-            toast.success("Practice completed!");
-            setIsReviewMode(false);
-            setIsStarted(false);
+            toast.error("Could not complete attempt", { description: failure.message });
           }
-        } else if (submitRes.error) {
-          const errorMsg =
-            typeof submitRes.error === "object" && "message" in submitRes.error
-              ? String(submitRes.error.message)
-              : "Failed to finalize attempt";
-          toast.error("Could not complete attempt", { description: errorMsg });
         }
-      } catch (err: unknown) {
+      } catch (error: unknown) {
         toast.error("Could not complete attempt", {
-          description: err instanceof Error ? err.message : "An unexpected error occurred",
+          description: error instanceof Error ? error.message : "An unexpected error occurred",
         });
       } finally {
         setIsSubmitting(false);
       }
     },
-    [currentAttemptId, isContinuous, lesson.id],
+    [
+      continuousAudioUrl,
+      continuousDurationSeconds,
+      currentAttemptId,
+      isContinuous,
+      lesson.id,
+      onAttemptCompleted,
+      onAttemptNotInProgress,
+      protectedRequest,
+      recordedSegments,
+    ],
   );
 
-  const handleRetry = () => {
-    setReview(null);
-    setIsReviewMode(false);
-    setIsStarted(false);
-    setInProgressAttempt(null);
-    setCurrentAttemptId(null);
-    setRecordedSegments({});
-    setContinuousDurationSeconds(0);
-    setContinuousAudioUrl(null);
-  };
-
-  // 1. Preview / Start Panel Mode
-  if (!isStarted) {
-    return (
-      <ShadowingStartPanel
-        inProgressAttempt={inProgressAttempt}
-        isRestoring={isRestoring}
-        isStarting={isStarting}
-        lesson={lesson}
-        onResume={handleResume}
-        onStart={handleStart}
-        totalAttempts={totalAttempts}
-      />
-    );
-  }
-
-  // 2. Review Mode
-  if (isReviewMode && review) {
-    return <ShadowingResult onPracticeAgain={handleRetry} review={review} />;
-  }
-
-  const recordedCount = Object.keys(recordedSegments).filter(
-    (k) => recordedSegments[k]?.recorded,
+  const recordedCount = Object.values(recordedSegments).filter(
+    (segment) => segment.recorded,
   ).length;
   const totalSegments = transcriptSegments.length;
   const continuousFormatted =
     continuousDurationSeconds > 0
       ? `${formatShadowingDuration(continuousDurationSeconds)} Practiced`
       : undefined;
-
   const currentSegmentRecorded = isContinuous
     ? Boolean(continuousAudioUrl || continuousDurationSeconds > 0)
     : Boolean(recordedSegments[String(selectedSegmentIndex)]?.recorded);
@@ -411,7 +310,6 @@ export function ShadowingScreen({ lesson }: ShadowingScreenProps) {
     ? (continuousAudioUrl ?? undefined)
     : recordedSegments[String(selectedSegmentIndex)]?.playbackUrl;
 
-  // 3. Practice Workstation Mode
   return (
     <div className="space-y-6">
       <CompactShadowingToolbar
@@ -435,7 +333,6 @@ export function ShadowingScreen({ lesson }: ShadowingScreenProps) {
       />
 
       <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-12">
-        {/* Left Side: Audio/Video Player & Segment-by-Segment Voice Recorder */}
         <div className="space-y-6 lg:col-span-7">
           <AudioPlayerCard
             audioUrl={lesson.audio_url ?? ""}
@@ -468,7 +365,6 @@ export function ShadowingScreen({ lesson }: ShadowingScreenProps) {
           />
         </div>
 
-        {/* Right Side: Synchronized Scrollable Transcript with Segment Selectors */}
         <div className="lg:col-span-5">
           <TranscriptCard
             currentTimeMs={currentTimeMs}

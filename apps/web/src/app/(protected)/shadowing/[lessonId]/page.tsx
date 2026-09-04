@@ -5,7 +5,7 @@ import { notFound, redirect } from "next/navigation";
 
 import { getServerApiBaseUrl } from "@/lib/server-api-base-url";
 
-import { ShadowingScreen } from "../_components/shadowing-screen";
+import { ShadowingStartScreen } from "../_components/shadowing-start-screen";
 
 type ShadowingLessonPageProps = {
   params: Promise<{ lessonId: string }>;
@@ -57,7 +57,7 @@ export default async function ShadowingLessonPage({ params }: ShadowingLessonPag
   return (
     <main className="px-4 py-6 sm:px-8 sm:py-8 lg:py-10">
       <div className="mx-auto w-full max-w-[1300px]">
-        <ShadowingScreen lesson={lesson} />
+        <ShadowingStartScreen lesson={lesson} />
       </div>
     </main>
   );
