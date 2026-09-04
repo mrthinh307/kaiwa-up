@@ -7,7 +7,6 @@ import {
   CheckCircle2,
   Circle,
   CircleAlert,
-  Headphones,
   LoaderCircle,
   Play,
   Repeat2,
@@ -34,13 +33,14 @@ import type {
 import { useDictationSettings } from "../_hooks/use-dictation-settings";
 import { usePracticeShortcuts } from "../_hooks/use-practice-shortcuts";
 import { formatDictationTimestamp, getYouTubeVideoId } from "../_utils/dictation-formatters";
+import { DictationDiffViewer } from "./dictation-diff-viewer";
 import { DictationPracticeSidebar } from "./dictation-practice-sidebar";
 import { DictationSettingsSheet } from "./dictation-settings-sheet";
 import { DictationToolbar } from "./dictation-toolbar";
 import { SegmentAudioPlayer } from "./segment-audio-player";
 
 const RESULT_SHORTCUTS: readonly DictationKeyboardShortcut[] = [
-  { action: "Pause or resume video", keyLabel: "⎵" },
+  { action: "Play or pause audio", keyLabel: "⎵" },
   { action: "Next segment", keyLabel: "→" },
   { action: "Previous segment", keyLabel: "←" },
 ];
@@ -256,15 +256,16 @@ export function DictationResult({
       ? "Unanswered"
       : "Needs review";
   const activeStatusIconColor = activeReview.is_correct
-    ? "text-success"
+    ? "text-status-correct-text dark:text-emerald-300"
     : isUnanswered
-      ? "text-foreground/50"
-      : "text-chart-3";
+      ? "text-foreground/50 dark:text-zinc-400"
+      : "text-status-review-text dark:text-amber-300";
 
   return (
-    <section aria-labelledby="dictation-result-heading" className="space-y-6">
+    <div className="scroll-mt-24 space-y-3.5 sm:space-y-4" id="dictation-result-screen">
       {shouldCelebrate ? <ExpRewardOverlay expEarned={completion.earned_exp} /> : null}
 
+      {/* Top Sticky Toolbar */}
       <DictationToolbar
         difficulty={content.difficulty}
         lessonTitle={content.title}
@@ -279,319 +280,28 @@ export function DictationResult({
             showVideo={showVideo}
           />
         }
-      />
+      >
+        <Button
+          className="gap-1.5 font-heading text-xs"
+          disabled={isStarting}
+          onClick={onTryAgain}
+          size="sm"
+          type="button"
+        >
+          {isStarting ? (
+            <LoaderCircle aria-hidden="true" className="size-3.5 animate-spin" />
+          ) : (
+            <RotateCcw aria-hidden="true" className="size-3.5" />
+          )}
+          <span className="hidden sm:inline">{isStarting ? "Starting..." : "Try again"}</span>
+        </Button>
+      </DictationToolbar>
 
-      <div className="overflow-hidden rounded-base border-2 border-border bg-secondary-background shadow-shadow">
-        <div className="grid lg:grid-cols-[minmax(0,1.15fr)_minmax(420px,0.85fr)]">
-          <div className="bg-background p-6 sm:p-8 lg:p-10">
-            <Badge className="gap-2" variant="neutral">
-              <Trophy aria-hidden="true" />
-              Attempt {attempt.attempt_number} completed
-            </Badge>
-            <h2
-              className="mt-6 font-heading text-3xl leading-tight sm:text-4xl"
-              id="dictation-result-heading"
-            >
-              Dictation complete.
-            </h2>
-            <p className="mt-4 max-w-[620px] leading-relaxed text-foreground/70 sm:text-lg">
-              Your attempt is now locked. The score and EXP below come from the completion response;
-              the segment review comes from the saved attempt.
-            </p>
-          </div>
-
-          <dl className="grid grid-cols-3 border-t-2 border-border bg-secondary-background text-foreground lg:border-t-0 lg:border-l-2">
-            <div className="flex flex-col justify-center p-4 text-center sm:p-6">
-              <dt className="text-xs font-heading tracking-wide text-foreground/60 uppercase">
-                Correct
-              </dt>
-              <dd className="mt-2 font-heading text-2xl text-success tabular-nums sm:text-3xl">
-                {completion.correct_count}/{completion.total_count}
-              </dd>
-            </div>
-            <div className="flex flex-col justify-center border-l-2 border-border p-4 text-center sm:p-6">
-              <dt className="text-xs font-heading tracking-wide text-foreground/60 uppercase">
-                Score
-              </dt>
-              <dd className="mt-2 font-heading text-2xl text-main tabular-nums sm:text-3xl">
-                {scoreFormatter.format(completion.score)}%
-              </dd>
-            </div>
-            <div className="flex flex-col justify-center border-l-2 border-border p-4 text-center sm:p-6">
-              <dt className="text-xs font-heading tracking-wide text-foreground/60 uppercase">
-                EXP
-              </dt>
-              <dd className="mt-2 font-heading text-2xl text-chart-4 tabular-nums sm:text-3xl">
-                +{completion.earned_exp}
-              </dd>
-            </div>
-          </dl>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-12">
-        <div className="space-y-5 lg:col-span-8">
-          <section
-            aria-labelledby="dictation-review-listen-heading"
-            className="overflow-hidden rounded-base border-2 border-border bg-secondary-background shadow-shadow"
-          >
-            <div className="flex items-center justify-between gap-3 border-b-2 border-border bg-main px-4 py-3 text-main-foreground">
-              <div className="flex items-center gap-2">
-                <Headphones aria-hidden="true" className="size-5" />
-                <h3
-                  className="text-sm font-heading tracking-wide uppercase"
-                  id="dictation-review-listen-heading"
-                >
-                  Listen to segment
-                </h3>
-              </div>
-              <Badge className="bg-secondary-background text-foreground" variant="neutral">
-                #{activeSegment.segment_index + 1}
-              </Badge>
-            </div>
-
-            {youtubeVideoId ? (
-              <SegmentAudioPlayer
-                autoPlayDelayMs={autoPlayDelayMs}
-                canContinuePlayback={activeReviewPosition < review.details.length - 1}
-                endTimeMs={activeSegment.end_time_ms}
-                hasPlayedActiveSegment={playbackRequest > 0}
-                isAutoPlayEnabled={autoPlayOnSegmentChange}
-                isLoopEnabled={isLoopEnabled}
-                lessonTitle={content.title}
-                onEnded={handlePlaybackEnded}
-                onLoopToggle={handleLoopToggle}
-                onReplay={handleReplay}
-                onStop={handlePlaybackStop}
-                playbackRequest={playbackRequest}
-                segmentIndex={activeSegment.segment_index}
-                showVideo={showVideo}
-                startTimeMs={activeSegment.start_time_ms}
-                youtubeVideoId={youtubeVideoId}
-              />
-            ) : (
-              <>
-                <div className="relative aspect-video w-full overflow-hidden bg-black">
-                  {attempt.audio_url ? (
-                    <div className="flex size-full items-center justify-center p-5">
-                      <audio
-                        className="w-full"
-                        controls
-                        onEnded={(event) => handleNativePlaybackBoundary(event.currentTarget)}
-                        onTimeUpdate={(event) => {
-                          if (
-                            event.currentTarget.currentTime * 1_000 >=
-                            activeSegment.end_time_ms
-                          ) {
-                            handleNativePlaybackBoundary(event.currentTarget);
-                          }
-                        }}
-                        ref={audioRef}
-                        src={attempt.audio_url}
-                      />
-                    </div>
-                  ) : (
-                    <div className="flex size-full flex-col items-center justify-center gap-3 p-6 text-center text-secondary-background">
-                      <VideoOff aria-hidden="true" className="size-10" />
-                      <p className="font-heading">Audio is unavailable for this attempt.</p>
-                    </div>
-                  )}
-                </div>
-
-                <div className="p-4 sm:p-5">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                      <p className="text-xs font-heading tracking-wide uppercase text-foreground/60">
-                        Timestamp
-                      </p>
-                      <p className="mt-0.5 font-heading text-lg tabular-nums">
-                        {formatDictationTimestamp(activeSegment.start_time_ms)}–
-                        {formatDictationTimestamp(activeSegment.end_time_ms)}
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Button
-                        aria-label={`Loop current segment ${isLoopEnabled ? "on" : "off"}`}
-                        aria-pressed={isLoopEnabled}
-                        className="min-h-10 gap-1.5 font-heading text-xs"
-                        onClick={handleLoopToggle}
-                        size="sm"
-                        type="button"
-                        variant={isLoopEnabled ? "default" : "neutral"}
-                      >
-                        <Repeat2 aria-hidden="true" />
-                        Loop {isLoopEnabled ? "on" : "off"}
-                      </Button>
-                      <Button
-                        className="min-h-10 font-heading text-xs"
-                        onClick={handleReplay}
-                        size="sm"
-                        type="button"
-                        variant="neutral"
-                      >
-                        {playbackRequest > 0 ? (
-                          <RotateCcw aria-hidden="true" />
-                        ) : (
-                          <Play aria-hidden="true" />
-                        )}
-                        Replay segment
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </>
-            )}
-          </section>
-
-          <section className="overflow-hidden rounded-base border-2 border-border bg-secondary-background shadow-shadow">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b-2 border-border p-5 sm:p-6">
-              <div>
-                <p className="text-xs font-heading tracking-wide uppercase text-foreground/60">
-                  Answer review
-                </p>
-                <h3 className="mt-1 font-heading text-2xl">
-                  Segment {activeReview.segment_index + 1}
-                </h3>
-              </div>
-              <Badge
-                className={cn(
-                  activeReview.is_correct && "border-success/50 bg-success/15 text-success",
-                  !activeReview.is_correct &&
-                    !isUnanswered &&
-                    "border-chart-3/50 bg-chart-3/15 text-chart-3",
-                  !activeReview.is_correct &&
-                    isUnanswered &&
-                    "border-border bg-secondary-background text-foreground/60",
-                )}
-                variant="neutral"
-              >
-                <ActiveStatusIcon aria-hidden="true" />
-                {activeStatusLabel}
-              </Badge>
-            </div>
-
-            <div className="bg-background p-5 sm:p-7">
-              <div
-                className={cn(
-                  "rounded-base border-2 p-4 sm:p-5",
-                  activeReview.is_correct && "border-success/50 bg-success/10",
-                  !activeReview.is_correct && !isUnanswered && "border-chart-3/50 bg-chart-3/10",
-                  !activeReview.is_correct &&
-                    isUnanswered &&
-                    "border-border bg-secondary-background",
-                )}
-              >
-                <div className="flex items-start gap-3">
-                  <ActiveStatusIcon
-                    aria-hidden="true"
-                    className={cn("mt-0.5 size-6 shrink-0", activeStatusIconColor)}
-                  />
-                  <div>
-                    <h4 className="font-heading text-lg">
-                      {activeReview.is_correct
-                        ? "Correct — nicely heard!"
-                        : isUnanswered
-                          ? "No answer submitted"
-                          : "Not quite — compare and retry"}
-                    </h4>
-                    <p className="mt-1 text-sm leading-relaxed text-foreground/75">
-                      {activeReview.is_correct
-                        ? "Your answer matches after normalization."
-                        : isUnanswered
-                          ? "This segment was not checked during the attempt."
-                          : "Review your checked answer against the correct transcript."}
-                    </p>
-                  </div>
-                </div>
-
-                <dl className="mt-4 space-y-4 border-t border-border/50 pt-4">
-                  <div>
-                    <dt className="flex flex-wrap items-center justify-between gap-2 text-xs font-heading tracking-wide uppercase text-foreground/60">
-                      <span>Your checked answer</span>
-                      <span className="tabular-nums">
-                        {formatDictationTimestamp(activeSegment.start_time_ms)}–
-                        {formatDictationTimestamp(activeSegment.end_time_ms)}
-                      </span>
-                    </dt>
-                    <dd
-                      className={cn(
-                        "mt-2 min-h-20 whitespace-pre-wrap rounded-base border-2 border-border bg-background p-4 text-lg leading-relaxed",
-                        isUnanswered && "text-foreground/55 italic",
-                      )}
-                      lang={isUnanswered ? undefined : "ja"}
-                    >
-                      {isUnanswered ? "No checked answer was submitted." : activeReview.user_answer}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-xs font-heading tracking-wide uppercase text-foreground/60">
-                      Correct transcript
-                    </dt>
-                    <dd
-                      className="mt-2 rounded-base border-2 border-border bg-background p-4 font-heading text-lg leading-relaxed sm:text-xl"
-                      lang="ja"
-                    >
-                      {activeReview.correct_script}
-                    </dd>
-                  </div>
-                </dl>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 border-t-2 border-border p-5 sm:p-6">
-              <Button
-                disabled={activeReviewPosition === 0}
-                onClick={handlePrevious}
-                type="button"
-                variant="neutral"
-              >
-                <ArrowLeft aria-hidden="true" />
-                Previous
-              </Button>
-              <Button
-                disabled={activeReviewPosition === review.details.length - 1}
-                onClick={handleNext}
-                type="button"
-                variant="neutral"
-              >
-                Next
-                <ArrowRight aria-hidden="true" />
-              </Button>
-            </div>
-          </section>
-
-          <section className="rounded-base border-2 border-border bg-secondary-background p-5 shadow-shadow sm:p-6">
-            <h3 className="font-heading text-lg">What next?</h3>
-            <p className="mt-1 text-sm leading-relaxed text-foreground/70">
-              Start a fresh attempt to practice again, or return to the lesson catalog.
-            </p>
-            {startError ? (
-              <Alert className="mt-4" variant="destructive">
-                <CircleAlert aria-hidden="true" />
-                <AlertTitle>Unable to start another attempt</AlertTitle>
-                <AlertDescription>{startError}</AlertDescription>
-              </Alert>
-            ) : null}
-            <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-              <Button className="flex-1" disabled={isStarting} onClick={onTryAgain} type="button">
-                {isStarting ? (
-                  <LoaderCircle aria-hidden="true" className="animate-spin" />
-                ) : (
-                  <RotateCcw aria-hidden="true" />
-                )}
-                {isStarting ? "Starting..." : "Try this lesson again"}
-              </Button>
-              <Button asChild className="flex-1" variant="neutral">
-                <Link href="/lessons">
-                  <BookOpenCheck aria-hidden="true" />
-                  Back to lessons
-                </Link>
-              </Button>
-            </div>
-          </section>
-        </div>
-
-        <div className="lg:sticky lg:top-20 lg:col-span-4 lg:self-start lg:z-20">
+      {/* Unified 7:5 Ratio Grid Layout */}
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-12 lg:gap-5">
+        {/* Left Column (7 cols): Segment Map on top, Review Workstation underneath */}
+        <div className="space-y-4 lg:col-span-7">
+          {/* Segment Map (1-row 10-column compact map flanked by Prev/Next) */}
           <DictationPracticeSidebar
             activeSegmentIndex={activeSegmentIndex}
             answers={reviewAnswers}
@@ -599,6 +309,7 @@ export function DictationResult({
             correctCount={completion.correct_count}
             draftCount={0}
             hideCompletionCard
+            hideStats
             isCompleting={false}
             keyboardShortcuts={RESULT_SHORTCUTS}
             onComplete={() => undefined}
@@ -609,8 +320,381 @@ export function DictationResult({
             totalSegments={attempt.total_segments}
             variant="result"
           />
+
+          {/* Answer Review Workstation */}
+          <section
+            aria-labelledby="dictation-review-workstation-heading"
+            className="overflow-hidden rounded-base border-2 border-border bg-secondary-background shadow-shadow"
+          >
+            {/* Workstation Header */}
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b-2 border-border bg-background px-4 py-3 sm:px-5">
+              <div className="flex items-center gap-2">
+                <h3
+                  className="font-heading text-base sm:text-lg"
+                  id="dictation-review-workstation-heading"
+                >
+                  Segment {activeReview.segment_index + 1}
+                </h3>
+                <span className="rounded-base border border-border/60 bg-secondary-background px-2 py-0.5 font-mono text-xs tabular-nums text-foreground/75">
+                  {formatDictationTimestamp(activeSegment.start_time_ms)}–
+                  {formatDictationTimestamp(activeSegment.end_time_ms)}
+                </span>
+              </div>
+
+              <Badge
+                className={cn(
+                  "gap-1.5 font-heading text-xs",
+                  activeReview.is_correct &&
+                    "border-status-correct-border bg-status-correct-bg text-status-correct-text dark:border-emerald-400 dark:text-emerald-300",
+                  !activeReview.is_correct &&
+                    !isUnanswered &&
+                    "border-status-review-border bg-status-review-bg text-status-review-text dark:border-amber-400 dark:text-amber-300",
+                  !activeReview.is_correct &&
+                    isUnanswered &&
+                    "border-border bg-secondary-background text-foreground/60 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300",
+                )}
+                variant="neutral"
+              >
+                <ActiveStatusIcon aria-hidden="true" className="size-3.5 stroke-[2.5]" />
+                {activeStatusLabel}
+              </Badge>
+            </div>
+
+            {/* Audio Playback Bar */}
+            <div className="border-b-2 border-border bg-background">
+              {youtubeVideoId ? (
+                <SegmentAudioPlayer
+                  autoPlayDelayMs={autoPlayDelayMs}
+                  canContinuePlayback={activeReviewPosition < review.details.length - 1}
+                  endTimeMs={activeSegment.end_time_ms}
+                  hasPlayedActiveSegment={playbackRequest > 0}
+                  isAutoPlayEnabled={autoPlayOnSegmentChange}
+                  isLoopEnabled={isLoopEnabled}
+                  lessonTitle={content.title}
+                  onEnded={handlePlaybackEnded}
+                  onLoopToggle={handleLoopToggle}
+                  onReplay={handleReplay}
+                  onStop={handlePlaybackStop}
+                  playbackRequest={playbackRequest}
+                  segmentIndex={activeSegment.segment_index}
+                  showVideo={showVideo}
+                  startTimeMs={activeSegment.start_time_ms}
+                  youtubeVideoId={youtubeVideoId}
+                />
+              ) : (
+                <div className="p-4 sm:p-5">
+                  {attempt.audio_url ? (
+                    <audio
+                      className="w-full"
+                      controls
+                      onEnded={(event) => handleNativePlaybackBoundary(event.currentTarget)}
+                      onTimeUpdate={(event) => {
+                        if (event.currentTarget.currentTime * 1_000 >= activeSegment.end_time_ms) {
+                          handleNativePlaybackBoundary(event.currentTarget);
+                        }
+                      }}
+                      ref={audioRef}
+                      src={attempt.audio_url}
+                    />
+                  ) : (
+                    <div className="flex size-full flex-col items-center justify-center gap-2 p-6 text-center text-foreground/60">
+                      <VideoOff aria-hidden="true" className="size-8" />
+                      <p className="text-sm font-heading">Audio is unavailable for this attempt.</p>
+                    </div>
+                  )}
+                  <div className="mt-3 flex items-center justify-end gap-2">
+                    <Button
+                      aria-label={`Loop current segment ${isLoopEnabled ? "on" : "off"}`}
+                      aria-pressed={isLoopEnabled}
+                      className="min-h-9 gap-1.5 font-heading text-xs"
+                      onClick={handleLoopToggle}
+                      size="sm"
+                      type="button"
+                      variant={isLoopEnabled ? "default" : "neutral"}
+                    >
+                      <Repeat2 aria-hidden="true" className="size-3.5" />
+                      Loop {isLoopEnabled ? "on" : "off"}
+                    </Button>
+                    <Button
+                      className="min-h-9 gap-1.5 font-heading text-xs"
+                      onClick={handleReplay}
+                      size="sm"
+                      type="button"
+                      variant="neutral"
+                    >
+                      {playbackRequest > 0 ? (
+                        <RotateCcw aria-hidden="true" className="size-3.5" />
+                      ) : (
+                        <Play aria-hidden="true" className="size-3.5" />
+                      )}
+                      Replay segment
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Answer Comparison / Diff Section */}
+            <div className="space-y-4 p-4 sm:p-5">
+              {/* Feedback Alert Banner */}
+              <div
+                className={cn(
+                  "rounded-base border-2 p-3 sm:p-4",
+                  activeReview.is_correct &&
+                    "border-status-correct-border bg-status-correct-bg/60 text-foreground dark:border-emerald-500/50 dark:bg-emerald-950/30",
+                  !activeReview.is_correct &&
+                    !isUnanswered &&
+                    "border-status-review-border bg-status-review-bg/60 text-foreground dark:border-amber-500/50 dark:bg-amber-950/30",
+                  !activeReview.is_correct &&
+                    isUnanswered &&
+                    "border-border bg-background text-foreground dark:border-zinc-700",
+                )}
+              >
+                <div className="flex items-start gap-2.5">
+                  <ActiveStatusIcon
+                    aria-hidden="true"
+                    className={cn("mt-0.5 size-5 shrink-0 stroke-[2.5]", activeStatusIconColor)}
+                  />
+                  <div>
+                    <h4 className="font-heading text-sm sm:text-base">
+                      {activeReview.is_correct
+                        ? "Correct — nicely heard!"
+                        : isUnanswered
+                          ? "No answer submitted"
+                          : "Not quite — compare and retry"}
+                    </h4>
+                    <p className="mt-0.5 text-xs text-foreground/75 sm:text-sm">
+                      {activeReview.is_correct
+                        ? "Your answer matches after normalization."
+                        : isUnanswered
+                          ? "This segment was not checked during the attempt."
+                          : "Review your checked answer against the correct transcript."}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Character Diff Viewer or Unanswered Message */}
+              {isUnanswered ? (
+                <div className="space-y-3">
+                  <div className="space-y-1.5">
+                    <span className="text-xs font-heading uppercase tracking-wide text-foreground/60">
+                      Your checked answer
+                    </span>
+                    <div className="rounded-base border-2 border-border bg-background p-3.5 text-sm italic text-foreground/50">
+                      No checked answer was submitted for this segment.
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <span className="text-xs font-heading uppercase tracking-wide text-foreground/60">
+                      Correct transcript
+                    </span>
+                    <p
+                      className="rounded-base border-2 border-border bg-background p-3.5 font-heading text-base leading-relaxed text-foreground sm:text-lg"
+                      lang="ja"
+                    >
+                      {activeReview.correct_script}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <DictationDiffViewer
+                  correctScript={activeReview.correct_script}
+                  isCorrect={activeReview.is_correct}
+                  userAnswer={activeReview.user_answer}
+                />
+              )}
+            </div>
+
+            {/* Navigation Footer */}
+            <div className="flex items-center justify-between border-t-2 border-border bg-background/50 px-4 py-3 sm:px-5">
+              <Button
+                className="gap-1.5 font-heading text-xs"
+                disabled={activeReviewPosition === 0}
+                onClick={handlePrevious}
+                size="sm"
+                type="button"
+                variant="neutral"
+              >
+                <ArrowLeft aria-hidden="true" className="size-3.5" />
+                Previous
+              </Button>
+
+              <div className="hidden items-center gap-3 text-xs text-foreground/60 sm:flex">
+                <span>
+                  Segment <strong className="text-foreground">{activeReviewPosition + 1}</strong> of{" "}
+                  {review.details.length}
+                </span>
+              </div>
+
+              <Button
+                className="gap-1.5 font-heading text-xs"
+                disabled={activeReviewPosition === review.details.length - 1}
+                onClick={handleNext}
+                size="sm"
+                type="button"
+                variant="neutral"
+              >
+                Next
+                <ArrowRight aria-hidden="true" className="size-3.5" />
+              </Button>
+            </div>
+          </section>
+        </div>
+
+        {/* Right Column (5 cols): Sticky Video & Result Summary Card */}
+        <div className="space-y-4 lg:sticky lg:top-20 lg:z-20 lg:col-span-5 lg:self-start">
+          {/* Docked YouTube Video Player */}
+          {showVideo && youtubeVideoId ? (
+            <section
+              aria-label="Video segment player"
+              className="overflow-hidden rounded-base border-2 border-border bg-black shadow-shadow"
+            >
+              <div className="relative aspect-video w-full" id="dictation-video-dock" />
+            </section>
+          ) : null}
+
+          {/* Result Summary & Next Steps Card */}
+          <section
+            aria-labelledby="dictation-result-summary-heading"
+            className="rounded-base border-2 border-border bg-secondary-background p-4 shadow-shadow sm:p-5"
+          >
+            <div className="flex items-center justify-between gap-2 border-b border-border/40 pb-3">
+              <div className="flex items-center gap-2">
+                <Trophy aria-hidden="true" className="size-5 text-main" />
+                <h3
+                  className="font-heading text-base sm:text-lg"
+                  id="dictation-result-summary-heading"
+                >
+                  Result Summary
+                </h3>
+              </div>
+              <Badge className="font-heading text-xs" variant="neutral">
+                Attempt {attempt.attempt_number}
+              </Badge>
+            </div>
+
+            {/* 4-Box Stats Matrix */}
+            <div className="mt-3.5 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4">
+              <div className="rounded-base border-2 border-border bg-background p-2.5 text-center shadow-2xs">
+                <span className="block text-[11px] font-heading uppercase tracking-wide text-foreground/60">
+                  Score
+                </span>
+                <span className="mt-0.5 block font-heading text-xl text-main tabular-nums sm:text-2xl">
+                  {scoreFormatter.format(completion.score)}%
+                </span>
+              </div>
+
+              <div className="rounded-base border-2 border-status-correct-border bg-status-correct-bg p-2.5 text-center shadow-2xs dark:border-emerald-500/50 dark:bg-emerald-950/30">
+                <span className="block text-[11px] font-heading uppercase tracking-wide text-status-correct-text dark:text-emerald-300">
+                  Correct
+                </span>
+                <span className="mt-0.5 block font-heading text-xl text-status-correct-text tabular-nums sm:text-2xl dark:text-emerald-300">
+                  {completion.correct_count}/{completion.total_count}
+                </span>
+              </div>
+
+              <div className="rounded-base border-2 border-status-review-border bg-status-review-bg p-2.5 text-center shadow-2xs dark:border-amber-500/50 dark:bg-amber-950/30">
+                <span className="block text-[11px] font-heading uppercase tracking-wide text-status-review-text dark:text-amber-300">
+                  Review
+                </span>
+                <span className="mt-0.5 block font-heading text-xl text-status-review-text tabular-nums sm:text-2xl dark:text-amber-300">
+                  {completion.total_count - completion.correct_count}
+                </span>
+              </div>
+
+              <div className="rounded-base border-2 border-border bg-background p-2.5 text-center shadow-2xs">
+                <span className="block text-[11px] font-heading uppercase tracking-wide text-foreground/60">
+                  EXP
+                </span>
+                <span className="mt-0.5 block font-heading text-xl text-chart-4 tabular-nums sm:text-2xl">
+                  +{completion.earned_exp}
+                </span>
+              </div>
+            </div>
+
+            {/* Active Segment Info Row */}
+            <div className="mt-3.5 flex items-center justify-between rounded-base border border-border/60 bg-background px-3 py-2 text-xs">
+              <span className="text-foreground/75">
+                Active: <strong>Segment #{activeReview.segment_index + 1}</strong>
+              </span>
+              <span
+                className={cn(
+                  "font-heading",
+                  activeReview.is_correct && "text-status-correct-text dark:text-emerald-300",
+                  !activeReview.is_correct &&
+                    !isUnanswered &&
+                    "text-status-review-text dark:text-amber-300",
+                  !activeReview.is_correct && isUnanswered && "text-foreground/60",
+                )}
+              >
+                {activeStatusLabel}
+              </span>
+            </div>
+
+            {/* Error if attempt start failed */}
+            {startError ? (
+              <Alert className="mt-3.5" variant="destructive">
+                <CircleAlert aria-hidden="true" />
+                <AlertTitle>Unable to start another attempt</AlertTitle>
+                <AlertDescription>{startError}</AlertDescription>
+              </Alert>
+            ) : null}
+
+            {/* Actions */}
+            <div className="mt-4 space-y-2">
+              <Button
+                className="w-full gap-2 font-heading text-sm"
+                disabled={isStarting}
+                onClick={onTryAgain}
+                type="button"
+              >
+                {isStarting ? (
+                  <LoaderCircle aria-hidden="true" className="size-4 animate-spin" />
+                ) : (
+                  <RotateCcw aria-hidden="true" className="size-4" />
+                )}
+                {isStarting ? "Starting new attempt..." : "Try this lesson again"}
+              </Button>
+
+              <Button asChild className="w-full gap-2 font-heading text-sm" variant="neutral">
+                <Link href="/lessons">
+                  <BookOpenCheck aria-hidden="true" className="size-4" />
+                  Back to lessons
+                </Link>
+              </Button>
+            </div>
+
+            {/* Shortcuts Reference */}
+            <div className="mt-4 border-t border-border/40 pt-3">
+              <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-foreground/60">
+                <span className="font-heading">Shortcuts:</span>
+                <div className="flex items-center gap-2">
+                  <span>
+                    <kbd className="rounded border border-border bg-background px-1 py-0.5 font-mono text-[10px] text-foreground">
+                      ⎵
+                    </kbd>{" "}
+                    Play/Pause
+                  </span>
+                  <span>
+                    <kbd className="rounded border border-border bg-background px-1 py-0.5 font-mono text-[10px] text-foreground">
+                      Ctrl
+                    </kbd>
+                    {` `}+{` `}
+                    <kbd className="rounded border border-border bg-background px-1 py-0.5 font-mono text-[10px] text-foreground">
+                      ←
+                    </kbd>
+                    <kbd className="rounded border border-border bg-background px-1 py-0.5 font-mono text-[10px] text-foreground">
+                      →
+                    </kbd>{" "}
+                    Navigate
+                  </span>
+                </div>
+              </div>
+            </div>
+          </section>
         </div>
       </div>
-    </section>
+    </div>
   );
 }

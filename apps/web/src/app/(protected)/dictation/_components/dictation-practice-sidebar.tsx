@@ -48,8 +48,7 @@ const PRACTICE_SHORTCUTS: readonly DictationKeyboardShortcut[] = [
   { action: "Previous segment", keyLabel: "←" },
 ];
 
-const PRACTICE_PAGE_SIZE = 10;
-const RESULT_PAGE_SIZE = 14;
+const PAGE_SIZE = 10;
 
 const STATE_CONFIG = {
   correct: {
@@ -127,7 +126,7 @@ export function DictationPracticeSidebar({
 }: DictationPracticeSidebarProps) {
   const [isMapExpanded, setIsMapExpanded] = useState(false);
   const segmentGridRef = useRef<HTMLDivElement>(null);
-  const pageSize = variant === "practice" ? PRACTICE_PAGE_SIZE : RESULT_PAGE_SIZE;
+  const pageSize = PAGE_SIZE;
   const shouldCollapseMap = segments.length > pageSize;
   const activePageIndex = Math.floor(activeSegmentIndex / pageSize);
   const [prevActiveIndex, setPrevActiveIndex] = useState(activeSegmentIndex);
@@ -192,118 +191,47 @@ export function DictationPracticeSidebar({
         className="rounded-base border-2 border-border bg-secondary-background p-3.5 shadow-shadow sm:p-4"
       >
         {/* Header with Title, Page Navigation, and Show all toggle */}
-        {variant === "practice" ? (
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <h2 className="font-heading text-sm sm:text-base" id="dictation-segments-heading">
-                Segment map
-              </h2>
-              {shouldCollapseMap && !isMapExpanded ? (
-                <span className="rounded-base border border-border/60 bg-background px-2 py-0.5 font-mono text-xs tabular-nums text-foreground/80">
-                  Page {currentPageIndex + 1}/{collapsedPageCount}
-                </span>
-              ) : null}
-              <span className="hidden font-mono text-xs text-foreground/60 sm:inline">
-                (#{activeSegmentIndex + 1} active)
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <h2 className="font-heading text-sm sm:text-base" id="dictation-segments-heading">
+              Segment map
+            </h2>
+            {shouldCollapseMap && !isMapExpanded ? (
+              <span className="rounded-base border border-border/60 bg-background px-2 py-0.5 font-mono text-xs tabular-nums text-foreground/80">
+                Page {currentPageIndex + 1}/{collapsedPageCount}
               </span>
-            </div>
-
-            <div className="flex items-center gap-2">
-              {shouldCollapseMap ? (
-                <Button
-                  aria-controls="dictation-segment-grid"
-                  aria-expanded={isMapExpanded}
-                  className="h-7 gap-1 px-2.5 text-xs bg-background text-foreground hover:bg-main/15"
-                  onClick={() => setIsMapExpanded((currentValue) => !currentValue)}
-                  size="sm"
-                  type="button"
-                  variant="neutral"
-                >
-                  {isMapExpanded ? "Collapse to 1 row" : "Show all segments"}
-                  <ChevronDown
-                    aria-hidden="true"
-                    className={cn("size-3.5 transition-transform", isMapExpanded && "rotate-180")}
-                  />
-                </Button>
-              ) : null}
-
-              {!hideStats ? (
-                <Badge className="font-heading text-xs" variant="neutral">
-                  {checkedCount}/{totalSegments} ({progressPercent}%)
-                </Badge>
-              ) : null}
-            </div>
+            ) : null}
+            <span className="hidden font-mono text-xs text-foreground/60 sm:inline">
+              (#{activeSegmentIndex + 1} active)
+            </span>
           </div>
-        ) : (
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <h2 className="font-heading text-sm sm:text-base" id="dictation-segments-heading">
-                Segment map
-              </h2>
-              <span className="rounded-base border border-border/60 bg-background px-1.5 py-0.5 font-mono text-[11px] tabular-nums text-foreground/75">
-                #{activeSegmentIndex + 1}/{totalSegments}
-              </span>
-            </div>
 
-            <div className="flex items-center gap-1.5">
-              {shouldCollapseMap && !isMapExpanded ? (
-                <div className="flex items-center gap-1">
-                  <Button
-                    aria-label="Previous page of segments"
-                    className="h-7 px-1.5 text-xs"
-                    disabled={currentPageIndex === 0}
-                    onClick={() => setPageOverride(Math.max(0, currentPageIndex - 1))}
-                    size="sm"
-                    type="button"
-                    variant="neutral"
-                  >
-                    <ChevronLeft aria-hidden="true" className="size-3" />
-                    <span className="hidden sm:inline">Prev</span>
-                  </Button>
-                  <span className="px-1 font-mono text-xs tabular-nums text-foreground/80">
-                    {currentPageIndex + 1}/{collapsedPageCount}
-                  </span>
-                  <Button
-                    aria-label="Next page of segments"
-                    className="h-7 px-1.5 text-xs"
-                    disabled={currentPageIndex >= collapsedPageCount - 1}
-                    onClick={() =>
-                      setPageOverride(Math.min(collapsedPageCount - 1, currentPageIndex + 1))
-                    }
-                    size="sm"
-                    type="button"
-                    variant="neutral"
-                  >
-                    <span className="hidden sm:inline">Next</span>
-                    <ChevronRight aria-hidden="true" className="size-3" />
-                  </Button>
-                </div>
-              ) : null}
+          <div className="flex items-center gap-2">
+            {shouldCollapseMap ? (
+              <Button
+                aria-controls="dictation-segment-grid"
+                aria-expanded={isMapExpanded}
+                className="h-7 gap-1 px-2.5 text-xs bg-background text-foreground hover:bg-main/15"
+                onClick={() => setIsMapExpanded((currentValue) => !currentValue)}
+                size="sm"
+                type="button"
+                variant="neutral"
+              >
+                {isMapExpanded ? "Collapse to 1 row" : "Show all segments"}
+                <ChevronDown
+                  aria-hidden="true"
+                  className={cn("size-3.5 transition-transform", isMapExpanded && "rotate-180")}
+                />
+              </Button>
+            ) : null}
 
-              {shouldCollapseMap ? (
-                <Button
-                  aria-controls="dictation-segment-grid"
-                  aria-expanded={isMapExpanded}
-                  className="h-7 gap-1 px-2 text-xs bg-secondary-background text-foreground"
-                  onClick={() => setIsMapExpanded((currentValue) => !currentValue)}
-                  size="sm"
-                  type="button"
-                  variant="noShadow"
-                >
-                  {isMapExpanded ? "Collapse" : "Show all"}
-                  <ChevronDown
-                    aria-hidden="true"
-                    className={cn("size-3 transition-transform", isMapExpanded && "rotate-180")}
-                  />
-                </Button>
-              ) : null}
-
+            {!hideStats ? (
               <Badge className="font-heading text-xs" variant="neutral">
                 {checkedCount}/{totalSegments} ({progressPercent}%)
               </Badge>
-            </div>
+            ) : null}
           </div>
-        )}
+        </div>
 
         {/* Optional Stats Grid (Hidden when hideStats is true) */}
         {!hideStats ? (
@@ -336,7 +264,7 @@ export function DictationPracticeSidebar({
         ) : null}
 
         {/* Segment Buttons Row / Grid */}
-        {variant === "practice" && !isMapExpanded ? (
+        {!isMapExpanded ? (
           <div className="mt-3 flex items-center gap-1.5 sm:gap-2">
             {shouldCollapseMap ? (
               <Button
@@ -419,9 +347,8 @@ export function DictationPracticeSidebar({
         ) : (
           <div
             className={cn(
-              "mt-2.5 grid gap-1.5 sm:gap-2",
-              variant === "practice" ? "grid-cols-10" : "grid-cols-7",
-              isMapExpanded && shouldCollapseMap && "max-h-72 overflow-y-auto p-1",
+              "mt-2.5 grid grid-cols-10 gap-1.5 sm:gap-2",
+              shouldCollapseMap && "max-h-72 overflow-y-auto p-1",
             )}
             id="dictation-segment-grid"
             ref={segmentGridRef}
@@ -439,8 +366,7 @@ export function DictationPracticeSidebar({
                   aria-label={`Segment ${segment.segment_index + 1}: ${config.label}`}
                   aria-pressed={isActive}
                   className={cn(
-                    "relative flex items-center justify-center rounded-base border-2 font-heading text-xs transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 sm:text-sm",
-                    variant === "practice" ? "h-8.5 sm:h-9" : "aspect-square min-h-9 sm:min-h-10",
+                    "relative flex h-8.5 items-center justify-center rounded-base border-2 font-heading text-xs transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 sm:h-9 sm:text-sm",
                     isActive
                       ? "z-10 scale-105 border-border bg-main font-bold text-main-foreground shadow-shadow"
                       : config.bgClass,
@@ -473,7 +399,9 @@ export function DictationPracticeSidebar({
         <ul
           className={cn(
             "mt-3 grid gap-1.5 border-t border-border/40 pt-2.5 text-xs",
-            variant === "practice" ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-2",
+            variant === "practice"
+              ? "grid-cols-2 sm:grid-cols-4"
+              : "grid-cols-3 sm:flex sm:items-center sm:gap-5",
           )}
         >
           {legendStates.map((state) => {

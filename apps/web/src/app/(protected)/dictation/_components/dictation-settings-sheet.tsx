@@ -1,6 +1,6 @@
 "use client";
 
-import { Keyboard, Settings2 } from "lucide-react";
+import { Settings2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -155,7 +155,6 @@ export function DictationSettingsSheet(props: DictationSettingsSheetProps) {
           {/* Keyboard Shortcuts Reference */}
           <div className="space-y-3 rounded-base border-2 border-border bg-background p-4">
             <div className="flex items-center gap-2 font-heading text-sm">
-              <Keyboard className="size-4 text-main" />
               <span>Keyboard shortcuts</span>
             </div>
             <div className="space-y-2 text-xs">
