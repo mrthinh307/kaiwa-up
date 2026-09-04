@@ -5,6 +5,7 @@ from typing import Self
 from pydantic import BaseModel, Field, model_validator
 
 from app.models.enums import AttemptStatus
+from app.schemas.learning_content import DictationContentDetail
 
 
 class DictationTranscriptSegment(BaseModel):
@@ -52,6 +53,12 @@ class DictationSegmentCheckResponse(BaseModel):
 
 class DictationResumeResponse(DictationStartResponse):
     checked_segments: list[DictationSegmentCheckResponse] = Field(default_factory=list)
+    total_attempts: int = 0
+
+
+class DictationAttemptPracticeResponse(BaseModel):
+    content: DictationContentDetail
+    attempt: DictationResumeResponse
 
 
 class DictationAnswerPayload(BaseModel):
@@ -83,7 +90,13 @@ class DictationSegmentReview(BaseModel):
 
 class DictationAttemptReviewResponse(BaseModel):
     attempt_id: uuid.UUID
+    content: DictationContentDetail
+    attempt_number: int = Field(ge=1)
     status: AttemptStatus
     score: float | None = Field(ge=0, le=100)
+    correct_count: int = Field(ge=0)
+    total_count: int = Field(ge=1)
     earned_exp: int = Field(ge=0)
+    completed_at: datetime | None = None
+    segments: list[DictationSegmentItem] = Field(min_length=1)
     details: list[DictationSegmentReview]

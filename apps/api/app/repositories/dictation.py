@@ -78,6 +78,21 @@ class DictationRepository(BaseRepository):
         )
         return (latest_attempt_number or 0) + 1
 
+    async def get_total_attempt_count(
+        self,
+        *,
+        user_id: uuid.UUID,
+        content_id: uuid.UUID,
+    ) -> int:
+        count = await self.session.scalar(
+            select(func.count(ExerciseAttempt.id)).where(
+                ExerciseAttempt.user_id == user_id,
+                ExerciseAttempt.content_id == content_id,
+                ExerciseAttempt.practice_method == PracticeMethod.DICTATION,
+            )
+        )
+        return count or 0
+
     async def create_attempt(
         self,
         *,
@@ -116,12 +131,36 @@ class DictationRepository(BaseRepository):
             return None
         return DictationAttemptRow(attempt=result[0], content=result[1])
 
+    async def get_attempt_for_practice(
+        self,
+        attempt_id: uuid.UUID,
+    ) -> DictationAttemptRow | None:
+        result = (
+            await self.session.execute(
+                select(ExerciseAttempt, LearningContent)
+                .join(LearningContent, LearningContent.id == ExerciseAttempt.content_id)
+                .where(
+                    ExerciseAttempt.id == attempt_id,
+                    ExerciseAttempt.practice_method == PracticeMethod.DICTATION,
+                    LearningContent.content_type == ContentType.SHADOWING_DICTATION,
+                    LearningContent.status == ContentStatus.PUBLISHED,
+                )
+            )
+        ).first()
+        if result is None:
+            return None
+        return DictationAttemptRow(attempt=result[0], content=result[1])
+
     async def update_answer_payload(
         self,
         attempt: ExerciseAttempt,
         answer_payload: dict[str, object],
     ) -> None:
         attempt.answer_payload = answer_payload
+        await self.session.flush()
+
+    async def delete_attempt(self, attempt: ExerciseAttempt) -> None:
+        await self.session.delete(attempt)
         await self.session.flush()
 
     async def complete_attempt(

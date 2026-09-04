@@ -14,11 +14,12 @@ from app.exceptions.dictation import (
     DictationInvalidSegmentIndexError,
 )
 from app.models.content import LearningContent
-from app.models.enums import AttemptStatus, ContentType, PracticeMethod
-from app.repositories.dictation import DictationRepository
+from app.models.enums import AttemptStatus, ContentStatus, ContentType, PracticeMethod
+from app.repositories.dictation import DictationAttemptRow, DictationRepository
 from app.repositories.gamification import GamificationRepository
 from app.schemas.dictation import (
     DictationAnswerPayload,
+    DictationAttemptPracticeResponse,
     DictationAttemptReviewResponse,
     DictationCompleteResponse,
     DictationResumeResponse,
@@ -28,6 +29,7 @@ from app.schemas.dictation import (
     DictationStartResponse,
     DictationTranscriptSegment,
 )
+from app.schemas.learning_content import DictationContentDetail, DictationPromptSegment
 from app.services.gamification import GamificationService
 from app.utils.datetime_utils import utc_now
 
@@ -146,29 +148,35 @@ class DictationService:
         if row is None:
             raise NotFoundError("In-progress Dictation attempt not found")
 
-        transcript_segments = self._transcript_segments(row.content)
-        if not row.content.audio_url:
-            raise DictationContentUnavailableError()
+        total_attempts = await self.repository.get_total_attempt_count(
+            user_id=user_id,
+            content_id=content_id,
+        )
 
-        answer_payload = DictationAnswerPayload.model_validate(row.attempt.answer_payload or {})
-        return DictationResumeResponse(
-            attempt_id=row.attempt.id,
+        return self._resume_response(row, total_attempts=total_attempts)
+
+    async def get_attempt_practice(
+        self,
+        *,
+        user_id: uuid.UUID,
+        attempt_id: uuid.UUID,
+    ) -> DictationAttemptPracticeResponse:
+        row = await self.repository.get_attempt_for_practice(attempt_id)
+        if row is None:
+            raise NotFoundError("Dictation attempt not found")
+        if row.attempt.user_id != user_id:
+            raise ForbiddenError()
+        if row.attempt.status != AttemptStatus.IN_PROGRESS:
+            raise DictationAttemptNotInProgressError()
+
+        total_attempts = await self.repository.get_total_attempt_count(
+            user_id=user_id,
             content_id=row.content.id,
-            attempt_number=row.attempt.attempt_number,
-            audio_url=row.content.audio_url,
-            total_segments=len(transcript_segments),
-            segments=[
-                DictationSegmentItem(
-                    segment_index=index,
-                    start_time_ms=segment.start_time_ms,
-                    end_time_ms=segment.end_time_ms,
-                )
-                for index, segment in enumerate(transcript_segments)
-            ],
-            checked_segments=sorted(
-                answer_payload.segments,
-                key=lambda result: result.segment_index,
-            ),
+        )
+
+        return DictationAttemptPracticeResponse(
+            content=self._content_detail(row.content),
+            attempt=self._resume_response(row, total_attempts=total_attempts),
         )
 
     async def check_segment(
@@ -301,6 +309,84 @@ class DictationService:
             completed_at=completed_at,
         )
 
+    async def restart_attempt(
+        self,
+        *,
+        user_id: uuid.UUID,
+        attempt_id: uuid.UUID,
+    ) -> DictationStartResponse:
+        try:
+            await self.repository.lock_attempt_order(user_id)
+            row = await self.repository.get_attempt_for_update(attempt_id)
+            if row is None or row.content.content_type != ContentType.SHADOWING_DICTATION:
+                raise NotFoundError("Dictation attempt not found")
+            if row.attempt.user_id != user_id:
+                raise ForbiddenError()
+            if row.attempt.status != AttemptStatus.IN_PROGRESS:
+                raise DictationAttemptNotInProgressError()
+
+            content = row.content
+            if content.status != ContentStatus.PUBLISHED:
+                raise NotFoundError("Dictation content not found")
+            if not content.audio_url:
+                raise DictationContentUnavailableError()
+
+            transcript_segments = self._transcript_segments(content)
+
+            await self.repository.delete_attempt(row.attempt)
+
+            attempt_number = await self.repository.get_next_attempt_number(
+                user_id=user_id,
+                content_id=content.id,
+            )
+            new_attempt = await self.repository.create_attempt(
+                user_id=user_id,
+                content_id=content.id,
+                attempt_number=attempt_number,
+            )
+            await self.repository.session.commit()
+        except Exception:
+            await self.repository.session.rollback()
+            raise
+
+        return DictationStartResponse(
+            attempt_id=new_attempt.id,
+            content_id=content.id,
+            attempt_number=new_attempt.attempt_number,
+            audio_url=content.audio_url,
+            total_segments=len(transcript_segments),
+            segments=[
+                DictationSegmentItem(
+                    segment_index=index,
+                    start_time_ms=segment.start_time_ms,
+                    end_time_ms=segment.end_time_ms,
+                )
+                for index, segment in enumerate(transcript_segments)
+            ],
+        )
+
+    async def delete_attempt(
+        self,
+        *,
+        user_id: uuid.UUID,
+        attempt_id: uuid.UUID,
+    ) -> None:
+        try:
+            await self.repository.lock_attempt_order(user_id)
+            row = await self.repository.get_attempt_for_update(attempt_id)
+            if row is None or row.content.content_type != ContentType.SHADOWING_DICTATION:
+                raise NotFoundError("Dictation attempt not found")
+            if row.attempt.user_id != user_id:
+                raise ForbiddenError()
+            if row.attempt.status != AttemptStatus.IN_PROGRESS:
+                raise DictationAttemptNotInProgressError()
+
+            await self.repository.delete_attempt(row.attempt)
+            await self.repository.session.commit()
+        except Exception:
+            await self.repository.session.rollback()
+            raise
+
     async def get_attempt_review(
         self,
         *,
@@ -314,11 +400,11 @@ class DictationService:
             raise ForbiddenError()
 
         answer_payload = DictationAnswerPayload.model_validate(row.attempt.answer_payload or {})
+        transcript_segments = self._transcript_segments(row.content)
         stored_results_by_index = {
             result.segment_index: result for result in answer_payload.segments
         }
         if row.attempt.status == AttemptStatus.COMPLETED:
-            transcript_segments = self._transcript_segments(row.content)
             details = [
                 DictationSegmentReview(
                     segment_index=index,
@@ -355,10 +441,84 @@ class DictationService:
             ]
         return DictationAttemptReviewResponse(
             attempt_id=row.attempt.id,
+            content=self._content_detail(row.content),
+            attempt_number=row.attempt.attempt_number,
             status=row.attempt.status,
             score=float(row.attempt.score) if row.attempt.score is not None else None,
+            correct_count=(
+                row.attempt.correct_count
+                if row.attempt.correct_count is not None
+                else sum(result.is_correct for result in stored_results_by_index.values())
+            ),
+            total_count=len(transcript_segments),
             earned_exp=row.earned_exp or 0,
+            completed_at=row.attempt.completed_at,
+            segments=[
+                DictationSegmentItem(
+                    segment_index=index,
+                    start_time_ms=segment.start_time_ms,
+                    end_time_ms=segment.end_time_ms,
+                )
+                for index, segment in enumerate(transcript_segments)
+            ],
             details=details,
+        )
+
+    def _resume_response(
+        self,
+        row: DictationAttemptRow,
+        *,
+        total_attempts: int = 0,
+    ) -> DictationResumeResponse:
+        transcript_segments = self._transcript_segments(row.content)
+        if not row.content.audio_url:
+            raise DictationContentUnavailableError()
+
+        answer_payload = DictationAnswerPayload.model_validate(row.attempt.answer_payload or {})
+        return DictationResumeResponse(
+            attempt_id=row.attempt.id,
+            content_id=row.content.id,
+            attempt_number=row.attempt.attempt_number,
+            audio_url=row.content.audio_url,
+            total_segments=len(transcript_segments),
+            segments=[
+                DictationSegmentItem(
+                    segment_index=index,
+                    start_time_ms=segment.start_time_ms,
+                    end_time_ms=segment.end_time_ms,
+                )
+                for index, segment in enumerate(transcript_segments)
+            ],
+            checked_segments=sorted(
+                answer_payload.segments,
+                key=lambda result: result.segment_index,
+            ),
+            total_attempts=total_attempts,
+        )
+
+    def _content_detail(self, content: LearningContent) -> DictationContentDetail:
+        transcript_segments = self._transcript_segments(content)
+        return DictationContentDetail(
+            id=content.id,
+            title=content.title,
+            description=content.short_description,
+            content_type=content.content_type,
+            difficulty=content.difficulty,
+            topic=content.topic,
+            duration_seconds=(
+                content.audio_duration_ms / 1000 if content.audio_duration_ms is not None else None
+            ),
+            audio_url=content.audio_url,
+            published_at=content.published_at,
+            prompts=[
+                DictationPromptSegment(
+                    blank_index=index,
+                    start_time_ms=segment.start_time_ms,
+                    end_time_ms=segment.end_time_ms,
+                    prompt=f"___ ({index})",
+                )
+                for index, segment in enumerate(transcript_segments, start=1)
+            ],
         )
 
     @staticmethod
