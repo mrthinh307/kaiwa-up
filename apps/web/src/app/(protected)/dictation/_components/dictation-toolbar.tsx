@@ -22,7 +22,7 @@ export function DictationToolbar({
   return (
     <header
       aria-label="Dictation toolbar"
-      className="sticky top-0 z-30 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 rounded-base border-2 border-border bg-background/95 p-2.5 shadow-shadow backdrop-blur-sm sm:gap-3 sm:px-5 sm:py-3"
+      className="sticky top-0 z-30 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 rounded-base border-2 border-border bg-background/95 p-2 shadow-shadow backdrop-blur-sm sm:gap-3 sm:px-4 sm:py-2"
     >
       <div className="col-span-2 flex min-w-0 items-center gap-2 sm:gap-3">
         <Button asChild className="shrink-0" size="sm" variant="neutral">

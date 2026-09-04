@@ -14,7 +14,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 
-import type { CompactPracticeToolbarProps } from "../../_types/dictation-practice";
+import type { CompactPracticeToolbarProps } from "../_types/dictation-practice";
 
 import { DictationSettingsSheet } from "./dictation-settings-sheet";
 import { DictationToolbar } from "./dictation-toolbar";

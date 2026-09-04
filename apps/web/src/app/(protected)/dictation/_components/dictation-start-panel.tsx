@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   Bookmark,
   Clock3,
+  History,
   Info,
   Layers3,
   LoaderCircle,
@@ -23,19 +24,22 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
-import type { DictationStartPanelProps } from "../../_types/dictation-practice";
+import type { DictationStartPanelProps } from "../_types/dictation-practice";
 
-import { DICTATION_STEPS } from "../../_constants/dictation-constants";
-import { formatDictationDuration, getYouTubeVideoId } from "../../_utils/dictation-formatters";
+import { DICTATION_STEPS } from "../_constants/dictation-constants";
+import { formatDictationDuration, getYouTubeVideoId } from "../_utils/dictation-formatters";
 
 export function DictationStartPanel({
   content,
+  inProgressAttempt,
   isRestoring,
   isStarting,
   onRestore,
+  onResume,
   onStart,
   restoreError,
   startError,
+  totalAttempts = 0,
 }: DictationStartPanelProps) {
   const youtubeVideoId = useMemo(
     () => (content.audio_url ? getYouTubeVideoId(content.audio_url) : undefined),
@@ -68,7 +72,7 @@ export function DictationStartPanel({
               </div>
               <div className="border-l-2 border-border p-3 text-center sm:p-4">
                 <dt className="text-xs font-heading tracking-wide uppercase text-foreground/55">
-                  Prompts
+                  Segments
                 </dt>
                 <dd className="mt-1 font-heading text-lg">{content.prompts.length}</dd>
               </div>
@@ -84,11 +88,11 @@ export function DictationStartPanel({
           }
           className="mt-6"
           description={content.description ?? "Practice Japanese listening one segment at a time."}
-          eyebrow="Segment Dictation"
+          eyebrow="Dictation Practice"
           title={content.title}
         />
 
-        <div className="mt-6 flex flex-wrap gap-2">
+        <div className="mt-6 flex flex-wrap items-center gap-2">
           {content.topic ? (
             <Badge className="gap-2" variant="neutral">
               <Tag aria-hidden="true" />
@@ -103,6 +107,17 @@ export function DictationStartPanel({
             <Clock3 aria-hidden="true" />
             Timestamped sentence practice
           </Badge>
+          {totalAttempts > 0 && (
+            <Badge className="gap-2" variant="neutral">
+              <History aria-hidden="true" />
+              {totalAttempts} {totalAttempts === 1 ? "attempt" : "attempts"}
+            </Badge>
+          )}
+          {inProgressAttempt && (
+            <Badge className="gap-1.5 bg-chart-3 font-heading">
+              In progress (Segmented #{inProgressAttempt.attempt_number})
+            </Badge>
+          )}
         </div>
       </div>
 
@@ -121,7 +136,7 @@ export function DictationStartPanel({
         {/* Left Column: Video Preview */}
         <section
           aria-labelledby="dictation-preview-heading"
-          className="overflow-hidden rounded-base border-4 border-border bg-secondary-background shadow-shadow lg:col-span-7"
+          className="overflow-hidden rounded-base border-2 border-border bg-secondary-background shadow-shadow lg:col-span-7"
         >
           <div className="flex items-center justify-between border-b-2 border-border bg-main px-4 py-3 text-main-foreground">
             <div className="flex items-center gap-2">
@@ -170,11 +185,11 @@ export function DictationStartPanel({
         {/* Right Column: Practice Overview & Actions */}
         <section
           aria-labelledby="dictation-actions-heading"
-          className="overflow-hidden rounded-base border-4 border-border bg-secondary-background shadow-shadow lg:col-span-5"
+          className="overflow-hidden rounded-base border-2 border-border bg-secondary-background shadow-shadow lg:col-span-5"
         >
           <div className="border-b-2 border-border bg-background p-5 sm:p-6">
             <Badge className="gap-2 bg-main text-main-foreground shadow-shadow">
-              Ready to practice
+              {inProgressAttempt ? "Resume practice" : "Ready to practice"}
             </Badge>
             <h2 className="mt-3 font-heading text-2xl" id="dictation-actions-heading">
               Dictation Practice
@@ -189,7 +204,7 @@ export function DictationStartPanel({
               <div className="rounded-base border-2 border-border bg-background p-3 text-center sm:p-3.5">
                 <dt className="flex items-center justify-center gap-1 text-[11px] font-heading tracking-wide uppercase text-foreground/60 sm:text-xs">
                   <Bookmark aria-hidden="true" className="size-3.5" />
-                  JLPT Level
+                  JLPT
                 </dt>
                 <dd className="mt-1 font-heading text-xl sm:text-2xl">{content.difficulty}</dd>
               </div>
@@ -211,6 +226,35 @@ export function DictationStartPanel({
               </div>
             </dl>
 
+            {inProgressAttempt && (
+              <div className="rounded-base border-2 border-border bg-background p-3.5 shadow-sm">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-heading text-foreground/70">Saved progress:</span>
+                  <span className="font-heading text-foreground">
+                    {inProgressAttempt.checked_segments?.length ?? 0} of {content.prompts.length}{" "}
+                    segments answered
+                  </span>
+                </div>
+                {content.prompts.length > 0 && (
+                  <div className="mt-2 h-2 w-full overflow-hidden rounded-full border border-border/60 bg-secondary-background">
+                    <div
+                      className="h-full bg-foreground transition-all duration-300"
+                      style={{
+                        width: `${Math.min(
+                          100,
+                          Math.round(
+                            ((inProgressAttempt.checked_segments?.length ?? 0) /
+                              content.prompts.length) *
+                              100,
+                          ),
+                        )}%`,
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+
             {startError ? (
               <Alert variant="destructive">
                 <AlertCircle aria-hidden="true" />
@@ -231,7 +275,7 @@ export function DictationStartPanel({
             <Button
               className="min-h-12 w-full font-heading text-base"
               disabled={isRestoring || isStarting || content.prompts.length === 0}
-              onClick={restoreError ? onRestore : onStart}
+              onClick={restoreError ? onRestore : inProgressAttempt ? onResume : onStart}
               size="lg"
               type="button"
             >
@@ -249,6 +293,11 @@ export function DictationStartPanel({
                 <>
                   <RotateCcw aria-hidden="true" />
                   Try restoring again
+                </>
+              ) : inProgressAttempt ? (
+                <>
+                  <RotateCcw aria-hidden="true" />
+                  Resume Dictation Attempt
                 </>
               ) : (
                 <>

@@ -25,6 +25,12 @@
   --chart-4: #05e17a;
   --chart-5: #7a83ff;
   --chart-active-dot: #000;
+  --status-correct-text: #15803d;
+  --status-correct-bg: #ecfdf5;
+  --status-correct-border: #86efac;
+  --status-review-text: #b45309;
+  --status-review-bg: #fffbeb;
+  --status-review-border: #fcd34d;
 }
 
 .dark {
@@ -48,9 +54,21 @@
   --chart-4: #04c86d;
   --chart-5: #7a83ff;
   --chart-active-dot: #fff;
+  --status-correct-text: #4ade80;
+  --status-correct-bg: oklch(25% 0.05 150);
+  --status-correct-border: #22c55e;
+  --status-review-text: #fbbf24;
+  --status-review-bg: oklch(25% 0.05 75);
+  --status-review-border: #f59e0b;
 }
 
 @theme inline {
+  --color-status-correct-text: var(--status-correct-text);
+  --color-status-correct-bg: var(--status-correct-bg);
+  --color-status-correct-border: var(--status-correct-border);
+  --color-status-review-text: var(--status-review-text);
+  --color-status-review-bg: var(--status-review-bg);
+  --color-status-review-border: var(--status-review-border);
   --color-main: var(--main);
   --color-background: var(--background);
   --color-secondary-background: var(--secondary-background);

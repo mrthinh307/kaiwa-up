@@ -26,9 +26,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
-import type { DictationWorkstationProps } from "../../_types/dictation-practice";
+import type { DictationWorkstationProps } from "../_types/dictation-practice";
 
-import { formatDictationTimestamp, getYouTubeVideoId } from "../../_utils/dictation-formatters";
+import { formatDictationTimestamp, getYouTubeVideoId } from "../_utils/dictation-formatters";
+import { DictationDiffViewer } from "./dictation-diff-viewer";
 import { SegmentAudioPlayer } from "./segment-audio-player";
 
 type SegmentPlaybackBarProps = {
@@ -191,6 +192,12 @@ export function DictationWorkstation({
   }, [activeAnswer, activeSegment.segment_index]);
 
   useEffect(() => {
+    if (!isChecking && textareaRef.current) {
+      textareaRef.current.focus();
+    }
+  }, [activeSegment.segment_index, isChecking]);
+
+  useEffect(() => {
     if (playbackRequest === lastPlaybackRequestRef.current) {
       return;
     }
@@ -266,29 +273,31 @@ export function DictationWorkstation({
         </Alert>
       ) : null}
 
-      <div className="overflow-hidden rounded-base border-4 border-border bg-secondary-background shadow-shadow">
+      <div className="overflow-hidden rounded-base border-2 border-border bg-secondary-background shadow-shadow">
         {/* 1. Workstation Header */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b-2 border-border bg-background p-4 sm:px-6 sm:py-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b-2 border-border bg-background px-4 py-2.5 sm:px-5 sm:py-2.5">
           <div className="flex items-center gap-3">
-            <span className="flex items-center gap-1.5 font-heading text-lg sm:text-xl">
-              <Sparkles aria-hidden="true" className="size-5 text-main" />
+            <span className="flex items-center gap-1.5 font-heading text-base sm:text-lg">
+              <Sparkles aria-hidden="true" className="size-4.5 text-main" />
               Segment {activeSegment.segment_index + 1}
-              <span className="text-sm font-normal text-foreground/60">/ {totalSegments}</span>
+              <span className="text-xs font-normal text-foreground/60 sm:text-sm">
+                / {totalSegments}
+              </span>
             </span>
 
             {/* Status indicator */}
             {isChecked ? (
               isCorrect ? (
-                <Badge className="gap-1 bg-success text-main-foreground shadow-xs">
-                  <CheckCircle2 aria-hidden="true" className="size-3.5" />
+                <Badge className="gap-1 border-status-correct-border bg-status-correct-bg font-heading text-status-correct-text shadow-xs">
+                  <CheckCircle2 aria-hidden="true" className="size-3.5 text-status-correct-text" />
                   Correct
                 </Badge>
               ) : (
                 <Badge
-                  className="gap-1 border-chart-3/50 bg-chart-3/15 text-chart-3"
+                  className="gap-1 border-status-review-border bg-status-review-bg font-heading text-status-review-text shadow-xs"
                   variant="neutral"
                 >
-                  <XCircle aria-hidden="true" className="size-3.5" />
+                  <XCircle aria-hidden="true" className="size-3.5 text-status-review-text" />
                   Needs review
                 </Badge>
               )
@@ -305,7 +314,7 @@ export function DictationWorkstation({
             )}
           </div>
 
-          <div className="flex items-center gap-1.5 rounded-base border-2 border-border bg-secondary-background px-3 py-1 text-xs font-heading tabular-nums text-foreground/75 sm:text-sm">
+          <div className="flex items-center gap-1.5 rounded-base border-2 border-border bg-secondary-background px-2.5 py-0.5 text-xs font-heading tabular-nums text-foreground/75 sm:text-sm">
             <Clock3 aria-hidden="true" className="size-3.5 text-foreground/60" />
             {formatDictationTimestamp(activeSegment.start_time_ms)}–
             {formatDictationTimestamp(activeSegment.end_time_ms)}
@@ -333,7 +342,7 @@ export function DictationWorkstation({
             youtubeVideoId={youtubeVideoId}
           />
         ) : audioUrl ? (
-          <div className="flex min-h-24 items-center justify-center bg-secondary-background p-4 sm:p-5">
+          <div className="flex min-h-20 items-center justify-center bg-secondary-background p-3 sm:p-4">
             <audio
               className="w-full"
               controls
@@ -348,9 +357,11 @@ export function DictationWorkstation({
             />
           </div>
         ) : (
-          <div className="flex min-h-24 flex-col items-center justify-center gap-3 bg-black p-6 text-center text-secondary-background">
-            <VideoOff aria-hidden="true" className="size-10" />
-            <p className="font-heading">Audio is unavailable for this attempt.</p>
+          <div className="flex min-h-20 flex-col items-center justify-center gap-2 bg-black p-4 text-center text-secondary-background">
+            <VideoOff aria-hidden="true" className="size-8" />
+            <p className="font-heading text-xs sm:text-sm">
+              Audio is unavailable for this attempt.
+            </p>
           </div>
         )}
 
@@ -365,14 +376,14 @@ export function DictationWorkstation({
         ) : null}
 
         {/* 4. Japanese Input Textarea */}
-        <div className="bg-background p-4 sm:p-6">
-          <Label className="font-heading text-sm sm:text-base" htmlFor="dictation-segment-answer">
+        <div className="bg-background p-3.5 sm:px-5 sm:py-3.5">
+          <Label className="font-heading text-xs sm:text-sm" htmlFor="dictation-segment-answer">
             Your Japanese transcript
           </Label>
           <Textarea
             aria-describedby="dictation-answer-help"
             autoComplete="off"
-            className="mt-2 min-h-20 max-h-56 resize-none bg-secondary-background p-3.5 text-base leading-relaxed sm:text-lg"
+            className="mt-1.5 min-h-16 max-h-36 resize-none bg-secondary-background p-3 text-base leading-relaxed"
             disabled={isChecking}
             defaultValue={activeAnswer}
             id="dictation-segment-answer"
@@ -405,7 +416,7 @@ export function DictationWorkstation({
             spellCheck={false}
           />
           <div
-            className="mt-2.5 flex flex-wrap items-center justify-between gap-1 text-[11px] text-foreground/60 sm:text-xs"
+            className="mt-1.5 flex flex-wrap items-center justify-between gap-1 text-[11px] text-foreground/60"
             id="dictation-answer-help"
           >
             <span>Punctuation and spaces do not affect comparison.</span>
@@ -414,21 +425,21 @@ export function DictationWorkstation({
         </div>
 
         {/* 5. Unified Action Bar */}
-        <div className="grid grid-cols-1 gap-2.5 border-t-2 border-border bg-secondary-background p-4 sm:grid-cols-[auto_1fr_auto] sm:gap-3 sm:px-6 sm:py-4">
+        <div className="grid grid-cols-1 gap-2.5 border-t-2 border-border bg-secondary-background px-4 py-2.5 sm:grid-cols-[auto_1fr_auto] sm:gap-3 sm:px-5 sm:py-2.5">
           <Button
-            className="order-2 font-heading sm:order-1"
+            className="order-2 gap-1.5 font-heading sm:order-1"
             disabled={isChecking || isFirstSegment}
             onClick={onPrevious}
             type="button"
             variant="neutral"
           >
             <ArrowLeft aria-hidden="true" />
-            Previous
+            <span>Previous</span>
           </Button>
 
           <Button
             className={cn(
-              "order-1 h-10 w-full font-heading text-sm sm:order-2 sm:text-base",
+              "order-1 h-11 w-full gap-2 font-heading text-sm sm:order-2 sm:text-base",
               !hasAnswer && "opacity-75",
             )}
             disabled={isChecking || !hasAnswer}
@@ -443,96 +454,88 @@ export function DictationWorkstation({
             ) : (
               <>
                 <Send aria-hidden="true" />
-                {isChecked
-                  ? "Check this answer again"
-                  : hasAnswer
-                    ? "Check segment"
-                    : "Type your answer to check"}
+                <span>
+                  {isChecked
+                    ? "Check this answer again"
+                    : hasAnswer
+                      ? "Check segment"
+                      : "Type your answer to check"}
+                </span>
               </>
             )}
           </Button>
 
           <Button
-            className="order-3 font-heading sm:order-3"
+            className="order-3 gap-1.5 font-heading sm:order-3"
             disabled={isChecking || isLastSegment}
             onClick={onNext}
             type="button"
             variant="neutral"
           >
-            Next
+            <span>Next</span>
             <ArrowRight aria-hidden="true" />
           </Button>
         </div>
 
-        {/* 6. Inline Feedback Section */}
+        {/* 6. Inline Feedback Section with Smart Diff */}
         {activeResult ? (
           <div
             aria-live="polite"
-            className="border-t-2 border-border bg-background p-4 outline-none sm:p-6"
+            className="border-t-2 border-border bg-background p-4 outline-none sm:p-5"
             id="dictation-segment-feedback"
             tabIndex={-1}
           >
             <div
               className={cn(
-                "rounded-base border-2 border-border p-4 shadow-xs",
+                "rounded-base border-2 p-4 shadow-xs",
                 activeResult.is_correct
-                  ? "border-success/50 bg-success/10 text-foreground"
-                  : "border-chart-3/50 bg-chart-3/10 text-foreground",
+                  ? "border-status-correct-border bg-status-correct-bg/60 text-foreground"
+                  : "border-status-review-border bg-status-review-bg/60 text-foreground",
               )}
             >
               <div className="flex items-start gap-3">
                 {activeResult.is_correct ? (
                   <CheckCircle2
                     aria-hidden="true"
-                    className="mt-0.5 size-6 shrink-0 text-success"
+                    className="mt-0.5 size-5 shrink-0 text-status-correct-text"
                   />
                 ) : (
-                  <XCircle aria-hidden="true" className="mt-0.5 size-6 shrink-0 text-chart-3" />
+                  <XCircle
+                    aria-hidden="true"
+                    className="mt-0.5 size-5 shrink-0 text-status-review-text"
+                  />
                 )}
                 <div className="flex-1">
-                  <h3 className="font-heading text-base sm:text-lg">
+                  <h3
+                    className={cn(
+                      "font-heading text-base sm:text-lg",
+                      activeResult.is_correct
+                        ? "text-status-correct-text"
+                        : "text-status-review-text",
+                    )}
+                  >
                     {activeResult.is_correct
                       ? "Correct — nicely heard!"
                       : "Not quite — compare and retry"}
                   </h3>
                   <p className="mt-0.5 text-xs text-foreground/75 sm:text-sm">
                     {activeResult.is_correct
-                      ? "Your answer matches after normalization. You can continue to the next segment."
+                      ? "Your answer matches after normalization. Continue to the next segment."
                       : showCorrectAnswer
-                        ? "Review the correct transcript below, replay the audio, and try checking again."
+                        ? "Compare the character diff below, replay the audio, and try again."
                         : "Your answer does not match. You can reveal the correct transcript from Settings."}
                   </p>
                 </div>
               </div>
 
               {showCorrectAnswer ? (
-                <dl className="mt-4 grid gap-3 border-t border-border/40 pt-3 text-xs sm:text-sm">
-                  {!activeResult.is_correct ? (
-                    <div>
-                      <dt className="font-heading text-[11px] uppercase tracking-wide text-foreground/60">
-                        Your checked answer
-                      </dt>
-                      <dd
-                        className="mt-1 whitespace-pre-wrap rounded-base border border-border bg-background p-2.5 font-sans leading-relaxed"
-                        lang="ja"
-                      >
-                        {activeResult.user_answer}
-                      </dd>
-                    </div>
-                  ) : null}
-
-                  <div>
-                    <dt className="font-heading text-[11px] uppercase tracking-wide text-foreground/60">
-                      Correct transcript
-                    </dt>
-                    <dd
-                      className="mt-1 rounded-base border-2 border-border bg-background p-3 font-heading text-base leading-relaxed sm:text-lg"
-                      lang="ja"
-                    >
-                      {activeResult.correct_script}
-                    </dd>
-                  </div>
-                </dl>
+                <div className="mt-3.5 border-t border-border/30 pt-3">
+                  <DictationDiffViewer
+                    correctScript={activeResult.correct_script}
+                    isCorrect={activeResult.is_correct}
+                    userAnswer={activeResult.user_answer}
+                  />
+                </div>
               ) : null}
             </div>
           </div>

@@ -29,11 +29,11 @@ import type {
   DictationKeyboardShortcut,
   DictationResultProps,
   DictationSegmentMapResult,
-} from "../../_types/dictation-practice";
+} from "../_types/dictation-practice";
 
-import { useDictationSettings } from "../../_hooks/use-dictation-settings";
-import { usePracticeShortcuts } from "../../_hooks/use-practice-shortcuts";
-import { formatDictationTimestamp, getYouTubeVideoId } from "../../_utils/dictation-formatters";
+import { useDictationSettings } from "../_hooks/use-dictation-settings";
+import { usePracticeShortcuts } from "../_hooks/use-practice-shortcuts";
+import { formatDictationTimestamp, getYouTubeVideoId } from "../_utils/dictation-formatters";
 import { DictationPracticeSidebar } from "./dictation-practice-sidebar";
 import { DictationSettingsSheet } from "./dictation-settings-sheet";
 import { DictationToolbar } from "./dictation-toolbar";
@@ -57,6 +57,7 @@ export function DictationResult({
   isStarting,
   onTryAgain,
   review,
+  shouldCelebrate = false,
   startError,
 }: DictationResultProps) {
   const {
@@ -262,7 +263,7 @@ export function DictationResult({
 
   return (
     <section aria-labelledby="dictation-result-heading" className="space-y-6">
-      <ExpRewardOverlay expEarned={completion.earned_exp} />
+      {shouldCelebrate ? <ExpRewardOverlay expEarned={completion.earned_exp} /> : null}
 
       <DictationToolbar
         difficulty={content.difficulty}
@@ -280,7 +281,7 @@ export function DictationResult({
         }
       />
 
-      <div className="overflow-hidden rounded-base border-4 border-border bg-secondary-background shadow-shadow">
+      <div className="overflow-hidden rounded-base border-2 border-border bg-secondary-background shadow-shadow">
         <div className="grid lg:grid-cols-[minmax(0,1.15fr)_minmax(420px,0.85fr)]">
           <div className="bg-background p-6 sm:p-8 lg:p-10">
             <Badge className="gap-2" variant="neutral">
@@ -332,7 +333,7 @@ export function DictationResult({
         <div className="space-y-5 lg:col-span-8">
           <section
             aria-labelledby="dictation-review-listen-heading"
-            className="overflow-hidden rounded-base border-4 border-border bg-secondary-background shadow-shadow"
+            className="overflow-hidden rounded-base border-2 border-border bg-secondary-background shadow-shadow"
           >
             <div className="flex items-center justify-between gap-3 border-b-2 border-border bg-main px-4 py-3 text-main-foreground">
               <div className="flex items-center gap-2">
@@ -442,7 +443,7 @@ export function DictationResult({
             )}
           </section>
 
-          <section className="overflow-hidden rounded-base border-4 border-border bg-secondary-background shadow-shadow">
+          <section className="overflow-hidden rounded-base border-2 border-border bg-secondary-background shadow-shadow">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b-2 border-border p-5 sm:p-6">
               <div>
                 <p className="text-xs font-heading tracking-wide uppercase text-foreground/60">
@@ -559,7 +560,7 @@ export function DictationResult({
             </div>
           </section>
 
-          <section className="rounded-base border-4 border-border bg-secondary-background p-5 shadow-shadow sm:p-6">
+          <section className="rounded-base border-2 border-border bg-secondary-background p-5 shadow-shadow sm:p-6">
             <h3 className="font-heading text-lg">What next?</h3>
             <p className="mt-1 text-sm leading-relaxed text-foreground/70">
               Start a fresh attempt to practice again, or return to the lesson catalog.

@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 
 import { notFound } from "next/navigation";
 
+import { DictationStartScreen } from "../_components/dictation-start-screen";
 import { getDictationContentFromApi } from "../_utils/dictation-content-api";
-import { DictationPracticeScreen } from "./_components/dictation-practice-screen";
 
 type DictationLessonPageProps = {
   params: Promise<{ lessonId: string }>;
@@ -34,7 +34,7 @@ export default async function DictationLessonPage({ params }: DictationLessonPag
   return (
     <main className="px-4 py-6 sm:px-8 sm:py-8 lg:py-10">
       <div className="mx-auto w-full max-w-[1300px]">
-        <DictationPracticeScreen content={content} />
+        <DictationStartScreen content={content} />
       </div>
     </main>
   );

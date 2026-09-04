@@ -14,9 +14,9 @@ export default function DictationLessonLoading() {
           </div>
           <Skeleton className="h-24 w-full" />
         </div>
-        <Skeleton className="mt-8 h-56 w-full border-4" />
+        <Skeleton className="mt-8 h-56 w-full border-2" />
         <div className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
-          <Skeleton className="h-[520px] w-full border-4" />
+          <Skeleton className="h-[520px] w-full border-2" />
           <Skeleton className="h-80 w-full" />
         </div>
       </div>

@@ -2,6 +2,7 @@ import type {
   DictationAttemptReviewResponse,
   DictationCompleteResponse,
   DictationContentDetail,
+  DictationResumeResponse,
   DictationSegmentCheckResponse,
   DictationSegmentItem,
   DictationStartResponse,
@@ -24,12 +25,15 @@ export type DictationKeyboardShortcut = {
 
 export type DictationStartPanelProps = {
   content: DictationPracticeContent;
+  inProgressAttempt?: DictationResumeResponse | null;
   isRestoring: boolean;
   isStarting: boolean;
   onRestore: () => void;
+  onResume: () => void;
   onStart: () => void;
   restoreError?: string;
   startError?: string;
+  totalAttempts?: number;
 };
 
 export type CompactPracticeToolbarProps = {
@@ -84,15 +88,18 @@ export type DictationPracticeSidebarProps = {
   correctCount: number;
   draftCount: number;
   hideCompletionCard?: boolean;
+  hideStats?: boolean;
   isCompleting: boolean;
   keyboardShortcuts?: readonly DictationKeyboardShortcut[];
   onComplete: () => void;
   onSelectSegment: (segmentIndex: number) => void;
   results: Record<number, DictationSegmentMapResult>;
   segments: DictationSegmentItem[];
+  showVideo?: boolean;
   storedResultCount: number;
   totalSegments: number;
   variant?: "practice" | "result";
+  youtubeVideoId?: string;
 };
 
 export type DictationResultProps = {
@@ -102,5 +109,6 @@ export type DictationResultProps = {
   isStarting: boolean;
   onTryAgain: () => void;
   review: DictationAttemptReviewResponse;
+  shouldCelebrate?: boolean;
   startError?: string;
 };
