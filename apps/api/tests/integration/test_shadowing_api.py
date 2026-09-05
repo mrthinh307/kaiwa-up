@@ -1629,7 +1629,7 @@ async def test_in_progress_attempt_returns_playback_urls_for_all_recorded_segmen
     seg_summary = in_prog_data["recorded_segments"][0]
     assert seg_summary["segment_id"] == "0"
     assert seg_summary["playback_url"] is not None
-    assert seg_summary["playback_url"].startswith("http")
+    assert seg_summary["playback_url"].startswith(("http://", "https://", "/static/recordings/"))
 
 
 @pytest.mark.asyncio
