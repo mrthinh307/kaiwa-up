@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
+import { loadYouTubeIframeApi } from "@/lib/youtube-iframe-api";
+
 const PLAYBACK_RATES = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2] as const;
-const YOUTUBE_IFRAME_API_SCRIPT_ID = "youtube-iframe-api";
-const YOUTUBE_IFRAME_API_URL = "https://www.youtube.com/iframe_api";
 const YOUTUBE_PLAYER_STATE = {
   unstarted: -1,
   ended: 0,
@@ -63,59 +63,6 @@ type YouTubeApi = {
     },
   ) => YouTubePlayer;
 };
-
-declare global {
-  interface Window {
-    YT?: YouTubeApi;
-    onYouTubeIframeAPIReady?: () => void;
-  }
-}
-
-let youtubeApiPromise: Promise<YouTubeApi> | undefined;
-
-function loadYouTubeIframeApi(): Promise<YouTubeApi> {
-  if (window.YT?.Player) {
-    return Promise.resolve(window.YT);
-  }
-
-  if (youtubeApiPromise) {
-    return youtubeApiPromise;
-  }
-
-  youtubeApiPromise = new Promise<YouTubeApi>((resolve, reject) => {
-    const resolveApi = () => {
-      if (window.YT?.Player) {
-        resolve(window.YT);
-      }
-    };
-    const rejectApi = () => {
-      youtubeApiPromise = undefined;
-      reject(new Error("YouTube IFrame API failed to load"));
-    };
-    const previousReadyCallback = window.onYouTubeIframeAPIReady;
-
-    window.onYouTubeIframeAPIReady = () => {
-      previousReadyCallback?.();
-      resolveApi();
-    };
-
-    const existingScript = document.getElementById(YOUTUBE_IFRAME_API_SCRIPT_ID);
-    if (existingScript) {
-      existingScript.addEventListener("load", resolveApi, { once: true });
-      existingScript.addEventListener("error", rejectApi, { once: true });
-      return;
-    }
-
-    const script = document.createElement("script");
-    script.async = true;
-    script.id = YOUTUBE_IFRAME_API_SCRIPT_ID;
-    script.onerror = rejectApi;
-    script.src = YOUTUBE_IFRAME_API_URL;
-    document.head.append(script);
-  });
-
-  return youtubeApiPromise;
-}
 
 type UseSegmentAudioPlayerOptions = {
   autoPlayDelayMs: number;
@@ -196,7 +143,7 @@ export function useSegmentAudioPlayer({
   useEffect(() => {
     let isDisposed = false;
 
-    void loadYouTubeIframeApi()
+    void loadYouTubeIframeApi<YouTubeApi>()
       .then((youtubeApi) => {
         const iframe = iframeRef.current;
         if (isDisposed || !iframe) {

@@ -123,9 +123,9 @@ export function useDictationSegmentPlayback({
     void audio.play().catch(() => undefined);
   }, [activeSegmentStartTimeMs, playbackRequest]);
 
-  const handleReplay = () => {
+  const handleReplay = useCallback(() => {
     onReplay();
-  };
+  }, [onReplay]);
 
   const handleLoopToggle = useCallback(() => {
     setIsLoopEnabled((isEnabled) => !isEnabled);

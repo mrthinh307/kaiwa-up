@@ -2,7 +2,7 @@
 
 import type { ShadowingAttemptPracticeResponse, TranscriptSegment } from "@kaiwa-app/api-client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { toast } from "sonner";
 
 import { useAuth } from "@/hooks/use-auth";
@@ -12,6 +12,8 @@ import {
   submitShadowingAttempt,
 } from "@/lib/api-client";
 import { parseApiFailure } from "@/lib/api-errors";
+
+import type { RecorderCardHandle } from "../_components/recorder-card";
 
 import { formatShadowingDuration } from "../_utils/shadowing-formatters";
 import { useAudioPlayer } from "./use-audio-player";
@@ -34,7 +36,7 @@ type ShadowingPracticeSessionOptions = {
   onAttemptCompleted: (attemptId: string) => void;
   onAttemptNotInProgress: () => void;
   practice: ShadowingAttemptPracticeResponse;
-  recorderRef: MutableRefObject<{ toggleRecording: () => void } | null>;
+  recorderRef: RefObject<RecorderCardHandle | null>;
 };
 
 function buildRecordedSegments(
@@ -153,13 +155,22 @@ export function useShadowingPracticeSession({
     if (!audioBlob) return;
 
     setIsSubmitting(true);
+    let rollbackOptimisticUpdate: () => void = () => undefined;
     try {
       const durationSeconds = Math.max(1, Math.round(durationMs / 1000));
       const audioFile = new File([audioBlob], "recording.webm", { type: "audio/webm" });
 
       if (isContinuous) {
+        const previousAudioUrl = continuousAudioUrl;
+        const previousDurationSeconds = continuousDurationSeconds;
         const localBlobUrl = URL.createObjectURL(audioBlob);
         localObjectUrlsRef.current.add(localBlobUrl);
+        rollbackOptimisticUpdate = () => {
+          setContinuousAudioUrl(previousAudioUrl);
+          setContinuousDurationSeconds(previousDurationSeconds);
+          localObjectUrlsRef.current.delete(localBlobUrl);
+          URL.revokeObjectURL(localBlobUrl);
+        };
         setContinuousAudioUrl(localBlobUrl);
         setContinuousDurationSeconds(durationSeconds);
 
@@ -178,6 +189,7 @@ export function useShadowingPracticeSession({
           setContinuousDurationSeconds(response.data.duration_seconds);
           toast.success("Continuous recording saved!");
         } else {
+          rollbackOptimisticUpdate();
           const failure = parseApiFailure(response);
           if (failure.code === "shadowing_attempt_not_in_progress") {
             onAttemptNotInProgress();
@@ -188,8 +200,22 @@ export function useShadowingPracticeSession({
       } else {
         const segmentIndex = targetSegmentIndex ?? selectedSegmentIndex;
         const segmentId = String(segmentIndex);
+        const previousSegment = recordedSegments[segmentId];
         const localBlobUrl = URL.createObjectURL(audioBlob);
         localObjectUrlsRef.current.add(localBlobUrl);
+        rollbackOptimisticUpdate = () => {
+          setRecordedSegments((currentSegments) => {
+            if (previousSegment) {
+              return { ...currentSegments, [segmentId]: previousSegment };
+            }
+
+            const nextSegments = { ...currentSegments };
+            delete nextSegments[segmentId];
+            return nextSegments;
+          });
+          localObjectUrlsRef.current.delete(localBlobUrl);
+          URL.revokeObjectURL(localBlobUrl);
+        };
 
         setRecordedSegments((currentSegments) => ({
           ...currentSegments,
@@ -223,6 +249,7 @@ export function useShadowingPracticeSession({
           }));
           toast.success(`Segment #${segmentIndex + 1} recorded!`);
         } else {
+          rollbackOptimisticUpdate();
           const failure = parseApiFailure(response);
           if (failure.code === "shadowing_attempt_not_in_progress") {
             onAttemptNotInProgress();
@@ -232,6 +259,7 @@ export function useShadowingPracticeSession({
         }
       }
     } catch (error: unknown) {
+      rollbackOptimisticUpdate();
       toast.error("Could not upload recording", {
         description: error instanceof Error ? error.message : "An unexpected error occurred",
       });

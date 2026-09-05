@@ -42,8 +42,12 @@ export function useYouTubeLessonPreview({
       if (hoverTimerRef.current) {
         clearTimeout(hoverTimerRef.current);
       }
+      if (activationModeRef.current) {
+        activationModeRef.current = null;
+        deactivatePreview(lessonId);
+      }
     },
-    [],
+    [deactivatePreview, lessonId],
   );
 
   const clearHoverTimer = () => {

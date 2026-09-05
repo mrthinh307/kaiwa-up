@@ -16,6 +16,21 @@ export function useShadowingReview(review: ShadowingAttemptReviewResponse) {
   const continuousAudioRef = useRef<HTMLAudioElement | null>(null);
   const activeSegmentRef = useRef<HTMLDivElement | null>(null);
 
+  const cleanupUserAudio = useCallback(() => {
+    const audio = userAudioRef.current;
+    if (!audio) {
+      return;
+    }
+
+    audio.pause();
+    audio.onended = null;
+    audio.removeAttribute("src");
+    audio.load();
+    userAudioRef.current = null;
+  }, []);
+
+  useEffect(() => cleanupUserAudio, [cleanupUserAudio]);
+
   useEffect(() => {
     if (!review.user_continuous_recording_url) return;
 
