@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type SyntheticEvent } from "react";
 
-const YOUTUBE_IFRAME_API_SCRIPT_ID = "youtube-iframe-api";
-const YOUTUBE_IFRAME_API_URL = "https://www.youtube.com/iframe_api";
+import { loadYouTubeIframeApi } from "@/lib/youtube-iframe-api";
+
 const YOUTUBE_VIDEO_ID_PATTERN = /^[A-Za-z0-9_-]{11}$/;
 const YOUTUBE_PLAYER_STATE = { ended: 0, paused: 2, playing: 1 } as const;
 
@@ -42,17 +42,6 @@ type TranslationYouTubeApi = {
   ) => TranslationYouTubePlayer;
 };
 
-type TranslationYouTubeGlobals = {
-  YT?: TranslationYouTubeApi;
-  onYouTubeIframeAPIReady?: () => void;
-};
-
-let youtubeApiPromise: Promise<TranslationYouTubeApi> | undefined;
-
-function getTranslationYouTubeGlobals(): TranslationYouTubeGlobals {
-  return window as unknown as TranslationYouTubeGlobals;
-}
-
 function extractYouTubeVideoId(audioUrl: string): string | null {
   try {
     const url = new URL(audioUrl);
@@ -74,53 +63,6 @@ function extractYouTubeVideoId(audioUrl: string): string | null {
   } catch {
     return null;
   }
-}
-
-function loadYouTubeIframeApi(): Promise<TranslationYouTubeApi> {
-  const youtubeGlobals = getTranslationYouTubeGlobals();
-
-  if (youtubeGlobals.YT?.Player) {
-    return Promise.resolve(youtubeGlobals.YT);
-  }
-
-  if (youtubeApiPromise) {
-    return youtubeApiPromise;
-  }
-
-  youtubeApiPromise = new Promise<TranslationYouTubeApi>((resolve, reject) => {
-    const resolveApi = () => {
-      const readyGlobals = getTranslationYouTubeGlobals();
-      if (readyGlobals.YT?.Player) {
-        resolve(readyGlobals.YT);
-      }
-    };
-    const rejectApi = () => {
-      youtubeApiPromise = undefined;
-      reject(new Error("YouTube IFrame API failed to load"));
-    };
-    const previousReadyCallback = youtubeGlobals.onYouTubeIframeAPIReady;
-
-    youtubeGlobals.onYouTubeIframeAPIReady = () => {
-      previousReadyCallback?.();
-      resolveApi();
-    };
-
-    const existingScript = document.getElementById(YOUTUBE_IFRAME_API_SCRIPT_ID);
-    if (existingScript) {
-      existingScript.addEventListener("load", resolveApi, { once: true });
-      existingScript.addEventListener("error", rejectApi, { once: true });
-      return;
-    }
-
-    const script = document.createElement("script");
-    script.async = true;
-    script.id = YOUTUBE_IFRAME_API_SCRIPT_ID;
-    script.onerror = rejectApi;
-    script.src = YOUTUBE_IFRAME_API_URL;
-    document.head.append(script);
-  });
-
-  return youtubeApiPromise;
 }
 
 type TranslationAudioPlayerState = {
@@ -152,7 +94,7 @@ export function useTranslationAudioPlayer({ audioUrl }: TranslationAudioPlayerSt
 
     let isDisposed = false;
 
-    void loadYouTubeIframeApi()
+    void loadYouTubeIframeApi<TranslationYouTubeApi>()
       .then((youtubeApi) => {
         const host = youtubeHostRef.current;
         if (isDisposed || !host) {

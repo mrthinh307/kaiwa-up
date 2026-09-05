@@ -24,7 +24,9 @@ export function useReflexRecorder() {
   const responseStartRef = useRef<number | null>(null);
   const [countdown, setCountdown] = useState(0);
   const [recordedAudio, setRecordedAudio] = useState<Blob | null>(null);
+  const [recordingUrl, setRecordingUrl] = useState<string | null>(null);
   const [isPlayingRecording, setIsPlayingRecording] = useState(false);
+  const recordingUrlRef = useRef<string | null>(null);
 
   const cleanupMedia = useCallback(() => {
     if (countdownFrameRef.current !== null) cancelAnimationFrame(countdownFrameRef.current);
@@ -42,19 +44,24 @@ export function useReflexRecorder() {
 
   useEffect(() => cleanupMedia, [cleanupMedia]);
 
-  useEffect(() => {
-    const playback = recordingPlaybackRef.current;
-    if (!recordedAudio || !playback) return;
+  useEffect(
+    () => () => {
+      if (recordingUrlRef.current) {
+        URL.revokeObjectURL(recordingUrlRef.current);
+      }
+    },
+    [],
+  );
 
-    const nextRecordingUrl = URL.createObjectURL(recordedAudio);
-    playback.src = nextRecordingUrl;
-    return () => {
-      playback.pause();
-      playback.removeAttribute("src");
-      playback.load();
-      URL.revokeObjectURL(nextRecordingUrl);
-    };
-  }, [recordedAudio]);
+  const revokeRecordingUrl = useCallback(() => {
+    if (!recordingUrlRef.current) {
+      return;
+    }
+
+    URL.revokeObjectURL(recordingUrlRef.current);
+    recordingUrlRef.current = null;
+    setRecordingUrl(null);
+  }, []);
 
   const detectVoiceStart = useCallback((stream: MediaStream, onVoiceStart: () => void) => {
     const audioContext = new AudioContext();
@@ -98,14 +105,23 @@ export function useReflexRecorder() {
     };
     recorder.onstop = () => {
       const blob = new Blob(chunksRef.current, { type: recorder.mimeType || "audio/webm" });
-      setRecordedAudio(blob.size > 0 ? blob : null);
+      revokeRecordingUrl();
+      if (blob.size > 0) {
+        const nextRecordingUrl = URL.createObjectURL(blob);
+        recordingUrlRef.current = nextRecordingUrl;
+        setRecordingUrl(nextRecordingUrl);
+        setRecordedAudio(blob);
+      } else {
+        setRecordedAudio(null);
+      }
       cleanupMedia();
     };
     recorderRef.current = recorder;
+    revokeRecordingUrl();
     setRecordedAudio(null);
     setIsPlayingRecording(false);
     return true;
-  }, [cleanupMedia]);
+  }, [cleanupMedia, revokeRecordingUrl]);
 
   const beginResponse = useCallback(
     ({ onRecordingStart, onVoiceStart, responseStartLimitSeconds }: BeginResponseOptions) => {
@@ -150,8 +166,12 @@ export function useReflexRecorder() {
     const playback = recordingPlaybackRef.current;
     if (!playback) return;
     if (playback.paused) {
-      await playback.play();
-      setIsPlayingRecording(true);
+      try {
+        await playback.play();
+        setIsPlayingRecording(true);
+      } catch {
+        setIsPlayingRecording(false);
+      }
       return;
     }
     playback.pause();
@@ -163,11 +183,12 @@ export function useReflexRecorder() {
   }, []);
 
   const resetRecording = useCallback(() => {
+    revokeRecordingUrl();
     setRecordedAudio(null);
     setIsPlayingRecording(false);
     responseStartRef.current = null;
     chunksRef.current = [];
-  }, []);
+  }, [revokeRecordingUrl]);
 
   const getResponseStartMs = useCallback(
     (responseStartLimitSeconds: number) =>
@@ -183,6 +204,7 @@ export function useReflexRecorder() {
     getResponseStartMs,
     handleRecordingPlaybackEnded,
     isPlayingRecording,
+    recordingUrl,
     recordingPlaybackRef,
     recordedAudio,
     resetRecording,

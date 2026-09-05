@@ -41,6 +41,7 @@ export function ReflexPractice({ lesson }: { lesson: ReflexLesson }) {
     handleSubmit,
     isPlayingRecording,
     phase,
+    recordingUrl,
     recordedAudio,
     recordingPlaybackRef,
     result,
@@ -129,7 +130,11 @@ export function ReflexPractice({ lesson }: { lesson: ReflexLesson }) {
                   <div className="flex flex-wrap justify-center gap-3">
                     {recordedAudio ? (
                       <>
-                        <audio onEnded={handleRecordingPlaybackEnded} ref={recordingPlaybackRef} />
+                        <audio
+                          onEnded={handleRecordingPlaybackEnded}
+                          ref={recordingPlaybackRef}
+                          src={recordingUrl ?? undefined}
+                        />
                         <Button onClick={toggleRecordingPlayback} variant="neutral">
                           {isPlayingRecording ? <Pause /> : <Play />}
                           {isPlayingRecording ? "Pause playback" : "Play recording"}

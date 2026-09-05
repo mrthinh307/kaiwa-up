@@ -31,13 +31,13 @@ type DictationReviewWorkstationProps = {
   audioUrl: string;
   autoPlayDelayMs: number;
   autoPlayOnSegmentChange: boolean;
-  handleLoopToggle: () => void;
-  handleNativePlaybackBoundary: (audio: HTMLAudioElement) => void;
-  handleNext: () => void;
-  handlePlaybackEnded: () => void;
-  handlePlaybackStop: () => void;
-  handlePrevious: () => void;
-  handleReplay: () => void;
+  onLoopToggle: () => void;
+  onNativePlaybackBoundary: (audio: HTMLAudioElement) => void;
+  onNext: () => void;
+  onPlaybackEnded: () => void;
+  onPlaybackStop: () => void;
+  onPrevious: () => void;
+  onReplay: () => void;
   isLoopEnabled: boolean;
   lessonTitle: string;
   playbackRequest: number;
@@ -54,13 +54,13 @@ export function DictationReviewWorkstation({
   audioUrl,
   autoPlayDelayMs,
   autoPlayOnSegmentChange,
-  handleLoopToggle,
-  handleNativePlaybackBoundary,
-  handleNext,
-  handlePlaybackEnded,
-  handlePlaybackStop,
-  handlePrevious,
-  handleReplay,
+  onLoopToggle,
+  onNativePlaybackBoundary,
+  onNext,
+  onPlaybackEnded,
+  onPlaybackStop,
+  onPrevious,
+  onReplay,
   isLoopEnabled,
   lessonTitle,
   playbackRequest,
@@ -129,10 +129,10 @@ export function DictationReviewWorkstation({
             isAutoPlayEnabled={autoPlayOnSegmentChange}
             isLoopEnabled={isLoopEnabled}
             lessonTitle={lessonTitle}
-            onEnded={handlePlaybackEnded}
-            onLoopToggle={handleLoopToggle}
-            onReplay={handleReplay}
-            onStop={handlePlaybackStop}
+            onEnded={onPlaybackEnded}
+            onLoopToggle={onLoopToggle}
+            onReplay={onReplay}
+            onStop={onPlaybackStop}
             playbackRequest={playbackRequest}
             segmentIndex={activeSegment.segment_index}
             showVideo={showVideo}
@@ -145,10 +145,10 @@ export function DictationReviewWorkstation({
               <audio
                 className="w-full"
                 controls
-                onEnded={(event) => handleNativePlaybackBoundary(event.currentTarget)}
+                onEnded={(event) => onNativePlaybackBoundary(event.currentTarget)}
                 onTimeUpdate={(event) => {
                   if (event.currentTarget.currentTime * 1_000 >= activeSegment.end_time_ms) {
-                    handleNativePlaybackBoundary(event.currentTarget);
+                    onNativePlaybackBoundary(event.currentTarget);
                   }
                 }}
                 ref={audioRef}
@@ -165,7 +165,7 @@ export function DictationReviewWorkstation({
                 aria-label={`Loop current segment ${isLoopEnabled ? "on" : "off"}`}
                 aria-pressed={isLoopEnabled}
                 className="min-h-9 gap-1.5 font-heading text-xs"
-                onClick={handleLoopToggle}
+                onClick={onLoopToggle}
                 size="sm"
                 type="button"
                 variant={isLoopEnabled ? "default" : "neutral"}
@@ -175,7 +175,7 @@ export function DictationReviewWorkstation({
               </Button>
               <Button
                 className="min-h-9 gap-1.5 font-heading text-xs"
-                onClick={handleReplay}
+                onClick={onReplay}
                 size="sm"
                 type="button"
                 variant="neutral"
@@ -265,7 +265,7 @@ export function DictationReviewWorkstation({
         <Button
           className="gap-1.5 font-heading text-xs"
           disabled={activeReviewPosition === 0}
-          onClick={handlePrevious}
+          onClick={onPrevious}
           size="sm"
           type="button"
           variant="neutral"
@@ -284,7 +284,7 @@ export function DictationReviewWorkstation({
         <Button
           className="gap-1.5 font-heading text-xs"
           disabled={activeReviewPosition === reviewDetailsLength - 1}
-          onClick={handleNext}
+          onClick={onNext}
           size="sm"
           type="button"
           variant="neutral"
