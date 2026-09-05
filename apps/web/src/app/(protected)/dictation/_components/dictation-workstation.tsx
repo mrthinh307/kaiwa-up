@@ -17,7 +17,7 @@ import {
   VideoOff,
   XCircle,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -28,8 +28,9 @@ import { cn } from "@/lib/utils";
 
 import type { DictationWorkstationProps } from "../_types/dictation-practice";
 
-import { formatDictationTimestamp, getYouTubeVideoId } from "../_utils/dictation-formatters";
-import { DictationDiffViewer } from "./dictation-diff-viewer";
+import { useDictationSegmentPlayback } from "../_hooks/use-dictation-segment-playback";
+import { formatDictationTimestamp } from "../_utils/dictation-formatters";
+import { DictationWorkstationFeedback } from "./dictation-workstation-feedback";
 import { SegmentAudioPlayer } from "./segment-audio-player";
 
 type SegmentPlaybackBarProps = {
@@ -104,80 +105,28 @@ export function DictationWorkstation({
 }: DictationWorkstationProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const isComposingRef = useRef(false);
-  const audioRef = useRef<HTMLAudioElement>(null);
-  const scheduledPlaybackTimeoutRef = useRef<number | null>(null);
-  const shouldContinuePlaybackRef = useRef(false);
-  const previousAutoPlayEnabledRef = useRef(false);
-  const previousSegmentIndexRef = useRef(activeSegment.segment_index);
-  const lastPlaybackRequestRef = useRef(playbackRequest);
-  const [isLoopEnabled, setIsLoopEnabled] = useState(false);
   const [answerDraft, setAnswerDraft] = useState(activeAnswer);
 
-  const youtubeVideoId = useMemo(() => getYouTubeVideoId(audioUrl), [audioUrl]);
-
-  const clearScheduledPlayback = useCallback(() => {
-    if (scheduledPlaybackTimeoutRef.current === null) {
-      return;
-    }
-
-    window.clearTimeout(scheduledPlaybackTimeoutRef.current);
-    scheduledPlaybackTimeoutRef.current = null;
-  }, []);
-
-  const schedulePlayback = useCallback(() => {
-    clearScheduledPlayback();
-    scheduledPlaybackTimeoutRef.current = window.setTimeout(() => {
-      scheduledPlaybackTimeoutRef.current = null;
-      onReplay();
-    }, autoPlayDelayMs);
-  }, [autoPlayDelayMs, clearScheduledPlayback, onReplay]);
-
-  useEffect(() => clearScheduledPlayback, [clearScheduledPlayback]);
-
-  useEffect(() => {
-    const wasAutoPlayEnabled = previousAutoPlayEnabledRef.current;
-    previousAutoPlayEnabledRef.current = autoPlayOnSegmentChange;
-
-    if (!autoPlayOnSegmentChange) {
-      shouldContinuePlaybackRef.current = false;
-      clearScheduledPlayback();
-      return;
-    }
-
-    if (!wasAutoPlayEnabled) {
-      schedulePlayback();
-    }
-  }, [autoPlayOnSegmentChange, clearScheduledPlayback, schedulePlayback]);
-
-  useEffect(() => {
-    const hasSegmentChanged = previousSegmentIndexRef.current !== activeSegment.segment_index;
-    previousSegmentIndexRef.current = activeSegment.segment_index;
-
-    if (!hasSegmentChanged || !autoPlayOnSegmentChange || shouldContinuePlaybackRef.current) {
-      return;
-    }
-
-    schedulePlayback();
-  }, [activeSegment.segment_index, autoPlayOnSegmentChange, schedulePlayback]);
-
-  useEffect(() => {
-    if (!shouldContinuePlaybackRef.current) {
-      return;
-    }
-
-    shouldContinuePlaybackRef.current = false;
-    schedulePlayback();
-  }, [activeSegment.segment_index, schedulePlayback]);
-
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) {
-      return;
-    }
-
-    audio.pause();
-    audio.currentTime = activeSegment.start_time_ms / 1_000;
-  }, [activeSegment.segment_index, activeSegment.start_time_ms]);
+  const {
+    audioRef,
+    handleLoopToggle,
+    handleNativePlaybackBoundary,
+    handlePlaybackEnded,
+    handlePlaybackStop,
+    handleReplay,
+    isLoopEnabled,
+    youtubeVideoId,
+  } = useDictationSegmentPlayback({
+    activeSegmentIndex: activeSegment.segment_index,
+    activeSegmentStartTimeMs: activeSegment.start_time_ms,
+    audioUrl,
+    autoPlayDelayMs,
+    autoPlayOnSegmentChange,
+    isLastSegment,
+    onNext,
+    onReplay,
+    playbackRequest,
+  });
 
   useEffect(() => {
     const textarea = textareaRef.current;
@@ -197,21 +146,6 @@ export function DictationWorkstation({
     }
   }, [activeSegment.segment_index, isChecking]);
 
-  useEffect(() => {
-    if (playbackRequest === lastPlaybackRequestRef.current) {
-      return;
-    }
-
-    lastPlaybackRequestRef.current = playbackRequest;
-    const audio = audioRef.current;
-    if (playbackRequest === 0 || !audio) {
-      return;
-    }
-
-    audio.currentTime = activeSegment.start_time_ms / 1_000;
-    void audio.play().catch(() => undefined);
-  }, [activeSegment.segment_index, activeSegment.start_time_ms, playbackRequest]);
-
   // Auto-resize textarea according to text content
   useEffect(() => {
     const textarea = textareaRef.current;
@@ -222,42 +156,6 @@ export function DictationWorkstation({
     textarea.style.height = "auto";
     textarea.style.height = `${Math.min(Math.max(textarea.scrollHeight, 80), 220)}px`;
   }, [answerDraft]);
-
-  const handleReplayClick = () => {
-    onReplay();
-  };
-
-  const handleLoopToggle = useCallback(() => {
-    setIsLoopEnabled((isEnabled) => !isEnabled);
-  }, []);
-
-  const handlePlaybackEnded = useCallback(() => {
-    if (!autoPlayOnSegmentChange || isLastSegment) {
-      return;
-    }
-
-    shouldContinuePlaybackRef.current = true;
-    onNext();
-  }, [autoPlayOnSegmentChange, isLastSegment, onNext]);
-
-  const handleNativePlaybackBoundary = useCallback(
-    (audio: HTMLAudioElement) => {
-      if (isLoopEnabled) {
-        audio.currentTime = activeSegment.start_time_ms / 1_000;
-        void audio.play().catch(() => undefined);
-        return;
-      }
-
-      audio.pause();
-      handlePlaybackEnded();
-    },
-    [activeSegment.start_time_ms, handlePlaybackEnded, isLoopEnabled],
-  );
-
-  const handlePlaybackStop = useCallback(() => {
-    shouldContinuePlaybackRef.current = false;
-    clearScheduledPlayback();
-  }, [clearScheduledPlayback]);
 
   const hasAnswer = Boolean(answerDraft.trim());
   const isChecked = Boolean(activeResult);
@@ -333,7 +231,7 @@ export function DictationWorkstation({
             lessonTitle={lessonTitle}
             onEnded={handlePlaybackEnded}
             onLoopToggle={handleLoopToggle}
-            onReplay={handleReplayClick}
+            onReplay={handleReplay}
             onStop={handlePlaybackStop}
             playbackRequest={playbackRequest}
             segmentIndex={activeSegment.segment_index}
@@ -371,7 +269,7 @@ export function DictationWorkstation({
             hasPlayedActiveSegment={hasPlayedActiveSegment}
             isLoopEnabled={isLoopEnabled}
             onLoopToggle={handleLoopToggle}
-            onReplay={handleReplayClick}
+            onReplay={handleReplay}
           />
         ) : null}
 
@@ -479,66 +377,10 @@ export function DictationWorkstation({
 
         {/* 6. Inline Feedback Section with Smart Diff */}
         {activeResult ? (
-          <div
-            aria-live="polite"
-            className="border-t-2 border-border bg-background p-4 outline-none sm:p-5"
-            id="dictation-segment-feedback"
-            tabIndex={-1}
-          >
-            <div
-              className={cn(
-                "rounded-base border-2 p-4 shadow-xs",
-                activeResult.is_correct
-                  ? "border-status-correct-border bg-status-correct-bg/60 text-foreground"
-                  : "border-status-review-border bg-status-review-bg/60 text-foreground",
-              )}
-            >
-              <div className="flex items-start gap-3">
-                {activeResult.is_correct ? (
-                  <CheckCircle2
-                    aria-hidden="true"
-                    className="mt-0.5 size-5 shrink-0 text-status-correct-text"
-                  />
-                ) : (
-                  <XCircle
-                    aria-hidden="true"
-                    className="mt-0.5 size-5 shrink-0 text-status-review-text"
-                  />
-                )}
-                <div className="flex-1">
-                  <h3
-                    className={cn(
-                      "font-heading text-base sm:text-lg",
-                      activeResult.is_correct
-                        ? "text-status-correct-text"
-                        : "text-status-review-text",
-                    )}
-                  >
-                    {activeResult.is_correct
-                      ? "Correct — nicely heard!"
-                      : "Not quite — compare and retry"}
-                  </h3>
-                  <p className="mt-0.5 text-xs text-foreground/75 sm:text-sm">
-                    {activeResult.is_correct
-                      ? "Your answer matches after normalization. Continue to the next segment."
-                      : showCorrectAnswer
-                        ? "Compare the character diff below, replay the audio, and try again."
-                        : "Your answer does not match. You can reveal the correct transcript from Settings."}
-                  </p>
-                </div>
-              </div>
-
-              {showCorrectAnswer ? (
-                <div className="mt-3.5 border-t border-border/30 pt-3">
-                  <DictationDiffViewer
-                    correctScript={activeResult.correct_script}
-                    isCorrect={activeResult.is_correct}
-                    userAnswer={activeResult.user_answer}
-                  />
-                </div>
-              ) : null}
-            </div>
-          </div>
+          <DictationWorkstationFeedback
+            activeResult={activeResult}
+            showCorrectAnswer={showCorrectAnswer}
+          />
         ) : null}
       </div>
     </form>

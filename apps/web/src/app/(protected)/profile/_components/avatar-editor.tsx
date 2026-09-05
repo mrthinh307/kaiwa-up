@@ -3,8 +3,6 @@
 import { Camera, Loader2, Trash2, Upload } from "lucide-react";
 import dynamic from "next/dynamic";
 import Image from "next/image";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -23,19 +21,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Slider } from "@/components/ui/slider";
-import { useAuth } from "@/hooks/use-auth";
-import { getBrowserApiBaseUrl } from "@/lib/api-base-url";
-import { deleteMyAvatar, updateMyAvatar } from "@/lib/api-client";
-import { parseApiFailure } from "@/lib/api-errors";
 import { cn } from "@/lib/utils";
 
-import { getDisplayNameInitials } from "../_utils/profile-formatters";
+import { useAvatarEditor } from "../_hooks/use-avatar-editor";
 
 const Cropper = dynamic(() => import("react-easy-crop"), { ssr: false });
-
-const MAX_SOURCE_BYTES = 5 * 1024 * 1024;
-const MAX_SOURCE_PIXELS = 25_000_000;
-const MAX_OUTPUT_BYTES = 2 * 1024 * 1024;
 
 type AvatarEditorProps = {
   avatarUrl: string | null;
@@ -43,142 +33,30 @@ type AvatarEditorProps = {
   displayName: string;
 };
 
-type Point = { x: number; y: number };
-type Area = { height: number; width: number; x: number; y: number };
-
-function getCroppedImage(sourceUrl: string, area: Area): Promise<Blob> {
-  return new Promise((resolve, reject) => {
-    const image = new window.Image();
-    image.onload = () => {
-      const canvas = document.createElement("canvas");
-      canvas.width = 512;
-      canvas.height = 512;
-      const context = canvas.getContext("2d");
-      if (!context) {
-        reject(new Error("Canvas is unavailable"));
-        return;
-      }
-      context.drawImage(image, area.x, area.y, area.width, area.height, 0, 0, 512, 512);
-      canvas.toBlob((blob) => {
-        if (!blob) {
-          reject(new Error("Could not prepare the cropped image"));
-        } else {
-          resolve(blob);
-        }
-      }, "image/png");
-    };
-    image.onerror = () => reject(new Error("Could not read the selected image"));
-    image.src = sourceUrl;
-  });
-}
-
 export function AvatarEditor({ avatarUrl, className, displayName }: AvatarEditorProps) {
-  const { protectedRequest, updateUser } = useAuth();
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [isOpen, setIsOpen] = useState(false);
-  const [sourceUrl, setSourceUrl] = useState<string | null>(null);
-  const [crop, setCrop] = useState<Point>({ x: 0, y: 0 });
-  const [zoom, setZoom] = useState(1);
-  const [croppedArea, setCroppedArea] = useState<Area | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [brokenAvatarUrl, setBrokenAvatarUrl] = useState<string | null>(null);
-
-  const resolvedAvatarUrl = avatarUrl?.startsWith("/")
-    ? `${getBrowserApiBaseUrl()}${avatarUrl}`
-    : avatarUrl;
-  const hasAvatarImage = Boolean(resolvedAvatarUrl && brokenAvatarUrl !== avatarUrl);
-
-  const clearSource = useCallback(() => {
-    setSourceUrl((current) => {
-      if (current) URL.revokeObjectURL(current);
-      return null;
-    });
-    setCroppedArea(null);
-    setCrop({ x: 0, y: 0 });
-    setZoom(1);
-  }, []);
-
-  useEffect(() => {
-    const currentUrl = sourceUrl;
-    return () => {
-      if (currentUrl) URL.revokeObjectURL(currentUrl);
-    };
-  }, [sourceUrl]);
-
-  const selectFile = (file: File | undefined) => {
-    if (!file) return;
-    setErrorMessage(null);
-    if (!new Set(["image/jpeg", "image/png", "image/webp"]).has(file.type)) {
-      setErrorMessage("Choose a JPG, PNG, or WebP image.");
-      return;
-    }
-    if (file.size > MAX_SOURCE_BYTES) {
-      setErrorMessage("Choose an image smaller than 5 MB.");
-      return;
-    }
-    const nextUrl = URL.createObjectURL(file);
-    clearSource();
-    setSourceUrl(nextUrl);
-    setIsOpen(true);
-  };
-
-  const handleSourceLoaded = ({
-    naturalHeight,
-    naturalWidth,
-  }: {
-    naturalHeight: number;
-    naturalWidth: number;
-  }) => {
-    if (naturalWidth * naturalHeight > MAX_SOURCE_PIXELS) {
-      clearSource();
-      setErrorMessage("Choose an image with 25 megapixels or fewer.");
-      setIsOpen(false);
-    }
-  };
-
-  const handleSave = async () => {
-    if (!sourceUrl || !croppedArea) return;
-    setIsSubmitting(true);
-    setErrorMessage(null);
-    try {
-      const blob = await getCroppedImage(sourceUrl, croppedArea);
-      if (blob.size > MAX_OUTPUT_BYTES) {
-        setErrorMessage("This crop is too large. Choose a simpler image or crop again.");
-        return;
-      }
-      const result = await protectedRequest(() => updateMyAvatar({ body: { file: blob } }));
-      if (!result.data) {
-        setErrorMessage(parseApiFailure(result).message);
-        return;
-      }
-      updateUser(result.data);
-      setIsOpen(false);
-      clearSource();
-      toast.success("Avatar updated", {
-        description: "Your new avatar is now visible across KaiwaUp.",
-      });
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "We could not prepare this image.");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleRemove = async () => {
-    if (!avatarUrl || !window.confirm("Remove your current avatar?")) return;
-    setIsSubmitting(true);
-    const result = await protectedRequest(() => deleteMyAvatar());
-    setIsSubmitting(false);
-    if (!result.data) {
-      toast.error("We could not remove your avatar", {
-        description: parseApiFailure(result).message,
-      });
-      return;
-    }
-    updateUser(result.data);
-    toast.success("Avatar removed");
-  };
+  const {
+    crop,
+    croppedArea,
+    displayNameInitials,
+    errorMessage,
+    handleAvatarError,
+    handleCropChange,
+    handleCropComplete,
+    handleDialogOpenChange,
+    handleFileChange,
+    handleRemove,
+    handleSave,
+    handleSourceLoaded,
+    handleZoomChange,
+    handleZoomSliderChange,
+    hasAvatarImage,
+    inputRef,
+    isOpen,
+    isSubmitting,
+    resolvedAvatarUrl,
+    sourceUrl,
+    zoom,
+  } = useAvatarEditor({ avatarUrl, displayName });
 
   const avatarDisplayContent = (
     <>
@@ -188,15 +66,13 @@ export function AvatarEditor({ avatarUrl, className, displayName }: AvatarEditor
             alt={`${displayName}'s avatar`}
             className="rounded-full object-cover"
             fill
-            onError={() => setBrokenAvatarUrl(avatarUrl)}
+            onError={handleAvatarError}
             sizes="(min-width: 640px) 128px, 112px"
             src={resolvedAvatarUrl!}
             unoptimized={Boolean(avatarUrl?.startsWith("/"))}
           />
         ) : (
-          <span aria-label={`${displayName}'s initials`}>
-            {getDisplayNameInitials(displayName)}
-          </span>
+          <span aria-label={`${displayName}'s initials`}>{displayNameInitials}</span>
         )}
 
         <div
@@ -212,7 +88,7 @@ export function AvatarEditor({ avatarUrl, className, displayName }: AvatarEditor
 
       <span
         aria-hidden="true"
-        className="absolute bottom-0 right-0 flex size-9 items-center justify-center rounded-full border-2 border-border bg-secondary-background text-foreground shadow-shadow transition-transform group-hover:translate-x-boxShadowX group-hover:translate-y-boxShadowY group-hover:shadow-none sm:size-10"
+        className="absolute right-0 bottom-0 flex size-9 items-center justify-center rounded-full border-2 border-border bg-secondary-background text-foreground shadow-shadow transition-transform group-hover:translate-x-boxShadowX group-hover:translate-y-boxShadowY group-hover:shadow-none sm:size-10"
       >
         {isSubmitting ? (
           <Loader2 className="size-4 animate-spin" />
@@ -229,7 +105,7 @@ export function AvatarEditor({ avatarUrl, className, displayName }: AvatarEditor
         accept="image/jpeg,image/png,image/webp"
         className="sr-only"
         onChange={(event) => {
-          selectFile(event.target.files?.[0]);
+          handleFileChange(event.target.files?.[0]);
           event.target.value = "";
         }}
         ref={inputRef}
@@ -278,13 +154,7 @@ export function AvatarEditor({ avatarUrl, className, displayName }: AvatarEditor
         </button>
       )}
 
-      <Dialog
-        onOpenChange={(open) => {
-          setIsOpen(open);
-          if (!open) clearSource();
-        }}
-        open={isOpen}
-      >
+      <Dialog onOpenChange={handleDialogOpenChange} open={isOpen}>
         <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>Adjust your avatar</DialogTitle>
@@ -306,10 +176,10 @@ export function AvatarEditor({ avatarUrl, className, displayName }: AvatarEditor
                   maxZoom={3}
                   mediaProps={{}}
                   minZoom={1}
-                  onCropChange={setCrop}
-                  onCropComplete={(_, area) => setCroppedArea(area)}
+                  onCropChange={handleCropChange}
+                  onCropComplete={(_, area) => handleCropComplete(area)}
                   onMediaLoaded={handleSourceLoaded}
-                  onZoomChange={setZoom}
+                  onZoomChange={handleZoomChange}
                   restrictPosition
                   rotation={0}
                   showGrid={false}
@@ -322,7 +192,7 @@ export function AvatarEditor({ avatarUrl, className, displayName }: AvatarEditor
                 aria-label="Avatar zoom"
                 max={3}
                 min={1}
-                onValueChange={(value) => setZoom(value[0] ?? 1)}
+                onValueChange={handleZoomSliderChange}
                 step={0.01}
                 value={[zoom]}
               />

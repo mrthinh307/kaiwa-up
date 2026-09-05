@@ -3,20 +3,18 @@
 import type { TranslationLessonItem } from "@kaiwa-app/api-client";
 
 import { AlertCircle, FilterX, Headphones } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/hooks/use-auth";
-import { parseApiFailure } from "@/lib/api-errors";
 
 import type {
   TranslationDifficultyFilter,
   TranslationStatusFilter,
 } from "./listening-translation-filter-bar";
 
-import { requestListeningTranslationLessons } from "../_lib/listening-translation-client";
+import { useListeningTranslationCatalog } from "../_hooks/use-listening-translation-catalog";
 import { ListeningTranslationCard } from "./listening-translation-card";
 import { ListeningTranslationFilterBar } from "./listening-translation-filter-bar";
 
@@ -25,41 +23,11 @@ export function ListeningTranslationCatalog({
 }: {
   initialLessons: TranslationLessonItem[];
 }) {
-  const { protectedRequest } = useAuth();
-  const [lessons, setLessons] = useState(initialLessons);
-  const [syncError, setSyncError] = useState<string | null>(null);
+  const { lessons, syncError } = useListeningTranslationCatalog(initialLessons);
 
   const [difficulty, setDifficulty] = useState<TranslationDifficultyFilter>("all");
   const [status, setStatus] = useState<TranslationStatusFilter>("all");
   const [searchQuery, setSearchQuery] = useState("");
-
-  useEffect(() => {
-    let isActive = true;
-
-    void protectedRequest(requestListeningTranslationLessons)
-      .then((result) => {
-        if (!isActive) {
-          return;
-        }
-
-        if (result.data) {
-          setLessons(result.data.items);
-          setSyncError(null);
-          return;
-        }
-
-        setSyncError(parseApiFailure(result).message);
-      })
-      .catch(() => {
-        if (isActive) {
-          setSyncError("We could not refresh your completion status.");
-        }
-      });
-
-    return () => {
-      isActive = false;
-    };
-  }, [protectedRequest]);
 
   const handleResetFilters = () => {
     setDifficulty("all");

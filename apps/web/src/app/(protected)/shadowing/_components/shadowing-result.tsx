@@ -1,297 +1,67 @@
 "use client";
 
-import type { ShadowingAttemptReviewResponse, ShadowingWordFeedback } from "@kaiwa-app/api-client";
+import type { ShadowingAttemptReviewResponse } from "@kaiwa-app/api-client";
 
 import {
-  AlertCircle,
   ArrowLeft,
   CheckCircle2,
   Headphones,
-  Lightbulb,
-  Mic,
-  Pause,
-  Play,
   Radio,
   RotateCcw,
-  Sparkles,
   Star,
   Trophy,
   Video,
   VideoOff,
-  Volume2,
-  XCircle,
 } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useState } from "react";
 
 import { ExpRewardOverlay } from "@/components/common/exp-reward/exp-reward-overlay";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { cn } from "@/lib/utils";
+import { Card, CardContent } from "@/components/ui/card";
 
-import { useAudioPlayer } from "../_hooks/use-audio-player";
-import { useShadowingShortcuts } from "../_hooks/use-shadowing-shortcuts";
-import { formatShadowingDuration } from "../_utils/shadowing-formatters";
+import { useShadowingReview } from "../_hooks/use-shadowing-review";
 import { AudioPlayerCard } from "./audio-player-card";
+import { ShadowingAiFeedbackCard } from "./shadowing-ai-feedback-card";
+import { ShadowingContinuousReviewCard } from "./shadowing-continuous-review-card";
+import { ShadowingTranscriptReview } from "./shadowing-transcript-review";
 
-interface ShadowingWordTokensProps {
-  fallbackText: string;
-  words?: ShadowingWordFeedback[];
-}
-
-function ShadowingWordTokens({ fallbackText, words }: ShadowingWordTokensProps) {
-  if (!words || words.length === 0) {
-    return (
-      <p className="font-heading text-lg sm:text-xl leading-relaxed text-foreground mb-3">
-        {fallbackText}
-      </p>
-    );
-  }
-
-  return (
-    <div className="font-heading text-lg sm:text-xl leading-relaxed text-foreground mb-3 flex flex-wrap gap-x-1.5 gap-y-1 items-baseline">
-      {words.map((w, wIdx) => {
-        if (w.status === "incorrect") {
-          return (
-            <span
-              className="relative group inline-block bg-destructive/15 text-destructive underline decoration-destructive decoration-wavy underline-offset-4 px-1 py-0.5 rounded cursor-help font-bold"
-              key={wIdx}
-              title={
-                w.user_word
-                  ? `Recognized: "${w.user_word}" (Expected: "${w.word}")`
-                  : `Expected: "${w.word}"`
-              }
-            >
-              {w.word}
-              {w.user_word && (
-                <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover:flex flex-col items-center bg-popover text-popover-foreground text-[11px] font-sans px-2.5 py-1 rounded shadow-md z-30 whitespace-nowrap border border-border">
-                  <span>
-                    Recognized: <strong className="text-destructive">{w.user_word}</strong>
-                  </span>
-                  <span className="text-[10px] text-foreground/60">Expected: {w.word}</span>
-                </span>
-              )}
-            </span>
-          );
-        }
-        if (w.status === "missing") {
-          return (
-            <span
-              className="relative group inline-block bg-chart-3/20 text-chart-3 underline decoration-chart-3 decoration-dashed underline-offset-4 px-1 py-0.5 rounded cursor-help font-bold"
-              key={wIdx}
-              title={`Missing word: "${w.word}"`}
-            >
-              {w.word}
-              <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover:flex flex-col items-center bg-popover text-popover-foreground text-[11px] font-sans px-2.5 py-1 rounded shadow-md z-30 whitespace-nowrap border border-border">
-                <span>
-                  Omitted: <strong>{w.word}</strong>
-                </span>
-              </span>
-            </span>
-          );
-        }
-        return (
-          <span className="text-foreground" key={wIdx}>
-            {w.word}
-          </span>
-        );
-      })}
-    </div>
-  );
-}
-
-interface ShadowingResultProps {
+type ShadowingResultProps = {
   onPracticeAgain: () => void;
   review: ShadowingAttemptReviewResponse;
   shouldCelebrate?: boolean;
-}
+};
 
 export function ShadowingResult({
   onPracticeAgain,
   review,
   shouldCelebrate = false,
 }: ShadowingResultProps) {
-  const isContinuous = review.mode === "continuous";
-  const [selectedReviewIndex, setSelectedReviewIndex] = useState(0);
-  const [playingUserIndex, setPlayingUserIndex] = useState<number | null>(null);
-  const [isPlayingContinuousVoice, setIsPlayingContinuousVoice] = useState(false);
   const [showVideo, setShowVideo] = useState(true);
+  const {
+    activeOriginalIndex,
+    activeSegmentRef,
+    handleNextSegment,
+    handlePlayOriginalSegment,
+    handlePlayUserRecording,
+    handlePreviousSegment,
+    handleReplaySegment,
+    isContinuous,
+    isPlayingContinuousVoice,
+    player,
+    playingUserIndex,
+    selectReview,
+    selectedReviewIndex,
+    toggleContinuousVoicePlayback,
+  } = useShadowingReview(review);
 
-  const userAudioRef = useRef<HTMLAudioElement | null>(null);
-  const continuousAudioRef = useRef<HTMLAudioElement | null>(null);
-  const activeSegmentRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    if (!review.user_continuous_recording_url) return;
-
-    const audio = new Audio(review.user_continuous_recording_url);
-    continuousAudioRef.current = audio;
-
-    const handleEnded = () => setIsPlayingContinuousVoice(false);
-    audio.addEventListener("ended", handleEnded);
-
-    return () => {
-      audio.pause();
-      audio.removeEventListener("ended", handleEnded);
-    };
-  }, [review.user_continuous_recording_url]);
-
-  const playerSegments = useMemo(
-    () =>
-      review.segments.map((seg) => ({
-        end_time_ms: seg.end_time_ms ?? 0,
-        start_time_ms: seg.start_time_ms ?? 0,
-      })),
-    [review.segments],
-  );
-
-  const player = useAudioPlayer(review.audio_url ?? "", 0, {
-    segments: isContinuous ? [] : playerSegments,
-  });
-
-  const activeOriginalIndex =
-    player.isPlaying && review.segments.length > 0
-      ? review.segments.findIndex(
-          (seg) =>
-            player.currentTime >= (seg.start_time_ms ?? 0) / 1000 - 0.05 &&
-            player.currentTime < (seg.end_time_ms ?? 0) / 1000,
-        )
-      : -1;
-
-  const formatTime = (ms: number) => {
-    const totalSeconds = Math.floor(ms / 1000);
+  const formatTime = (milliseconds: number) => {
+    const totalSeconds = Math.floor(milliseconds / 1000);
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = totalSeconds % 60;
     return `${minutes}:${seconds.toString().padStart(2, "0")}`;
   };
-
-  const handlePlayOriginalSegment = useCallback(
-    (index: number, startMs: number, endMs: number) => {
-      if (!review.audio_url) return;
-
-      setSelectedReviewIndex(index);
-
-      if (userAudioRef.current) {
-        userAudioRef.current.pause();
-        setPlayingUserIndex(null);
-      }
-      if (continuousAudioRef.current) {
-        continuousAudioRef.current.pause();
-        setIsPlayingContinuousVoice(false);
-      }
-
-      if (activeOriginalIndex === index && player.isPlaying) {
-        player.pause();
-        return;
-      }
-
-      if (isContinuous) {
-        player.seek(startMs / 1000);
-        player.play();
-      } else {
-        player.playSegment(startMs / 1000, endMs / 1000);
-      }
-    },
-    [activeOriginalIndex, isContinuous, player, review.audio_url],
-  );
-
-  const handlePlayUserRecording = useCallback(
-    (index: number, url: string | null | undefined) => {
-      if (!url) return;
-
-      setSelectedReviewIndex(index);
-
-      if (player.isPlaying) {
-        player.pause();
-      }
-
-      if (playingUserIndex === index && userAudioRef.current) {
-        userAudioRef.current.pause();
-        setPlayingUserIndex(null);
-        return;
-      }
-
-      if (!userAudioRef.current) {
-        userAudioRef.current = new Audio(url);
-      }
-
-      const audio = userAudioRef.current;
-      audio.src = url;
-      setPlayingUserIndex(index);
-
-      audio.play().catch(() => setPlayingUserIndex(null));
-      audio.onended = () => setPlayingUserIndex(null);
-    },
-    [player, playingUserIndex],
-  );
-
-  const toggleContinuousVoicePlayback = () => {
-    if (!continuousAudioRef.current) return;
-
-    if (isPlayingContinuousVoice) {
-      continuousAudioRef.current.pause();
-      setIsPlayingContinuousVoice(false);
-    } else {
-      if (player.isPlaying) {
-        player.pause();
-      }
-      continuousAudioRef.current
-        .play()
-        .then(() => setIsPlayingContinuousVoice(true))
-        .catch(() => setIsPlayingContinuousVoice(false));
-    }
-  };
-
-  const handlePreviousSegment = useCallback(() => {
-    if (selectedReviewIndex > 0) {
-      const nextIdx = selectedReviewIndex - 1;
-      setSelectedReviewIndex(nextIdx);
-      const seg = review.segments[nextIdx];
-      if (seg) {
-        handlePlayOriginalSegment(nextIdx, seg.start_time_ms ?? 0, seg.end_time_ms ?? 0);
-      }
-    }
-  }, [handlePlayOriginalSegment, review.segments, selectedReviewIndex]);
-
-  const handleNextSegment = useCallback(() => {
-    if (selectedReviewIndex < review.segments.length - 1) {
-      const nextIdx = selectedReviewIndex + 1;
-      setSelectedReviewIndex(nextIdx);
-      const seg = review.segments[nextIdx];
-      if (seg) {
-        handlePlayOriginalSegment(nextIdx, seg.start_time_ms ?? 0, seg.end_time_ms ?? 0);
-      }
-    }
-  }, [handlePlayOriginalSegment, review.segments, selectedReviewIndex]);
-
-  const handleReplaySegment = useCallback(() => {
-    const segment = review.segments[selectedReviewIndex];
-    if (!segment) return;
-
-    player.playSegment((segment.start_time_ms ?? 0) / 1000, (segment.end_time_ms ?? 0) / 1000);
-  }, [player, review.segments, selectedReviewIndex]);
-
-  // Keyboard shortcuts in review mode
-  useShadowingShortcuts({
-    onNext: isContinuous ? undefined : handleNextSegment,
-    onPrevious: isContinuous ? undefined : handlePreviousSegment,
-    onTogglePlay: () => player.togglePlay(),
-  });
-
-  // Auto-scroll to selected/playing segment in review list
-  const activeFocusIndex =
-    isContinuous && activeOriginalIndex >= 0 ? activeOriginalIndex : selectedReviewIndex;
-
-  useEffect(() => {
-    if (activeSegmentRef.current) {
-      activeSegmentRef.current.scrollIntoView({
-        behavior: "smooth",
-        block: "nearest",
-      });
-    }
-  }, [activeFocusIndex]);
 
   const scoreFormatted =
     review.score !== null && review.score !== undefined ? Number(review.score).toFixed(0) : "0";
@@ -300,12 +70,11 @@ export function ShadowingResult({
     <section aria-labelledby="shadowing-result-title" className="grid gap-6">
       {shouldCelebrate ? <ExpRewardOverlay expEarned={review.earned_exp ?? 0} /> : null}
 
-      {/* Header Result Card */}
       <div className="flex flex-wrap items-center justify-between gap-4 border-b-2 border-border pb-5">
         <div>
           <div className="flex items-center gap-2">
             <p className="text-sm font-heading uppercase text-foreground/70">Practice Result</p>
-            <Badge className="font-heading text-xs" variant="neutral">
+            <Badge className="text-xs font-heading" variant="neutral">
               {isContinuous ? (
                 <span className="inline-flex items-center gap-1">
                   <Radio className="size-3 text-chart-3" />
@@ -316,12 +85,12 @@ export function ShadowingResult({
               )}
             </Badge>
           </div>
-          <h1 className="mt-1 text-2xl sm:text-3xl font-heading" id="shadowing-result-title">
+          <h1 className="mt-1 font-heading text-2xl sm:text-3xl" id="shadowing-result-title">
             {review.title || "Shadowing Review"}
           </h1>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Badge className="bg-main text-main-foreground font-heading">
+          <Badge className="bg-main font-heading text-main-foreground">
             <Trophy className="mr-1 size-3.5" /> Score: {scoreFormatted}%
           </Badge>
           <Badge className="bg-chart-3 font-heading">
@@ -337,16 +106,14 @@ export function ShadowingResult({
         </div>
       </div>
 
-      {/* Main Review Grid: Player on Left, Scrollable Transcript on Right */}
       <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-12">
-        {/* Left Column: Player & Continuous Voice Recording */}
         <div className="space-y-6 lg:col-span-7">
           {review.audio_url && (
             <div className="space-y-3">
               <div className="flex justify-end">
                 <Button
                   className="gap-1.5 text-xs"
-                  onClick={() => setShowVideo((prev) => !prev)}
+                  onClick={() => setShowVideo((previous) => !previous)}
                   size="sm"
                   type="button"
                   variant="neutral"
@@ -376,193 +143,23 @@ export function ShadowingResult({
             </div>
           )}
 
-          {/* Continuous Voice Recording Card */}
-          {isContinuous &&
-            (review.user_continuous_recording_url || review.user_continuous_transcript) && (
-              <Card className="border-2 border-border bg-secondary-background shadow-shadow">
-                <CardHeader className="pb-3">
-                  <CardTitle className="flex items-center justify-between text-base font-heading">
-                    <div className="flex items-center gap-2">
-                      <Mic className="size-5 text-main" />
-                      <span>Your Continuous Voice Recording</span>
-                    </div>
-                    {review.user_continuous_duration_seconds !== undefined &&
-                      review.user_continuous_duration_seconds !== null && (
-                        <Badge className="bg-success text-success-foreground font-heading text-xs">
-                          {formatShadowingDuration(review.user_continuous_duration_seconds)}{" "}
-                          Recorded
-                        </Badge>
-                      )}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <p className="text-xs text-foreground/75 leading-relaxed">
-                    Listen to your full continuous audio session and self-evaluate your flow and
-                    rhythm.
-                  </p>
-                  {review.user_continuous_recording_url && (
-                    <div className="flex items-center gap-3 rounded-base border-2 border-border bg-background p-4">
-                      <Button
-                        aria-label={
-                          isPlayingContinuousVoice
-                            ? "Pause continuous recording"
-                            : "Play continuous recording"
-                        }
-                        className="size-12 shrink-0 text-main-foreground"
-                        onClick={toggleContinuousVoicePlayback}
-                        size="icon"
-                        type="button"
-                      >
-                        {isPlayingContinuousVoice ? (
-                          <Pause className="size-5" />
-                        ) : (
-                          <Play className="ml-0.5 size-5" />
-                        )}
-                      </Button>
-                      <div>
-                        <p className="font-heading text-sm">Play Full Voice Take</p>
-                        <p className="font-mono text-xs text-foreground/60">
-                          Duration:{" "}
-                          {formatShadowingDuration(review.user_continuous_duration_seconds ?? 0)}
-                        </p>
-                      </div>
-                    </div>
-                  )}
+          {isContinuous ? (
+            <ShadowingContinuousReviewCard
+              isPlaying={isPlayingContinuousVoice}
+              onTogglePlayback={toggleContinuousVoicePlayback}
+              review={review}
+            />
+          ) : null}
 
-                  {review.user_continuous_transcript && (
-                    <div className="rounded-base border-2 border-border/70 bg-background p-3.5 space-y-1">
-                      <p className="text-xs font-heading text-foreground/70 flex items-center gap-1.5">
-                        <Mic className="size-3.5 text-main" /> Recognized Speech (STT):
-                      </p>
-                      <p className="text-sm font-heading text-foreground leading-relaxed">
-                        {review.user_continuous_transcript}
-                      </p>
-                    </div>
-                  )}
+          {review.ai_feedback ? <ShadowingAiFeedbackCard feedback={review.ai_feedback} /> : null}
 
-                  {review.ai_feedback?.words && review.ai_feedback.words.length > 0 && (
-                    <div className="rounded-base border-2 border-border/70 bg-background p-3.5 space-y-2">
-                      <p className="text-xs font-heading text-foreground/70 flex items-center gap-1.5">
-                        <Sparkles className="size-3.5 text-main" /> Word-Level Accuracy Breakdown:
-                      </p>
-                      <ShadowingWordTokens
-                        fallbackText={review.user_continuous_transcript ?? ""}
-                        words={review.ai_feedback.words}
-                      />
-                      <div className="flex flex-wrap items-center gap-3 pt-1 text-[11px] text-foreground/60 border-t border-border/40">
-                        <span className="flex items-center gap-1">
-                          <span className="size-2 rounded-full bg-foreground/40" /> Normal: Correct
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <span className="size-2 rounded-full bg-destructive" /> Red wavy:
-                          Mispronounced
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <span className="size-2 rounded-full bg-chart-3" /> Amber dashed: Omitted
-                        </span>
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
-
-          {/* AI Learning Feedback Card (Informational Only) */}
-          {review.ai_feedback && (
-            <Card className="border-2 border-border bg-secondary-background shadow-shadow">
-              <CardHeader className="pb-3 border-b border-border/40">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <CardTitle className="flex items-center gap-2 text-base font-heading">
-                    <Sparkles className="size-5 text-main" />
-                    <span>AI Learning Feedback</span>
-                  </CardTitle>
-                  <div className="flex items-center gap-2">
-                    {review.ai_feedback.similarity_score !== null &&
-                      review.ai_feedback.similarity_score !== undefined && (
-                        <Badge className="bg-main text-main-foreground font-heading text-xs">
-                          AI Similarity: {Number(review.ai_feedback.similarity_score).toFixed(0)}%
-                        </Badge>
-                      )}
-                    <Badge className="font-heading text-xs" variant="neutral">
-                      Informational
-                    </Badge>
-                  </div>
-                </div>
-                <p className="text-[11px] text-foreground/60">
-                  This AI evaluation is provided solely for your learning reference and does not
-                  affect your lesson score or EXP.
-                </p>
-              </CardHeader>
-              <CardContent className="p-4 sm:p-5 space-y-4">
-                {/* AI Pedagogical Feedback */}
-                {review.ai_feedback.feedback && (
-                  <div className="space-y-1">
-                    <p className="text-xs font-heading uppercase text-foreground/70">
-                      Overall Assessment
-                    </p>
-                    <p className="text-sm text-foreground leading-relaxed bg-background/80 rounded-base border border-border/70 p-3">
-                      {review.ai_feedback.feedback}
-                    </p>
-                  </div>
-                )}
-
-                {/* Corrections List */}
-                {review.ai_feedback.corrections && review.ai_feedback.corrections.length > 0 && (
-                  <div className="space-y-2">
-                    <p className="text-xs font-heading uppercase text-foreground/70 flex items-center gap-1">
-                      <AlertCircle className="size-3.5 text-chart-4" />
-                      Pronunciation & Word Corrections
-                    </p>
-                    <div className="space-y-2">
-                      {review.ai_feedback.corrections.map((corr, idx) => (
-                        <div
-                          className="rounded-base border border-border/80 bg-background p-3 text-xs space-y-1"
-                          key={idx}
-                        >
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="line-through text-destructive font-heading bg-destructive/10 px-1.5 py-0.5 rounded">
-                              {corr.original}
-                            </span>
-                            <span className="text-foreground/60">→</span>
-                            <span className="text-success font-heading bg-success/10 px-1.5 py-0.5 rounded">
-                              {corr.corrected}
-                            </span>
-                          </div>
-                          {corr.reason && (
-                            <p className="text-foreground/75 text-[11px]">{corr.reason}</p>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Pronunciation Hints */}
-                {review.ai_feedback.hints && review.ai_feedback.hints.length > 0 && (
-                  <div className="space-y-1.5">
-                    <p className="text-xs font-heading uppercase text-foreground/70 flex items-center gap-1">
-                      <Lightbulb className="size-3.5 text-chart-3" />
-                      Actionable Improvement Tips
-                    </p>
-                    <ul className="list-disc list-inside space-y-1 text-xs text-foreground/80 bg-background/60 rounded-base border border-border/60 p-3">
-                      {review.ai_feedback.hints.map((hint, idx) => (
-                        <li key={idx}>{hint}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Tips / Shortcuts card */}
           <Card className="border-2 border-border bg-secondary-background/70 shadow-xs">
             <CardContent className="p-4 sm:p-5">
-              <div className="flex items-center gap-2 font-heading text-sm text-foreground/80 mb-2">
+              <div className="mb-2 flex items-center gap-2 font-heading text-sm text-foreground/80">
                 <Headphones className="size-4 text-main" />
                 <span>Self-Comparison Guide</span>
               </div>
-              <p className="text-xs text-foreground/70 leading-relaxed">
+              <p className="text-xs leading-relaxed text-foreground/70">
                 {isContinuous
                   ? "Click any sentence in the transcript to jump playback to that point. Compare your voice recording with the original video."
                   : "Click any segment on the right to seek the original audio. Compare your voice side-by-side to review pronunciation and intonation."}
@@ -571,194 +168,22 @@ export function ShadowingResult({
           </Card>
         </div>
 
-        {/* Right Column: Scrollable Segment Transcript & Comparison List */}
         <div className="lg:col-span-5">
-          <Card className="border-2 border-border bg-secondary-background shadow-shadow">
-            <CardHeader className="pb-3 border-b-2 border-border/40">
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2 text-base sm:text-lg font-heading">
-                  <Headphones className="size-5 text-main" />
-                  <span>{isContinuous ? "Lesson Transcript" : "Transcript & Review"}</span>
-                </CardTitle>
-                {!isContinuous && (
-                  <Badge className="font-heading text-xs" variant="neutral">
-                    {review.completed_segments}/{review.total_segments} Recorded
-                  </Badge>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent className="p-4 sm:p-5">
-              <ScrollArea className="h-[520px] pr-3">
-                <div className="space-y-3.5">
-                  {review.segments.map((segment) => {
-                    const isSelected = selectedReviewIndex === segment.segment_index;
-                    const isPlayingOriginal = activeOriginalIndex === segment.segment_index;
-                    const isPlayingUser = playingUserIndex === segment.segment_index;
-                    const isCurrentFocus =
-                      segment.segment_index ===
-                      (isContinuous && activeOriginalIndex >= 0
-                        ? activeOriginalIndex
-                        : selectedReviewIndex);
-                    const startMs = segment.start_time_ms ?? 0;
-                    const endMs = segment.end_time_ms ?? 0;
-
-                    return (
-                      <div
-                        aria-current={isCurrentFocus ? "true" : undefined}
-                        className={cn(
-                          "rounded-base border-2 p-4 transition-all cursor-pointer",
-                          isCurrentFocus
-                            ? "border-main bg-main/15 shadow-shadow ring-2 ring-main/30"
-                            : isPlayingOriginal
-                              ? "border-main/50 bg-main/5"
-                              : segment.recorded
-                                ? "border-border bg-background"
-                                : "border-border/60 bg-background/60",
-                        )}
-                        key={segment.segment_index}
-                        onClick={() => setSelectedReviewIndex(segment.segment_index)}
-                        ref={isCurrentFocus ? activeSegmentRef : null}
-                      >
-                        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-2.5 mb-2.5">
-                          <div className="flex items-center gap-2">
-                            {!isContinuous && (
-                              <span
-                                className={cn(
-                                  "font-heading text-xs px-2 py-0.5 rounded-base border",
-                                  isSelected
-                                    ? "border-main bg-main text-main-foreground font-bold"
-                                    : "border-border bg-secondary-background text-foreground/80",
-                                )}
-                              >
-                                Segment #{segment.segment_index + 1}
-                              </span>
-                            )}
-                            <span className="font-mono text-xs text-foreground/60">
-                              [{formatTime(startMs)} - {formatTime(endMs)}]
-                            </span>
-                          </div>
-
-                          {isPlayingOriginal && (
-                            <span className="inline-flex items-center gap-1 font-heading text-xs text-main">
-                              <Volume2 className="size-3.5 animate-pulse" />
-                              <span>Speaking</span>
-                            </span>
-                          )}
-
-                          {!isContinuous && (
-                            <>
-                              {segment.similarity_score !== null &&
-                                segment.similarity_score !== undefined && (
-                                  <span
-                                    className={cn(
-                                      "font-heading text-xs px-2 py-0.5 rounded-base border",
-                                      segment.similarity_score >= 80
-                                        ? "border-success/40 bg-success/10 text-success"
-                                        : segment.similarity_score >= 50
-                                          ? "border-chart-3/40 bg-chart-3/10 text-chart-3"
-                                          : "border-destructive/40 bg-destructive/10 text-destructive",
-                                    )}
-                                  >
-                                    Accuracy: {Number(segment.similarity_score).toFixed(0)}%
-                                  </span>
-                                )}
-                              {segment.recorded ? (
-                                <span className="inline-flex items-center gap-1 font-heading text-xs text-success">
-                                  <CheckCircle2 className="size-3.5" />
-                                  <span>
-                                    Recorded
-                                    {segment.duration_seconds
-                                      ? ` (${segment.duration_seconds}s)`
-                                      : ""}
-                                  </span>
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center gap-1 font-heading text-xs text-foreground/50">
-                                  <XCircle className="size-3.5" />
-                                  <span>Not recorded</span>
-                                </span>
-                              )}
-                            </>
-                          )}
-                        </div>
-
-                        {/* Japanese Script with Word-Level Status */}
-                        <ShadowingWordTokens fallbackText={segment.script} words={segment.words} />
-
-                        {/* Recognized Voice Transcript (if available) */}
-                        {segment.user_transcript && (
-                          <div className="rounded-base border border-border/70 bg-background/90 p-2.5 mb-3 text-xs space-y-1">
-                            <span className="font-heading text-foreground/70 flex items-center gap-1 text-[11px]">
-                              <Mic className="size-3 text-main" /> Recognized Voice:
-                            </span>
-                            <p className="font-heading text-foreground text-sm">
-                              {segment.user_transcript}
-                            </p>
-                          </div>
-                        )}
-
-                        {/* Audio Comparison Controls */}
-                        <div className="flex flex-wrap items-center gap-2 pt-1">
-                          {/* Play Original Audio */}
-                          {review.audio_url && (
-                            <Button
-                              className="gap-1 text-xs"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handlePlayOriginalSegment(segment.segment_index, startMs, endMs);
-                              }}
-                              size="sm"
-                              variant={isPlayingOriginal ? "default" : "neutral"}
-                            >
-                              {isPlayingOriginal ? (
-                                <>
-                                  <Pause className="size-3.5" /> Pause Original
-                                </>
-                              ) : (
-                                <>
-                                  <Volume2 className="size-3.5 text-main" /> Listen Original
-                                </>
-                              )}
-                            </Button>
-                          )}
-
-                          {/* Play User Recording (Segmented mode) */}
-                          {!isContinuous && segment.recorded && segment.playback_url ? (
-                            <Button
-                              className="gap-1 text-xs"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handlePlayUserRecording(
-                                  segment.segment_index,
-                                  segment.playback_url,
-                                );
-                              }}
-                              size="sm"
-                              variant={isPlayingUser ? "default" : "neutral"}
-                            >
-                              {isPlayingUser ? (
-                                <>
-                                  <Pause className="size-3.5" /> Pause Voice
-                                </>
-                              ) : (
-                                <>
-                                  <Mic className="size-3.5" /> Listen My Recording
-                                </>
-                              )}
-                            </Button>
-                          ) : null}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </ScrollArea>
-            </CardContent>
-          </Card>
+          <ShadowingTranscriptReview
+            activeOriginalIndex={activeOriginalIndex}
+            activeSegmentRef={activeSegmentRef}
+            formatTime={formatTime}
+            handlePlayOriginalSegment={handlePlayOriginalSegment}
+            handlePlayUserRecording={handlePlayUserRecording}
+            isContinuous={isContinuous}
+            playingUserIndex={playingUserIndex}
+            review={review}
+            selectedReviewIndex={selectedReviewIndex}
+            selectReview={selectReview}
+          />
         </div>
       </div>
 
-      {/* Bottom Action Bar */}
       <div className="flex flex-wrap justify-end gap-3 border-t-2 border-border pt-6">
         <Button asChild variant="neutral">
           <Link href="/lessons">
