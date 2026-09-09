@@ -14,12 +14,42 @@ from app.integrations.ai.contracts import (
     TutorTextMeaning,
 )
 from app.integrations.ai.providers.base import BaseAiGateway
+from app.integrations.ai.shadowing_contracts import (
+    ShadowingEvaluationInput,
+    ShadowingEvaluationResult,
+    ShadowingSegmentScore,
+    ShadowingSummaryInput,
+    ShadowingSummaryResult,
+)
 
 T = TypeVar("T")
 
 
 class FakeAiGateway(BaseAiGateway):
     """In-memory adapter that always succeeds with canned results."""
+
+    async def evaluate_shadowing_batch(
+        self, *, payload: ShadowingEvaluationInput
+    ) -> ShadowingEvaluationResult:
+        return ShadowingEvaluationResult(
+            segments=[
+                ShadowingSegmentScore(segment_index=segment.segment_index, score=100)
+                for segment in payload.segments
+            ],
+            feedback="Phản hồi mô phỏng cho môi trường phát triển.",
+            provider="fake",
+            model="fake",
+        )
+
+    async def summarize_shadowing_feedback(
+        self, *, payload: ShadowingSummaryInput
+    ) -> ShadowingSummaryResult:
+        return ShadowingSummaryResult(
+            feedback="Tổng hợp mô phỏng cho môi trường phát triển.",
+            correction_indices=list(range(len(payload.corrections))),
+            provider="fake",
+            model="fake",
+        )
 
     async def transcribe(
         self,

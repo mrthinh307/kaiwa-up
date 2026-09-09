@@ -27,6 +27,12 @@ from app.integrations.ai.providers.openai import (
     OpenAiCompatibleAiGateway,
     OpenAiProviderConfig,
 )
+from app.integrations.ai.shadowing_contracts import (
+    ShadowingEvaluationInput,
+    ShadowingEvaluationResult,
+    ShadowingSummaryInput,
+    ShadowingSummaryResult,
+)
 
 T = TypeVar("T")
 
@@ -36,6 +42,24 @@ class FallbackAiGateway:
 
     def __init__(self, providers: list[AiGateway]) -> None:
         self._providers = providers
+
+    async def aclose(self) -> None:
+        for provider in self._providers:
+            await provider.aclose()
+
+    async def evaluate_shadowing_batch(
+        self, *, payload: ShadowingEvaluationInput
+    ) -> ShadowingEvaluationResult:
+        return await self._try_providers(
+            lambda provider: provider.evaluate_shadowing_batch(payload=payload)
+        )
+
+    async def summarize_shadowing_feedback(
+        self, *, payload: ShadowingSummaryInput
+    ) -> ShadowingSummaryResult:
+        return await self._try_providers(
+            lambda provider: provider.summarize_shadowing_feedback(payload=payload)
+        )
 
     async def transcribe(
         self,
@@ -140,6 +164,22 @@ class RoutedAiGateway:
         self._tutor = tutor
         self._evaluate = evaluate
         self._stt = stt
+
+    async def aclose(self) -> None:
+        for provider in {
+            id(provider): provider for provider in (self._stt, self._evaluate, self._tutor)
+        }.values():
+            await provider.aclose()
+
+    async def evaluate_shadowing_batch(
+        self, *, payload: ShadowingEvaluationInput
+    ) -> ShadowingEvaluationResult:
+        return await self._evaluate.evaluate_shadowing_batch(payload=payload)
+
+    async def summarize_shadowing_feedback(
+        self, *, payload: ShadowingSummaryInput
+    ) -> ShadowingSummaryResult:
+        return await self._evaluate.summarize_shadowing_feedback(payload=payload)
 
     async def transcribe(
         self,
@@ -248,6 +288,8 @@ def _provider_registry(settings: Settings) -> dict[str, AiGateway]:
         )
         registry[name] = OpenAiCompatibleAiGateway(
             OpenAiProviderConfig(
+                provider_name=name,
+                shadowing_context_tokens=settings.shadowing_ai_context_tokens,
                 api_key=api_key.get_secret_value(),
                 base_url=getattr(settings, f"ai_{name}_base_url"),
                 llm_model=llm_model,

@@ -1,7 +1,7 @@
 from functools import lru_cache
 from typing import Literal, Self
 
-from pydantic import SecretStr, model_validator
+from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -31,6 +31,15 @@ class Settings(BaseSettings):
     leaderboard_rebuild_enabled: bool = True
 
     STORAGE_DIR: str = "storage"
+    shadowing_ffprobe_path: str = "ffprobe"
+    shadowing_stt_concurrency: int = Field(default=4, ge=1, le=32)
+    shadowing_ai_concurrency: int = Field(default=1, ge=1, le=8)
+    shadowing_attempt_stt_concurrency: int = Field(default=2, ge=1, le=8)
+    shadowing_job_lease_seconds: int = Field(default=180, ge=10)
+    shadowing_job_heartbeat_seconds: float = Field(default=20, gt=0)
+    shadowing_job_deadline_seconds: float = Field(default=120, gt=0)
+    shadowing_ai_context_tokens: int = Field(default=32768, ge=4096)
+    shadowing_ai_output_tokens: int = Field(default=4096, ge=1000)
     CLOUDINARY_CLOUD_NAME: str | None = None
     CLOUDINARY_API_KEY: str | None = None
     CLOUDINARY_API_SECRET: str | None = None
