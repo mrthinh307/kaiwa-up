@@ -14,6 +14,7 @@ from app.models.enums import (
     PracticeMethod,
     RecordingKind,
 )
+from app.models.gamification import XpTransaction
 from app.models.user import User
 from app.repositories.base import BaseRepository
 
@@ -139,6 +140,9 @@ class RecordingRepository(BaseRepository):
         storage_key: str,
         duration_ms: int | None,
         mime_type: str | None,
+        client_recording_id: uuid.UUID | None = None,
+        content_sha256: str | None = None,
+        shadowing_segment_index: int | None = None,
     ) -> Recording:
         recording = Recording(
             user_id=user_id,
@@ -147,13 +151,34 @@ class RecordingRepository(BaseRepository):
             storage_key=storage_key,
             duration_ms=duration_ms,
             mime_type=mime_type,
+            client_recording_id=client_recording_id,
+            content_sha256=content_sha256,
+            shadowing_segment_index=shadowing_segment_index,
         )
         self.session.add(recording)
         await self.session.flush()
         return recording
 
+    async def get_recording_by_client_id(
+        self, *, user_id: uuid.UUID, attempt_id: uuid.UUID, client_recording_id: uuid.UUID
+    ) -> Recording | None:
+        result = await self.session.execute(
+            select(Recording).where(
+                Recording.user_id == user_id,
+                Recording.attempt_id == attempt_id,
+                Recording.client_recording_id == client_recording_id,
+            )
+        )
+        return result.scalar_one_or_none()
+
     async def get_recording_by_id(self, recording_id: uuid.UUID) -> Recording | None:
         result = await self.session.execute(select(Recording).where(Recording.id == recording_id))
+        return result.scalar_one_or_none()
+
+    async def get_recording_by_storage_key(self, storage_key: str) -> Recording | None:
+        result = await self.session.execute(
+            select(Recording).where(Recording.storage_key == storage_key)
+        )
         return result.scalar_one_or_none()
 
     async def get_attempt_for_update(
@@ -168,6 +193,7 @@ class RecordingRepository(BaseRepository):
                     ExerciseAttempt.practice_method == PracticeMethod.SHADOWING,
                 )
                 .with_for_update(of=ExerciseAttempt)
+                .execution_options(populate_existing=True)
             )
         ).first()
         if result is None:
@@ -195,6 +221,25 @@ class RecordingRepository(BaseRepository):
                 ExerciseAttempt.content_id == content_id,
                 ExerciseAttempt.status == AttemptStatus.COMPLETED,
                 ExerciseAttempt.id != exclude_attempt_id,
+            )
+        )
+        return count or 0
+
+    async def count_prior_rewarded_attempts(
+        self,
+        *,
+        user_id: uuid.UUID,
+        content_id: uuid.UUID,
+        exclude_attempt_id: uuid.UUID,
+    ) -> int:
+        count = await self.session.scalar(
+            select(func.count(ExerciseAttempt.id))
+            .join(XpTransaction, XpTransaction.attempt_id == ExerciseAttempt.id)
+            .where(
+                ExerciseAttempt.user_id == user_id,
+                ExerciseAttempt.content_id == content_id,
+                ExerciseAttempt.id != exclude_attempt_id,
+                XpTransaction.amount > 0,
             )
         )
         return count or 0
@@ -234,6 +279,11 @@ class RecordingRepository(BaseRepository):
                 select(ExerciseAttempt, LearningContent, XpTransaction.amount)
                 .join(LearningContent, LearningContent.id == ExerciseAttempt.content_id)
                 .outerjoin(XpTransaction, XpTransaction.attempt_id == ExerciseAttempt.id)
+                # Review assembles revision, segments and job results in separate queries.
+                # Publication locks the same attempt first, so a shared lock keeps those
+                # reads consistent until the request session closes. No provider I/O occurs.
+                .with_for_update(read=True, of=ExerciseAttempt)
+                .execution_options(populate_existing=True)
                 .where(
                     ExerciseAttempt.id == attempt_id,
                     ExerciseAttempt.practice_method == PracticeMethod.SHADOWING,

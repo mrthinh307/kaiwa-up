@@ -1,16 +1,20 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, File, Form, Path, UploadFile, status
+from fastapi import APIRouter, File, Form, Path, Response, UploadFile, status
 
 from app.api.dependencies.ai import AiGatewayDep
 from app.api.dependencies.auth import CurrentUser
 from app.api.dependencies.database import DatabaseSession
 from app.repositories.recording import RecordingRepository
+from app.repositories.shadowing_review import ShadowingReviewRepository
 from app.schemas.error import ErrorResponse
 from app.schemas.shadowing import (
+    ShadowingAiReviewRequest,
+    ShadowingAiReviewResponse,
     ShadowingAttemptPracticeResponse,
     ShadowingAttemptReviewResponse,
+    ShadowingProcessingResponse,
     ShadowingRecordContinuousResponse,
     ShadowingRecordingPlaybackResponse,
     ShadowingRecordSegmentResponse,
@@ -19,10 +23,60 @@ from app.schemas.shadowing import (
     ShadowingStartResponse,
     ShadowingSubmitRequest,
     ShadowingSubmitResponse,
+    ShadowingTranscriptionRequest,
 )
 from app.services.shadowing import ShadowingService
+from app.services.shadowing_evaluation import ShadowingEvaluationService
+from app.services.shadowing_review import ShadowingReviewService
 
 router = APIRouter(prefix="/shadowing", tags=["Shadowing"])
+
+
+@router.post(
+    "/attempts/{attempt_id}/ai-reviews",
+    operation_id="requestShadowingAiReview",
+    response_model=ShadowingAiReviewResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Request optional overall AI feedback for a submitted Shadowing attempt",
+)
+async def request_shadowing_ai_review(
+    attempt_id: uuid.UUID,
+    payload: ShadowingAiReviewRequest,
+    current_user: CurrentUser,
+    session: DatabaseSession,
+    response: Response,
+) -> ShadowingAiReviewResponse:
+    result = await ShadowingEvaluationService(ShadowingReviewRepository(session)).request_review(
+        user_id=current_user.id,
+        attempt_id=attempt_id,
+        review_revision=payload.review_revision,
+        allow_partial=payload.allow_partial,
+    )
+    response.status_code = status.HTTP_202_ACCEPTED if result.queued_jobs else status.HTTP_200_OK
+    return result
+
+
+@router.post(
+    "/attempts/{attempt_id}/transcriptions",
+    operation_id="requestShadowingTranscriptions",
+    response_model=ShadowingProcessingResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Request missing or failed Shadowing transcriptions",
+)
+async def request_shadowing_transcriptions(
+    attempt_id: uuid.UUID,
+    payload: ShadowingTranscriptionRequest,
+    current_user: CurrentUser,
+    session: DatabaseSession,
+    response: Response,
+) -> ShadowingProcessingResponse:
+    result = await ShadowingReviewService(
+        ShadowingReviewRepository(session)
+    ).request_transcriptions(
+        user_id=current_user.id, attempt_id=attempt_id, segment_indices=payload.segment_indices
+    )
+    response.status_code = status.HTTP_202_ACCEPTED if result.queued_jobs else status.HTTP_200_OK
+    return result
 
 
 @router.post(
@@ -118,6 +172,8 @@ async def record_segment(
     current_user: CurrentUser,
     session: DatabaseSession,
     attempt_id: Annotated[uuid.UUID | None, Form(description="Optional attempt ID")] = None,
+    client_recording_id: Annotated[uuid.UUID | None, Form()] = None,
+    expected_recording_id: Annotated[uuid.UUID | None, Form()] = None,
 ) -> ShadowingRecordSegmentResponse:
     service = ShadowingService(RecordingRepository(session))
     return await service.record_segment(
@@ -126,6 +182,8 @@ async def record_segment(
         segment_id=segment_id,
         audio_file=audio_file,
         attempt_id=attempt_id,
+        client_recording_id=client_recording_id,
+        expected_recording_id=expected_recording_id,
     )
 
 
@@ -152,6 +210,8 @@ async def record_continuous(
     duration_seconds: Annotated[
         int | None, Form(description="Optional continuous duration in seconds")
     ] = None,
+    client_recording_id: Annotated[uuid.UUID | None, Form()] = None,
+    expected_recording_id: Annotated[uuid.UUID | None, Form()] = None,
 ) -> ShadowingRecordContinuousResponse:
     service = ShadowingService(RecordingRepository(session))
     return await service.record_continuous(
@@ -160,6 +220,8 @@ async def record_continuous(
         audio_file=audio_file,
         duration_seconds=duration_seconds,
         attempt_id=attempt_id,
+        client_recording_id=client_recording_id,
+        expected_recording_id=expected_recording_id,
     )
 
 
@@ -191,6 +253,7 @@ async def submit_attempt(
         attempt_id=payload.attempt_id,
         replay_count=payload.replay_count,
         request_ai_review=payload.request_ai_review,
+        recordings_manifest=payload.recordings,
     )
 
 

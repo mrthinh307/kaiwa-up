@@ -1,9 +1,12 @@
 """Integration coverage for the Listening & Translation API."""
 
+from collections.abc import AsyncIterator
+
 import httpx
 import pytest
+import pytest_asyncio
 from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.api.dependencies.ai import get_ai_gateway
 from app.api.dependencies.auth import get_current_user
@@ -23,6 +26,27 @@ from app.models.enums import (
 )
 from app.models.gamification import XpTransaction
 from app.models.user import User, UserProgress
+from tests.conftest import isolated_shadowing_sessions
+
+
+@pytest_asyncio.fixture(scope="module")
+async def translation_sessions() -> AsyncIterator[async_sessionmaker[AsyncSession]]:
+    async with isolated_shadowing_sessions() as factory:
+        yield factory
+
+
+@pytest_asyncio.fixture
+async def db_session(
+    translation_sessions: async_sessionmaker[AsyncSession],
+) -> AsyncIterator[AsyncSession]:
+    # Catalog assertions require an empty fixture, independent of shared test seed data.
+    engine = translation_sessions.kw["bind"]
+    async with engine.connect() as connection, connection.begin() as transaction:
+        async with AsyncSession(
+            bind=connection, expire_on_commit=False, join_transaction_mode="create_savepoint"
+        ) as session:
+            yield session
+        await transaction.rollback()
 
 
 class SuccessfulTranslationGateway(FakeAiGateway):

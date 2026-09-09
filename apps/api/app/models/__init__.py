@@ -13,6 +13,7 @@ from app.models.gamification import (
     WeeklyLeaderboardEntry,
     XpTransaction,
 )
+from app.models.shadowing import ShadowingAttemptSegment, ShadowingJob, ShadowingWorkerHeartbeat
 from app.models.tutor import TutorMessage, TutorSession
 from app.models.user import AuthRefreshToken, AvatarMutationWindow, User, UserProgress
 
@@ -29,6 +30,9 @@ __all__ = [
     "Recording",
     "ReflexExercise",
     "ReviewSchedule",
+    "ShadowingAttemptSegment",
+    "ShadowingJob",
+    "ShadowingWorkerHeartbeat",
     "TimestampMixin",
     "TranslationExercise",
     "TutorMessage",

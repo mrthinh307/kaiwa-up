@@ -1,5 +1,5 @@
-import asyncio
 import contextlib
+import hashlib
 import logging
 import uuid
 from decimal import ROUND_HALF_UP, Decimal
@@ -20,16 +20,22 @@ from app.exceptions.shadowing import (
     ShadowingContentUnavailableError,
     ShadowingInvalidAudioError,
     ShadowingInvalidSegmentError,
+    ShadowingNoRecordingsError,
+    ShadowingRecordingIdempotencyConflictError,
+    ShadowingRecordingsChangedError,
 )
 from app.integrations.ai.base import AiGateway
 from app.models.attempt import ExerciseAttempt, Recording
 from app.models.content import LearningContent
 from app.models.enums import AttemptStatus, ContentStatus, ContentType, PracticeMethod
+from app.models.shadowing import ShadowingAttemptSegment
 from app.repositories.gamification import GamificationRepository
 from app.repositories.recording import RecordingRepository
+from app.repositories.shadowing_review import ShadowingReviewRepository
 from app.schemas.learning_content import ShadowingContentDetail, TranscriptSegment
 from app.schemas.shadowing import (
     ShadowingAiFeedback,
+    ShadowingAiReviewState,
     ShadowingAttemptPracticeResponse,
     ShadowingAttemptReviewResponse,
     ShadowingContinuousRecordingSummary,
@@ -43,12 +49,19 @@ from app.schemas.shadowing import (
     ShadowingSegmentReviewItem,
     ShadowingStartResponse,
     ShadowingSubmitResponse,
+    ShadowingSubmittedRecording,
     ShadowingUserProgressSummary,
     ShadowingWordFeedback,
     ShadowingWordStatus,
 )
 from app.services.leveling import level_for_total_exp, minimum_exp_for_level
-from app.services.storage import StorageService
+from app.services.shadowing_audio import ShadowingAudioMetadata, inspect_shadowing_audio
+from app.services.shadowing_review import (
+    ShadowingReviewService,
+    shadowing_input_fingerprint,
+    transcription_progress,
+)
+from app.services.storage import SavedRecordingAudio, StorageService
 from app.utils.datetime_utils import utc_now
 
 logger = logging.getLogger(__name__)
@@ -223,6 +236,9 @@ class ShadowingService:
                 attempt_number=attempt_number,
                 answer_payload={"mode": mode.value},
             )
+            await ShadowingReviewService(
+                ShadowingReviewRepository(self.repository.session), self.storage_service
+            ).ensure_snapshot(attempt, content)
             total_attempts = await self.repository.get_total_attempt_count(
                 user_id=user_id,
                 content_id=content_id,
@@ -249,73 +265,32 @@ class ShadowingService:
         segment_id: str,
         audio_file: UploadFile,
         attempt_id: uuid.UUID | None = None,
+        client_recording_id: uuid.UUID | None = None,
+        expected_recording_id: uuid.UUID | None = None,
     ) -> ShadowingRecordSegmentResponse:
-        content = await self.repository.get_shadowing_content(content_id)
-        if content is None:
-            raise ShadowingContentNotFoundError()
-
-        if not self._is_valid_segment(content.transcript_ja, segment_id):
-            raise ShadowingInvalidSegmentError()
-
         try:
-            attempt = await self._get_or_create_attempt(
-                user_id=user_id,
-                content_id=content_id,
-                attempt_id=attempt_id,
-                requested_mode=ShadowingMode.SEGMENTED,
-            )
-
-            file_content = await audio_file.read()
-            await audio_file.seek(0)
-            if not file_content:
-                raise ShadowingInvalidAudioError()
-            if len(file_content) > MAX_AUDIO_SIZE_BYTES:
-                raise ShadowingAudioTooLargeError()
-
-            storage_key, duration_seconds = await self.storage_service.save_audio(
-                user_id=user_id,
-                attempt_id=attempt.id,
-                file=audio_file,
-            )
-
-            recording = await self.repository.create_recording(
-                user_id=user_id,
-                attempt_id=attempt.id,
-                storage_key=storage_key,
-                duration_ms=duration_seconds * 1000,
-                mime_type=audio_file.content_type,
-            )
-
-            raw_segments = (attempt.answer_payload or {}).get("segments")
-            existing_segments = raw_segments if isinstance(raw_segments, list) else []
-            segments_by_id = {
-                str(s.get("segment_id")): s
-                for s in existing_segments
-                if isinstance(s, dict) and "segment_id" in s
-            }
-            segments_by_id[segment_id] = {
-                "segment_id": segment_id,
-                "recording_id": str(recording.id),
-                "storage_key": storage_key,
-                "duration_seconds": duration_seconds,
-                "duration_ms": duration_seconds * 1000,
-            }
-            new_payload = dict(attempt.answer_payload or {})
-            new_payload["mode"] = ShadowingMode.SEGMENTED.value
-            new_payload["segments"] = list(segments_by_id.values())
-            await self.repository.update_answer_payload(attempt, new_payload)
-
-            await self.repository.session.commit()
-        except Exception:
-            await self.repository.session.rollback()
-            raise
-
+            index = int(segment_id)
+        except ValueError as exc:
+            raise ShadowingInvalidSegmentError() from exc
+        if index < 0:
+            raise ShadowingInvalidSegmentError()
+        recording = await self._record_audio(
+            user_id=user_id,
+            content_id=content_id,
+            audio_file=audio_file,
+            attempt_id=attempt_id,
+            segment_index=index,
+            client_recording_id=client_recording_id,
+            expected_recording_id=expected_recording_id,
+        )
+        assert recording.attempt_id is not None
         return ShadowingRecordSegmentResponse(
             recording_id=recording.id,
-            attempt_id=attempt.id,
-            segment_id=segment_id,
+            attempt_id=recording.attempt_id,
+            segment_id=str(index),
             storage_key=recording.storage_key,
-            duration_seconds=duration_seconds,
+            duration_seconds=(recording.duration_ms or 0) // 1000,
+            duration_ms=recording.duration_ms,
             created_at=recording.created_at,
         )
 
@@ -327,68 +302,221 @@ class ShadowingService:
         audio_file: UploadFile,
         duration_seconds: int | None = None,
         attempt_id: uuid.UUID | None = None,
+        client_recording_id: uuid.UUID | None = None,
+        expected_recording_id: uuid.UUID | None = None,
     ) -> ShadowingRecordContinuousResponse:
-        content = await self.repository.get_shadowing_content(content_id)
-        if content is None:
-            raise ShadowingContentNotFoundError()
+        # duration_seconds remains accepted for old clients; only inspected media time is used.
+        recording = await self._record_audio(
+            user_id=user_id,
+            content_id=content_id,
+            audio_file=audio_file,
+            attempt_id=attempt_id,
+            segment_index=None,
+            client_recording_id=client_recording_id,
+            expected_recording_id=expected_recording_id,
+        )
+        assert recording.attempt_id is not None
+        return ShadowingRecordContinuousResponse(
+            recording_id=recording.id,
+            attempt_id=recording.attempt_id,
+            storage_key=recording.storage_key,
+            duration_seconds=(recording.duration_ms or 0) // 1000,
+            duration_ms=recording.duration_ms,
+            created_at=recording.created_at,
+        )
 
+    @staticmethod
+    def _current_take_id(
+        attempt: ExerciseAttempt, segments: list[ShadowingAttemptSegment], index: int | None
+    ) -> uuid.UUID | None:
+        payload = attempt.answer_payload or {}
+        if index is None:
+            entry = payload.get("continuous_recording")
+            raw_id = entry.get("recording_id") if isinstance(entry, dict) else None
+        else:
+            if segments[index].recording_id is not None:
+                return segments[index].recording_id
+            entries = payload.get("segments")
+            raw_id = None
+            for entry in entries if isinstance(entries, list) else []:
+                if not isinstance(entry, dict):
+                    continue
+                try:
+                    same_index = int(str(entry.get("segment_id", ""))) == index
+                except ValueError:
+                    continue
+                if same_index:
+                    raw_id = entry.get("recording_id")
+        if raw_id is None:
+            return None
         try:
-            attempt = await self._get_or_create_attempt(
-                user_id=user_id,
-                content_id=content_id,
-                attempt_id=attempt_id,
-                requested_mode=ShadowingMode.CONTINUOUS,
+            return uuid.UUID(str(raw_id))
+        except ValueError as exc:
+            raise ShadowingRecordingsChangedError() from exc
+
+    async def _record_audio(
+        self,
+        *,
+        user_id: uuid.UUID,
+        content_id: uuid.UUID,
+        audio_file: UploadFile,
+        attempt_id: uuid.UUID | None,
+        segment_index: int | None,
+        client_recording_id: uuid.UUID | None,
+        expected_recording_id: uuid.UUID | None,
+    ) -> Recording:
+        content_bytes = await audio_file.read(MAX_AUDIO_SIZE_BYTES + 1)
+        if not content_bytes:
+            raise ShadowingInvalidAudioError()
+        if len(content_bytes) > MAX_AUDIO_SIZE_BYTES:
+            raise ShadowingAudioTooLargeError()
+        content_sha256 = hashlib.sha256(content_bytes).hexdigest()
+        mode = ShadowingMode.CONTINUOUS if segment_index is None else ShadowingMode.SEGMENTED
+        metadata: ShadowingAudioMetadata | None = None
+        saved: SavedRecordingAudio | None = None
+        is_published = False
+        review_service = ShadowingReviewService(
+            ShadowingReviewRepository(self.repository.session), self.storage_service
+        )
+        try:
+            if attempt_id is None:
+                content = await self.repository.get_shadowing_content(content_id)
+                if content is None:
+                    raise ShadowingContentNotFoundError()
+                transcript = self._validated_transcript(content)
+                if segment_index is not None and segment_index >= len(transcript):
+                    raise ShadowingInvalidSegmentError()
+                metadata = await inspect_shadowing_audio(content_bytes, audio_file.content_type)
+                started = await self.start_attempt(
+                    user_id=user_id, content_id=content_id, mode=mode
+                )
+                attempt_id = started.attempt_id
+
+            row = await self.repository.get_attempt_for_update(attempt_id)
+            if row is None or row[0].content_id != content_id:
+                raise ShadowingAttemptNotFoundError()
+            attempt, content = row
+            if attempt.user_id != user_id:
+                raise ForbiddenError()
+            stored_mode = str((attempt.answer_payload or {}).get("mode", mode.value))
+            if stored_mode != mode.value:
+                raise ShadowingAttemptModeMismatchError(
+                    attempt_mode=stored_mode, requested_mode=mode.value
+                )
+            if client_recording_id is not None:
+                existing = await self.repository.get_recording_by_client_id(
+                    user_id=user_id, attempt_id=attempt_id, client_recording_id=client_recording_id
+                )
+                if existing is not None:
+                    if (
+                        existing.content_sha256 != content_sha256
+                        or existing.shadowing_segment_index != segment_index
+                    ):
+                        raise ShadowingRecordingIdempotencyConflictError()
+                    await self.repository.session.commit()
+                    return existing
+            if attempt.status != AttemptStatus.IN_PROGRESS:
+                raise ShadowingAttemptNotInProgressError()
+            segments = await review_service.ensure_snapshot(attempt, content)
+            if segment_index is not None and segment_index >= len(segments):
+                raise ShadowingInvalidSegmentError()
+            previous_id = self._current_take_id(attempt, segments, segment_index)
+            if client_recording_id is not None and previous_id != expected_recording_id:
+                raise ShadowingRecordingsChangedError()
+            # Persist only the snapshot, then release all row locks before media/storage I/O.
+            await self.repository.session.commit()
+            if metadata is None:
+                metadata = await inspect_shadowing_audio(content_bytes, audio_file.content_type)
+            saved = await self.storage_service.save_recording_audio(
+                user_id=user_id, attempt_id=attempt_id, content=content_bytes, metadata=metadata
             )
 
-            file_content = await audio_file.read()
-            await audio_file.seek(0)
-            if not file_content:
-                raise ShadowingInvalidAudioError()
-            if len(file_content) > MAX_AUDIO_SIZE_BYTES:
-                raise ShadowingAudioTooLargeError()
-
-            storage_key, file_duration_seconds = await self.storage_service.save_audio(
-                user_id=user_id,
-                attempt_id=attempt.id,
-                file=audio_file,
-            )
-
-            actual_duration_seconds = (
-                duration_seconds
-                if duration_seconds is not None and duration_seconds > 0
-                else file_duration_seconds
-            )
-
+            row = await self.repository.get_attempt_for_update(attempt_id)
+            if row is None:
+                raise ShadowingAttemptNotFoundError()
+            attempt = row[0]
+            # A competing request may have committed this exact client take during upload.
+            if client_recording_id is not None:
+                existing = await self.repository.get_recording_by_client_id(
+                    user_id=user_id, attempt_id=attempt_id, client_recording_id=client_recording_id
+                )
+                if existing is not None:
+                    if (
+                        existing.content_sha256 != content_sha256
+                        or existing.shadowing_segment_index != segment_index
+                    ):
+                        raise ShadowingRecordingIdempotencyConflictError()
+                    await self.repository.session.commit()
+                    return existing
+            if attempt.status != AttemptStatus.IN_PROGRESS:
+                raise ShadowingAttemptNotInProgressError()
+            segments = await review_service.repository.get_segments(attempt.id)
+            if self._current_take_id(attempt, segments, segment_index) != previous_id:
+                raise ShadowingRecordingsChangedError()
             recording = await self.repository.create_recording(
                 user_id=user_id,
-                attempt_id=attempt.id,
-                storage_key=storage_key,
-                duration_ms=actual_duration_seconds * 1000,
-                mime_type=audio_file.content_type,
+                attempt_id=attempt_id,
+                storage_key=saved.storage_key,
+                duration_ms=metadata.duration_ms,
+                mime_type=metadata.mime_type,
+                client_recording_id=client_recording_id,
+                content_sha256=content_sha256,
+                shadowing_segment_index=segment_index,
             )
-
-            new_payload = dict(attempt.answer_payload or {})
-            new_payload["mode"] = ShadowingMode.CONTINUOUS.value
-            new_payload["continuous_recording"] = {
+            payload = dict(attempt.answer_payload or {})
+            payload["mode"] = mode.value
+            entry: dict[str, object] = {
                 "recording_id": str(recording.id),
-                "storage_key": storage_key,
-                "duration_seconds": actual_duration_seconds,
-                "duration_ms": actual_duration_seconds * 1000,
+                "storage_key": recording.storage_key,
+                "duration_ms": metadata.duration_ms,
+                "duration_seconds": metadata.duration_ms // 1000,
             }
-            await self.repository.update_answer_payload(attempt, new_payload)
-
+            if segment_index is None:
+                payload["continuous_recording"] = entry
+            else:
+                segment = segments[segment_index]
+                segment.recording_id = recording.id
+                segment.duration_ms = metadata.duration_ms
+                segment.completion_eligible = metadata.duration_ms >= 2000
+                segment.transcription_status = "not_requested"
+                segment.transcript = None
+                segment.comparison = None
+                segment.error_code = None
+                entry["segment_id"] = str(segment_index)
+                raw_entries = payload.get("segments")
+                # Preserve explicitly mapped legacy takes in untouched segments.
+                entries_by_index: dict[int, dict[str, object]] = {}
+                for old_entry in raw_entries if isinstance(raw_entries, list) else []:
+                    if isinstance(old_entry, dict):
+                        try:
+                            entries_by_index[int(str(old_entry.get("segment_id", "")))] = old_entry
+                        except ValueError:
+                            continue
+                entries_by_index[segment_index] = entry
+                payload["segments"] = [
+                    entries_by_index[index] for index in sorted(entries_by_index)
+                ]
+            attempt.answer_payload = payload
             await self.repository.session.commit()
+            is_published = True
+            return recording
         except Exception:
             await self.repository.session.rollback()
             raise
-
-        return ShadowingRecordContinuousResponse(
-            recording_id=recording.id,
-            attempt_id=attempt.id,
-            storage_key=recording.storage_key,
-            duration_seconds=actual_duration_seconds,
-            created_at=recording.created_at,
-        )
+        finally:
+            if saved is not None and not is_published:
+                # A lost commit response has an uncertain outcome. Reconcile against the DB
+                # before deleting an asset that may already back a successfully saved take.
+                try:
+                    referenced = await self.repository.get_recording_by_storage_key(
+                        saved.storage_key
+                    )
+                    if referenced is None:
+                        await self.storage_service.delete_recording_audio(saved)
+                except Exception:
+                    logger.warning(
+                        "Unpublished recording cleanup deferred after storage/database failure"
+                    )
 
     async def get_recording_playback(
         self,
@@ -421,587 +549,187 @@ class ShadowingService:
         attempt_id: uuid.UUID,
         replay_count: int = 0,
         request_ai_review: bool = False,
+        recordings_manifest: list[ShadowingSubmittedRecording] | None = None,
     ) -> ShadowingSubmitResponse:
+        """Freeze the accepted recordings and reward once; never call external providers."""
+        review_service = ShadowingReviewService(
+            ShadowingReviewRepository(self.repository.session), self.storage_service
+        )
+        gamification_repo = GamificationRepository(self.repository.session)
         try:
             row = await self.repository.get_attempt_for_update(attempt_id)
             if row is None or row[1].content_type != ContentType.SHADOWING_DICTATION:
                 raise ShadowingAttemptNotFoundError()
-
             attempt, content = row
             if attempt.content_id != content_id:
                 raise ShadowingAttemptNotFoundError()
             if attempt.user_id != user_id:
                 raise ForbiddenError()
 
-            gamification_repo = GamificationRepository(self.repository.session)
+            if attempt.status != AttemptStatus.COMPLETED:
+                segments = await review_service.ensure_snapshot(attempt, content)
+                all_recordings = await self.repository.get_recordings_by_attempt(attempt_id)
+                by_id = {
+                    str(recording.id): recording
+                    for recording in all_recordings
+                    if recording.user_id == user_id
+                }
+                payload = dict(attempt.answer_payload or {})
+                snapshot_value = payload.get("content_snapshot")
+                snapshot = snapshot_value if isinstance(snapshot_value, dict) else {}
+                is_continuous = payload.get("mode") == ShadowingMode.CONTINUOUS.value
+                selected: dict[int, Recording] = {}
+                completed_count = 0
+                if is_continuous:
+                    continuous = payload.get("continuous_recording")
+                    if isinstance(continuous, dict):
+                        recording = by_id.get(str(continuous.get("recording_id", "")))
+                        if recording is not None:
+                            selected[0] = recording
+                    if selected:
+                        material_ms = snapshot.get("audio_duration_ms")
+                        total_duration = (
+                            material_ms
+                            if isinstance(material_ms, int) and material_ms > 0
+                            else len(segments) * 5000
+                        )
+                        ratio = (
+                            min(1.0, (selected[0].duration_ms or 0) / total_duration)
+                            if total_duration
+                            else 0
+                        )
+                        completed_count = min(len(segments), round(ratio * len(segments)))
+                else:
+                    raw_segments = payload.get("segments")
+                    if isinstance(raw_segments, list):
+                        for entry in raw_segments:
+                            if not isinstance(entry, dict):
+                                raise ShadowingRecordingsChangedError()
+                            try:
+                                index = int(str(entry.get("segment_id", "")))
+                            except ValueError as exc:
+                                raise ShadowingRecordingsChangedError() from exc
+                            recording = by_id.get(str(entry.get("recording_id", "")))
+                            if index < 0 or index >= len(segments) or recording is None:
+                                raise ShadowingRecordingsChangedError()
+                            if index in selected and selected[index].id != recording.id:
+                                raise ShadowingRecordingsChangedError()
+                            selected[index] = recording
+                    # Snapshot rows are authoritative for v2 uploads. Legacy rows are hydrated
+                    # only from explicit IDs above, never from upload ordering.
+                    for segment in segments:
+                        if segment.recording_id is not None:
+                            recording = by_id.get(str(segment.recording_id))
+                            if recording is None:
+                                raise ShadowingRecordingsChangedError()
+                            selected[segment.segment_index] = recording
 
-            # Idempotency: if already completed, return existing attempt result
-            if attempt.status == AttemptStatus.COMPLETED:
-                existing_tx = await gamification_repo.find_transaction_by_attempt(attempt_id)
-                xp_earned = existing_tx.amount if existing_tx else 0
-                progress = await gamification_repo.get_or_create_user_progress(user_id)
-                next_level_min_exp = minimum_exp_for_level(progress.current_level + 1)
-                exp_to_next = max(0, next_level_min_exp - progress.total_exp)
+                if not selected:
+                    raise ShadowingNoRecordingsError()
+                actual_manifest = {index: recording.id for index, recording in selected.items()}
+                if recordings_manifest is not None:
+                    expected = {
+                        entry.segment_index: entry.recording_id for entry in recordings_manifest
+                    }
+                    if len(expected) != len(recordings_manifest) or expected != actual_manifest:
+                        raise ShadowingRecordingsChangedError()
 
-                existing_ai_eval = await self.repository.get_latest_ai_evaluation(attempt_id)
-                existing_ai_feedback: ShadowingAiFeedback | None = None
-                if existing_ai_eval is not None:
-                    details_dict = (
-                        existing_ai_eval.details
-                        if isinstance(existing_ai_eval.details, dict)
-                        else {}
+                jobs: list[dict[str, object]] = []
+                for index, recording in selected.items():
+                    if not is_continuous:
+                        segment = segments[index]
+                        segment.recording_id = recording.id
+                        segment.duration_ms = recording.duration_ms
+                        segment.completion_eligible = (recording.duration_ms or 0) >= 2000
+                        segment.transcription_status = "queued"
+                        segment.error_code = None
+                        completed_count += int(segment.completion_eligible)
+                    job_payload: dict[str, object] = {
+                        "mode": "continuous" if is_continuous else "segmented",
+                        "segment_index": index,
+                        "recording_id": str(recording.id),
+                    }
+                    jobs.append(
+                        {
+                            "attempt_id": attempt.id,
+                            "kind": "transcribe_recording",
+                            "recording_id": recording.id,
+                            "input_fingerprint": shadowing_input_fingerprint(job_payload),
+                            "batch_index": 0,
+                            "payload": job_payload,
+                        }
                     )
-                    raw_corrections = details_dict.get("corrections", [])
-                    corrections_list: list[ShadowingCorrection] = []
-                    if isinstance(raw_corrections, list):
-                        for c in raw_corrections:
-                            if isinstance(c, dict) and "original" in c and "corrected" in c:
-                                corrections_list.append(
-                                    ShadowingCorrection(
-                                        original=str(c.get("original", "")),
-                                        corrected=str(c.get("corrected", "")),
-                                        reason=str(c.get("reason", "")),
-                                    )
-                                )
-                    raw_hints = details_dict.get("hints", [])
-                    hints_list = [str(h) for h in raw_hints] if isinstance(raw_hints, list) else []
-                    existing_ai_feedback = ShadowingAiFeedback(
-                        similarity_score=float(existing_ai_eval.similarity_score)
-                        if existing_ai_eval.similarity_score is not None
-                        else None,
-                        fluency_score=float(existing_ai_eval.fluency_score)
-                        if existing_ai_eval.fluency_score is not None
-                        else None,
-                        feedback=existing_ai_eval.feedback,
-                        corrections=corrections_list,
-                        hints=hints_list,
-                        user_transcript=str(details_dict.get("user_transcript"))
-                        if details_dict.get("user_transcript")
-                        else None,
+                await review_service.repository.enqueue_jobs(jobs)
+                score = calculate_shadowing_score(
+                    completed_count=completed_count, total_count=len(segments)
+                )
+                base_exp_value = snapshot.get("base_exp", content.base_exp)
+                base_exp = base_exp_value if isinstance(base_exp_value, int) else content.base_exp
+                xp_earned = calculate_shadowing_exp(
+                    base_exp=base_exp, completed_count=completed_count, total_count=len(segments)
+                )
+                payload["replay_count"] = replay_count
+                payload["completed_segment_count"] = completed_count
+                payload["total_segments"] = len(segments)
+                payload["score"] = float(score)
+                attempt.review_revision += 1
+                await self.repository.complete_attempt(
+                    attempt,
+                    score=score,
+                    correct_count=completed_count,
+                    total_count=len(segments),
+                    answer_payload=payload,
+                    completed_at=utc_now(),
+                )
+                progress = await gamification_repo.get_or_create_user_progress_for_update(user_id)
+                if xp_earned > 0:
+                    prior_rewarded = await self.repository.count_prior_rewarded_attempts(
+                        user_id=user_id, content_id=content_id, exclude_attempt_id=attempt_id
                     )
-
-                return ShadowingSubmitResponse(
-                    attempt_id=attempt.id,
-                    status=AttemptStatus.COMPLETED,
-                    score=float(attempt.score) if attempt.score is not None else 0.0,
-                    xp_earned=xp_earned,
-                    content_type="shadowing",
-                    difficulty=content.difficulty.value,
-                    message="Bạn đã hoàn thành bài luyện.",
-                    user_progress=ShadowingUserProgressSummary(
-                        total_exp=progress.total_exp,
-                        current_level=progress.current_level,
-                        exp_to_next_level=exp_to_next,
-                    ),
-                    completed_at=attempt.completed_at or utc_now(),
-                    ai_feedback=existing_ai_feedback,
-                )
-
-            transcript_segments = content.transcript_ja or []
-            total_count = len(transcript_segments)
-            recordings = await self.repository.get_recordings_by_attempt(attempt_id)
-
-            mode_str = (attempt.answer_payload or {}).get("mode")
-            is_continuous = (
-                mode_str == ShadowingMode.CONTINUOUS.value
-                or "continuous_recording" in (attempt.answer_payload or {})
-            )
-
-            completed_count = 0
-            if is_continuous:
-                cont_data = (attempt.answer_payload or {}).get("continuous_recording", {})
-                rec_duration_sec = (
-                    float(cont_data.get("duration_seconds", 0))
-                    if isinstance(cont_data, dict)
-                    else 0.0
-                )
-                if rec_duration_sec <= 0 and recordings:
-                    rec_duration_sec = float((recordings[0].duration_ms or 0) / 1000)
-
-                total_material_sec = float(
-                    (content.audio_duration_ms or (total_count * 5000)) / 1000.0
-                )
-                ratio = (
-                    min(1.0, rec_duration_sec / total_material_sec)
-                    if total_material_sec > 0
-                    else 0.0
-                )
-                completed_count = (
-                    min(total_count, round(ratio * total_count))
-                    if total_count > 0
-                    else (1 if rec_duration_sec >= 2 else 0)
-                )
+                    await gamification_repo.insert_transaction(
+                        user_id=user_id,
+                        attempt_id=attempt_id,
+                        amount=xp_earned,
+                        reason=f"Hoàn thành Shadowing: {snapshot.get('title', content.title)}"[
+                            :100
+                        ],
+                    )
+                    progress.total_exp += xp_earned
+                    progress.current_level = level_for_total_exp(progress.total_exp)
+                    if prior_rewarded == 0:
+                        progress.completed_content_count += 1
+                await self.repository.session.commit()
             else:
-                raw_payload_segments = (attempt.answer_payload or {}).get("segments")
-                payload_segments = (
-                    raw_payload_segments if isinstance(raw_payload_segments, list) else []
-                )
-                valid_segment_ids: set[str] = set()
-                for seg in payload_segments:
-                    if isinstance(seg, dict):
-                        dur_s = seg.get("duration_seconds", 0)
-                        dur_ms = seg.get("duration_ms", 0)
-                        if dur_s >= 2 or dur_ms >= 2000:
-                            valid_segment_ids.add(str(seg.get("segment_id")))
+                # Release the attempt lock before building the read response.
+                await self.repository.session.commit()
 
-                if not payload_segments and recordings:
-                    for idx, rec in enumerate(recordings):
-                        if (rec.duration_ms or 0) >= 2000:
-                            valid_segment_ids.add(str(idx))
-
-                completed_count = min(len(valid_segment_ids), total_count)
-
-            # Official deterministic score and EXP (purely completion based)
-            score = calculate_shadowing_score(
-                completed_count=completed_count, total_count=total_count
+            transaction = await gamification_repo.find_transaction_by_attempt(attempt_id)
+            progress = await gamification_repo.get_or_create_user_progress(user_id)
+            review = await self.get_attempt_review(user_id=user_id, attempt_id=attempt_id)
+            return ShadowingSubmitResponse(
+                attempt_id=attempt_id,
+                status=AttemptStatus.COMPLETED,
+                score=review.score if review.score is not None else 0.0,
+                xp_earned=transaction.amount if transaction else 0,
+                difficulty=review.difficulty,
+                message="Bạn đã hoàn thành bài luyện.",
+                user_progress=ShadowingUserProgressSummary(
+                    total_exp=progress.total_exp,
+                    current_level=progress.current_level,
+                    exp_to_next_level=max(
+                        0, minimum_exp_for_level(progress.current_level + 1) - progress.total_exp
+                    ),
+                ),
+                completed_at=review.completed_at or utc_now(),
+                ai_feedback=review.ai_feedback,
+                transcription=review.transcription,
+                ai_review=review.ai_review,
+                review_revision=review.review_revision,
+                ai_review_deferred=request_ai_review,
             )
-            xp_earned = calculate_shadowing_exp(
-                base_exp=content.base_exp,
-                completed_count=completed_count,
-                total_count=total_count,
-            )
-
-            completed_at = utc_now()
-            updated_payload = dict(attempt.answer_payload or {})
-            updated_payload["replay_count"] = replay_count
-            updated_payload["completed_segment_count"] = completed_count
-            updated_payload["total_segments"] = total_count
-            updated_payload["score"] = float(score)
-
-            # Informational AI evaluation (does NOT affect score or EXP)
-            ai_feedback: ShadowingAiFeedback | None = None
-            if request_ai_review and self.ai_gateway is not None and recordings:
-                try:
-                    ref_script = " ".join(
-                        str(s.get("script", "")) for s in transcript_segments if isinstance(s, dict)
-                    ).strip()
-
-                    if is_continuous:
-                        cont_data = (attempt.answer_payload or {}).get("continuous_recording", {})
-                        continuous_rec: Recording | None = None
-                        rec_id_str = (
-                            str(cont_data.get("recording_id", ""))
-                            if isinstance(cont_data, dict)
-                            else ""
-                        )
-                        storage_key_str = (
-                            str(cont_data.get("storage_key", ""))
-                            if isinstance(cont_data, dict)
-                            else ""
-                        )
-
-                        for rec in recordings:
-                            if rec_id_str and str(rec.id) == rec_id_str:
-                                continuous_rec = rec
-                                break
-                            if storage_key_str and rec.storage_key == storage_key_str:
-                                continuous_rec = rec
-                                break
-
-                        if continuous_rec is None and recordings:
-                            continuous_rec = recordings[-1]
-
-                        target_storage_key = (
-                            continuous_rec.storage_key
-                            if continuous_rec
-                            else (
-                                storage_key_str
-                                or (recordings[-1].storage_key if recordings else None)
-                            )
-                        )
-
-                        if target_storage_key:
-                            audio_bytes = await self.storage_service.get_audio_bytes(
-                                target_storage_key
-                            )
-                            prompt_hint = (
-                                ref_script[:200] if len(ref_script) > 200 else ref_script
-                            ) or None
-
-                            stt_result = await self.ai_gateway.transcribe(
-                                audio=audio_bytes,
-                                filename="continuous.webm",
-                                language="ja",
-                                prompt_hint=prompt_hint,
-                            )
-                            if continuous_rec is not None:
-                                await self.repository.update_recording_transcription(
-                                    continuous_rec, stt_result.text
-                                )
-
-                            recognized_text = stt_result.text.strip()
-                            if recognized_text:
-                                clean_ref = strip_punctuation(ref_script)
-                                clean_user = strip_punctuation(recognized_text)
-                                continuous_words = compute_word_diffs(ref_script, recognized_text)
-
-                                eval_result = await self.ai_gateway.evaluate_shadowing(
-                                    reference_transcript=clean_ref or ref_script,
-                                    user_transcript=clean_user or recognized_text,
-                                    is_segment_mode=False,
-                                )
-                                cont_rec_id = continuous_rec.id if continuous_rec else None
-                                sim_score = Decimal(str(round(eval_result.score, 2)))
-                                try:
-                                    async with self.repository.session.begin_nested():
-                                        await self.repository.create_ai_evaluation(
-                                            attempt_id=attempt.id,
-                                            recording_id=cont_rec_id,
-                                            similarity_score=sim_score,
-                                            feedback=eval_result.feedback,
-                                            details={
-                                                "corrections": [
-                                                    c.model_dump() for c in eval_result.corrections
-                                                ],
-                                                "hints": eval_result.hints,
-                                                "is_acceptable": eval_result.is_acceptable,
-                                                "user_transcript": recognized_text,
-                                                "words": [w.model_dump() for w in continuous_words],
-                                            },
-                                            completed_at=completed_at,
-                                        )
-                                except Exception as db_exc:
-                                    logger.warning(
-                                        "Failed to persist continuous AiEvaluation record: %s",
-                                        db_exc,
-                                    )
-
-                                ai_feedback = ShadowingAiFeedback(
-                                    similarity_score=float(eval_result.score),
-                                    feedback=eval_result.feedback,
-                                    corrections=[
-                                        ShadowingCorrection(
-                                            original=c.original,
-                                            corrected=c.corrected,
-                                            reason=c.reason,
-                                        )
-                                        for c in eval_result.corrections
-                                    ],
-                                    hints=eval_result.hints,
-                                    user_transcript=recognized_text,
-                                    words=continuous_words,
-                                )
-                                updated_payload["continuous_transcript"] = recognized_text
-                            else:
-                                no_speech_feedback = (
-                                    "Không nhận diện được giọng nói trong bản thu âm. "
-                                    "Bạn hãy thử phát âm to, rõ ràng hơn và kiểm tra "
-                                    "thiết bị micro."
-                                )
-                                no_speech_hints = [
-                                    "Kiểm tra âm lượng micro và khoảng cách thu âm.",
-                                    "Phát âm rõ ràng theo câu mẫu tiếng Nhật.",
-                                ]
-                                cont_rec_id = continuous_rec.id if continuous_rec else None
-                                try:
-                                    async with self.repository.session.begin_nested():
-                                        await self.repository.create_ai_evaluation(
-                                            attempt_id=attempt.id,
-                                            recording_id=cont_rec_id,
-                                            similarity_score=Decimal("0.00"),
-                                            feedback=no_speech_feedback,
-                                            details={
-                                                "corrections": [],
-                                                "hints": no_speech_hints,
-                                                "is_acceptable": False,
-                                                "user_transcript": "",
-                                                "words": [],
-                                            },
-                                            completed_at=completed_at,
-                                        )
-                                except Exception as db_exc:
-                                    logger.warning(
-                                        "Failed to persist empty speech AiEvaluation record: %s",
-                                        db_exc,
-                                    )
-
-                                ai_feedback = ShadowingAiFeedback(
-                                    similarity_score=0.0,
-                                    feedback=no_speech_feedback,
-                                    corrections=[],
-                                    hints=no_speech_hints,
-                                    user_transcript="",
-                                    words=[],
-                                )
-                                updated_payload["continuous_transcript"] = ""
-                    else:
-                        segment_transcripts: dict[str, str] = {}
-                        raw_payload_segs = (attempt.answer_payload or {}).get("segments")
-                        payload_segs = (
-                            raw_payload_segs if isinstance(raw_payload_segs, list) else []
-                        )
-                        seg_rec_map: dict[str, Recording] = {}
-                        for seg in payload_segs:
-                            if isinstance(seg, dict) and "segment_id" in seg:
-                                seg_id_str = str(seg["segment_id"])
-                                rec_id_str = str(seg.get("recording_id", ""))
-                                for rec in recordings:
-                                    if str(rec.id) == rec_id_str:
-                                        seg_rec_map[seg_id_str] = rec
-                                        break
-
-                        if not seg_rec_map:
-                            for idx, rec in enumerate(recordings):
-                                seg_rec_map[str(idx)] = rec
-
-                        async def transcribe_segment_task(
-                            seg_id: str, storage_key: str, ref_text: str
-                        ) -> tuple[str, str | None]:
-                            try:
-                                audio_bytes = await self.storage_service.get_audio_bytes(
-                                    storage_key
-                                )
-                                stt = await self.ai_gateway.transcribe(  # type: ignore[union-attr]
-                                    audio=audio_bytes,
-                                    filename=f"segment_{seg_id}.webm",
-                                    language="ja",
-                                    prompt_hint=ref_text or None,
-                                )
-                                return seg_id, stt.text
-                            except Exception as exc:
-                                logger.warning(
-                                    "STT transcription failed for segment %s: %s",
-                                    seg_id,
-                                    exc,
-                                )
-                                return seg_id, None
-
-                        tasks = []
-                        for idx, seg_data in enumerate(transcript_segments):
-                            seg_id = str(idx)
-                            ref_text = (
-                                str(seg_data.get("script", ""))
-                                if isinstance(seg_data, dict)
-                                else ""
-                            )
-                            if seg_id in seg_rec_map:
-                                tasks.append(
-                                    transcribe_segment_task(
-                                        seg_id, seg_rec_map[seg_id].storage_key, ref_text
-                                    )
-                                )
-
-                        if tasks:
-                            results = await asyncio.gather(*tasks, return_exceptions=True)
-                            for res in results:
-                                if isinstance(res, tuple) and len(res) == 2:
-                                    s_id, text_result = res
-                                    if text_result is not None:
-                                        segment_transcripts[s_id] = text_result
-                                        rec_to_update = seg_rec_map.get(s_id)
-                                        if rec_to_update is not None:
-                                            await self.repository.update_recording_transcription(
-                                                rec_to_update, text_result
-                                            )
-
-                        segment_evaluations: dict[str, dict[str, Any]] = {}
-                        segment_sim_scores: list[float] = []
-
-                        for idx, seg_data in enumerate(transcript_segments):
-                            seg_id = str(idx)
-                            seg_ref_text = (
-                                str(seg_data.get("script", ""))
-                                if isinstance(seg_data, dict)
-                                else ""
-                            )
-                            seg_user_text = segment_transcripts.get(seg_id, "").strip()
-                            if seg_id in seg_rec_map and seg_user_text:
-                                seg_words = compute_word_diffs(seg_ref_text, seg_user_text)
-                                correct_count = sum(
-                                    1 for w in seg_words if w.status == ShadowingWordStatus.CORRECT
-                                )
-                                total_words = len(seg_words)
-                                seg_sim = (
-                                    round((correct_count / total_words) * 100, 2)
-                                    if total_words > 0
-                                    else 100.0
-                                )
-                                segment_sim_scores.append(seg_sim)
-                                segment_evaluations[seg_id] = {
-                                    "similarity_score": seg_sim,
-                                    "words": [w.model_dump() for w in seg_words],
-                                    "user_transcript": seg_user_text,
-                                }
-                            elif seg_id in seg_rec_map:
-                                seg_words = compute_word_diffs(seg_ref_text, "")
-                                segment_sim_scores.append(0.0)
-                                segment_evaluations[seg_id] = {
-                                    "similarity_score": 0.0,
-                                    "words": [w.model_dump() for w in seg_words],
-                                    "user_transcript": "",
-                                }
-
-                        recorded_seg_ids = [
-                            s_id
-                            for s_id in sorted(segment_evaluations.keys(), key=lambda x: int(x))
-                            if segment_evaluations[s_id].get("user_transcript")
-                        ]
-
-                        if recorded_seg_ids:
-                            recorded_ref_parts = [
-                                str(transcript_segments[int(s_id)].get("script", ""))
-                                for s_id in recorded_seg_ids
-                                if int(s_id) < len(transcript_segments)
-                            ]
-                            recorded_user_parts = [
-                                str(segment_evaluations[s_id]["user_transcript"])
-                                for s_id in recorded_seg_ids
-                            ]
-                            eval_ref_text = " ".join(recorded_ref_parts).strip()
-                            eval_user_text = " ".join(recorded_user_parts).strip()
-
-                            clean_eval_ref = strip_punctuation(eval_ref_text)
-                            clean_eval_user = strip_punctuation(eval_user_text)
-
-                            eval_result = await self.ai_gateway.evaluate_shadowing(
-                                reference_transcript=clean_eval_ref or eval_ref_text,
-                                user_transcript=clean_eval_user or eval_user_text,
-                                is_segment_mode=True,
-                            )
-
-                            final_score = (
-                                segment_sim_scores[0]
-                                if len(segment_sim_scores) == 1
-                                else float(eval_result.score)
-                            )
-
-                            try:
-                                async with self.repository.session.begin_nested():
-                                    await self.repository.create_ai_evaluation(
-                                        attempt_id=attempt.id,
-                                        similarity_score=Decimal(str(round(final_score, 2))),
-                                        feedback=eval_result.feedback,
-                                        details={
-                                            "corrections": [
-                                                c.model_dump() for c in eval_result.corrections
-                                            ],
-                                            "hints": eval_result.hints,
-                                            "is_acceptable": eval_result.is_acceptable,
-                                            "user_transcript": eval_user_text,
-                                            "segment_transcripts": segment_transcripts,
-                                            "segment_evaluations": segment_evaluations,
-                                        },
-                                        completed_at=completed_at,
-                                    )
-                            except Exception as db_exc:
-                                logger.warning(
-                                    "Failed to persist segment AiEvaluation record: %s",
-                                    db_exc,
-                                )
-
-                            ai_feedback = ShadowingAiFeedback(
-                                similarity_score=final_score,
-                                feedback=eval_result.feedback,
-                                corrections=[
-                                    ShadowingCorrection(
-                                        original=c.original,
-                                        corrected=c.corrected,
-                                        reason=c.reason,
-                                    )
-                                    for c in eval_result.corrections
-                                ],
-                                hints=eval_result.hints,
-                                user_transcript=eval_user_text,
-                                words=[],
-                            )
-                            updated_payload["segment_transcripts"] = segment_transcripts
-                        else:
-                            no_speech_feedback = (
-                                "Không nhận diện được giọng nói trong các đoạn thu âm. "
-                                "Bạn hãy thử phát âm to, rõ ràng hơn và kiểm tra thiết bị micro."
-                            )
-                            no_speech_hints = [
-                                "Kiểm tra âm lượng micro và khoảng cách thu âm.",
-                                "Phát âm rõ ràng theo từng đoạn câu mẫu tiếng Nhật.",
-                            ]
-                            try:
-                                async with self.repository.session.begin_nested():
-                                    await self.repository.create_ai_evaluation(
-                                        attempt_id=attempt.id,
-                                        similarity_score=Decimal("0.00"),
-                                        feedback=no_speech_feedback,
-                                        details={
-                                            "corrections": [],
-                                            "hints": no_speech_hints,
-                                            "is_acceptable": False,
-                                            "user_transcript": "",
-                                            "segment_transcripts": segment_transcripts,
-                                            "segment_evaluations": segment_evaluations,
-                                        },
-                                        completed_at=completed_at,
-                                    )
-                            except Exception as db_exc:
-                                logger.warning(
-                                    "Failed to persist empty segment AiEvaluation record: %s",
-                                    db_exc,
-                                )
-
-                            ai_feedback = ShadowingAiFeedback(
-                                similarity_score=0.0,
-                                feedback=no_speech_feedback,
-                                corrections=[],
-                                hints=no_speech_hints,
-                                user_transcript="",
-                                words=[],
-                            )
-                            updated_payload["segment_transcripts"] = segment_transcripts
-                except Exception as exc:
-                    logger.warning("Shadowing informational AI evaluation failed: %s", exc)
-
-            await self.repository.complete_attempt(
-                attempt,
-                score=score,
-                correct_count=completed_count,
-                total_count=total_count,
-                answer_payload=updated_payload,
-                completed_at=completed_at,
-            )
-
-            progress = await gamification_repo.get_or_create_user_progress_for_update(user_id)
-
-            if xp_earned > 0:
-                reason = f"Hoàn thành Shadowing: {content.title}"
-                await gamification_repo.insert_transaction(
-                    user_id=user_id,
-                    attempt_id=attempt_id,
-                    amount=xp_earned,
-                    reason=reason,
-                )
-                progress.total_exp += xp_earned
-                progress.current_level = level_for_total_exp(progress.total_exp)
-
-                prior_completed = await self.repository.count_prior_completed_attempts(
-                    user_id=user_id,
-                    content_id=content_id,
-                    exclude_attempt_id=attempt_id,
-                )
-                if prior_completed == 0:
-                    progress.completed_content_count += 1
-
-            await self.repository.session.commit()
         except Exception:
             await self.repository.session.rollback()
             raise
-
-        next_level_min_exp = minimum_exp_for_level(progress.current_level + 1)
-        exp_to_next = max(0, next_level_min_exp - progress.total_exp)
-
-        return ShadowingSubmitResponse(
-            attempt_id=attempt.id,
-            status=AttemptStatus.COMPLETED,
-            score=float(score),
-            xp_earned=xp_earned,
-            content_type="shadowing",
-            difficulty=content.difficulty.value,
-            message="Bạn đã hoàn thành bài luyện.",
-            user_progress=ShadowingUserProgressSummary(
-                total_exp=progress.total_exp,
-                current_level=progress.current_level,
-                exp_to_next_level=exp_to_next,
-            ),
-            completed_at=completed_at,
-            ai_feedback=ai_feedback,
-        )
 
     async def get_attempt_review(
         self,
@@ -1016,6 +744,11 @@ class ShadowingService:
         attempt, content, earned_exp = row
         if attempt.user_id != user_id:
             raise ForbiddenError()
+
+        if (attempt.answer_payload or {}).get("schema_version") == 2:
+            return await ShadowingReviewService(
+                ShadowingReviewRepository(self.repository.session), self.storage_service
+            ).get_attempt_review(user_id=user_id, attempt_id=attempt_id)
 
         transcript_segments = content.transcript_ja or []
         total_count = len(transcript_segments)
@@ -1218,14 +951,26 @@ class ShadowingService:
                     recording_id=rec_uuid,
                     playback_url=playback_url,
                     duration_seconds=duration_s,
-                    user_transcript=user_transcript_seg,
-                    similarity_score=seg_sim_score,
-                    words=seg_words,
+                    user_transcript=user_transcript_seg if not is_continuous else None,
+                    similarity_score=seg_sim_score if not is_continuous else None,
+                    words=seg_words if not is_continuous else [],
+                    transcription_status=(
+                        "not_recorded"
+                        if is_continuous or not is_recorded
+                        else "completed"
+                        if user_transcript_seg
+                        else "no_speech"
+                        if rec is not None and rec.transcription_ja == ""
+                        else "unavailable"
+                        if rec is None
+                        or (rec.expired_at is not None and rec.expired_at <= utc_now())
+                        else "not_requested"
+                    ),
                 )
             )
 
         if is_continuous:
-            completed_count = attempt.correct_count or total_count
+            completed_count = attempt.correct_count if attempt.correct_count is not None else 0
 
         user_continuous_transcript = None
         if is_continuous:
@@ -1266,6 +1011,23 @@ class ShadowingService:
             user_continuous_duration_seconds=user_continuous_duration_seconds,
             user_continuous_transcript=user_continuous_transcript,
             ai_feedback=ai_feedback,
+            ai_review=ShadowingAiReviewState(
+                status="completed"
+                if ai_evaluation and ai_evaluation.status.value == "completed"
+                else "failed"
+                if ai_evaluation and ai_evaluation.status.value == "failed"
+                else "not_requested",
+                review_id=ai_evaluation.id if ai_evaluation else None,
+                feedback_review_id=ai_evaluation.id if ai_evaluation else None,
+            ),
+            transcription=transcription_progress(
+                ["completed" if user_continuous_transcript else "not_requested"]
+                if is_continuous and continuous_rec
+                else [segment.transcription_status for segment in review_segments],
+                total=1 if is_continuous else total_count,
+            ),
+            recorded_segments=sum(segment.recorded for segment in review_segments),
+            review_revision=attempt.review_revision,
             segments=review_segments,
         )
 
@@ -1312,21 +1074,49 @@ class ShadowingService:
         if content.status != ContentStatus.PUBLISHED:
             raise ShadowingContentNotFoundError()
 
-        self._validated_transcript(content)
-        if not content.audio_url:
-            raise ShadowingContentUnavailableError()
-
         total_attempts = await self.repository.get_total_attempt_count(
             user_id=user_id,
             content_id=content.id,
         )
+        resume = await self._build_resume_response(
+            attempt=attempt,
+            content=content,
+            total_attempts=total_attempts,
+        )
+        snapshot = (attempt.answer_payload or {}).get("content_snapshot")
+        rows = await ShadowingReviewRepository(self.repository.session).get_segments(attempt.id)
+        detail = (
+            self._content_detail(content)
+            if not isinstance(snapshot, dict)
+            else ShadowingContentDetail.model_validate(
+                {
+                    "id": content.id,
+                    "title": snapshot.get("title", content.title),
+                    "description": content.short_description,
+                    "content_type": content.content_type,
+                    "difficulty": snapshot.get("difficulty", content.difficulty),
+                    "topic": content.topic,
+                    "duration_seconds": snapshot["audio_duration_ms"] / 1000
+                    if isinstance(snapshot.get("audio_duration_ms"), int)
+                    else None,
+                    "audio_url": snapshot.get("audio_url"),
+                    "published_at": content.published_at,
+                    "transcript": [
+                        {
+                            "script": segment.script,
+                            "start_time_ms": segment.start_time_ms,
+                            "end_time_ms": segment.end_time_ms,
+                        }
+                        for segment in rows
+                    ],
+                }
+            )
+        )
+        if not detail.audio_url:
+            raise ShadowingContentUnavailableError()
         return ShadowingAttemptPracticeResponse(
-            content=self._content_detail(content),
-            attempt=await self._build_resume_response(
-                attempt=attempt,
-                content=content,
-                total_attempts=total_attempts,
-            ),
+            content=detail,
+            attempt=resume,
         )
 
     async def _build_resume_response(
@@ -1337,8 +1127,11 @@ class ShadowingService:
         total_attempts: int,
     ) -> ShadowingResumeResponse:
 
-        transcript_segments = content.transcript_ja or []
-        total_count = len(transcript_segments)
+        segments = await ShadowingReviewService(
+            ShadowingReviewRepository(self.repository.session), self.storage_service
+        ).ensure_snapshot(attempt, content)
+        await self.repository.session.commit()
+        total_count = len(segments)
         recordings = await self.repository.get_recordings_by_attempt(attempt.id)
         recordings_by_id = {str(r.id): r for r in recordings}
 
@@ -1489,7 +1282,15 @@ class ShadowingService:
             raise ShadowingContentUnavailableError()
 
         try:
-            return [TranscriptSegment.model_validate(segment) for segment in content.transcript_ja]
+            segments = [
+                TranscriptSegment.model_validate(segment) for segment in content.transcript_ja
+            ]
+            if any(
+                not segment.script.strip() or segment.end_time_ms <= segment.start_time_ms
+                for segment in segments
+            ):
+                raise ShadowingContentUnavailableError()
+            return segments
         except ValidationError as exc:
             raise ShadowingContentUnavailableError() from exc
 

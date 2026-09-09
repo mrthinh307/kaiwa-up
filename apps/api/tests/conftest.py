@@ -1,5 +1,6 @@
 # apps/api/tests/conftest.py
-from collections.abc import Callable
+from collections.abc import AsyncIterator, Callable
+from contextlib import asynccontextmanager
 from pathlib import Path
 from uuid import uuid4
 
@@ -9,9 +10,11 @@ from httpx import ASGITransport, AsyncClient
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
+from sqlalchemy.schema import CreateSchema, DropSchema
 
 from app.api.dependencies.database import get_db_session
 from app.main import app
+from app.models import Base
 
 TEST_ENV_FILE = Path(__file__).resolve().parents[1] / ".env"
 
@@ -87,3 +90,37 @@ async def client(db_session):
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
     app.dependency_overrides.clear()
+
+
+@asynccontextmanager
+async def isolated_shadowing_sessions() -> AsyncIterator[async_sessionmaker[AsyncSession]]:
+    """Independent committed transactions in a disposable, uniquely named test schema.
+
+    Worker/lease tests need real commits and multiple connections, unlike db_session's
+    outer rollback fixture. The configured TEST database is the only allowed destination.
+    """
+    schema_name = f"shadowing_test_{uuid4().hex}"
+    async with engine_test.begin() as connection:
+        await connection.execute(CreateSchema(schema_name))
+    isolated_engine = create_async_engine(
+        DATABASE_URL_TEST,
+        poolclass=NullPool,
+        # Schema-qualified SQL is required with transaction poolers: session search_path
+        # may be reset between connections/transactions by the managed test database.
+        execution_options={"schema_translate_map": {None: schema_name}},
+    )
+    try:
+        async with isolated_engine.begin() as connection:
+            await connection.run_sync(Base.metadata.create_all)
+        yield async_sessionmaker(isolated_engine, expire_on_commit=False)
+    finally:
+        await isolated_engine.dispose()
+        # The name is generated immediately above and never comes from environment/user data.
+        async with engine_test.begin() as connection:
+            await connection.execute(DropSchema(schema_name, cascade=True))
+
+
+@pytest_asyncio.fixture(scope="session")
+async def shadowing_session_factory() -> AsyncIterator[async_sessionmaker[AsyncSession]]:
+    async with isolated_shadowing_sessions() as factory:
+        yield factory
