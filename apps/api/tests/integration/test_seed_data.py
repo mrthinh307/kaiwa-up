@@ -1,7 +1,10 @@
+from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 
 import pytest
+import pytest_asyncio
 from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core import settings
 from app.models.attempt import ExerciseAttempt
@@ -20,6 +23,23 @@ from scripts.seed_data import (
     seed_translation_lessons,
     seed_xp_transactions,
 )
+from tests.conftest import isolated_shadowing_sessions
+
+
+@pytest_asyncio.fixture(scope="module")
+async def seed_sessions() -> AsyncIterator[async_sessionmaker[AsyncSession]]:
+    # Catalog tests require an empty schema, independent of existing DEV/TEST seed data.
+    async with isolated_shadowing_sessions() as factory:
+        yield factory
+
+
+@pytest_asyncio.fixture
+async def db_session(
+    seed_sessions: async_sessionmaker[AsyncSession],
+) -> AsyncIterator[AsyncSession]:
+    async with seed_sessions() as session, session.begin():
+        yield session
+        await session.rollback()
 
 
 @pytest.mark.asyncio

@@ -1,7 +1,9 @@
 import asyncio
 import logging
 import uuid
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal
 
 import cloudinary
 import cloudinary.uploader
@@ -9,8 +11,16 @@ from fastapi import UploadFile
 
 from app.core import settings
 from app.exceptions import StorageUnavailableError
+from app.services.shadowing_audio import ShadowingAudioMetadata
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class SavedRecordingAudio:
+    storage_key: str
+    provider: Literal["local", "cloudinary"]
+    asset_id: str | None
 
 
 class StorageService:
@@ -42,6 +52,71 @@ class StorageService:
                 secure=True,
             )
             self._has_cloudinary = True
+
+    async def save_recording_audio(
+        self,
+        *,
+        user_id: uuid.UUID,
+        attempt_id: uuid.UUID,
+        content: bytes,
+        metadata: ShadowingAudioMetadata,
+    ) -> SavedRecordingAudio:
+        """Store already-inspected audio without keeping a database transaction open."""
+        recording_id = uuid.uuid4()
+        if self._has_cloudinary:
+            import io
+
+            folder = (
+                f"{settings.CLOUDINARY_FOLDER}/shadowing_user_recordings/{user_id}/{attempt_id}"
+            )
+            try:
+                result = await asyncio.to_thread(
+                    cloudinary.uploader.upload,
+                    io.BytesIO(content),
+                    resource_type="video",
+                    folder=folder,
+                    public_id=str(recording_id),
+                    overwrite=False,
+                    timeout=30,
+                )
+                if result.get("secure_url") and result.get("public_id"):
+                    return SavedRecordingAudio(
+                        storage_key=str(result["secure_url"]),
+                        provider="cloudinary",
+                        asset_id=str(result["public_id"]),
+                    )
+                raise StorageUnavailableError()
+            except Exception as exc:
+                # Do not silently change storage backends for a failed upload. Retrying the
+                # same take must have one observable success/failure and stable ownership.
+                raise StorageUnavailableError() from exc
+        if settings.environment == "production":
+            raise StorageUnavailableError()
+        extension = {
+            "audio/webm": ".webm",
+            "audio/ogg": ".ogg",
+            "audio/mp4": ".mp4",
+            "audio/mpeg": ".mp3",
+            "audio/wav": ".wav",
+        }[metadata.mime_type]
+        relative_key = f"{user_id}/{attempt_id}/{recording_id}{extension}"
+        target = self.storage_dir / relative_key
+        await asyncio.to_thread(target.parent.mkdir, parents=True, exist_ok=True)
+        await asyncio.to_thread(target.write_bytes, content)
+        return SavedRecordingAudio(f"recordings/{relative_key}", "local", None)
+
+    async def delete_recording_audio(self, saved: SavedRecordingAudio) -> None:
+        """Clean only an unpublished asset returned by this storage operation."""
+        if saved.provider == "cloudinary" and saved.asset_id:
+            await asyncio.to_thread(
+                cloudinary.uploader.destroy, saved.asset_id, resource_type="video", invalidate=True
+            )
+        elif saved.provider == "local":
+            key = saved.storage_key.removeprefix("recordings/")
+            target = (self.storage_dir / key).resolve()
+            if not target.is_relative_to(self.storage_dir.resolve()):
+                raise StorageUnavailableError()
+            await asyncio.to_thread(target.unlink, missing_ok=True)
 
     async def save_audio(
         self,
@@ -183,4 +258,4 @@ class StorageService:
         target_path = self.storage_dir / clean_key
         if not target_path.exists():
             raise FileNotFoundError(f"Recording audio not found at {target_path}")
-        return target_path.read_bytes()
+        return await asyncio.to_thread(target_path.read_bytes)

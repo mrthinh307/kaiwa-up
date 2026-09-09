@@ -114,6 +114,9 @@ class ExerciseAttempt(PrimaryKeyUuidMixin, Base):
     )
     response_started_on_time: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     answer_payload: Mapped[dict[str, object] | None] = mapped_column(JSONB, nullable=True)
+    review_revision: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
 
     recordings: Mapped[list["Recording"]] = relationship(
         back_populates="attempt",
@@ -136,6 +139,9 @@ class ExerciseAttempt(PrimaryKeyUuidMixin, Base):
 class Recording(PrimaryKeyUuidMixin, CreatedAtMixin, Base):
     __tablename__ = "recordings"
     __table_args__ = (
+        UniqueConstraint(
+            "user_id", "attempt_id", "client_recording_id", name="uq_recordings_client_take"
+        ),
         CheckConstraint(
             "kind IN ('SHADOWING', 'REFLEX', 'TUTOR_VOICE')",
             name="recording_kind",
@@ -165,6 +171,9 @@ class Recording(PrimaryKeyUuidMixin, CreatedAtMixin, Base):
     duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
     mime_type: Mapped[str | None] = mapped_column(String(100), nullable=True)
     transcription_ja: Mapped[str | None] = mapped_column(Text, nullable=True)
+    client_recording_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, nullable=True)
+    content_sha256: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    shadowing_segment_index: Mapped[int | None] = mapped_column(Integer, nullable=True)
     expired_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     attempt: Mapped[ExerciseAttempt | None] = relationship(back_populates="recordings")
@@ -177,6 +186,9 @@ class Recording(PrimaryKeyUuidMixin, CreatedAtMixin, Base):
 class AiEvaluation(PrimaryKeyUuidMixin, CreatedAtMixin, Base):
     __tablename__ = "ai_evaluations"
     __table_args__ = (
+        UniqueConstraint(
+            "attempt_id", "review_fingerprint", name="uq_ai_evaluations_review_fingerprint"
+        ),
         CheckConstraint(
             "status IN ('PENDING', 'COMPLETED', 'FAILED')",
             name="ai_evaluation_status",
@@ -214,6 +226,7 @@ class AiEvaluation(PrimaryKeyUuidMixin, CreatedAtMixin, Base):
     feedback: Mapped[str | None] = mapped_column(Text, nullable=True)
     details: Mapped[dict[str, object] | None] = mapped_column(JSONB, nullable=True)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    review_fingerprint: Mapped[str | None] = mapped_column(String(64), nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     attempt: Mapped[ExerciseAttempt] = relationship(back_populates="evaluations")
