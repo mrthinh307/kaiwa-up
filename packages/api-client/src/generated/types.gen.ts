@@ -3076,6 +3076,10 @@ export type RequestShadowingAiReviewError =
 
 export type RequestShadowingAiReviewResponses = {
   /**
+   * OK
+   */
+  200: ShadowingAiReviewResponse;
+  /**
    * Successful Response
    */
   202: ShadowingAiReviewResponse;
@@ -3107,6 +3111,10 @@ export type RequestShadowingTranscriptionsError =
   RequestShadowingTranscriptionsErrors[keyof RequestShadowingTranscriptionsErrors];
 
 export type RequestShadowingTranscriptionsResponses = {
+  /**
+   * OK
+   */
+  200: ShadowingProcessingResponse;
   /**
    * Successful Response
    */

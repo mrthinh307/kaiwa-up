@@ -1,4 +1,5 @@
 import logging
+import math
 from collections.abc import Mapping
 from http import HTTPStatus
 from typing import Any
@@ -51,11 +52,12 @@ def error_response(
 
 async def app_error_handler(_: Request, exc: AppError) -> JSONResponse:
     headers = None
-    if exc.code == "avatar_rate_limited":
+    if exc.code in {"avatar_rate_limited", "ai_rate_limited"}:
         retry_after = (
-            exc.details.get("retry_after_seconds", 600) if isinstance(exc.details, Mapping) else 600
+            exc.details.get("retry_after_seconds", 60) if isinstance(exc.details, Mapping) else 60
         )
-        headers = {"Retry-After": str(retry_after)}
+        if isinstance(retry_after, (int, float)) and math.isfinite(retry_after):
+            headers = {"Retry-After": str(max(0, math.ceil(retry_after)))}
     return error_response(
         status_code=exc.status_code,
         code=exc.code,
