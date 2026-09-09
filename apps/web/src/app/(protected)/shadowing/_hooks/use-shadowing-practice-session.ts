@@ -6,7 +6,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { useAuth } from "@/hooks/use-auth";
-import { recordShadowingSegment, submitShadowingAttempt } from "@/lib/api-client";
+import {
+  recordShadowingContinuous,
+  recordShadowingSegment,
+  submitShadowingAttempt,
+} from "@/lib/api-client";
 import { parseApiFailure } from "@/lib/api-errors";
 
 import { useAudioPlayer } from "./use-audio-player";
@@ -46,6 +50,18 @@ type ShadowingPracticeSessionOptions = {
 function buildRecordedSegments(
   practice: ShadowingAttemptPracticeResponse,
 ): Record<string, SegmentRecordState> {
+  if (practice.attempt.mode === "continuous" && practice.attempt.continuous_recording) {
+    const recording = practice.attempt.continuous_recording;
+    return {
+      "0": {
+        durationSeconds: recording.duration_seconds,
+        playbackUrl: recording.playback_url ?? undefined,
+        recorded: true,
+        recordingId: recording.recording_id,
+      },
+    };
+  }
+
   return Object.fromEntries(
     (practice.attempt.recorded_segments ?? []).map((segment) => [
       segment.segment_id,
@@ -68,7 +84,8 @@ export function useShadowingPracticeSession({
 }: ShadowingPracticeSessionOptions) {
   const { protectedRequest } = useAuth();
   const { attempt, content: lesson } = practice;
-  const practiceMode = "segmented" as const;
+  const practiceMode = attempt.mode;
+  const isContinuous = practiceMode === "continuous";
   const currentAttemptId = attempt.attempt_id;
   const [selectedSegmentIndex, setSelectedSegmentIndex] = useState(0);
   const [recordedSegments, setRecordedSegments] = useState<Record<string, SegmentRecordState>>(() =>
@@ -77,12 +94,14 @@ export function useShadowingPracticeSession({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const takesRef = useRef<UploadTake[]>([]);
   const savedIdsRef = useRef<Record<string, string>>(
-    Object.fromEntries(
-      (practice.attempt.recorded_segments ?? []).map((segment) => [
-        segment.segment_id,
-        segment.recording_id,
-      ]),
-    ),
+    practiceMode === "continuous" && practice.attempt.continuous_recording
+      ? { "0": practice.attempt.continuous_recording.recording_id }
+      : Object.fromEntries(
+          (practice.attempt.recorded_segments ?? []).map((segment) => [
+            segment.segment_id,
+            segment.recording_id,
+          ]),
+        ),
   );
   const uploadsRef = useRef(new Map<number, Promise<void>>());
   const [pendingUploadCount, setPendingUploadCount] = useState(0);
@@ -118,7 +137,7 @@ export function useShadowingPracticeSession({
     [lesson.transcript],
   );
   const player = useAudioPlayer(lesson.audio_url ?? "", lesson.duration_seconds ?? 0, {
-    autoPause: !autoPlayOnSegmentChange,
+    autoPause: !isContinuous && !autoPlayOnSegmentChange,
     segments: transcriptSegments,
   });
   const currentTimeMs = player.currentTime * 1000;
@@ -168,8 +187,8 @@ export function useShadowingPracticeSession({
 
   const effectiveSegmentIndex = segmentIndexAtTime >= 0 ? segmentIndexAtTime : selectedSegmentIndex;
   const activeSegment = transcriptSegments[effectiveSegmentIndex];
-  const hasPreviousSegment = effectiveSegmentIndex > 0;
-  const hasNextSegment = effectiveSegmentIndex < transcriptSegments.length - 1;
+  const hasPreviousSegment = !isContinuous && effectiveSegmentIndex > 0;
+  const hasNextSegment = !isContinuous && effectiveSegmentIndex < transcriptSegments.length - 1;
 
   const handleSelectSegment = useCallback(
     (index: number) => {
@@ -192,10 +211,10 @@ export function useShadowingPracticeSession({
 
       // Play segment: if auto-pause is enabled (!autoPlayOnSegmentChange), pause at endSeconds.
       // If auto-pause is disabled (continuous), play continuously from startSeconds.
-      const targetStop = !autoPlayOnSegmentChange ? endSeconds : null;
+      const targetStop = isContinuous ? null : !autoPlayOnSegmentChange ? endSeconds : null;
       player.playSegment(startSeconds, targetStop);
     },
-    [autoPlayOnSegmentChange, clearScheduledPlayback, player, transcriptSegments],
+    [autoPlayOnSegmentChange, clearScheduledPlayback, isContinuous, player, transcriptSegments],
   );
 
   const handlePreviousSegment = useCallback(() => {
@@ -240,9 +259,9 @@ export function useShadowingPracticeSession({
     clearScheduledPlayback();
     const startSeconds = activeSegment.start_time_ms / 1000;
     const endSeconds = activeSegment.end_time_ms / 1000;
-    const targetStop = !autoPlayOnSegmentChange ? endSeconds : null;
+    const targetStop = isContinuous ? null : !autoPlayOnSegmentChange ? endSeconds : null;
     player.playSegment(startSeconds, targetStop);
-  }, [activeSegment, autoPlayOnSegmentChange, clearScheduledPlayback, player]);
+  }, [activeSegment, autoPlayOnSegmentChange, clearScheduledPlayback, isContinuous, player]);
 
   const handleTogglePlay = useCallback(() => {
     clearScheduledPlayback();
@@ -282,16 +301,27 @@ export function useShadowingPracticeSession({
           const mime = take.blob.type;
           const extension = mime.includes("mp4") ? "m4a" : mime.includes("ogg") ? "ogg" : "webm";
           const response = await protectedRequest(() =>
-            recordShadowingSegment({
-              body: {
-                attempt_id: currentAttemptId,
-                audio_file: new File([take.blob], `recording.${extension}`, { type: mime }),
-                client_recording_id: take.clientId,
-                expected_recording_id: take.expectedId,
-                segment_id: String(take.segmentIndex),
-              },
-              path: { content_id: lesson.id },
-            }),
+            isContinuous
+              ? recordShadowingContinuous({
+                  body: {
+                    attempt_id: currentAttemptId,
+                    audio_file: new File([take.blob], `recording.${extension}`, { type: mime }),
+                    client_recording_id: take.clientId,
+                    duration_seconds: Math.max(1, Math.round(take.durationSeconds)),
+                    expected_recording_id: take.expectedId,
+                  },
+                  path: { content_id: lesson.id },
+                })
+              : recordShadowingSegment({
+                  body: {
+                    attempt_id: currentAttemptId,
+                    audio_file: new File([take.blob], `recording.${extension}`, { type: mime }),
+                    client_recording_id: take.clientId,
+                    expected_recording_id: take.expectedId,
+                    segment_id: String(take.segmentIndex),
+                  },
+                  path: { content_id: lesson.id },
+                }),
           );
           if (!response.data) {
             const failure = parseApiFailure(response);
@@ -335,13 +365,20 @@ export function useShadowingPracticeSession({
       uploadsRef.current.set(take.segmentIndex, upload);
       return upload;
     },
-    [currentAttemptId, lesson.id, onAttemptNotInProgress, protectedRequest, refreshUploads],
+    [
+      currentAttemptId,
+      isContinuous,
+      lesson.id,
+      onAttemptNotInProgress,
+      protectedRequest,
+      refreshUploads,
+    ],
   );
 
   const handleRecordComplete = useCallback(
     ({ audioBlob, durationMs, segmentIndex }: RecordingCompleteData) => {
       if (!audioBlob) return;
-      const index = segmentIndex ?? effectiveSegmentIndex;
+      const index = isContinuous ? 0 : (segmentIndex ?? effectiveSegmentIndex);
       const playbackUrl = URL.createObjectURL(audioBlob);
       localObjectUrlsRef.current.add(playbackUrl);
       const take: UploadTake = {
@@ -364,7 +401,7 @@ export function useShadowingPracticeSession({
       }));
       void enqueueUpload(take);
     },
-    [effectiveSegmentIndex, enqueueUpload],
+    [effectiveSegmentIndex, enqueueUpload, isContinuous],
   );
 
   const retryFailedUploads = useCallback(() => {
@@ -421,10 +458,11 @@ export function useShadowingPracticeSession({
     (segment) => segment.recorded,
   ).length;
   const totalSegments = transcriptSegments.length;
-  const currentSegmentRecorded = Boolean(recordedSegments[String(effectiveSegmentIndex)]?.recorded);
+  const currentRecordingIndex = isContinuous ? 0 : effectiveSegmentIndex;
+  const currentSegmentRecorded = Boolean(recordedSegments[String(currentRecordingIndex)]?.recorded);
   const currentSegmentDuration =
-    recordedSegments[String(effectiveSegmentIndex)]?.durationSeconds ?? 0;
-  const currentSavedAudioUrl = recordedSegments[String(effectiveSegmentIndex)]?.playbackUrl;
+    recordedSegments[String(currentRecordingIndex)]?.durationSeconds ?? 0;
+  const currentSavedAudioUrl = recordedSegments[String(currentRecordingIndex)]?.playbackUrl;
 
   return {
     activeSegment,
@@ -443,7 +481,7 @@ export function useShadowingPracticeSession({
     handleTogglePlay,
     hasNextSegment,
     hasPreviousSegment,
-    isContinuous: false,
+    isContinuous,
     isPlayerPlaying: player.isPlaying,
     isSubmitting,
     pendingUploadCount,
