@@ -449,6 +449,13 @@ Badge, surrounding status treatment, or a documented product-specific component.
   `Collapsible` for progressive disclosure.
 - Use `Sonner` toasts for transient mutation outcomes and temporarily unavailable integrations.
   Keep field-level validation next to its control; do not move actionable form errors into a toast.
+  Mount the shared `components/ui/sonner.tsx` Toaster once in the root layout. It owns toast
+  typography, spacing, colors, and the top-right close button. Feature code supplies concise
+  content, semantic status/icons, actions, and lifecycle options; do not override toast layout
+  with feature-specific `className`, `classNames`, inline styles, or custom toast markup.
+  Use a 14px title and 12px description. Keep room for the close button so it never overlaps text.
+  For dismissible progress notifications, use a regular toast with a spinner and infinite duration;
+  Sonner's loading variant hides its close button. Set a finite duration when processing finishes.
 - Titles explain the outcome; descriptions explain what the learner should do next.
 - Default feedback uses primary blue. Destructive treatment is reserved for actual errors or
   irreversible actions.
