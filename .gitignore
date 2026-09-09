@@ -33,3 +33,7 @@ Thumbs.db
 .neon
 
 .vercel
+
+# Local browser verification artifacts
+.playwright-cli/
+output/playwright/
