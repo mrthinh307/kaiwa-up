@@ -135,6 +135,12 @@ import type {
   RegisterData,
   RegisterErrors,
   RegisterResponses,
+  RequestShadowingAiReviewData,
+  RequestShadowingAiReviewErrors,
+  RequestShadowingAiReviewResponses,
+  RequestShadowingTranscriptionsData,
+  RequestShadowingTranscriptionsErrors,
+  RequestShadowingTranscriptionsResponses,
   RestartDictationAttemptData,
   RestartDictationAttemptErrors,
   RestartDictationAttemptResponses,
@@ -347,6 +353,50 @@ export const getGamificationProfile = <ThrowOnError extends boolean = false>(
     security: [{ scheme: "bearer", type: "http" }],
     url: "/api/v1/gamification/profile",
     ...options,
+  });
+
+/**
+ * Request optional overall AI feedback for a submitted Shadowing attempt
+ */
+export const requestShadowingAiReview = <ThrowOnError extends boolean = false>(
+  options: Options<RequestShadowingAiReviewData, ThrowOnError>,
+): RequestResult<RequestShadowingAiReviewResponses, RequestShadowingAiReviewErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    RequestShadowingAiReviewResponses,
+    RequestShadowingAiReviewErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/api/v1/shadowing/attempts/{attempt_id}/ai-reviews",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Request missing or failed Shadowing transcriptions
+ */
+export const requestShadowingTranscriptions = <ThrowOnError extends boolean = false>(
+  options: Options<RequestShadowingTranscriptionsData, ThrowOnError>,
+): RequestResult<
+  RequestShadowingTranscriptionsResponses,
+  RequestShadowingTranscriptionsErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).post<
+    RequestShadowingTranscriptionsResponses,
+    RequestShadowingTranscriptionsErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: "bearer", type: "http" }],
+    url: "/api/v1/shadowing/attempts/{attempt_id}/transcriptions",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
   });
 
 /**
