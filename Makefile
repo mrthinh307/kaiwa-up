@@ -63,6 +63,9 @@ install-api:
 dev-api:
 	cd apps/api && uv run python -m uvicorn app.main:app --reload
 
+dev-shadowing-worker:
+	cd apps/api && uv run python -m app.workers.shadowing
+
 lint-api:
 	cd apps/api && uv run ruff check .
 

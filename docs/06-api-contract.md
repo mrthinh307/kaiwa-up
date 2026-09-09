@@ -635,7 +635,11 @@ giá trị là `null`.
 ---
 
 #### `POST /api/v1/shadowing/{content_id}/submit`
-* **Mục đích**: Hoàn thành và nộp kết quả bài luyện Shadowing. Tính điểm (theo tỷ lệ câu hoặc thời lượng thực hành), cộng thưởng EXP và lưu lịch sử làm bài.
+* **Mục đích**: Chốt completion/EXP và STT jobs cùng transaction; trả kết quả ngay, không chờ provider.
+* `recordings` là manifest tùy chọn gồm `{segment_index, recording_id}`. Client mới gửi toàn bộ
+  các recording đã lưu; manifest thiếu, trùng hoặc lệch phiên bản trả `409 shadowing_recordings_changed`.
+* `request_ai_review` còn được nhận cho client cũ nhưng không kích hoạt AI. Khi true, response
+  có `ai_review_deferred: true`; AI tổng thể chỉ bắt đầu từ `POST .../ai-reviews` bên dưới.
 * **Yêu cầu xác thực**: Bearer Token
 * **Request Headers**: `Authorization: Bearer <jwt_access_token>`, `Content-Type: application/json`
 * **Path Parameters**:
@@ -653,16 +657,48 @@ giá trị là `null`.
     "attempt_id": "550e8400-e29b-41d4-a716-446655440000",
     "status": "completed",
     "score": 100.0,
-    "earned_exp": 15,
-    "total_exp": 350,
-    "level": 3,
-    "is_first_completion": true
+    "xp_earned": 50,
+    "content_type": "shadowing",
+    "difficulty": "N5",
+    "message": "Bạn đã hoàn thành bài luyện.",
+    "user_progress": {"total_exp": 50, "current_level": 2},
+    "completed_at": "2026-09-08T00:00:00Z",
+    "ai_feedback": null,
+    "review_revision": 1,
+    "ai_review_deferred": false
   }
   ```
 * **Status Codes & Error Responses**:
   * `200 OK`: Nộp bài thành công và cộng điểm EXP.
-  * `400 Bad Request` (`code`: `bad_request`): Attempt đã nộp hoặc không có bản ghi âm.
-  * `404 Not Found` (`code`: `not_found`): Không tìm thấy bài học hoặc attempt.
+  * Submit lặp lại trả `200` với kết quả đã lưu; không cộng EXP hoặc enqueue STT lần nữa.
+  * `400 Bad Request` (`code`: `shadowing_no_recordings`): Chưa có bản ghi âm được lưu.
+  * `404 Not Found` (`code`: `shadowing_attempt_not_found`): Không tìm thấy attempt tương ứng.
+  * `403 Forbidden`: Attempt không thuộc người dùng hiện tại.
+
+Response còn có `transcription` (tiến độ STT) và `ai_review` (trạng thái AI). Schema đầy đủ được
+sinh trong `packages/api-client/openapi.json`; đoạn JSON trên chỉ minh họa các trường chính.
+
+#### Xử lý STT và AI trên result (Shadowing v2)
+
+- `GET /api/v1/shadowing/attempts/{attempt_id}/review` trả snapshot target, transcript, trạng thái
+  từng segment và `review_revision`. GET không enqueue công việc. Client poll khi queued/processing,
+  từ 2 đến 5 giây, dừng khi terminal và tạm ngưng khi tab bị ẩn; bỏ response revision thấp hơn.
+- `POST /api/v1/shadowing/attempts/{attempt_id}/transcriptions`, body `{}` hoặc
+  `{"segment_indices": [0, 1]}`, yêu cầu STT cho dữ liệu legacy hoặc retry những recording lỗi.
+  Trả `202` khi có việc mới, `200` nếu không có việc cần enqueue. Không chạy lại recording thành công.
+- `POST /api/v1/shadowing/attempts/{attempt_id}/ai-reviews`, body
+  `{"review_revision": 4, "allow_partial": false}`, yêu cầu AI trên transcript hiện tại.
+  Trả `202` khi enqueue, `200` nếu tái sử dụng kết quả cùng fingerprint. Pending STT hoặc revision
+  lệch trả `409`; không có speech hữu ích trả `422`. Partial failure cần `allow_partial: true`.
+  Quota/retry vượt giới hạn trả `429`; request AI không chạy lại STT và không thay đổi EXP.
+- STT phân biệt queued, processing, completed, no_speech, failed, unavailable và not_evaluable.
+  `no_speech` có text match bằng 0, lỗi provider/storage có score null. `is_delayed` cho biết worker
+  chưa sẵn sàng; recording vẫn được giữ. AI stale cần người dùng yêu cầu lại.
+- Upload nhận `client_recording_id` ổn định cho retry và `expected_recording_id` để thay take.
+  Thời lượng tính từ media thực tế, không lấy duration do client khai báo. Ngưỡng completion của
+  từng segment giữ nguyên >= 2.000 ms. Audio được giữ cho replay và retry.
+- Continuous nhận diện toàn bộ recording đã chọn; không tự gán transcript vào từng câu theo
+  timestamp target khi chưa có alignment. Kết quả legacy được đọc mà không tự tính lại điểm/EXP.
 
 ---
 

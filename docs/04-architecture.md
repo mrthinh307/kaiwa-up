@@ -771,32 +771,34 @@ Nguyên tắc:
 
 # 14. Xử lý audio của người dùng
 
-Audio do người dùng ghi được xử lý tạm thời.
+Trong Shadowing, audio đã upload thành công được giữ để phát lại trên result và retry STT.
+Metadata recording và storage key được lưu trong PostgreSQL; file nằm ở storage dùng chung
+của API và worker. File tạm phục vụ kiểm tra media được dọn sau khi kiểm tra.
 
 ```mermaid
 flowchart LR
     A[Browser ghi âm] --> B[Gửi audio đến FastAPI]
 
-    B --> C[Lưu file tạm]
-
-    C --> D[Gửi đến Speech-to-Text]
-
-    D --> E[Nhận transcript]
-
-    E --> F[Đánh giá bằng AI]
-
-    F --> G[Xóa file audio tạm]
-
-    G --> H[Lưu kết quả vào PostgreSQL]
+    B --> C[Kiểm tra media và lưu recording]
+    C --> D[Submit chốt completion/EXP và queue STT]
+    D --> E[Worker lưu transcript từng recording]
+    E --> F[Result poll tiến độ và phát lại audio]
+    F --> G[Người dùng yêu cầu AI tổng thể]
+    G --> H[Worker đánh giá transcript và lưu feedback]
 ```
 
 Nguyên tắc:
 
-* Không lưu file audio người dùng lâu dài.
-* Không lưu URL audio người dùng trong PostgreSQL.
-* Audio tạm phải được xóa kể cả khi quá trình xử lý gặp lỗi.
-* Backend cần sử dụng cơ chế `try/finally` hoặc cơ chế tương đương để đảm bảo xóa file.
-* Frontend có thể giữ bản ghi bằng `Blob` trong phiên hiện tại để phát lại.
+* Submit không gọi provider: completion, EXP và STT jobs được commit cùng transaction.
+* Worker là process riêng, dùng PostgreSQL queue với lease token, heartbeat và retry hữu hạn.
+* Một recording được nhận diện một lần khi thành công; yêu cầu AI tái sử dụng transcript đã lưu.
+* AI được chia batch có segment ID và giới hạn kích thước; điểm/EXP chính thức không đổi.
+* GET result chỉ đọc, không tự chạy STT hoặc AI, kể cả với dữ liệu legacy.
+* Không xóa recording đã được chấp nhận ngay sau STT: thao tác đó sẽ làm mất replay/retry.
+  Retention dài hạn cần policy riêng; refactor hiện tại không tự xóa recordings có sẵn.
+* File mất hoặc hết hạn được báo unavailable; không biến lỗi storage thành điểm nói bằng 0.
+* Frontend giữ `Blob` của upload lỗi trong phiên để retry với cùng client recording ID.
+* Chạy dev: xem `apps/api/README.md`. Worker, API phải dùng cùng DB và cấu hình storage.
 
 ---
 
@@ -934,8 +936,8 @@ Tính năng này cần bổ sung:
 | Backend            | FastAPI                                                |
 | Database           | PostgreSQL trên Neon                                   |
 | Audio bài học      | Video YouTube, phát qua YouTube player                 |
-| Audio người dùng   | Xử lý tạm thời và xóa sau khi xử lý                    |
-| Shadowing MVP      | Speech-to-Text → so sánh nội dung → AI nhận xét        |
+| Audio người dùng   | Shadowing giữ recording để replay/retry; dọn file kiểm tra tạm |
+| Shadowing MVP      | Submit nhanh → worker STT từng recording → AI khi người dùng yêu cầu |
 | Shadowing nâng cao | Phân tích ngữ điệu, ngữ âm và nhấn nhá trong tương lai |
 | Phản xạ 3 giây     | AI chấm điểm và đưa nhận xét                           |
 | Lặp lại ngắt quãng | Xác định lịch ôn dựa trên điểm AI                      |
