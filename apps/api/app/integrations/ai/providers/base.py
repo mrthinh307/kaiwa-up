@@ -5,6 +5,8 @@ from abc import ABC, abstractmethod
 from collections.abc import Awaitable, Callable
 from typing import TypeVar
 
+from pydantic import ValidationError
+
 from app.exceptions.ai import AiInvalidResponseError
 from app.integrations.ai.base import AiProviderConfig, TutorMessage
 from app.integrations.ai.contracts import (
@@ -12,6 +14,7 @@ from app.integrations.ai.contracts import (
     TranscriptionResult,
     TutorReply,
     parse_evaluation_result,
+    parse_json_content,
     parse_tutor_reply,
     tutor_reply_ends_with_question,
 )
@@ -20,6 +23,19 @@ from app.integrations.ai.prompts import (
     build_shadowing_eval_prompt,
     build_translation_eval_prompt,
     build_tutor_messages,
+)
+from app.integrations.ai.prompts.shadowing import (
+    build_shadowing_batch_prompt,
+    build_shadowing_summary_prompt,
+    shadowing_prompt_fits,
+)
+from app.integrations.ai.shadowing_contracts import (
+    ShadowingEvaluationInput,
+    ShadowingEvaluationResult,
+    ShadowingSummaryInput,
+    ShadowingSummaryResult,
+    validate_shadowing_evaluation,
+    validate_shadowing_summary,
 )
 
 T = TypeVar("T")
@@ -35,6 +51,46 @@ class BaseAiGateway(ABC):
     """
 
     _config: AiProviderConfig
+
+    async def aclose(self) -> None:
+        """Adapters that own network clients override this lifecycle method."""
+        return None
+
+    async def _shadowing_json(self, prompt: list[TutorMessage]) -> dict[str, object]:
+        if not shadowing_prompt_fits(
+            prompt,
+            context_tokens=self._config.shadowing_context_tokens,
+            output_tokens=self._config.max_output_tokens,
+        ):
+            raise AiInvalidResponseError("Shadowing prompt exceeds configured model context")
+        content = await self._call("shadowing", lambda: self._chat(prompt))
+        return parse_json_content(content)
+
+    async def evaluate_shadowing_batch(
+        self, *, payload: ShadowingEvaluationInput
+    ) -> ShadowingEvaluationResult:
+        try:
+            result = ShadowingEvaluationResult.model_validate(
+                await self._shadowing_json(build_shadowing_batch_prompt(payload))
+            )
+        except ValidationError as exc:
+            raise AiInvalidResponseError("Invalid structured Shadowing evaluation") from exc
+        result.provider = self._config.provider_name
+        result.model = self._config.llm_model
+        return validate_shadowing_evaluation(payload, result)
+
+    async def summarize_shadowing_feedback(
+        self, *, payload: ShadowingSummaryInput
+    ) -> ShadowingSummaryResult:
+        try:
+            result = ShadowingSummaryResult.model_validate(
+                await self._shadowing_json(build_shadowing_summary_prompt(payload))
+            )
+        except ValidationError as exc:
+            raise AiInvalidResponseError("Invalid structured Shadowing summary") from exc
+        result.provider = self._config.provider_name
+        result.model = self._config.llm_model
+        return validate_shadowing_summary(payload, result)
 
     @abstractmethod
     async def transcribe(

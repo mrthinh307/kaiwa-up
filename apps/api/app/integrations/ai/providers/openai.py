@@ -36,6 +36,9 @@ class OpenAiCompatibleAiGateway(BaseAiGateway):
 
     _config: OpenAiProviderConfig
 
+    async def aclose(self) -> None:
+        await self._client.aclose()
+
     def __init__(
         self, config: OpenAiProviderConfig, client: httpx.AsyncClient | None = None
     ) -> None:

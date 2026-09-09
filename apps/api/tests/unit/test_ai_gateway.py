@@ -31,6 +31,10 @@ from app.integrations.ai.contracts import (
     parse_tutor_reply,
 )
 from app.integrations.ai.prompts.tutor import build_tutor_messages
+from app.integrations.ai.shadowing_contracts import (
+    ShadowingEvaluationInput,
+    ShadowingEvaluationSegment,
+)
 
 EVALUATION_JSON = json.dumps(
     {
@@ -72,6 +76,65 @@ TRANSCRIPTION_JSON = {
     "confidence": 0.95,
     "segments": [{"start": 0.0, "end": 1.2, "text": "こんにちは、元気です。", "confidence": 0.95}],
 }
+
+
+async def test_shadowing_batch_round_trip_preserves_ids_and_uses_server_provenance(
+    openai_gateway: "_GatewayFactory",
+) -> None:
+    def transport(request: httpx.Request) -> httpx.Response:
+        sent = json.loads(request.content)
+        payload = json.loads(sent["messages"][1]["content"])
+        assert [segment["segment_index"] for segment in payload["segments"]] == [3, 9]
+        answer = {
+            "segments": [{"segment_index": 3, "score": 100}, {"segment_index": 9, "score": 80}],
+            "feedback": "Nhận xét dựa trên transcript.",
+            "hints": [],
+            "corrections": [],
+            "provider": "forged-provider",
+            "model": "forged-model",
+        }
+        return httpx.Response(200, json={"choices": [{"message": {"content": json.dumps(answer)}}]})
+
+    gateway = openai_gateway(transport)
+    result = await gateway.evaluate_shadowing_batch(
+        payload=ShadowingEvaluationInput(
+            segments=[
+                ShadowingEvaluationSegment(
+                    segment_index=3,
+                    reference="こんにちは",
+                    learner="こんにちは",
+                    reference_length=5,
+                ),
+                ShadowingEvaluationSegment(
+                    segment_index=9, reference="ありがとう", learner="ありがと", reference_length=5
+                ),
+            ]
+        )
+    )
+    assert [segment.segment_index for segment in result.segments] == [3, 9]
+    assert result.provider != "forged-provider" and result.model != "forged-model"
+
+
+async def test_shadowing_batch_rejects_a_provider_that_changes_segment_ids(
+    openai_gateway: "_GatewayFactory",
+) -> None:
+    answer = {"segments": [{"segment_index": 2, "score": 100}], "feedback": "Review"}
+    gateway = openai_gateway(
+        lambda request: httpx.Response(
+            200, json={"choices": [{"message": {"content": json.dumps(answer)}}]}
+        )
+    )
+    with pytest.raises(AiInvalidResponseError):
+        await gateway.evaluate_shadowing_batch(
+            payload=ShadowingEvaluationInput(
+                segments=[
+                    ShadowingEvaluationSegment(
+                        segment_index=1, reference="あ", learner="あ", reference_length=1
+                    ),
+                ]
+            )
+        )
+
 
 _GatewayFactory = Callable[[Callable[[httpx.Request], httpx.Response]], AiGateway]
 

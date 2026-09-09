@@ -1,4 +1,8 @@
+import math
+from contextlib import suppress
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
+from email.utils import parsedate_to_datetime
 from typing import Any, NoReturn, Protocol, runtime_checkable
 
 import httpx
@@ -16,6 +20,12 @@ from app.integrations.ai.contracts import (
     TutorReply,
 )
 from app.integrations.ai.policy import RetryPolicy
+from app.integrations.ai.shadowing_contracts import (
+    ShadowingEvaluationInput,
+    ShadowingEvaluationResult,
+    ShadowingSummaryInput,
+    ShadowingSummaryResult,
+)
 
 
 @dataclass(frozen=True)
@@ -45,6 +55,8 @@ class AiProviderConfig:
     top_p: float = 1.0
     max_output_tokens: int = 1000
     capability_timeouts: dict[str, float] = field(default_factory=dict)
+    provider_name: str = "openai-compatible"
+    shadowing_context_tokens: int = 32768
 
     def timeout_for(self, capability: str) -> float:
         """Resolve the timeout for a capability, falling back to the global one."""
@@ -63,6 +75,16 @@ class AiProviderConfig:
 @runtime_checkable
 class AiGateway(Protocol):
     """Port that business modules use for AI and speech-to-text capabilities."""
+
+    async def evaluate_shadowing_batch(
+        self, *, payload: ShadowingEvaluationInput
+    ) -> ShadowingEvaluationResult: ...
+
+    async def summarize_shadowing_feedback(
+        self, *, payload: ShadowingSummaryInput
+    ) -> ShadowingSummaryResult: ...
+
+    async def aclose(self) -> None: ...
 
     async def transcribe(
         self,
@@ -113,7 +135,19 @@ def raise_for_provider_error(response: httpx.Response) -> None:
     if status in (401, 403):
         raise AiProviderAuthError(f"AI provider rejected the API key (HTTP {status})")
     if status == 429:
-        raise AiRateLimitError(f"AI provider rate limit exceeded (HTTP {status})")
+        retry_after = response.headers.get("Retry-After", "")
+        delay: float | None = None
+        try:
+            delay = float(retry_after)
+        except ValueError:
+            with suppress(ValueError, TypeError, OverflowError):
+                delay = (parsedate_to_datetime(retry_after) - datetime.now(UTC)).total_seconds()
+        raise AiRateLimitError(
+            f"AI provider rate limit exceeded (HTTP {status})",
+            details={"retry_after_seconds": max(0, delay)}
+            if delay is not None and math.isfinite(delay)
+            else None,
+        )
     if status >= 500:
         raise AiProviderUnavailableError(f"AI provider is unavailable (HTTP {status})")
     if status >= 400:
