@@ -89,8 +89,8 @@ export function ShadowingPracticeScreen({
     recordingTime,
     togglePlaySelf,
   } = useShadowingVoiceTake({
-    activeSegmentIndex: selectedSegmentIndex,
-    autoSplitRecording,
+    activeSegmentIndex: practiceMode === "continuous" ? 0 : selectedSegmentIndex,
+    autoSplitRecording: practiceMode === "segmented" && autoSplitRecording,
     isRecorded: currentSegmentRecorded,
     onRecordComplete: handleRecordComplete,
     player,
