@@ -65,6 +65,14 @@ export type BodyRecordShadowingContinuous = {
    * Optional continuous duration in seconds
    */
   duration_seconds?: number | null;
+  /**
+   * Client Recording Id
+   */
+  client_recording_id?: string | null;
+  /**
+   * Expected Recording Id
+   */
+  expected_recording_id?: string | null;
 };
 
 /**
@@ -89,6 +97,14 @@ export type BodyRecordShadowingSegment = {
    * Optional attempt ID
    */
   attempt_id?: string | null;
+  /**
+   * Client Recording Id
+   */
+  client_recording_id?: string | null;
+  /**
+   * Expected Recording Id
+   */
+  expected_recording_id?: string | null;
 };
 
 /**
@@ -1255,6 +1271,104 @@ export type ShadowingAiFeedback = {
    * Words
    */
   words?: Array<ShadowingWordFeedback>;
+  /**
+   * Coverage
+   */
+  coverage?: {
+    [key: string]: number;
+  };
+  /**
+   * Provider
+   */
+  provider?: string | null;
+  /**
+   * Model
+   */
+  model?: string | null;
+  /**
+   * Prompt Version
+   */
+  prompt_version?: number | null;
+};
+
+/**
+ * ShadowingAiReviewRequest
+ */
+export type ShadowingAiReviewRequest = {
+  /**
+   * Review Revision
+   */
+  review_revision: number;
+  /**
+   * Allow Partial
+   */
+  allow_partial?: boolean;
+};
+
+/**
+ * ShadowingAiReviewResponse
+ */
+export type ShadowingAiReviewResponse = {
+  /**
+   * Attempt Id
+   */
+  attempt_id: string;
+  /**
+   * Queued Jobs
+   */
+  queued_jobs: number;
+  /**
+   * Review Revision
+   */
+  review_revision: number;
+  ai_review: ShadowingAiReviewState;
+  ai_feedback?: ShadowingAiFeedback | null;
+};
+
+/**
+ * ShadowingAiReviewState
+ */
+export type ShadowingAiReviewState = {
+  /**
+   * Is Delayed
+   */
+  is_delayed?: boolean;
+  /**
+   * Status
+   */
+  status?: "not_requested" | "queued" | "processing" | "completed" | "failed" | "unavailable";
+  /**
+   * Review Id
+   */
+  review_id?: string | null;
+  /**
+   * Error Code
+   */
+  error_code?: string | null;
+  /**
+   * Is Stale
+   */
+  is_stale?: boolean;
+  /**
+   * Is Partial
+   */
+  is_partial?: boolean;
+  /**
+   * Evaluated Segments
+   */
+  evaluated_segments?: number;
+  /**
+   * Completed Batches
+   */
+  completed_batches?: number;
+  /**
+   * Total Batches
+   */
+  total_batches?: number;
+  /**
+   * Feedback Review Id
+   */
+  feedback_review_id?: string | null;
 };
 
 /**
@@ -1336,6 +1450,20 @@ export type ShadowingAttemptReviewResponse = {
    * Segments
    */
   segments: Array<ShadowingSegmentReviewItem>;
+  transcription?: ShadowingTranscriptionProgress;
+  ai_review?: ShadowingAiReviewState;
+  /**
+   * Review Revision
+   */
+  review_revision?: number;
+  /**
+   * Reference Version
+   */
+  reference_version?: "snapshot_v2" | "legacy_reference_unversioned";
+  /**
+   * Recorded Segments
+   */
+  recorded_segments?: number;
 };
 
 /**
@@ -1420,12 +1548,35 @@ export type ShadowingCorrection = {
    * Reason
    */
   reason: string;
+  /**
+   * Segment Index
+   */
+  segment_index?: number | null;
 };
 
 /**
  * ShadowingMode
  */
 export type ShadowingMode = "segmented" | "continuous";
+
+/**
+ * ShadowingProcessingResponse
+ */
+export type ShadowingProcessingResponse = {
+  /**
+   * Attempt Id
+   */
+  attempt_id: string;
+  /**
+   * Queued Jobs
+   */
+  queued_jobs: number;
+  /**
+   * Review Revision
+   */
+  review_revision: number;
+  transcription: ShadowingTranscriptionProgress;
+};
 
 /**
  * ShadowingRecordContinuousResponse
@@ -1451,6 +1602,10 @@ export type ShadowingRecordContinuousResponse = {
    * Created At
    */
   created_at: string;
+  /**
+   * Duration Ms
+   */
+  duration_ms?: number | null;
 };
 
 /**
@@ -1481,6 +1636,10 @@ export type ShadowingRecordSegmentResponse = {
    * Created At
    */
   created_at: string;
+  /**
+   * Duration Ms
+   */
+  duration_ms?: number | null;
 };
 
 /**
@@ -1615,6 +1774,43 @@ export type ShadowingSegmentReviewItem = {
    * Words
    */
   words?: Array<ShadowingWordFeedback>;
+  /**
+   * Transcription Status
+   */
+  transcription_status?:
+    | "not_recorded"
+    | "not_requested"
+    | "queued"
+    | "processing"
+    | "completed"
+    | "no_speech"
+    | "failed"
+    | "unavailable"
+    | "not_evaluable";
+  /**
+   * Error Code
+   */
+  error_code?: string | null;
+  /**
+   * Text Match Score
+   */
+  text_match_score?: number | null;
+  /**
+   * Comparison Version
+   */
+  comparison_version?: number | null;
+  /**
+   * Extra Spans
+   */
+  extra_spans?: Array<ShadowingTextSpan>;
+  /**
+   * Duration Ms
+   */
+  duration_ms?: number | null;
+  /**
+   * Completion Eligible
+   */
+  completion_eligible?: boolean;
 };
 
 /**
@@ -1665,8 +1861,14 @@ export type ShadowingSubmitRequest = {
   replay_count?: number;
   /**
    * Request Ai Review
+   *
+   * @deprecated
    */
   request_ai_review?: boolean;
+  /**
+   * Recordings
+   */
+  recordings?: Array<ShadowingSubmittedRecording> | null;
 };
 
 /**
@@ -1704,6 +1906,121 @@ export type ShadowingSubmitResponse = {
    */
   completed_at: string;
   ai_feedback?: ShadowingAiFeedback | null;
+  transcription?: ShadowingTranscriptionProgress;
+  ai_review?: ShadowingAiReviewState;
+  /**
+   * Review Revision
+   */
+  review_revision?: number;
+  /**
+   * Ai Review Deferred
+   */
+  ai_review_deferred?: boolean;
+};
+
+/**
+ * ShadowingSubmittedRecording
+ */
+export type ShadowingSubmittedRecording = {
+  /**
+   * Segment Index
+   */
+  segment_index: number;
+  /**
+   * Recording Id
+   */
+  recording_id: string;
+};
+
+/**
+ * ShadowingTextSpan
+ *
+ * Half-open Unicode character offsets in the original, unnormalized transcript.
+ */
+export type ShadowingTextSpan = {
+  /**
+   * Start
+   */
+  start: number;
+  /**
+   * End
+   */
+  end: number;
+  /**
+   * Text
+   */
+  text: string;
+};
+
+/**
+ * ShadowingTranscriptionProgress
+ */
+export type ShadowingTranscriptionProgress = {
+  /**
+   * Is Delayed
+   */
+  is_delayed?: boolean;
+  /**
+   * Status
+   */
+  status?:
+    | "not_requested"
+    | "queued"
+    | "processing"
+    | "completed"
+    | "partial_failed"
+    | "failed"
+    | "unavailable";
+  /**
+   * Total
+   */
+  total?: number;
+  /**
+   * Recorded
+   */
+  recorded?: number;
+  /**
+   * Queued
+   */
+  queued?: number;
+  /**
+   * Processing
+   */
+  processing?: number;
+  /**
+   * Completed
+   */
+  completed?: number;
+  /**
+   * No Speech
+   */
+  no_speech?: number;
+  /**
+   * Failed
+   */
+  failed?: number;
+  /**
+   * Unavailable
+   */
+  unavailable?: number;
+  /**
+   * Not Evaluable
+   */
+  not_evaluable?: number;
+  /**
+   * Not Requested
+   */
+  not_requested?: number;
+};
+
+/**
+ * ShadowingTranscriptionRequest
+ */
+export type ShadowingTranscriptionRequest = {
+  /**
+   * Segment Indices
+   */
+  segment_indices?: Array<number> | null;
 };
 
 /**
@@ -1737,6 +2054,22 @@ export type ShadowingWordFeedback = {
    * User Word
    */
   user_word?: string | null;
+  /**
+   * Reference Start
+   */
+  reference_start?: number | null;
+  /**
+   * Reference End
+   */
+  reference_end?: number | null;
+  /**
+   * Learner Start
+   */
+  learner_start?: number | null;
+  /**
+   * Learner End
+   */
+  learner_end?: number | null;
 };
 
 /**
@@ -2718,6 +3051,70 @@ export type GetGamificationProfileResponses = {
 
 export type GetGamificationProfileResponse =
   GetGamificationProfileResponses[keyof GetGamificationProfileResponses];
+
+export type RequestShadowingAiReviewData = {
+  body: ShadowingAiReviewRequest;
+  path: {
+    /**
+     * Attempt Id
+     */
+    attempt_id: string;
+  };
+  query?: never;
+  url: "/api/v1/shadowing/attempts/{attempt_id}/ai-reviews";
+};
+
+export type RequestShadowingAiReviewErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RequestShadowingAiReviewError =
+  RequestShadowingAiReviewErrors[keyof RequestShadowingAiReviewErrors];
+
+export type RequestShadowingAiReviewResponses = {
+  /**
+   * Successful Response
+   */
+  202: ShadowingAiReviewResponse;
+};
+
+export type RequestShadowingAiReviewResponse =
+  RequestShadowingAiReviewResponses[keyof RequestShadowingAiReviewResponses];
+
+export type RequestShadowingTranscriptionsData = {
+  body: ShadowingTranscriptionRequest;
+  path: {
+    /**
+     * Attempt Id
+     */
+    attempt_id: string;
+  };
+  query?: never;
+  url: "/api/v1/shadowing/attempts/{attempt_id}/transcriptions";
+};
+
+export type RequestShadowingTranscriptionsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RequestShadowingTranscriptionsError =
+  RequestShadowingTranscriptionsErrors[keyof RequestShadowingTranscriptionsErrors];
+
+export type RequestShadowingTranscriptionsResponses = {
+  /**
+   * Successful Response
+   */
+  202: ShadowingProcessingResponse;
+};
+
+export type RequestShadowingTranscriptionsResponse =
+  RequestShadowingTranscriptionsResponses[keyof RequestShadowingTranscriptionsResponses];
 
 export type StartShadowingAttemptData = {
   body: ShadowingStartRequest;

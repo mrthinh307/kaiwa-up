@@ -639,6 +639,118 @@
         }
       }
     },
+    "/api/v1/shadowing/attempts/{attempt_id}/ai-reviews": {
+      "post": {
+        "tags": ["Shadowing"],
+        "summary": "Request optional overall AI feedback for a submitted Shadowing attempt",
+        "operationId": "requestShadowingAiReview",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "attempt_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Attempt Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShadowingAiReviewRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShadowingAiReviewResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/shadowing/attempts/{attempt_id}/transcriptions": {
+      "post": {
+        "tags": ["Shadowing"],
+        "summary": "Request missing or failed Shadowing transcriptions",
+        "operationId": "requestShadowingTranscriptions",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "attempt_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Attempt Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShadowingTranscriptionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShadowingProcessingResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/shadowing/{content_id}/start": {
       "post": {
         "tags": ["Shadowing"],
@@ -3557,6 +3669,30 @@
             ],
             "title": "Duration Seconds",
             "description": "Optional continuous duration in seconds"
+          },
+          "client_recording_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Recording Id"
+          },
+          "expected_recording_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Recording Id"
           }
         },
         "type": "object",
@@ -3588,6 +3724,30 @@
             ],
             "title": "Attempt Id",
             "description": "Optional attempt ID"
+          },
+          "client_recording_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Recording Id"
+          },
+          "expected_recording_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Recording Id"
           }
         },
         "type": "object",
@@ -5496,10 +5656,191 @@
             },
             "type": "array",
             "title": "Words"
+          },
+          "coverage": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Coverage"
+          },
+          "provider": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "prompt_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt Version"
           }
         },
         "type": "object",
         "title": "ShadowingAiFeedback"
+      },
+      "ShadowingAiReviewRequest": {
+        "properties": {
+          "review_revision": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Review Revision"
+          },
+          "allow_partial": {
+            "type": "boolean",
+            "title": "Allow Partial",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": ["review_revision"],
+        "title": "ShadowingAiReviewRequest"
+      },
+      "ShadowingAiReviewResponse": {
+        "properties": {
+          "attempt_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Attempt Id"
+          },
+          "queued_jobs": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Queued Jobs"
+          },
+          "review_revision": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Review Revision"
+          },
+          "ai_review": {
+            "$ref": "#/components/schemas/ShadowingAiReviewState"
+          },
+          "ai_feedback": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ShadowingAiFeedback"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "attempt_id",
+          "queued_jobs",
+          "review_revision",
+          "ai_review"
+        ],
+        "title": "ShadowingAiReviewResponse"
+      },
+      "ShadowingAiReviewState": {
+        "properties": {
+          "is_delayed": {
+            "type": "boolean",
+            "title": "Is Delayed",
+            "default": false
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "not_requested",
+              "queued",
+              "processing",
+              "completed",
+              "failed",
+              "unavailable"
+            ],
+            "title": "Status",
+            "default": "not_requested"
+          },
+          "review_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Id"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          },
+          "is_stale": {
+            "type": "boolean",
+            "title": "Is Stale",
+            "default": false
+          },
+          "is_partial": {
+            "type": "boolean",
+            "title": "Is Partial",
+            "default": false
+          },
+          "evaluated_segments": {
+            "type": "integer",
+            "title": "Evaluated Segments",
+            "default": 0
+          },
+          "completed_batches": {
+            "type": "integer",
+            "title": "Completed Batches",
+            "default": 0
+          },
+          "total_batches": {
+            "type": "integer",
+            "title": "Total Batches",
+            "default": 0
+          },
+          "feedback_review_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Feedback Review Id"
+          }
+        },
+        "type": "object",
+        "title": "ShadowingAiReviewState"
       },
       "ShadowingAttemptPracticeResponse": {
         "properties": {
@@ -5653,6 +5994,28 @@
             },
             "type": "array",
             "title": "Segments"
+          },
+          "transcription": {
+            "$ref": "#/components/schemas/ShadowingTranscriptionProgress"
+          },
+          "ai_review": {
+            "$ref": "#/components/schemas/ShadowingAiReviewState"
+          },
+          "review_revision": {
+            "type": "integer",
+            "title": "Review Revision",
+            "default": 0
+          },
+          "reference_version": {
+            "type": "string",
+            "enum": ["snapshot_v2", "legacy_reference_unversioned"],
+            "title": "Reference Version",
+            "default": "legacy_reference_unversioned"
+          },
+          "recorded_segments": {
+            "type": "integer",
+            "title": "Recorded Segments",
+            "default": 0
           }
         },
         "type": "object",
@@ -5811,6 +6174,18 @@
           "reason": {
             "type": "string",
             "title": "Reason"
+          },
+          "segment_index": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Segment Index"
           }
         },
         "type": "object",
@@ -5821,6 +6196,36 @@
         "type": "string",
         "enum": ["segmented", "continuous"],
         "title": "ShadowingMode"
+      },
+      "ShadowingProcessingResponse": {
+        "properties": {
+          "attempt_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Attempt Id"
+          },
+          "queued_jobs": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Queued Jobs"
+          },
+          "review_revision": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Review Revision"
+          },
+          "transcription": {
+            "$ref": "#/components/schemas/ShadowingTranscriptionProgress"
+          }
+        },
+        "type": "object",
+        "required": [
+          "attempt_id",
+          "queued_jobs",
+          "review_revision",
+          "transcription"
+        ],
+        "title": "ShadowingProcessingResponse"
       },
       "ShadowingRecordContinuousResponse": {
         "properties": {
@@ -5846,6 +6251,17 @@
             "type": "string",
             "format": "date-time",
             "title": "Created At"
+          },
+          "duration_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Ms"
           }
         },
         "type": "object",
@@ -5886,6 +6302,17 @@
             "type": "string",
             "format": "date-time",
             "title": "Created At"
+          },
+          "duration_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Ms"
           }
         },
         "type": "object",
@@ -6123,6 +6550,78 @@
             },
             "type": "array",
             "title": "Words"
+          },
+          "transcription_status": {
+            "type": "string",
+            "enum": [
+              "not_recorded",
+              "not_requested",
+              "queued",
+              "processing",
+              "completed",
+              "no_speech",
+              "failed",
+              "unavailable",
+              "not_evaluable"
+            ],
+            "title": "Transcription Status",
+            "default": "not_requested"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          },
+          "text_match_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text Match Score"
+          },
+          "comparison_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comparison Version"
+          },
+          "extra_spans": {
+            "items": {
+              "$ref": "#/components/schemas/ShadowingTextSpan"
+            },
+            "type": "array",
+            "title": "Extra Spans"
+          },
+          "duration_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Ms"
+          },
+          "completion_eligible": {
+            "type": "boolean",
+            "title": "Completion Eligible",
+            "default": false
           }
         },
         "type": "object",
@@ -6197,7 +6696,23 @@
           "request_ai_review": {
             "type": "boolean",
             "title": "Request Ai Review",
-            "default": false
+            "default": false,
+            "deprecated": true
+          },
+          "recordings": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ShadowingSubmittedRecording"
+                },
+                "type": "array",
+                "maxItems": 10000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recordings"
           }
         },
         "type": "object",
@@ -6253,6 +6768,22 @@
                 "type": "null"
               }
             ]
+          },
+          "transcription": {
+            "$ref": "#/components/schemas/ShadowingTranscriptionProgress"
+          },
+          "ai_review": {
+            "$ref": "#/components/schemas/ShadowingAiReviewState"
+          },
+          "review_revision": {
+            "type": "integer",
+            "title": "Review Revision",
+            "default": 0
+          },
+          "ai_review_deferred": {
+            "type": "boolean",
+            "title": "Ai Review Deferred",
+            "default": false
           }
         },
         "type": "object",
@@ -6266,6 +6797,141 @@
           "completed_at"
         ],
         "title": "ShadowingSubmitResponse"
+      },
+      "ShadowingSubmittedRecording": {
+        "properties": {
+          "segment_index": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Segment Index"
+          },
+          "recording_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Recording Id"
+          }
+        },
+        "type": "object",
+        "required": ["segment_index", "recording_id"],
+        "title": "ShadowingSubmittedRecording"
+      },
+      "ShadowingTextSpan": {
+        "properties": {
+          "start": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Start"
+          },
+          "end": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "End"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          }
+        },
+        "type": "object",
+        "required": ["start", "end", "text"],
+        "title": "ShadowingTextSpan",
+        "description": "Half-open Unicode character offsets in the original, unnormalized transcript."
+      },
+      "ShadowingTranscriptionProgress": {
+        "properties": {
+          "is_delayed": {
+            "type": "boolean",
+            "title": "Is Delayed",
+            "default": false
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "not_requested",
+              "queued",
+              "processing",
+              "completed",
+              "partial_failed",
+              "failed",
+              "unavailable"
+            ],
+            "title": "Status",
+            "default": "not_requested"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "default": 0
+          },
+          "recorded": {
+            "type": "integer",
+            "title": "Recorded",
+            "default": 0
+          },
+          "queued": {
+            "type": "integer",
+            "title": "Queued",
+            "default": 0
+          },
+          "processing": {
+            "type": "integer",
+            "title": "Processing",
+            "default": 0
+          },
+          "completed": {
+            "type": "integer",
+            "title": "Completed",
+            "default": 0
+          },
+          "no_speech": {
+            "type": "integer",
+            "title": "No Speech",
+            "default": 0
+          },
+          "failed": {
+            "type": "integer",
+            "title": "Failed",
+            "default": 0
+          },
+          "unavailable": {
+            "type": "integer",
+            "title": "Unavailable",
+            "default": 0
+          },
+          "not_evaluable": {
+            "type": "integer",
+            "title": "Not Evaluable",
+            "default": 0
+          },
+          "not_requested": {
+            "type": "integer",
+            "title": "Not Requested",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "title": "ShadowingTranscriptionProgress"
+      },
+      "ShadowingTranscriptionRequest": {
+        "properties": {
+          "segment_indices": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array",
+                "maxItems": 10000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Segment Indices"
+          }
+        },
+        "type": "object",
+        "title": "ShadowingTranscriptionRequest"
       },
       "ShadowingUserProgressSummary": {
         "properties": {
@@ -6305,6 +6971,54 @@
               }
             ],
             "title": "User Word"
+          },
+          "reference_start": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference Start"
+          },
+          "reference_end": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference End"
+          },
+          "learner_start": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Learner Start"
+          },
+          "learner_end": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Learner End"
           }
         },
         "type": "object",

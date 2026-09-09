@@ -37,7 +37,7 @@ function formatApiClientDir() {
   execSync("pnpm exec prettier --write .", {
     cwd: apiClientDir,
     encoding: "utf-8",
-    stdio: "ignore",
+    stdio: "inherit",
   });
 }
 
