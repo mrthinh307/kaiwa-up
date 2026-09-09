@@ -114,6 +114,7 @@ export function ShadowingResultRoute({ attemptId }: { attemptId: string }) {
 
   return (
     <ShadowingResult
+      key={review.attempt_id}
       onPracticeAgain={() => router.push(buildShadowingLessonHref(review.content_id))}
       review={review}
       shouldCelebrate={shouldCelebrate}

@@ -56,6 +56,8 @@ export function useShadowingReview(review: ShadowingAttemptReviewResponse) {
   );
 
   const player = useAudioPlayer(review.audio_url ?? "", 0, {
+    autoPause: true,
+    autoPlay: false,
     segments: isContinuous ? [] : playerSegments,
   });
 
@@ -68,9 +70,23 @@ export function useShadowingReview(review: ShadowingAttemptReviewResponse) {
         )
       : -1;
 
-  const selectReview = useCallback((index: number) => {
-    setSelectedReviewIndex(index);
-  }, []);
+  const selectReview = useCallback(
+    (index: number) => {
+      setSelectedReviewIndex(index);
+      if (player.isPlaying) {
+        player.pause();
+      }
+      if (userAudioRef.current) {
+        userAudioRef.current.pause();
+        setPlayingUserIndex(null);
+      }
+      const segment = review.segments[index];
+      if (segment && review.audio_url) {
+        player.seek((segment.start_time_ms ?? 0) / 1000);
+      }
+    },
+    [player, review.audio_url, review.segments],
+  );
 
   const handlePlayOriginalSegment = useCallback(
     (index: number, startMs: number, endMs: number) => {
@@ -152,35 +168,70 @@ export function useShadowingReview(review: ShadowingAttemptReviewResponse) {
   const handlePreviousSegment = useCallback(() => {
     if (selectedReviewIndex > 0) {
       const nextIndex = selectedReviewIndex - 1;
-      const segment = review.segments[nextIndex];
       setSelectedReviewIndex(nextIndex);
-      if (segment) {
-        handlePlayOriginalSegment(nextIndex, segment.start_time_ms ?? 0, segment.end_time_ms ?? 0);
+      if (player.isPlaying) {
+        player.pause();
+      }
+      if (userAudioRef.current) {
+        userAudioRef.current.pause();
+        setPlayingUserIndex(null);
+      }
+      const segment = review.segments[nextIndex];
+      if (segment && review.audio_url) {
+        player.seek((segment.start_time_ms ?? 0) / 1000);
       }
     }
-  }, [handlePlayOriginalSegment, review.segments, selectedReviewIndex]);
+  }, [player, review.audio_url, review.segments, selectedReviewIndex]);
 
   const handleNextSegment = useCallback(() => {
     if (selectedReviewIndex < review.segments.length - 1) {
       const nextIndex = selectedReviewIndex + 1;
-      const segment = review.segments[nextIndex];
       setSelectedReviewIndex(nextIndex);
-      if (segment) {
-        handlePlayOriginalSegment(nextIndex, segment.start_time_ms ?? 0, segment.end_time_ms ?? 0);
+      if (player.isPlaying) {
+        player.pause();
+      }
+      if (userAudioRef.current) {
+        userAudioRef.current.pause();
+        setPlayingUserIndex(null);
+      }
+      const segment = review.segments[nextIndex];
+      if (segment && review.audio_url) {
+        player.seek((segment.start_time_ms ?? 0) / 1000);
       }
     }
-  }, [handlePlayOriginalSegment, review.segments, selectedReviewIndex]);
+  }, [player, review.audio_url, review.segments, selectedReviewIndex]);
 
   const handleReplaySegment = useCallback(() => {
     const segment = review.segments[selectedReviewIndex];
     if (!segment) return;
 
+    if (userAudioRef.current) {
+      userAudioRef.current.pause();
+      setPlayingUserIndex(null);
+    }
+
     player.playSegment((segment.start_time_ms ?? 0) / 1000, (segment.end_time_ms ?? 0) / 1000);
   }, [player, review.segments, selectedReviewIndex]);
 
   const handleTogglePlay = useCallback(() => {
-    player.togglePlay();
-  }, [player]);
+    if (isContinuous) {
+      player.togglePlay();
+      return;
+    }
+
+    const segment = review.segments[selectedReviewIndex];
+    if (!segment) return;
+
+    if (player.isPlaying) {
+      player.pause();
+    } else {
+      handlePlayOriginalSegment(
+        selectedReviewIndex,
+        segment.start_time_ms ?? 0,
+        segment.end_time_ms ?? 0,
+      );
+    }
+  }, [handlePlayOriginalSegment, isContinuous, player, review.segments, selectedReviewIndex]);
 
   useShadowingShortcuts({
     onNext: isContinuous ? undefined : handleNextSegment,
@@ -200,20 +251,31 @@ export function useShadowingReview(review: ShadowingAttemptReviewResponse) {
     }
   }, [activeFocusIndex]);
 
+  const activeSegment = review.segments[selectedReviewIndex];
+  const isPlayingActiveOriginal =
+    player.isPlaying && (activeOriginalIndex === selectedReviewIndex || activeOriginalIndex === -1);
+  const isPlayingUser = playingUserIndex === selectedReviewIndex;
+
   return {
     activeOriginalIndex,
+    activeSegment,
     activeSegmentRef,
     handleNextSegment,
     handlePlayOriginalSegment,
     handlePlayUserRecording,
     handlePreviousSegment,
     handleReplaySegment,
+    handleTogglePlay,
     isContinuous,
+    isLoopEnabled: player.isLoopEnabled,
+    isPlayingActiveOriginal,
     isPlayingContinuousVoice,
+    isPlayingUser,
     player,
     playingUserIndex,
     selectReview,
     selectedReviewIndex,
     toggleContinuousVoicePlayback,
+    toggleLoop: player.toggleLoop,
   };
 }
