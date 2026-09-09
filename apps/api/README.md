@@ -21,12 +21,59 @@ Start the API server locally:
 
 ```bash
 cd apps/api
-uv run uvicorn app.main:app --reload
+uv run python -m uvicorn app.main:app --reload
 ```
 
 The API is available at `http://localhost:8000`, OpenAPI docs at
 `http://localhost:8000/docs`, health at `http://localhost:8000/api/v1/health`, and
 readiness at `http://localhost:8000/api/v1/ready`.
+
+### Shadowing worker (development only)
+
+Shadowing needs a separate worker process; starting the API does not start it. In a second
+terminal, from the repository root:
+
+```bash
+cd apps/api
+uv run python -m app.workers.shadowing
+```
+
+Alternatively, run `make dev-shadowing-worker` from the repository root, not from `apps/api`.
+Use one worker for local development. API and worker must load the same development
+`DATABASE_URL` and storage settings. With local storage, run both from `apps/api` so their
+relative `STORAGE_DIR` resolves to the same directory. With Cloudinary, use the same account
+and folder configuration. Do not share the application database with tests.
+
+Install ffmpeg (which includes ffprobe) before recording compressed browser audio. On Windows:
+
+```powershell
+scoop install ffmpeg
+ffprobe -version
+```
+
+Restart the API terminal after installation so it inherits the new PATH, or set
+`SHADOWING_FFPROBE_PATH` to the executable's absolute path. Migration and worker startup cannot
+fix a missing audio-inspection executable.
+
+The local lifecycle is:
+
+1. Upload stores a recording and its validated duration; it does not enqueue STT yet.
+2. Submit freezes completion and EXP and queues STT. It does not wait for an AI provider.
+3. The worker processes recordings and the result page polls each segment's transcription state.
+4. Overall AI feedback is queued only when requested on the result page; it uses the stored
+   transcripts, not another STT pass. Neither STT nor AI changes the awarded completion/EXP.
+
+See `.env.example` for worker concurrency and timeout defaults. Heartbeat and execution deadline
+must both be shorter than the lease. Jobs interrupted by a forced stop remain leased until expiry;
+the restarted worker recovers expired jobs within their retry budget. The worker also writes
+liveness to `shadowing_worker_heartbeats`, including while idle. An idle terminal without output
+does not by itself indicate a failure. Check result progress and safe error codes before retrying.
+Do not delete jobs or resubmit solely to recover a worker interruption.
+
+Keep recording audio available for result replay and STT retry. Missing or expired audio cannot
+be recovered by restarting the worker. `fake` providers are suitable for plumbing tests only:
+their output is not a real assessment of the learner's audio. Configuring real providers may
+incur charges. This setup does not configure or deploy any cloud service.
 
 ## Testing
 
