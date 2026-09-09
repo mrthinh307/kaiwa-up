@@ -99,7 +99,10 @@ export function DashboardAttemptHistory({
                       <p className="text-xs font-heading uppercase tracking-[0.12em] text-foreground/60 lg:hidden">
                         Lesson
                       </p>
-                      <p className="mt-1 font-heading leading-snug lg:mt-0 lg:text-lg">
+                      <p
+                        className="mt-1 min-h-[2.75rem] line-clamp-2 font-heading leading-snug lg:mt-0 lg:min-h-[3.25rem] lg:text-lg"
+                        title={attempt.contentTitle}
+                      >
                         {attempt.contentTitle}
                       </p>
                     </div>
