@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "
 
 import { loadYouTubeIframeApi } from "@/lib/youtube-iframe-api";
 
-const PLAYBACK_RATES = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2] as const;
+export const PLAYBACK_RATES = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2] as const;
 const YOUTUBE_PLAYER_STATE = {
   unstarted: -1,
   ended: 0,
@@ -286,11 +286,14 @@ export function useSegmentAudioPlayer({
     playerRef.current?.seekTo(startSeconds + nextTime, true);
   };
 
-  const handlePlaybackRateChange = () => {
-    const currentRateIndex = PLAYBACK_RATES.indexOf(
-      playbackRate as (typeof PLAYBACK_RATES)[number],
-    );
-    const nextRate = PLAYBACK_RATES[(currentRateIndex + 1) % PLAYBACK_RATES.length] ?? 1;
+  const handlePlaybackRateChange = (targetRate?: number) => {
+    const nextRate =
+      typeof targetRate === "number"
+        ? targetRate
+        : (PLAYBACK_RATES[
+            (PLAYBACK_RATES.indexOf(playbackRate as (typeof PLAYBACK_RATES)[number]) + 1) %
+              PLAYBACK_RATES.length
+          ] ?? 1);
 
     setPlaybackRate(nextRate);
     playerRef.current?.setPlaybackRate(nextRate);
