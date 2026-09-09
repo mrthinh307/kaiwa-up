@@ -18,7 +18,7 @@ import { adaptDashboardData } from "../_utils/dashboard-api-adapter";
 import { DashboardScreen } from "./dashboard-screen";
 import { DashboardSkeleton } from "./dashboard-skeleton";
 
-const DASHBOARD_PAGE_SIZE = 20;
+const DASHBOARD_PAGE_SIZE = 5;
 
 type DashboardLoadResult = {
   attempts: Awaited<ReturnType<typeof listProgressAttempts>>;
