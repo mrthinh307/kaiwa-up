@@ -1,13 +1,22 @@
 "use client";
 
-import { Gauge, Pause, Play, Repeat2, RotateCcw } from "lucide-react";
+import { ChevronDown, Gauge, Pause, Play, Repeat2, RotateCcw } from "lucide-react";
 import { createPortal } from "react-dom";
 
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
 
-import { useSegmentAudioPlayer } from "../_hooks/use-segment-audio-player";
+import { PLAYBACK_RATES, useSegmentAudioPlayer } from "../_hooks/use-segment-audio-player";
 
 type SegmentAudioPlayerProps = {
   autoPlayDelayMs: number;
@@ -181,21 +190,50 @@ export function SegmentAudioPlayer({
             <Repeat2 aria-hidden="true" className="size-3.5" />
           </Button>
 
-          <Button
-            aria-label={`Playback speed ${playbackRate}x. Change playback speed.`}
-            className={cn(
-              "h-7 min-w-12 gap-1 px-2 text-xs font-heading shadow-none! sm:h-8",
-              playbackRate !== 1 && "bg-secondary-background font-bold text-main",
-            )}
-            onClick={handlePlaybackRateChange}
-            size="sm"
-            title="Change speed"
-            type="button"
-            variant="neutral"
-          >
-            <Gauge aria-hidden="true" className="size-3" />
-            <span>{playbackRate}x</span>
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                aria-label={`Playback speed ${playbackRate}x. Change playback speed.`}
+                className={cn(
+                  "h-7 min-w-15 gap-1.5 px-2 text-xs font-heading shadow-none! sm:h-8",
+                  playbackRate !== 1 && "bg-secondary-background font-bold text-main",
+                )}
+                size="sm"
+                title="Change playback speed"
+                type="button"
+                variant="neutral"
+              >
+                <Gauge aria-hidden="true" className="size-3.5" />
+                <span>{playbackRate}x</span>
+                <ChevronDown aria-hidden="true" className="size-3 opacity-60" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-36">
+              <DropdownMenuLabel className="text-xs text-foreground/70">
+                Playback Speed
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuRadioGroup
+                value={String(playbackRate)}
+                onValueChange={(val) => handlePlaybackRateChange(Number(val))}
+              >
+                {PLAYBACK_RATES.map((rate) => (
+                  <DropdownMenuRadioItem
+                    key={rate}
+                    value={String(rate)}
+                    className="cursor-pointer text-xs font-heading"
+                  >
+                    <span className="flex w-full items-center justify-between">
+                      <span>{rate}x</span>
+                      {rate === 1 && (
+                        <span className="text-[10px] font-normal text-foreground/50">Normal</span>
+                      )}
+                    </span>
+                  </DropdownMenuRadioItem>
+                ))}
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
     </section>

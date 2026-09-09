@@ -17,7 +17,8 @@ import { useDictationSegmentPlayback } from "../_hooks/use-dictation-segment-pla
 import { useDictationSettings } from "../_hooks/use-dictation-settings";
 import { usePracticeShortcuts } from "../_hooks/use-practice-shortcuts";
 import { DictationPracticeSidebar } from "./dictation-practice-sidebar";
-import { DictationResultSummary } from "./dictation-result-summary";
+import { DictationResultActions } from "./dictation-result-actions";
+import { DictationResultBanner } from "./dictation-result-banner";
 import { DictationReviewWorkstation } from "./dictation-review-workstation";
 import { DictationSettingsSheet } from "./dictation-settings-sheet";
 import { DictationToolbar } from "./dictation-toolbar";
@@ -203,6 +204,8 @@ export function DictationResult({
         </Button>
       </DictationToolbar>
 
+      <DictationResultBanner attemptNumber={attempt.attempt_number} completion={completion} />
+
       <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-12 lg:gap-5">
         <div className="space-y-4 lg:col-span-7">
           <DictationPracticeSidebar
@@ -258,10 +261,8 @@ export function DictationResult({
             </section>
           ) : null}
 
-          <DictationResultSummary
+          <DictationResultActions
             activeReview={activeReview}
-            attemptNumber={attempt.attempt_number}
-            completion={completion}
             isStarting={isStarting}
             onTryAgain={onTryAgain}
             startError={startError}
