@@ -2,28 +2,31 @@
 
 import type { ShadowingAttemptPracticeResponse, TranscriptSegment } from "@kaiwa-app/api-client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { useAuth } from "@/hooks/use-auth";
-import {
-  recordShadowingContinuous,
-  recordShadowingSegment,
-  submitShadowingAttempt,
-} from "@/lib/api-client";
+import { recordShadowingSegment, submitShadowingAttempt } from "@/lib/api-client";
 import { parseApiFailure } from "@/lib/api-errors";
 
-import type { RecorderCardHandle } from "../_components/recorder-card";
-
-import { formatShadowingDuration } from "../_utils/shadowing-formatters";
 import { useAudioPlayer } from "./use-audio-player";
-import { useShadowingShortcuts } from "./use-shadowing-shortcuts";
 
 export type SegmentRecordState = {
   durationSeconds: number;
   playbackUrl?: string;
   recorded: boolean;
   recordingId?: string;
+  uploadStatus?: "pending" | "failed" | "saved";
+};
+
+type UploadTake = {
+  clientId: string;
+  blob: Blob;
+  segmentIndex: number;
+  durationSeconds: number;
+  playbackUrl: string;
+  expectedId?: string | null;
+  status: "pending" | "failed" | "saved";
 };
 
 type RecordingCompleteData = {
@@ -33,10 +36,11 @@ type RecordingCompleteData = {
 };
 
 type ShadowingPracticeSessionOptions = {
+  autoPlayDelayMs?: number;
+  autoPlayOnSegmentChange?: boolean;
   onAttemptCompleted: (attemptId: string) => void;
   onAttemptNotInProgress: () => void;
   practice: ShadowingAttemptPracticeResponse;
-  recorderRef: RefObject<RecorderCardHandle | null>;
 };
 
 function buildRecordedSegments(
@@ -56,27 +60,51 @@ function buildRecordedSegments(
 }
 
 export function useShadowingPracticeSession({
+  autoPlayDelayMs: _autoPlayDelayMs = 500,
+  autoPlayOnSegmentChange = true,
   onAttemptCompleted,
   onAttemptNotInProgress,
   practice,
-  recorderRef,
 }: ShadowingPracticeSessionOptions) {
   const { protectedRequest } = useAuth();
   const { attempt, content: lesson } = practice;
-  const practiceMode = attempt.mode;
+  const practiceMode = "segmented" as const;
   const currentAttemptId = attempt.attempt_id;
   const [selectedSegmentIndex, setSelectedSegmentIndex] = useState(0);
   const [recordedSegments, setRecordedSegments] = useState<Record<string, SegmentRecordState>>(() =>
     buildRecordedSegments(practice),
   );
-  const [continuousDurationSeconds, setContinuousDurationSeconds] = useState(
-    attempt.continuous_recording?.duration_seconds ?? 0,
-  );
-  const [continuousAudioUrl, setContinuousAudioUrl] = useState<string | null>(
-    attempt.continuous_recording?.playback_url ?? null,
-  );
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const takesRef = useRef<UploadTake[]>([]);
+  const savedIdsRef = useRef<Record<string, string>>(
+    Object.fromEntries(
+      (practice.attempt.recorded_segments ?? []).map((segment) => [
+        segment.segment_id,
+        segment.recording_id,
+      ]),
+    ),
+  );
+  const uploadsRef = useRef(new Map<number, Promise<void>>());
+  const [pendingUploadCount, setPendingUploadCount] = useState(0);
+  const [failedUploadCount, setFailedUploadCount] = useState(0);
+  const submittingRef = useRef(false);
   const localObjectUrlsRef = useRef<Set<string>>(new Set());
+  const scheduledPlaybackTimeoutRef = useRef<number | null>(null);
+
+  const clearScheduledPlayback = useCallback(() => {
+    if (scheduledPlaybackTimeoutRef.current !== null) {
+      window.clearTimeout(scheduledPlaybackTimeoutRef.current);
+      scheduledPlaybackTimeoutRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => clearScheduledPlayback, [clearScheduledPlayback]);
+
+  useEffect(() => {
+    if (!autoPlayOnSegmentChange) {
+      clearScheduledPlayback();
+    }
+  }, [autoPlayOnSegmentChange, clearScheduledPlayback]);
 
   useEffect(() => {
     const localObjectUrls = localObjectUrlsRef.current;
@@ -89,260 +117,314 @@ export function useShadowingPracticeSession({
     () => (Array.isArray(lesson.transcript) ? lesson.transcript : []),
     [lesson.transcript],
   );
-  const isContinuous = practiceMode === "continuous";
   const player = useAudioPlayer(lesson.audio_url ?? "", lesson.duration_seconds ?? 0, {
-    segments: isContinuous ? [] : transcriptSegments,
+    autoPause: !autoPlayOnSegmentChange,
+    segments: transcriptSegments,
   });
   const currentTimeMs = player.currentTime * 1000;
-  const activeSegment = transcriptSegments[selectedSegmentIndex];
-  const hasPreviousSegment = !isContinuous && selectedSegmentIndex > 0;
-  const hasNextSegment = !isContinuous && selectedSegmentIndex < transcriptSegments.length - 1;
+
+  // Derive segment index from current playback time
+  const segmentIndexAtTime = useMemo(() => {
+    if (transcriptSegments.length === 0) return 0;
+    if (player.isLoopEnabled) {
+      return selectedSegmentIndex;
+    }
+    if (player.playbackStatus === "PAUSED_AT_BOUNDARY") {
+      const timeMs = Math.round(player.currentTime * 1000);
+      const boundarySegIndex = transcriptSegments.findIndex(
+        (seg) => Math.abs(seg.end_time_ms - timeMs) <= 100,
+      );
+      if (boundarySegIndex >= 0) return boundarySegIndex;
+      return selectedSegmentIndex;
+    }
+
+    const timeMs = Math.round(player.currentTime * 1000);
+    const exact = transcriptSegments.findIndex(
+      (seg) => timeMs >= seg.start_time_ms && timeMs < seg.end_time_ms,
+    );
+    if (exact >= 0) return exact;
+
+    const lastSeg = transcriptSegments[transcriptSegments.length - 1];
+    if (lastSeg && timeMs >= lastSeg.end_time_ms) {
+      return transcriptSegments.length - 1;
+    }
+
+    for (let i = 0; i < transcriptSegments.length - 1; i++) {
+      const cur = transcriptSegments[i];
+      const next = transcriptSegments[i + 1];
+      if (cur && next && timeMs >= cur.end_time_ms && timeMs < next.start_time_ms) {
+        return i;
+      }
+    }
+
+    return selectedSegmentIndex;
+  }, [
+    player.currentTime,
+    player.isLoopEnabled,
+    player.playbackStatus,
+    selectedSegmentIndex,
+    transcriptSegments,
+  ]);
+
+  const effectiveSegmentIndex = segmentIndexAtTime >= 0 ? segmentIndexAtTime : selectedSegmentIndex;
+  const activeSegment = transcriptSegments[effectiveSegmentIndex];
+  const hasPreviousSegment = effectiveSegmentIndex > 0;
+  const hasNextSegment = effectiveSegmentIndex < transcriptSegments.length - 1;
 
   const handleSelectSegment = useCallback(
     (index: number) => {
       if (index < 0 || index >= transcriptSegments.length) return;
 
+      clearScheduledPlayback();
       setSelectedSegmentIndex(index);
       const segment = transcriptSegments[index];
       if (!segment) return;
 
-      if (isContinuous) {
-        player.seek(segment.start_time_ms / 1000);
-        player.play();
-      } else {
-        player.playSegment(segment.start_time_ms / 1000);
-      }
-    },
-    [isContinuous, player, transcriptSegments],
-  );
+      const startSeconds = segment.start_time_ms / 1000;
+      const endSeconds = segment.end_time_ms / 1000;
+      const wasPlaying = player.isPlaying;
 
-  const handlePreviousSegment = useCallback(() => {
-    if (selectedSegmentIndex > 0) {
-      handleSelectSegment(selectedSegmentIndex - 1);
-    }
-  }, [handleSelectSegment, selectedSegmentIndex]);
+      player.seek(startSeconds);
 
-  const handleNextSegment = useCallback(() => {
-    if (selectedSegmentIndex < transcriptSegments.length - 1) {
-      handleSelectSegment(selectedSegmentIndex + 1);
-    }
-  }, [handleSelectSegment, selectedSegmentIndex, transcriptSegments.length]);
-
-  const handleReplaySegment = useCallback(() => {
-    if (!activeSegment) return;
-    player.playSegment(activeSegment.start_time_ms / 1000, activeSegment.end_time_ms / 1000);
-  }, [activeSegment, player]);
-
-  const handleTogglePlay = useCallback(() => {
-    player.togglePlay();
-  }, [player]);
-
-  useShadowingShortcuts({
-    disabled: isSubmitting,
-    onNext: isContinuous ? undefined : handleNextSegment,
-    onPrevious: isContinuous ? undefined : handlePreviousSegment,
-    onTogglePlay: handleTogglePlay,
-    onToggleRecord: () => {
-      recorderRef.current?.toggleRecording();
-    },
-  });
-
-  const handleRecordComplete = async ({
-    audioBlob,
-    durationMs,
-    segmentIndex: targetSegmentIndex,
-  }: RecordingCompleteData) => {
-    if (!audioBlob) return;
-
-    setIsSubmitting(true);
-    let rollbackOptimisticUpdate: () => void = () => undefined;
-    try {
-      const durationSeconds = Math.max(1, Math.round(durationMs / 1000));
-      const audioFile = new File([audioBlob], "recording.webm", { type: "audio/webm" });
-
-      if (isContinuous) {
-        const previousAudioUrl = continuousAudioUrl;
-        const previousDurationSeconds = continuousDurationSeconds;
-        const localBlobUrl = URL.createObjectURL(audioBlob);
-        localObjectUrlsRef.current.add(localBlobUrl);
-        rollbackOptimisticUpdate = () => {
-          setContinuousAudioUrl(previousAudioUrl);
-          setContinuousDurationSeconds(previousDurationSeconds);
-          localObjectUrlsRef.current.delete(localBlobUrl);
-          URL.revokeObjectURL(localBlobUrl);
-        };
-        setContinuousAudioUrl(localBlobUrl);
-        setContinuousDurationSeconds(durationSeconds);
-
-        const response = await protectedRequest(() =>
-          recordShadowingContinuous({
-            body: {
-              attempt_id: currentAttemptId,
-              audio_file: audioFile,
-              duration_seconds: durationSeconds,
-            },
-            path: { content_id: lesson.id },
-          }),
-        );
-
-        if (response.data) {
-          setContinuousDurationSeconds(response.data.duration_seconds);
-          toast.success("Continuous recording saved!");
-        } else {
-          rollbackOptimisticUpdate();
-          const failure = parseApiFailure(response);
-          if (failure.code === "shadowing_attempt_not_in_progress") {
-            onAttemptNotInProgress();
-          } else {
-            toast.error("Recording upload failed", { description: failure.message });
-          }
-        }
-      } else {
-        const segmentIndex = targetSegmentIndex ?? selectedSegmentIndex;
-        const segmentId = String(segmentIndex);
-        const previousSegment = recordedSegments[segmentId];
-        const localBlobUrl = URL.createObjectURL(audioBlob);
-        localObjectUrlsRef.current.add(localBlobUrl);
-        rollbackOptimisticUpdate = () => {
-          setRecordedSegments((currentSegments) => {
-            if (previousSegment) {
-              return { ...currentSegments, [segmentId]: previousSegment };
-            }
-
-            const nextSegments = { ...currentSegments };
-            delete nextSegments[segmentId];
-            return nextSegments;
-          });
-          localObjectUrlsRef.current.delete(localBlobUrl);
-          URL.revokeObjectURL(localBlobUrl);
-        };
-
-        setRecordedSegments((currentSegments) => ({
-          ...currentSegments,
-          [segmentId]: {
-            durationSeconds,
-            playbackUrl: localBlobUrl,
-            recorded: true,
-          },
-        }));
-
-        const response = await protectedRequest(() =>
-          recordShadowingSegment({
-            body: {
-              attempt_id: currentAttemptId,
-              audio_file: audioFile,
-              segment_id: segmentId,
-            },
-            path: { content_id: lesson.id },
-          }),
-        );
-
-        if (response.data) {
-          setRecordedSegments((currentSegments) => ({
-            ...currentSegments,
-            [segmentId]: {
-              durationSeconds: response.data?.duration_seconds ?? durationSeconds,
-              playbackUrl: localBlobUrl,
-              recorded: true,
-              recordingId: response.data?.recording_id,
-            },
-          }));
-          toast.success(`Segment #${segmentIndex + 1} recorded!`);
-        } else {
-          rollbackOptimisticUpdate();
-          const failure = parseApiFailure(response);
-          if (failure.code === "shadowing_attempt_not_in_progress") {
-            onAttemptNotInProgress();
-          } else {
-            toast.error("Recording upload failed", { description: failure.message });
-          }
-        }
-      }
-    } catch (error: unknown) {
-      rollbackOptimisticUpdate();
-      toast.error("Could not upload recording", {
-        description: error instanceof Error ? error.message : "An unexpected error occurred",
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleFinishAttempt = useCallback(
-    async (requestAiReview: boolean = false) => {
-      const hasRecording = isContinuous
-        ? Boolean(continuousAudioUrl || continuousDurationSeconds > 0)
-        : Object.values(recordedSegments).some((segment) => segment.recorded);
-      if (!hasRecording) {
-        toast.error("No recordings found", {
-          description: isContinuous
-            ? "Please record your shadowing voice before finishing."
-            : "Please record at least one segment before completing the attempt.",
-        });
+      if (!wasPlaying) {
         return;
       }
 
-      setIsSubmitting(true);
-      try {
-        const response = await protectedRequest(() =>
-          submitShadowingAttempt({
-            body: {
-              attempt_id: currentAttemptId,
-              replay_count: 0,
-              request_ai_review: requestAiReview,
-            },
-            path: { content_id: lesson.id },
-          }),
-        );
-
-        if (response.data) {
-          onAttemptCompleted(response.data.attempt_id);
-        } else {
-          const failure = parseApiFailure(response);
-          if (failure.code === "shadowing_attempt_not_in_progress") {
-            onAttemptNotInProgress();
-          } else {
-            toast.error("Could not complete attempt", { description: failure.message });
-          }
-        }
-      } catch (error: unknown) {
-        toast.error("Could not complete attempt", {
-          description: error instanceof Error ? error.message : "An unexpected error occurred",
-        });
-      } finally {
-        setIsSubmitting(false);
-      }
+      // Play segment: if auto-pause is enabled (!autoPlayOnSegmentChange), pause at endSeconds.
+      // If auto-pause is disabled (continuous), play continuously from startSeconds.
+      const targetStop = !autoPlayOnSegmentChange ? endSeconds : null;
+      player.playSegment(startSeconds, targetStop);
     },
-    [
-      continuousAudioUrl,
-      continuousDurationSeconds,
-      currentAttemptId,
-      isContinuous,
-      lesson.id,
-      onAttemptCompleted,
-      onAttemptNotInProgress,
-      protectedRequest,
-      recordedSegments,
-    ],
+    [autoPlayOnSegmentChange, clearScheduledPlayback, player, transcriptSegments],
   );
+
+  const handlePreviousSegment = useCallback(() => {
+    if (effectiveSegmentIndex > 0) {
+      handleSelectSegment(effectiveSegmentIndex - 1);
+    }
+  }, [effectiveSegmentIndex, handleSelectSegment]);
+
+  const handleNextSegment = useCallback(() => {
+    if (effectiveSegmentIndex < transcriptSegments.length - 1) {
+      handleSelectSegment(effectiveSegmentIndex + 1);
+    }
+  }, [effectiveSegmentIndex, handleSelectSegment, transcriptSegments.length]);
+
+  const isSegmentRecorded = useCallback(
+    (index: number) => {
+      return Boolean(recordedSegments[String(index)]?.recorded);
+    },
+    [recordedSegments],
+  );
+
+  const handlePreviousUnrecordedSegment = useCallback(() => {
+    for (let i = effectiveSegmentIndex - 1; i >= 0; i--) {
+      if (!isSegmentRecorded(i)) {
+        handleSelectSegment(i);
+        return;
+      }
+    }
+  }, [effectiveSegmentIndex, handleSelectSegment, isSegmentRecorded]);
+
+  const handleNextUnrecordedSegment = useCallback(() => {
+    for (let i = effectiveSegmentIndex + 1; i < transcriptSegments.length; i++) {
+      if (!isSegmentRecorded(i)) {
+        handleSelectSegment(i);
+        return;
+      }
+    }
+  }, [effectiveSegmentIndex, handleSelectSegment, isSegmentRecorded, transcriptSegments.length]);
+
+  const handleReplaySegment = useCallback(() => {
+    if (!activeSegment) return;
+    clearScheduledPlayback();
+    const startSeconds = activeSegment.start_time_ms / 1000;
+    const endSeconds = activeSegment.end_time_ms / 1000;
+    const targetStop = !autoPlayOnSegmentChange ? endSeconds : null;
+    player.playSegment(startSeconds, targetStop);
+  }, [activeSegment, autoPlayOnSegmentChange, clearScheduledPlayback, player]);
+
+  const handleTogglePlay = useCallback(() => {
+    clearScheduledPlayback();
+    player.togglePlay();
+  }, [clearScheduledPlayback, player]);
+
+  const refreshUploads = useCallback(() => {
+    setPendingUploadCount(takesRef.current.filter((take) => take.status === "pending").length);
+    setFailedUploadCount(takesRef.current.filter((take) => take.status === "failed").length);
+  }, []);
+
+  const enqueueUpload = useCallback(
+    (take: UploadTake) => {
+      take.status = "pending";
+      setRecordedSegments((current) => ({
+        ...current,
+        [String(take.segmentIndex)]: {
+          durationSeconds: take.durationSeconds,
+          playbackUrl: take.playbackUrl,
+          recorded: false,
+          uploadStatus: "pending",
+        },
+      }));
+      refreshUploads();
+      const previous = uploadsRef.current.get(take.segmentIndex) ?? Promise.resolve();
+      const upload = previous.then(async () => {
+        try {
+          const precedingFailed = takesRef.current
+            .slice(0, takesRef.current.indexOf(take))
+            .some(
+              (earlier) =>
+                earlier.segmentIndex === take.segmentIndex && earlier.status === "failed",
+            );
+          if (precedingFailed) throw new Error("Retry the earlier upload for this segment first.");
+          if (take.expectedId === undefined)
+            take.expectedId = savedIdsRef.current[String(take.segmentIndex)] ?? null;
+          const mime = take.blob.type;
+          const extension = mime.includes("mp4") ? "m4a" : mime.includes("ogg") ? "ogg" : "webm";
+          const response = await protectedRequest(() =>
+            recordShadowingSegment({
+              body: {
+                attempt_id: currentAttemptId,
+                audio_file: new File([take.blob], `recording.${extension}`, { type: mime }),
+                client_recording_id: take.clientId,
+                expected_recording_id: take.expectedId,
+                segment_id: String(take.segmentIndex),
+              },
+              path: { content_id: lesson.id },
+            }),
+          );
+          if (!response.data) {
+            const failure = parseApiFailure(response);
+            if (failure.code === "shadowing_attempt_not_in_progress") onAttemptNotInProgress();
+            throw new Error(failure.message);
+          }
+          savedIdsRef.current[String(take.segmentIndex)] = response.data.recording_id;
+          take.status = "saved";
+          take.durationSeconds =
+            response.data.duration_ms != null
+              ? response.data.duration_ms / 1000
+              : response.data.duration_seconds;
+        } catch (error: unknown) {
+          take.status = "failed";
+          toast.error("Recording upload failed", {
+            description:
+              error instanceof Error ? error.message : "Retry your saved recording below.",
+          });
+        } finally {
+          const latest = takesRef.current.findLast(
+            (candidate) => candidate.segmentIndex === take.segmentIndex,
+          );
+          if (latest === take) {
+            setRecordedSegments((current) => ({
+              ...current,
+              [String(take.segmentIndex)]: {
+                durationSeconds: take.durationSeconds,
+                playbackUrl: take.playbackUrl,
+                recorded: take.status === "saved",
+                recordingId:
+                  take.status === "saved"
+                    ? savedIdsRef.current[String(take.segmentIndex)]
+                    : undefined,
+                uploadStatus: take.status,
+              },
+            }));
+          }
+          refreshUploads();
+        }
+      });
+      uploadsRef.current.set(take.segmentIndex, upload);
+      return upload;
+    },
+    [currentAttemptId, lesson.id, onAttemptNotInProgress, protectedRequest, refreshUploads],
+  );
+
+  const handleRecordComplete = useCallback(
+    ({ audioBlob, durationMs, segmentIndex }: RecordingCompleteData) => {
+      if (!audioBlob) return;
+      const index = segmentIndex ?? effectiveSegmentIndex;
+      const playbackUrl = URL.createObjectURL(audioBlob);
+      localObjectUrlsRef.current.add(playbackUrl);
+      const take: UploadTake = {
+        clientId: crypto.randomUUID(),
+        blob: audioBlob,
+        segmentIndex: index,
+        durationSeconds: durationMs / 1000,
+        playbackUrl,
+        status: "pending",
+      };
+      takesRef.current.push(take);
+      setRecordedSegments((current) => ({
+        ...current,
+        [String(index)]: {
+          durationSeconds: take.durationSeconds,
+          playbackUrl,
+          recorded: false,
+          uploadStatus: "pending",
+        },
+      }));
+      void enqueueUpload(take);
+    },
+    [effectiveSegmentIndex, enqueueUpload],
+  );
+
+  const retryFailedUploads = useCallback(() => {
+    for (const take of takesRef.current) {
+      if (take.status === "failed") void enqueueUpload(take);
+    }
+  }, [enqueueUpload]);
+
+  const handleFinishAttempt = useCallback(async () => {
+    if (submittingRef.current) return;
+    submittingRef.current = true;
+    setIsSubmitting(true);
+    try {
+      await Promise.all(uploadsRef.current.values());
+      if (takesRef.current.some((take) => take.status !== "saved")) {
+        toast.error("Some recordings are not saved", {
+          description: "Retry failed uploads before finishing.",
+        });
+        return;
+      }
+      const recordings = Object.entries(savedIdsRef.current).map(([index, recordingId]) => ({
+        segment_index: Number(index),
+        recording_id: recordingId,
+      }));
+      if (!recordings.length) {
+        toast.error("No recordings found", {
+          description: "Record at least one segment before finishing.",
+        });
+        return;
+      }
+      const response = await protectedRequest(() =>
+        submitShadowingAttempt({
+          body: { attempt_id: currentAttemptId, replay_count: 0, recordings },
+          path: { content_id: lesson.id },
+        }),
+      );
+      if (response.data) onAttemptCompleted(response.data.attempt_id);
+      else {
+        const failure = parseApiFailure(response);
+        if (failure.code === "shadowing_attempt_not_in_progress") onAttemptNotInProgress();
+        else toast.error("Could not complete attempt", { description: failure.message });
+      }
+    } catch (error: unknown) {
+      toast.error("Could not complete attempt", {
+        description: error instanceof Error ? error.message : "Please try again.",
+      });
+    } finally {
+      submittingRef.current = false;
+      setIsSubmitting(false);
+    }
+  }, [currentAttemptId, lesson.id, onAttemptCompleted, onAttemptNotInProgress, protectedRequest]);
 
   const recordedCount = Object.values(recordedSegments).filter(
     (segment) => segment.recorded,
   ).length;
   const totalSegments = transcriptSegments.length;
-  const continuousFormatted =
-    continuousDurationSeconds > 0
-      ? `${formatShadowingDuration(continuousDurationSeconds)} Practiced`
-      : undefined;
-  const currentSegmentRecorded = isContinuous
-    ? Boolean(continuousAudioUrl || continuousDurationSeconds > 0)
-    : Boolean(recordedSegments[String(selectedSegmentIndex)]?.recorded);
-  const currentSegmentDuration = isContinuous
-    ? continuousDurationSeconds
-    : (recordedSegments[String(selectedSegmentIndex)]?.durationSeconds ?? 0);
-  const currentSavedAudioUrl = isContinuous
-    ? (continuousAudioUrl ?? undefined)
-    : recordedSegments[String(selectedSegmentIndex)]?.playbackUrl;
+  const currentSegmentRecorded = Boolean(recordedSegments[String(effectiveSegmentIndex)]?.recorded);
+  const currentSegmentDuration =
+    recordedSegments[String(effectiveSegmentIndex)]?.durationSeconds ?? 0;
+  const currentSavedAudioUrl = recordedSegments[String(effectiveSegmentIndex)]?.playbackUrl;
 
   return {
     activeSegment,
@@ -352,24 +434,28 @@ export function useShadowingPracticeSession({
     currentTimeMs,
     handleFinishAttempt,
     handleNextSegment,
+    handleNextUnrecordedSegment,
     handlePreviousSegment,
+    handlePreviousUnrecordedSegment,
     handleRecordComplete,
     handleReplaySegment,
     handleSelectSegment,
     handleTogglePlay,
     hasNextSegment,
     hasPreviousSegment,
-    isContinuous,
+    isContinuous: false,
+    isPlayerPlaying: player.isPlaying,
     isSubmitting,
+    pendingUploadCount,
+    failedUploadCount,
+    retryFailedUploads,
     lesson,
     player,
     practiceMode,
     recordedCount,
     recordedSegments,
-    recorderRef,
-    selectedSegmentIndex,
+    selectedSegmentIndex: effectiveSegmentIndex,
     totalSegments,
     transcriptSegments,
-    continuousFormatted,
   };
 }

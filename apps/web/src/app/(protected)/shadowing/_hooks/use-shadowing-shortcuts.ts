@@ -5,7 +5,9 @@ import { useEffect } from "react";
 export type UseShadowingShortcutsOptions = {
   disabled?: boolean;
   onNext?: () => void;
+  onNextUnrecorded?: () => void;
   onPrevious?: () => void;
+  onPreviousUnrecorded?: () => void;
   onTogglePlay?: () => void;
   onToggleRecord?: () => void;
 };
@@ -13,7 +15,9 @@ export type UseShadowingShortcutsOptions = {
 export function useShadowingShortcuts({
   disabled = false,
   onNext,
+  onNextUnrecorded,
   onPrevious,
+  onPreviousUnrecorded,
   onTogglePlay,
   onToggleRecord,
 }: UseShadowingShortcutsOptions) {
@@ -55,23 +59,39 @@ export function useShadowingShortcuts({
         return;
       }
 
-      // Previous segment shortcut: Ctrl+ArrowLeft, Cmd+ArrowLeft, or ArrowLeft when not in input
-      if (
-        (isModifier && event.key === "ArrowLeft") ||
-        (!isInput && !isModifier && !isAlt && event.key === "ArrowLeft")
-      ) {
+      // Previous segment shortcut: ArrowLeft when not in input and without modifiers
+      if (!isInput && !isModifier && !isAlt && event.key === "ArrowLeft") {
         event.preventDefault();
         onPrevious?.();
         return;
       }
 
-      // Next segment shortcut: Ctrl+ArrowRight, Cmd+ArrowRight, or ArrowRight when not in input
-      if (
-        (isModifier && event.key === "ArrowRight") ||
-        (!isInput && !isModifier && !isAlt && event.key === "ArrowRight")
-      ) {
+      // Next segment shortcut: ArrowRight when not in input and without modifiers
+      if (!isInput && !isModifier && !isAlt && event.key === "ArrowRight") {
         event.preventDefault();
         onNext?.();
+        return;
+      }
+
+      // Previous unrecorded segment shortcut: Ctrl+ArrowLeft or Cmd+ArrowLeft
+      if (isModifier && !isAlt && event.key === "ArrowLeft") {
+        event.preventDefault();
+        if (onPreviousUnrecorded) {
+          onPreviousUnrecorded();
+        } else {
+          onPrevious?.();
+        }
+        return;
+      }
+
+      // Next unrecorded segment shortcut: Ctrl+ArrowRight or Cmd+ArrowRight
+      if (isModifier && !isAlt && event.key === "ArrowRight") {
+        event.preventDefault();
+        if (onNextUnrecorded) {
+          onNextUnrecorded();
+        } else {
+          onNext?.();
+        }
         return;
       }
     };
@@ -80,5 +100,13 @@ export function useShadowingShortcuts({
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [disabled, onNext, onPrevious, onTogglePlay, onToggleRecord]);
+  }, [
+    disabled,
+    onNext,
+    onNextUnrecorded,
+    onPrevious,
+    onPreviousUnrecorded,
+    onTogglePlay,
+    onToggleRecord,
+  ]);
 }

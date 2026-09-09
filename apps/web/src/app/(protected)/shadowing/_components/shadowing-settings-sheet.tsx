@@ -2,9 +2,7 @@
 
 import { Settings2 } from "lucide-react";
 
-import { KeyboardShortcut } from "@/components/common/keyboard-shortcut";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Sheet,
@@ -16,35 +14,30 @@ import {
 } from "@/components/ui/sheet";
 import { Switch } from "@/components/ui/switch";
 
-interface ShadowingSettingsSheetProps {
-  autoPlayDelaySeconds: number;
-  mode?: "segmented" | "continuous";
-  onAutoPlayDelayChange: (value: number) => void;
+export interface ShadowingSettingsSheetProps {
+  autoSplitRecording?: boolean;
+  onAutoSplitRecordingChange?: (value: boolean) => void;
   onShowVideoChange: (value: boolean) => void;
   showVideo: boolean;
 }
 
-const CONTINUOUS_SHORTCUTS = [
-  { action: "Pause or resume video", keyLabel: "⎵" },
-  { action: "Start or stop recording", keyLabel: "R" },
-] as const;
-
-const SEGMENT_SHORTCUTS = [
-  { action: "Pause or resume video", keyLabel: "⎵" },
+const SHADOWING_SHORTCUTS = [
+  { action: "Play or pause video", keyLabel: "Space" },
+  { action: "Replay segment from start", keyLabel: "Ctrl + Space" },
   { action: "Start or stop recording", keyLabel: "R" },
   { action: "Next segment", keyLabel: "→" },
   { action: "Previous segment", keyLabel: "←" },
+  { action: "Next unrecorded segment", keyLabel: "Ctrl + →" },
+  { action: "Previous unrecorded segment", keyLabel: "Ctrl + ←" },
 ] as const;
 
 export function ShadowingSettingsSheet({
-  autoPlayDelaySeconds,
-  mode = "segmented",
-  onAutoPlayDelayChange,
+  autoSplitRecording = false,
+  onAutoSplitRecordingChange,
   onShowVideoChange,
   showVideo,
 }: ShadowingSettingsSheetProps) {
-  const isContinuous = mode === "continuous";
-  const shortcuts = isContinuous ? CONTINUOUS_SHORTCUTS : SEGMENT_SHORTCUTS;
+  const shortcuts = SHADOWING_SHORTCUTS;
 
   return (
     <Sheet>
@@ -55,44 +48,14 @@ export function ShadowingSettingsSheet({
         </Button>
       </SheetTrigger>
       <SheetContent className="flex flex-col overflow-y-auto p-0" side="right">
-        <SheetHeader className="border-b-4 border-border p-5 pr-16">
+        <SheetHeader className="border-b-2 border-border p-5 pr-16">
           <SheetTitle>Practice settings</SheetTitle>
           <SheetDescription>
-            Customize playback, timing, and media display while practicing.
+            Customize media display and view keyboard shortcuts for shadowing.
           </SheetDescription>
         </SheetHeader>
 
         <div className="flex flex-1 flex-col gap-5 p-5">
-          {/* Delay between segments (Segment mode only) */}
-          {!isContinuous && (
-            <div className="space-y-2 rounded-base border-2 border-border bg-background p-4">
-              <div className="flex items-center justify-between gap-3">
-                <Label className="font-heading" htmlFor="shadowing-auto-play-delay">
-                  Delay between segments
-                </Label>
-                <span className="text-xs text-foreground/60">seconds</span>
-              </div>
-              <Input
-                aria-describedby="shadowing-auto-play-delay-help"
-                id="shadowing-auto-play-delay"
-                inputMode="decimal"
-                max={10}
-                min={0}
-                onChange={(event) => onAutoPlayDelayChange(Number(event.target.value))}
-                step={0.1}
-                type="number"
-                value={autoPlayDelaySeconds}
-              />
-              <p
-                className="text-xs leading-relaxed text-foreground/70"
-                id="shadowing-auto-play-delay-help"
-              >
-                Transition delay when moving between segments. Enter 0 for an immediate transition;
-                maximum 10 seconds.
-              </p>
-            </div>
-          )}
-
           {/* Show video player */}
           <div className="flex items-start justify-between gap-4 rounded-base border-2 border-border bg-background p-4">
             <div className="space-y-1">
@@ -100,8 +63,7 @@ export function ShadowingSettingsSheet({
                 Show video player
               </Label>
               <p className="text-xs leading-relaxed text-foreground/70">
-                Keep the YouTube video visible while practicing. Turn this off for an audio-only
-                layout.
+                Keep the video visible while practicing. Turn this off for an audio-only layout.
               </p>
             </div>
             <Switch
@@ -109,6 +71,25 @@ export function ShadowingSettingsSheet({
               className="mt-0.5 shrink-0"
               id="shadowing-show-video"
               onCheckedChange={onShowVideoChange}
+            />
+          </div>
+
+          {/* Auto-split recording per segment */}
+          <div className="flex items-start justify-between gap-4 rounded-base border-2 border-border bg-background p-4">
+            <div className="space-y-1">
+              <Label className="font-heading" htmlFor="shadowing-auto-split-recording">
+                Auto-split recording per segment
+              </Label>
+              <p className="text-xs leading-relaxed text-foreground/70">
+                Automatically stop and save recording when a segment ends, then start a new one for
+                the next segment. Record continuously while keeping per-segment AI evaluation.
+              </p>
+            </div>
+            <Switch
+              checked={autoSplitRecording}
+              className="mt-0.5 shrink-0"
+              id="shadowing-auto-split-recording"
+              onCheckedChange={onAutoSplitRecordingChange}
             />
           </div>
 
@@ -124,7 +105,9 @@ export function ShadowingSettingsSheet({
                   key={item.action}
                 >
                   <span className="text-foreground/80">{item.action}</span>
-                  <KeyboardShortcut keyLabel={item.keyLabel} />
+                  <kbd className="rounded-xs border border-border/40 bg-secondary-background px-1.5 py-0.5 font-mono text-[11px] text-foreground/80">
+                    {item.keyLabel}
+                  </kbd>
                 </div>
               ))}
             </div>

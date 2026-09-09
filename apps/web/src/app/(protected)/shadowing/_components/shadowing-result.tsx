@@ -2,30 +2,26 @@
 
 import type { ShadowingAttemptReviewResponse } from "@kaiwa-app/api-client";
 
-import {
-  ArrowLeft,
-  CheckCircle2,
-  Headphones,
-  Radio,
-  RotateCcw,
-  Star,
-  Trophy,
-  Video,
-  VideoOff,
-} from "lucide-react";
-import Link from "next/link";
-import { useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 import { ExpRewardOverlay } from "@/components/common/exp-reward/exp-reward-overlay";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 
+import { useShadowingResult } from "../_hooks/use-shadowing-result";
 import { useShadowingReview } from "../_hooks/use-shadowing-review";
-import { AudioPlayerCard } from "./audio-player-card";
+import { useShadowingSettings } from "../_hooks/use-shadowing-settings";
+import { formatShadowingTimestamp } from "../_utils/shadowing-formatters";
 import { ShadowingAiFeedbackCard } from "./shadowing-ai-feedback-card";
 import { ShadowingContinuousReviewCard } from "./shadowing-continuous-review-card";
+import { ShadowingProcessingStatus } from "./shadowing-processing-status";
+import { ShadowingResultActions } from "./shadowing-result-actions";
+import { ShadowingResultBanner } from "./shadowing-result-banner";
+import { ShadowingResultToolbar } from "./shadowing-result-toolbar";
+import { ShadowingReviewSegmentNav } from "./shadowing-review-segment-nav";
+import { ShadowingReviewWorkstation } from "./shadowing-review-workstation";
+import { ShadowingSettingsSheet } from "./shadowing-settings-sheet";
 import { ShadowingTranscriptReview } from "./shadowing-transcript-review";
+import { ShadowingVideoDock } from "./shadowing-video-dock";
 
 type ShadowingResultProps = {
   onPracticeAgain: () => void;
@@ -35,12 +31,25 @@ type ShadowingResultProps = {
 
 export function ShadowingResult({
   onPracticeAgain,
-  review,
+  review: initialReview,
   shouldCelebrate = false,
 }: ShadowingResultProps) {
-  const [showVideo, setShowVideo] = useState(true);
+  const {
+    review,
+    refresh,
+    refreshError,
+    actionError,
+    aiError,
+    isRequestingAi,
+    isRetryingTranscriptions,
+    requestAiReview,
+    retryTranscriptions,
+  } = useShadowingResult(initialReview);
+  const { showVideo, updateShowVideo } = useShadowingSettings();
+
   const {
     activeOriginalIndex,
+    activeSegment,
     activeSegmentRef,
     handleNextSegment,
     handlePlayOriginalSegment,
@@ -48,152 +57,177 @@ export function ShadowingResult({
     handlePreviousSegment,
     handleReplaySegment,
     isContinuous,
+    isLoopEnabled,
+    isPlayingActiveOriginal,
     isPlayingContinuousVoice,
+    isPlayingUser,
     player,
     playingUserIndex,
     selectReview,
     selectedReviewIndex,
     toggleContinuousVoicePlayback,
+    toggleLoop,
   } = useShadowingReview(review);
 
-  const formatTime = (milliseconds: number) => {
-    const totalSeconds = Math.floor(milliseconds / 1000);
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+  const reviewHeadingRef = useRef<HTMLHeadingElement>(null);
+  const [feedbackSource, setFeedbackSource] = useState<HTMLButtonElement | null>(null);
+  const handleReviewCorrection = (segmentIndex: number, source: HTMLButtonElement) => {
+    const position = review.segments.findIndex((segment) => segment.segment_index === segmentIndex);
+    if (position < 0) return;
+    setFeedbackSource(source);
+    selectReview(position);
+    requestAnimationFrame(() => {
+      reviewHeadingRef.current?.scrollIntoView({ behavior: "instant", block: "start" });
+      reviewHeadingRef.current?.focus({ preventScroll: true });
+    });
   };
 
-  const scoreFormatted =
-    review.score !== null && review.score !== undefined ? Number(review.score).toFixed(0) : "0";
+  const handleBackToFeedback = () => {
+    const target = feedbackSource?.isConnected
+      ? feedbackSource
+      : document.getElementById("shadowing-ai-feedback-heading");
+    target?.scrollIntoView({ behavior: "instant", block: "center" });
+    target?.focus({ preventScroll: true });
+  };
+
+  const handlePlayActiveOriginal = useCallback(() => {
+    if (!activeSegment) return;
+    handlePlayOriginalSegment(
+      selectedReviewIndex,
+      activeSegment.start_time_ms ?? 0,
+      activeSegment.end_time_ms ?? 0,
+    );
+  }, [activeSegment, handlePlayOriginalSegment, selectedReviewIndex]);
+
+  const handlePlayActiveUserTake = useCallback(() => {
+    if (!activeSegment) return;
+    handlePlayUserRecording(selectedReviewIndex, activeSegment.playback_url);
+  }, [activeSegment, handlePlayUserRecording, selectedReviewIndex]);
 
   return (
-    <section aria-labelledby="shadowing-result-title" className="grid gap-6">
+    <div className="scroll-mt-24 space-y-3.5 sm:space-y-4" id="shadowing-result-screen">
       {shouldCelebrate ? <ExpRewardOverlay expEarned={review.earned_exp ?? 0} /> : null}
 
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b-2 border-border pb-5">
-        <div>
-          <div className="flex items-center gap-2">
-            <p className="text-sm font-heading uppercase text-foreground/70">Practice Result</p>
-            <Badge className="text-xs font-heading" variant="neutral">
-              {isContinuous ? (
-                <span className="inline-flex items-center gap-1">
-                  <Radio className="size-3 text-chart-3" />
-                  Continuous Mode
-                </span>
-              ) : (
-                "Segment-by-Segment"
-              )}
-            </Badge>
-          </div>
-          <h1 className="mt-1 font-heading text-2xl sm:text-3xl" id="shadowing-result-title">
-            {review.title || "Shadowing Review"}
-          </h1>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Badge className="bg-main font-heading text-main-foreground">
-            <Trophy className="mr-1 size-3.5" /> Score: {scoreFormatted}%
-          </Badge>
-          <Badge className="bg-chart-3 font-heading">
-            <Star className="mr-1 size-3.5 fill-current" /> +{review.earned_exp ?? 0} EXP
-          </Badge>
-          <Badge className="bg-secondary font-heading uppercase">{review.difficulty}</Badge>
-          {!isContinuous && (
-            <Badge className="bg-chart-4 font-heading">
-              <CheckCircle2 className="mr-1 size-3.5" /> {review.completed_segments}/
-              {review.total_segments} Segments
-            </Badge>
-          )}
-        </div>
-      </div>
+      <ShadowingResultToolbar
+        difficulty={review.difficulty}
+        lessonTitle={review.title || "Shadowing Review"}
+        mode={review.mode}
+        onPracticeAgain={onPracticeAgain}
+        settings={
+          <ShadowingSettingsSheet onShowVideoChange={updateShowVideo} showVideo={showVideo} />
+        }
+      />
 
-      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-12">
-        <div className="space-y-6 lg:col-span-7">
-          {review.audio_url && (
-            <div className="space-y-3">
-              <div className="flex justify-end">
-                <Button
-                  className="gap-1.5 text-xs"
-                  onClick={() => setShowVideo((previous) => !previous)}
-                  size="sm"
-                  type="button"
-                  variant="neutral"
-                >
-                  {showVideo ? (
-                    <>
-                      <VideoOff className="size-3.5" /> Hide Video
-                    </>
-                  ) : (
-                    <>
-                      <Video className="size-3.5" /> Show Video
-                    </>
-                  )}
-                </Button>
-              </div>
-              <AudioPlayerCard
-                audioUrl={review.audio_url}
-                hasNextSegment={selectedReviewIndex < review.segments.length - 1}
-                hasPreviousSegment={selectedReviewIndex > 0}
-                mode={review.mode}
-                onNextSegment={handleNextSegment}
-                onPreviousSegment={handlePreviousSegment}
-                onReplaySegment={isContinuous ? undefined : handleReplaySegment}
-                player={player}
-                showVideo={showVideo}
-              />
-            </div>
-          )}
+      <ShadowingResultBanner
+        attemptNumber={review.attempt_number}
+        isContinuous={isContinuous}
+        review={review}
+      />
 
+      <ShadowingProcessingStatus
+        review={review}
+        isRetrying={isRetryingTranscriptions}
+        errorMessage={refreshError ?? actionError}
+        onRetry={retryTranscriptions}
+        onRefresh={refresh}
+      />
+
+      <ShadowingAiFeedbackCard
+        key={review.attempt_id}
+        review={review}
+        isRequesting={isRequestingAi}
+        errorMessage={aiError}
+        refreshError={refreshError}
+        onRefresh={refresh}
+        onPracticeAgain={onPracticeAgain}
+        onRequest={requestAiReview}
+        onSelectSegment={handleReviewCorrection}
+      />
+
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-12 lg:gap-5">
+        {/* Left Column: Workstation / Continuous Review */}
+        <div className="min-w-0 space-y-4 lg:col-span-7">
+          {feedbackSource && (
+            <Button
+              className="min-h-11 whitespace-normal focus-visible:ring-ring"
+              onClick={handleBackToFeedback}
+              type="button"
+              variant="neutral"
+            >
+              Back to AI feedback
+            </Button>
+          )}
           {isContinuous ? (
-            <ShadowingContinuousReviewCard
-              isPlaying={isPlayingContinuousVoice}
-              onTogglePlayback={toggleContinuousVoicePlayback}
-              review={review}
+            <>
+              <ShadowingContinuousReviewCard
+                isPlaying={isPlayingContinuousVoice}
+                onTogglePlayback={toggleContinuousVoicePlayback}
+                review={review}
+              />
+
+              <ShadowingTranscriptReview
+                activeOriginalIndex={activeOriginalIndex}
+                activeSegmentRef={activeSegmentRef}
+                formatTime={formatShadowingTimestamp}
+                handlePlayOriginalSegment={handlePlayOriginalSegment}
+                handlePlayUserRecording={handlePlayUserRecording}
+                isContinuous={isContinuous}
+                playingUserIndex={playingUserIndex}
+                review={review}
+                selectedReviewIndex={selectedReviewIndex}
+                selectReview={selectReview}
+              />
+            </>
+          ) : (
+            <>
+              <ShadowingReviewSegmentNav
+                activeSegmentIndex={selectedReviewIndex}
+                onSelectSegment={selectReview}
+                segments={review.segments}
+              />
+
+              {activeSegment && (
+                <ShadowingReviewWorkstation
+                  activeSegment={activeSegment}
+                  activeSegmentIndex={selectedReviewIndex}
+                  formatTime={formatShadowingTimestamp}
+                  hasNextSegment={selectedReviewIndex < review.segments.length - 1}
+                  hasPreviousSegment={selectedReviewIndex > 0}
+                  isLoopEnabled={isLoopEnabled}
+                  isPlayingOriginal={isPlayingActiveOriginal}
+                  isPlayingUser={isPlayingUser}
+                  onLoopToggle={toggleLoop}
+                  onNextSegment={handleNextSegment}
+                  onPlayOriginal={handlePlayActiveOriginal}
+                  onPlayUserTake={handlePlayActiveUserTake}
+                  onPreviousSegment={handlePreviousSegment}
+                  onReplaySegment={handleReplaySegment}
+                  totalSegments={review.segments.length}
+                />
+              )}
+            </>
+          )}
+        </div>
+
+        {/* Right Column: Sticky Video Dock & Actions */}
+        <div className="min-w-0 space-y-4 lg:col-span-5 lg:self-start">
+          {player.isYouTube && player.youtubeVideoId ? (
+            <ShadowingVideoDock
+              handleIframeLoad={player.handleIframeLoad}
+              isYouTube={player.isYouTube}
+              registerIframe={player.registerIframe}
+              showVideo={showVideo}
+              youtubeVideoId={player.youtubeVideoId}
             />
           ) : null}
 
-          {review.ai_feedback ? <ShadowingAiFeedbackCard feedback={review.ai_feedback} /> : null}
-
-          <Card className="border-2 border-border bg-secondary-background/70 shadow-xs">
-            <CardContent className="p-4 sm:p-5">
-              <div className="mb-2 flex items-center gap-2 font-heading text-sm text-foreground/80">
-                <Headphones className="size-4 text-main" />
-                <span>Self-Comparison Guide</span>
-              </div>
-              <p className="text-xs leading-relaxed text-foreground/70">
-                {isContinuous
-                  ? "Click any sentence in the transcript to jump playback to that point. Compare your voice recording with the original video."
-                  : "Click any segment on the right to seek the original audio. Compare your voice side-by-side to review pronunciation and intonation."}
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="lg:col-span-5">
-          <ShadowingTranscriptReview
-            activeOriginalIndex={activeOriginalIndex}
-            activeSegmentRef={activeSegmentRef}
-            formatTime={formatTime}
-            handlePlayOriginalSegment={handlePlayOriginalSegment}
-            handlePlayUserRecording={handlePlayUserRecording}
+          <ShadowingResultActions
+            activeSegment={activeSegment}
             isContinuous={isContinuous}
-            playingUserIndex={playingUserIndex}
-            review={review}
-            selectedReviewIndex={selectedReviewIndex}
-            selectReview={selectReview}
+            onPracticeAgain={onPracticeAgain}
           />
         </div>
       </div>
-
-      <div className="flex flex-wrap justify-end gap-3 border-t-2 border-border pt-6">
-        <Button asChild variant="neutral">
-          <Link href="/lessons">
-            <ArrowLeft className="mr-1 size-4" /> Back to lessons
-          </Link>
-        </Button>
-        <Button className="gap-2" onClick={onPracticeAgain} type="button">
-          <RotateCcw className="size-4" /> Practice again
-        </Button>
-      </div>
-    </section>
+    </div>
   );
 }

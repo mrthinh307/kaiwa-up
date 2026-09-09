@@ -9,7 +9,6 @@ import {
   Headphones,
   LoaderCircle,
   Radio,
-  Sparkles,
   Trophy,
 } from "lucide-react";
 import Link from "next/link";
@@ -33,7 +32,7 @@ type CompactShadowingToolbarProps = {
   isCompleting: boolean;
   lessonTitle: string;
   mode?: "segmented" | "continuous";
-  onComplete: (requestAiReview: boolean) => void;
+  onComplete: () => void;
   recordedCount: number;
   settings?: ReactNode;
   totalSegments: number;
@@ -51,19 +50,10 @@ export function CompactShadowingToolbar({
   totalSegments,
 }: CompactShadowingToolbarProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [submittingAction, setSubmittingAction] = useState<"no-ai" | "ai" | null>(null);
 
   const isContinuous = mode === "continuous";
   const isAllRecorded = !isContinuous && recordedCount === totalSegments && totalSegments > 0;
   const unrecordedCount = Math.max(0, totalSegments - recordedCount);
-
-  const isAiSubmitting = isCompleting && submittingAction === "ai";
-  const isNoAiSubmitting = isCompleting && submittingAction === "no-ai";
-
-  const handleFinishOption = (requestAiReview: boolean) => {
-    setSubmittingAction(requestAiReview ? "ai" : "no-ai");
-    onComplete(requestAiReview);
-  };
 
   return (
     <header
@@ -160,52 +150,19 @@ export function CompactShadowingToolbar({
                 )}
               </div>
 
-              {/* Optional AI Review Note Card */}
-              <div className="rounded-base border-2 border-border/80 bg-background p-3.5 space-y-1.5">
-                <div className="flex items-center gap-2 font-heading text-xs sm:text-sm text-foreground">
-                  <Sparkles aria-hidden="true" className="size-4 text-main" />
-                  <span>Optional AI Recording Review</span>
-                </div>
-                <p className="text-xs text-foreground/75 leading-relaxed">
-                  Choose whether you want AI to analyze your recording for speech accuracy,
-                  pronunciation corrections, and learning tips. AI review is informational only and
-                  does not impact your score or EXP.
-                </p>
-              </div>
+              <p className="text-sm text-foreground/75">
+                Transcript comparison will process on the result page. You can request AI feedback
+                there.
+              </p>
             </div>
 
             <DialogFooter className="mt-2 flex flex-col gap-2.5 sm:flex-col">
-              <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2">
-                <Button
-                  className="w-full justify-center"
-                  disabled={isCompleting}
-                  onClick={() => handleFinishOption(false)}
-                  type="button"
-                  variant="neutral"
-                >
-                  {isNoAiSubmitting ? (
-                    <LoaderCircle aria-hidden="true" className="size-4 animate-spin" />
-                  ) : (
-                    <Flag aria-hidden="true" className="size-4" />
-                  )}
-                  <span>{isNoAiSubmitting ? "Finishing..." : "Finish without AI Review"}</span>
-                </Button>
-                <Button
-                  className="w-full justify-center bg-main text-main-foreground"
-                  disabled={isCompleting}
-                  onClick={() => handleFinishOption(true)}
-                  type="button"
-                >
-                  {isAiSubmitting ? (
-                    <LoaderCircle aria-hidden="true" className="size-4 animate-spin" />
-                  ) : (
-                    <Sparkles aria-hidden="true" className="size-4" />
-                  )}
-                  <span>
-                    {isAiSubmitting ? "Reviewing & Finishing..." : "Finish & Request AI Review"}
-                  </span>
-                </Button>
-              </div>
+              <Button disabled={isCompleting} onClick={onComplete} type="button">
+                {isCompleting && (
+                  <LoaderCircle aria-hidden="true" className="size-4 animate-spin" />
+                )}
+                {isCompleting ? "Saving and finishing..." : "Finish"}
+              </Button>
               <Button
                 className="w-full justify-center"
                 disabled={isCompleting}

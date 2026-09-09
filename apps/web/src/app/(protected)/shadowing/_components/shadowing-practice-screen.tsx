@@ -2,15 +2,22 @@
 
 import type { ShadowingAttemptPracticeResponse } from "@kaiwa-app/api-client";
 
-import { useRef, useState } from "react";
+import { InfoIcon } from "lucide-react";
+import { useCallback, useRef, useState } from "react";
+import { toast } from "sonner";
+
+import { Button } from "@/components/ui/button";
 
 import { useShadowingPracticeSession } from "../_hooks/use-shadowing-practice-session";
-import { AudioPlayerCard } from "./audio-player-card";
+import { useShadowingSettings } from "../_hooks/use-shadowing-settings";
+import { useShadowingShortcuts } from "../_hooks/use-shadowing-shortcuts";
+import { useShadowingVoiceTake } from "../_hooks/use-shadowing-voice-take";
 import { CompactShadowingToolbar } from "./compact-shadowing-toolbar";
-import { RecorderCard, type RecorderCardHandle } from "./recorder-card";
+import { ShadowingHeroPlayer } from "./shadowing-hero-player";
+import { ShadowingHeroSubtitle } from "./shadowing-hero-subtitle";
 import { ShadowingSettingsSheet } from "./shadowing-settings-sheet";
+import { ShadowingTransportBar } from "./shadowing-transport-bar";
 import { TranscriptCard } from "./transcript-card";
-
 type ShadowingPracticeScreenProps = {
   onAttemptCompleted: (attemptId: string) => void;
   onAttemptNotInProgress: () => void;
@@ -22,27 +29,37 @@ export function ShadowingPracticeScreen({
   onAttemptNotInProgress,
   practice,
 }: ShadowingPracticeScreenProps) {
-  const recorderRef = useRef<RecorderCardHandle | null>(null);
-  const [showVideo, setShowVideo] = useState(true);
-  const [autoPlayDelaySeconds, setAutoPlayDelaySeconds] = useState(0.5);
+  const [isFinalizingRecording, setIsFinalizingRecording] = useState(false);
+  const finishingRef = useRef(false);
+  const {
+    autoPlayOnSegmentChange,
+    autoSplitRecording,
+    showVideo,
+    updateAutoPlayOnSegmentChange,
+    updateAutoSplitRecording,
+    updateShowVideo,
+  } = useShadowingSettings();
+
   const {
     activeSegment,
-    continuousFormatted,
     currentSavedAudioUrl,
     currentSegmentDuration,
     currentSegmentRecorded,
     currentTimeMs,
     handleFinishAttempt,
     handleNextSegment,
+    handleNextUnrecordedSegment,
     handlePreviousSegment,
+    handlePreviousUnrecordedSegment,
     handleRecordComplete,
-    handleReplaySegment,
     handleSelectSegment,
     handleTogglePlay,
     hasNextSegment,
     hasPreviousSegment,
-    isContinuous,
+    isPlayerPlaying,
     isSubmitting,
+    failedUploadCount,
+    retryFailedUploads,
     lesson,
     player,
     practiceMode,
@@ -52,71 +69,167 @@ export function ShadowingPracticeScreen({
     totalSegments,
     transcriptSegments,
   } = useShadowingPracticeSession({
+    autoPlayOnSegmentChange,
     onAttemptCompleted,
     onAttemptNotInProgress,
     practice,
-    recorderRef,
   });
 
+  const {
+    displayDuration,
+    finalizeRecording,
+    resumeRecording,
+    effectiveAudioUrl,
+    handleStartRecording,
+    handleStopRecording,
+    handleToggleRecord,
+    hasCompletedRecording,
+    isPlayingSelf,
+    isRecording,
+    recordingTime,
+    togglePlaySelf,
+  } = useShadowingVoiceTake({
+    activeSegmentIndex: selectedSegmentIndex,
+    autoSplitRecording,
+    isRecorded: currentSegmentRecorded,
+    onRecordComplete: handleRecordComplete,
+    player,
+    savedAudioUrl: currentSavedAudioUrl,
+    savedDurationSeconds: currentSegmentDuration,
+  });
+
+  const handleFinish = useCallback(async () => {
+    if (finishingRef.current) return;
+    finishingRef.current = true;
+    setIsFinalizingRecording(true);
+    try {
+      await finalizeRecording();
+      await handleFinishAttempt();
+    } catch (error: unknown) {
+      toast.error("Could not finish recording", {
+        description: error instanceof Error ? error.message : "Please try recording again.",
+      });
+    } finally {
+      resumeRecording();
+      finishingRef.current = false;
+      setIsFinalizingRecording(false);
+    }
+  }, [finalizeRecording, handleFinishAttempt, resumeRecording]);
+
+  useShadowingShortcuts({
+    disabled: isSubmitting || isFinalizingRecording,
+    onNext: handleNextSegment,
+    onNextUnrecorded: handleNextUnrecordedSegment,
+    onPrevious: handlePreviousSegment,
+    onPreviousUnrecorded: handlePreviousUnrecordedSegment,
+    onTogglePlay: handleTogglePlay,
+    onToggleRecord: handleToggleRecord,
+  });
+
+  const handlePlaybackRateChange = useCallback(
+    (rate: number) => {
+      player.changePlaybackRate(rate);
+    },
+    [player],
+  );
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-5">
+      {/* Top Breadcrumbs & Utility Toolbar */}
       <CompactShadowingToolbar
-        continuousDurationFormatted={continuousFormatted}
         difficulty={lesson.difficulty ?? "N4"}
-        isCompleting={isSubmitting}
+        isCompleting={isSubmitting || isFinalizingRecording}
         lessonTitle={lesson.title}
         mode={practiceMode}
-        onComplete={handleFinishAttempt}
+        onComplete={handleFinish}
         recordedCount={recordedCount}
         settings={
           <ShadowingSettingsSheet
-            autoPlayDelaySeconds={autoPlayDelaySeconds}
-            mode={practiceMode}
-            onAutoPlayDelayChange={setAutoPlayDelaySeconds}
-            onShowVideoChange={setShowVideo}
+            autoSplitRecording={autoSplitRecording}
+            onAutoSplitRecordingChange={updateAutoSplitRecording}
+            onShowVideoChange={updateShowVideo}
             showVideo={showVideo}
           />
         }
         totalSegments={totalSegments}
       />
 
-      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-12">
-        <div className="space-y-6 lg:col-span-7">
-          <AudioPlayerCard
-            audioUrl={lesson.audio_url ?? ""}
-            durationSeconds={lesson.duration_seconds}
+      {failedUploadCount > 0 && (
+        <div
+          role="status"
+          className="flex flex-wrap items-center gap-3 rounded-base border-2 border-border bg-secondary-background p-3 text-sm"
+        >
+          <InfoIcon className="h-4 w-4 text-destructive" />
+          <span className="text-destructive">
+            {failedUploadCount} segments upload failed. Your recordings are kept for retry.
+          </span>
+          <Button
+            disabled={isSubmitting || isFinalizingRecording}
+            onClick={retryFailedUploads}
+            size="sm"
+            variant="neutral"
+          >
+            Retry uploads
+          </Button>
+        </div>
+      )}
+
+      {/* 2-Column Responsive Layout (8:4 Ratio) */}
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-12 lg:gap-5">
+        {/* Left Column (8 cols): Hero Video (or Audio Bar if hidden) + Transport + Hero Subtitle */}
+        <div className="space-y-3.5 sm:space-y-4 lg:col-span-8">
+          {/* 1. Hero Player (renders in sr-only when showVideo is false to maintain audio) */}
+          <ShadowingHeroPlayer
+            currentTime={player.currentTime}
+            duration={player.duration}
+            handleIframeLoad={player.handleIframeLoad}
+            isMuted={player.isMuted}
+            isPlaying={player.isPlaying}
+            isYouTube={player.isYouTube}
+            onSeek={player.seek}
+            onToggleMute={player.toggleMute}
+            onTogglePlay={handleTogglePlay}
+            onVolumeChange={player.setVolume}
+            playbackRate={player.playbackRate}
+            registerIframe={player.registerIframe}
+            showVideo={showVideo}
+            volume={player.volume}
+            youtubeVideoId={player.youtubeVideoId}
+          />
+
+          {/* 2. Unified Transport Bar */}
+          <ShadowingTransportBar
+            autoPlayOnSegmentChange={autoPlayOnSegmentChange}
             hasNextSegment={hasNextSegment}
             hasPreviousSegment={hasPreviousSegment}
-            mode={practiceMode}
+            hasRecordedTake={hasCompletedRecording}
+            isPlaying={player.isPlaying}
+            isPlayingRecordedTake={isPlayingSelf}
+            isRecording={isRecording}
             onNextSegment={handleNextSegment}
+            onNextUnrecordedSegment={handleNextUnrecordedSegment}
+            onPlaybackRateChange={handlePlaybackRateChange}
             onPreviousSegment={handlePreviousSegment}
-            onReplaySegment={isContinuous ? undefined : handleReplaySegment}
+            onPreviousUnrecordedSegment={handlePreviousUnrecordedSegment}
+            onStartRecording={handleStartRecording}
+            onStopRecording={handleStopRecording}
+            onToggleAutoPause={updateAutoPlayOnSegmentChange}
             onTogglePlay={handleTogglePlay}
-            player={player}
-            showVideo={showVideo}
+            onToggleRecordedTake={togglePlaySelf}
+            playbackRate={player.playbackRate}
+            recordedDuration={displayDuration}
+            recordedTakeAvailable={Boolean(effectiveAudioUrl)}
+            recordingTime={recordingTime}
           />
 
-          <RecorderCard
-            isRecorded={currentSegmentRecorded}
-            isSubmitting={isSubmitting}
-            key={
-              isContinuous ? "recorder-continuous" : `recorder-segmented-${selectedSegmentIndex}`
-            }
-            mode={practiceMode}
-            onComplete={handleRecordComplete}
-            ref={recorderRef}
-            savedAudioUrl={currentSavedAudioUrl}
-            savedDurationSeconds={currentSegmentDuration}
-            segmentIndex={selectedSegmentIndex}
-            segmentScript={activeSegment?.script}
-            totalSegments={totalSegments}
-          />
+          <ShadowingHeroSubtitle activeSegment={activeSegment} />
         </div>
 
-        <div className="lg:col-span-5">
+        {/* Right Column (4 cols): "TRANSCRIPT" (Synchronized Speech-Bubble Feed) */}
+        <div className="lg:col-span-4 lg:sticky lg:top-20 lg:self-start">
           <TranscriptCard
             currentTimeMs={currentTimeMs}
-            isPlayerPlaying={player.isPlaying}
+            isPlayerPlaying={isPlayerPlaying}
             mode={practiceMode}
             onSelectSegment={handleSelectSegment}
             recordedSegments={recordedSegments}
