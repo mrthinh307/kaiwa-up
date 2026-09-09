@@ -246,24 +246,30 @@ class RoutedAiGateway:
 def build_ai_gateway(settings: Settings) -> AiGateway:
     """Build the configured AI Gateway, routing each capability to its lane's chain."""
     registry = _provider_registry(settings)
+    allow_fake = settings.environment not in {"production", "staging"}
     chains = {
         "tutor": _lane_chain(
             primary=settings.ai_tutor_provider,
             fallback_csv=settings.ai_tutor_fallback_providers,
             registry=registry,
+            allow_fake=allow_fake,
         ),
         "evaluate": _lane_chain(
             primary=settings.ai_eval_provider,
             fallback_csv=settings.ai_eval_fallback_providers,
             registry=registry,
+            allow_fake=allow_fake,
         ),
         "stt": _lane_chain(
             primary=settings.ai_stt_provider,
             fallback_csv=settings.ai_stt_fallback_providers,
             registry=registry,
+            allow_fake=allow_fake,
         ),
     }
-    if all(len(chain) == 1 and isinstance(chain[0], FakeAiGateway) for chain in chains.values()):
+    if allow_fake and all(
+        len(chain) == 1 and isinstance(chain[0], FakeAiGateway) for chain in chains.values()
+    ):
         return FakeAiGateway()
     single = _single_shared_provider(chains)
     if single is not None:
@@ -313,20 +319,21 @@ def _lane_chain(
     primary: str,
     fallback_csv: str,
     registry: dict[str, AiGateway],
+    allow_fake: bool,
 ) -> list[AiGateway]:
-    """Resolve a lane's provider chain (primary + fallbacks), defaulting to fake."""
+    """Resolve a lane's provider chain, using fake only outside protected environments."""
     names = [name.strip() for name in (primary, *fallback_csv.split(",")) if name.strip()]
     chain: list[AiGateway] = []
     seen: set[str] = set()
     for name in names:
-        if name == "fake":
+        if name == "fake" and allow_fake:
             if "fake" not in seen:
                 chain.append(FakeAiGateway())
                 seen.add("fake")
         elif name in registry and name not in seen:
             chain.append(registry[name])
             seen.add(name)
-    return chain or [FakeAiGateway()]
+    return chain or ([FakeAiGateway()] if allow_fake else [])
 
 
 def _single_shared_provider(chains: dict[str, list[AiGateway]]) -> AiGateway | None:

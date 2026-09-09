@@ -30,6 +30,7 @@ from app.integrations.ai.contracts import (
     TutorReply,
     parse_tutor_reply,
 )
+from app.integrations.ai.policy import call_with_retry
 from app.integrations.ai.prompts.tutor import build_tutor_messages
 from app.integrations.ai.shadowing_contracts import (
     ShadowingEvaluationInput,
@@ -281,10 +282,51 @@ def test_build_ai_gateway_uses_fake_when_unconfigured() -> None:
     assert isinstance(gateway, FakeAiGateway)
 
 
+def test_build_ai_gateway_rejects_fake_provider_in_production() -> None:
+    production_settings = Settings(_env_file=None)
+    production_settings.environment = "production"
+
+    gateway = build_ai_gateway(production_settings)
+
+    assert not isinstance(gateway, FakeAiGateway)
+
+
 def test_build_ai_gateway_uses_fake_when_lanes_are_fake_with_keys() -> None:
     gateway = build_ai_gateway(Settings(ai_openai_api_key="k", ai_groq_api_key="g", _env_file=None))
 
     assert isinstance(gateway, FakeAiGateway)
+
+
+@pytest.mark.asyncio
+async def test_retry_policy_honors_provider_retry_after(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    delays: list[float] = []
+    calls = 0
+
+    async def sleep(delay: float) -> None:
+        delays.append(delay)
+
+    async def operation() -> str:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise AiRateLimitError("rate limited", details={"retry_after_seconds": 2.5})
+        return "ok"
+
+    monkeypatch.setattr("app.integrations.ai.policy.asyncio.sleep", sleep)
+    monkeypatch.setattr("app.integrations.ai.policy.random.uniform", lambda _a, _b: 0.0)
+
+    result = await call_with_retry(
+        operation,
+        timeout_seconds=1,
+        max_retries=1,
+        backoff_seconds=0.5,
+        max_backoff_seconds=8,
+    )
+
+    assert result == "ok"
+    assert delays == [2.5]
 
 
 def test_build_ai_gateway_returns_single_adapter_when_all_lanes_share_a_provider() -> None:

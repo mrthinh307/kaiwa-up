@@ -682,6 +682,16 @@
               }
             }
           },
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShadowingAiReviewResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -737,6 +747,16 @@
                 }
               }
             }
+          },
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShadowingProcessingResponse"
+                }
+              }
+            },
+            "description": "OK"
           },
           "422": {
             "description": "Validation Error",

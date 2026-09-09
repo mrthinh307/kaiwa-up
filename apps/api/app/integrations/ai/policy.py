@@ -1,6 +1,7 @@
 """Timeout, retry and backoff policy for AI provider calls."""
 
 import asyncio
+import math
 import random
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
@@ -28,11 +29,15 @@ async def call_with_retry[T](
     while True:
         try:
             return await _run_with_timeout(operation, timeout_seconds=timeout_seconds)
-        except (AiTimeoutError, AiProviderUnavailableError, AiRateLimitError):
+        except (AiTimeoutError, AiProviderUnavailableError, AiRateLimitError) as exc:
             if attempt >= max_retries:
                 raise
             attempt += 1
             delay = min(max_backoff_seconds, backoff_seconds * (2 ** (attempt - 1)))
+            if isinstance(exc, AiRateLimitError) and isinstance(exc.details, dict):
+                retry_after = exc.details.get("retry_after_seconds")
+                if isinstance(retry_after, (int, float)) and math.isfinite(retry_after):
+                    delay = min(max_backoff_seconds, max(0.0, float(retry_after)))
             await asyncio.sleep(delay + random.uniform(0.0, delay * 0.1))
 
 

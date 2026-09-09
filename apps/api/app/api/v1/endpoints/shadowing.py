@@ -38,6 +38,7 @@ router = APIRouter(prefix="/shadowing", tags=["Shadowing"])
     response_model=ShadowingAiReviewResponse,
     status_code=status.HTTP_202_ACCEPTED,
     summary="Request optional overall AI feedback for a submitted Shadowing attempt",
+    responses={status.HTTP_200_OK: {"model": ShadowingAiReviewResponse}},
 )
 async def request_shadowing_ai_review(
     attempt_id: uuid.UUID,
@@ -62,6 +63,7 @@ async def request_shadowing_ai_review(
     response_model=ShadowingProcessingResponse,
     status_code=status.HTTP_202_ACCEPTED,
     summary="Request missing or failed Shadowing transcriptions",
+    responses={status.HTTP_200_OK: {"model": ShadowingProcessingResponse}},
 )
 async def request_shadowing_transcriptions(
     attempt_id: uuid.UUID,
