@@ -7,6 +7,7 @@ help:
 	@echo "Available commands:"
 	@echo "  make install              Install JavaScript and Python dependencies"
 	@echo "  make dev                  Start the web and API development servers"
+	@echo "  make dev-shadowing-worker Start the Shadowing worker"
 	@echo "  make lint                 Lint the web and API applications"
 	@echo "  make typecheck            Type-check the web and API applications"
 	@echo "  make install-web          Install JavaScript dependencies"
@@ -29,7 +30,7 @@ install:
 	cd apps/api && uv sync
 
 dev:
-	$(MAKE) --jobs=2 dev-web dev-api
+	$(MAKE) --jobs=3 dev-web dev-api dev-shadowing-worker
 
 lint:
 	pnpm lint:web
