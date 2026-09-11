@@ -9,6 +9,9 @@ from sqlalchemy.dialects.postgresql import insert
 from app.models.shadowing import ShadowingWorkerHeartbeat
 from app.repositories.base import BaseRepository
 
+SHADOWING_WORKER_HEARTBEAT_INTERVAL_SECONDS = 20.0
+SHADOWING_WORKER_ONLINE_TTL_SECONDS = 60.0
+
 
 class ShadowingWorkerRepository(BaseRepository):
     async def heartbeat(self, worker_id: uuid.UUID) -> None:
@@ -21,7 +24,7 @@ class ShadowingWorkerRepository(BaseRepository):
             )
         )
 
-    async def is_online(self, ttl_seconds: float = 60) -> bool:
+    async def is_online(self, ttl_seconds: float = SHADOWING_WORKER_ONLINE_TTL_SECONDS) -> bool:
         worker_id = await self.session.scalar(
             select(ShadowingWorkerHeartbeat.worker_id)
             .where(
