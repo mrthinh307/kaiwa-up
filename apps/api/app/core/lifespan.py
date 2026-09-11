@@ -15,6 +15,13 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     try:
         yield
     finally:
-        if is_scheduler_enabled:
-            scheduler.shutdown(wait=False)
-        await engine.dispose()
+        try:
+            if is_scheduler_enabled:
+                scheduler.shutdown(wait=False)
+        finally:
+            try:
+                from app.api.dependencies.ai import close_ai_gateway
+
+                await close_ai_gateway()
+            finally:
+                await engine.dispose()

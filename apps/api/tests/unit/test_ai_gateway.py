@@ -229,6 +229,14 @@ class _CountingGateway(FakeAiGateway):
         )
 
 
+class _CloseTrackingGateway(FakeAiGateway):
+    def __init__(self) -> None:
+        self.close_count = 0
+
+    async def aclose(self) -> None:
+        self.close_count += 1
+
+
 @pytest.mark.asyncio
 async def test_fake_ai_gateway_succeeds_for_all_capabilities() -> None:
     gateway = FakeAiGateway()
@@ -378,6 +386,20 @@ async def test_routed_gateway_dispatches_each_capability_to_its_lane() -> None:
     assert tutor.calls == ["generate_tutor_reply"]
     assert evaluate.calls == ["evaluate_reflex", "evaluate_shadowing", "evaluate_translation"]
     assert stt.calls == ["transcribe"]
+
+
+@pytest.mark.asyncio
+async def test_routed_gateway_closes_a_shared_provider_once() -> None:
+    provider = _CloseTrackingGateway()
+    gateway = RoutedAiGateway(
+        tutor=FallbackAiGateway([provider]),
+        evaluate=FallbackAiGateway([provider]),
+        stt=FallbackAiGateway([provider]),
+    )
+
+    await gateway.aclose()
+
+    assert provider.close_count == 1
 
 
 @pytest.mark.asyncio
