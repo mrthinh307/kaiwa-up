@@ -168,6 +168,9 @@ async def test_three_segment_worker_process_recovers_lease_and_preserves_reward(
                     read_review, lambda state: state["transcription"]["processing"] == 1, first
                 )
                 assert processing["transcription"]["is_delayed"] is False
+                # SIGTERM is a graceful worker shutdown on Linux and drains the active job.
+                # Kill this test-owned process to model the forced interruption being tested.
+                first.kill()
 
             async with worker_process(schema, tmp_path) as restarted:
                 done = await wait_for_state(
