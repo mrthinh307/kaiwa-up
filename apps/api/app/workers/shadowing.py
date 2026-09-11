@@ -33,7 +33,10 @@ from app.models.enums import AiEvaluationStatus, AttemptStatus, RecordingKind
 from app.models.shadowing import ShadowingAttemptSegment, ShadowingJob
 from app.repositories.recording import RecordingRepository
 from app.repositories.shadowing_review import ShadowingReviewRepository
-from app.repositories.shadowing_worker import ShadowingWorkerRepository
+from app.repositories.shadowing_worker import (
+    SHADOWING_WORKER_HEARTBEAT_INTERVAL_SECONDS,
+    ShadowingWorkerRepository,
+)
 from app.services.shadowing_comparison import compare_shadowing_segment
 from app.services.shadowing_evaluation import (
     ShadowingEvaluationService,
@@ -347,7 +350,7 @@ class ShadowingWorker:
         loop = asyncio.get_running_loop()
         try:
             while not stop.is_set():
-                if loop.time() - last_heartbeat >= 20:
+                if loop.time() - last_heartbeat >= SHADOWING_WORKER_HEARTBEAT_INTERVAL_SECONDS:
                     async with self.session_factory() as session:
                         await ShadowingWorkerRepository(session).heartbeat(worker_id)
                         await session.commit()
