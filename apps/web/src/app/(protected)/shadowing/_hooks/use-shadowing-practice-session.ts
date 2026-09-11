@@ -84,7 +84,7 @@ export function useShadowingPracticeSession({
 }: ShadowingPracticeSessionOptions) {
   const { protectedRequest } = useAuth();
   const { attempt, content: lesson } = practice;
-  const practiceMode = attempt.mode;
+  const practiceMode = attempt.mode ?? "segmented";
   const isContinuous = practiceMode === "continuous";
   const currentAttemptId = attempt.attempt_id;
   const [selectedSegmentIndex, setSelectedSegmentIndex] = useState(0);

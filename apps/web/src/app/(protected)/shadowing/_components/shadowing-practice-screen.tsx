@@ -74,6 +74,7 @@ export function ShadowingPracticeScreen({
     onAttemptNotInProgress,
     practice,
   });
+  const isContinuous = practiceMode === "continuous";
 
   const {
     displayDuration,
@@ -91,6 +92,7 @@ export function ShadowingPracticeScreen({
   } = useShadowingVoiceTake({
     activeSegmentIndex: practiceMode === "continuous" ? 0 : selectedSegmentIndex,
     autoSplitRecording: practiceMode === "segmented" && autoSplitRecording,
+    isContinuous,
     isRecorded: currentSegmentRecorded,
     onRecordComplete: handleRecordComplete,
     player,
@@ -118,10 +120,10 @@ export function ShadowingPracticeScreen({
 
   useShadowingShortcuts({
     disabled: isSubmitting || isFinalizingRecording,
-    onNext: handleNextSegment,
-    onNextUnrecorded: handleNextUnrecordedSegment,
-    onPrevious: handlePreviousSegment,
-    onPreviousUnrecorded: handlePreviousUnrecordedSegment,
+    onNext: isContinuous ? undefined : handleNextSegment,
+    onNextUnrecorded: isContinuous ? undefined : handleNextUnrecordedSegment,
+    onPrevious: isContinuous ? undefined : handlePreviousSegment,
+    onPreviousUnrecorded: isContinuous ? undefined : handlePreviousUnrecordedSegment,
     onTogglePlay: handleTogglePlay,
     onToggleRecord: handleToggleRecord,
   });
@@ -146,6 +148,7 @@ export function ShadowingPracticeScreen({
         settings={
           <ShadowingSettingsSheet
             autoSplitRecording={autoSplitRecording}
+            mode={practiceMode}
             onAutoSplitRecordingChange={updateAutoSplitRecording}
             onShowVideoChange={updateShowVideo}
             showVideo={showVideo}
@@ -206,6 +209,7 @@ export function ShadowingPracticeScreen({
             isPlaying={player.isPlaying}
             isPlayingRecordedTake={isPlayingSelf}
             isRecording={isRecording}
+            isContinuous={isContinuous}
             onNextSegment={handleNextSegment}
             onNextUnrecordedSegment={handleNextUnrecordedSegment}
             onPlaybackRateChange={handlePlaybackRateChange}

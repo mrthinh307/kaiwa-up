@@ -36,6 +36,7 @@ interface ShadowingTransportBarProps {
   isPlaying: boolean;
   isPlayingRecordedTake: boolean;
   isRecording: boolean;
+  isContinuous: boolean;
   onNextSegment?: () => void;
   onNextUnrecordedSegment?: () => void;
   onPlaybackRateChange: (rate: number) => void;
@@ -67,6 +68,7 @@ export function ShadowingTransportBar({
   isPlaying,
   isPlayingRecordedTake,
   isRecording,
+  isContinuous,
   onNextSegment,
   onNextUnrecordedSegment,
   onPlaybackRateChange,
@@ -85,24 +87,26 @@ export function ShadowingTransportBar({
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 rounded-base border-2 border-border bg-secondary-background p-2.5 sm:px-4 sm:py-3 shadow-shadow">
       <div className="flex items-center gap-1.5 sm:gap-2">
-        <Button
-          aria-label="Previous segment (←) / Unrecorded (Ctrl+←)"
-          className="size-8.5 sm:size-9 shrink-0"
-          disabled={!hasPreviousSegment}
-          onClick={(e) => {
-            if ((e.ctrlKey || e.metaKey) && onPreviousUnrecordedSegment) {
-              onPreviousUnrecordedSegment();
-            } else {
-              onPreviousSegment?.();
-            }
-          }}
-          size="icon"
-          title="Previous segment (←) / Unrecorded (Ctrl+←)"
-          type="button"
-          variant="neutral"
-        >
-          <SkipBack className="size-4" />
-        </Button>
+        {!isContinuous && (
+          <Button
+            aria-label="Previous segment (←) / Unrecorded (Ctrl+←)"
+            className="size-8.5 sm:size-9 shrink-0"
+            disabled={!hasPreviousSegment}
+            onClick={(e) => {
+              if ((e.ctrlKey || e.metaKey) && onPreviousUnrecordedSegment) {
+                onPreviousUnrecordedSegment();
+              } else {
+                onPreviousSegment?.();
+              }
+            }}
+            size="icon"
+            title="Previous segment (←) / Unrecorded (Ctrl+←)"
+            type="button"
+            variant="neutral"
+          >
+            <SkipBack className="size-4" />
+          </Button>
+        )}
 
         <Button
           aria-label={isPlaying ? "Pause audio (Space)" : "Play audio (Space)"}
@@ -119,24 +123,26 @@ export function ShadowingTransportBar({
           )}
         </Button>
 
-        <Button
-          aria-label="Next segment (→) / Unrecorded (Ctrl+→)"
-          className="size-8.5 sm:size-9 shrink-0"
-          disabled={!hasNextSegment}
-          onClick={(e) => {
-            if ((e.ctrlKey || e.metaKey) && onNextUnrecordedSegment) {
-              onNextUnrecordedSegment();
-            } else {
-              onNextSegment?.();
-            }
-          }}
-          size="icon"
-          title="Next segment (→) / Unrecorded (Ctrl+→)"
-          type="button"
-          variant="neutral"
-        >
-          <SkipForward className="size-4" />
-        </Button>
+        {!isContinuous && (
+          <Button
+            aria-label="Next segment (→) / Unrecorded (Ctrl+→)"
+            className="size-8.5 sm:size-9 shrink-0"
+            disabled={!hasNextSegment}
+            onClick={(e) => {
+              if ((e.ctrlKey || e.metaKey) && onNextUnrecordedSegment) {
+                onNextUnrecordedSegment();
+              } else {
+                onNextSegment?.();
+              }
+            }}
+            size="icon"
+            title="Next segment (→) / Unrecorded (Ctrl+→)"
+            type="button"
+            variant="neutral"
+          >
+            <SkipForward className="size-4" />
+          </Button>
+        )}
       </div>
 
       <div className="flex flex-wrap items-center justify-center gap-2">
@@ -196,28 +202,30 @@ export function ShadowingTransportBar({
       </div>
 
       <div className="flex items-center gap-1.5 sm:gap-2">
-        <Button
-          aria-label="Toggle auto-pause per segment"
-          aria-pressed={!autoPlayOnSegmentChange}
-          className={cn(
-            "h-7 sm:h-8 gap-1.5 px-2.5 text-xs font-heading",
-            !autoPlayOnSegmentChange
-              ? "border-main bg-main/15 text-foreground font-bold"
-              : "text-foreground/75",
-          )}
-          onClick={() => onToggleAutoPause(!autoPlayOnSegmentChange)}
-          size="sm"
-          title={
-            !autoPlayOnSegmentChange
-              ? "Auto-pause: Active (pauses after each sentence)"
-              : "Auto-pause: Inactive (continuous playback)"
-          }
-          type="button"
-          variant={!autoPlayOnSegmentChange ? "default" : "neutral"}
-        >
-          <Timer className="size-3.5" />
-          <span className="hidden sm:inline">Auto-pause</span>
-        </Button>
+        {!isContinuous && (
+          <Button
+            aria-label="Toggle auto-pause per segment"
+            aria-pressed={!autoPlayOnSegmentChange}
+            className={cn(
+              "h-7 sm:h-8 gap-1.5 px-2.5 text-xs font-heading",
+              !autoPlayOnSegmentChange
+                ? "border-main bg-main/15 text-foreground font-bold"
+                : "text-foreground/75",
+            )}
+            onClick={() => onToggleAutoPause(!autoPlayOnSegmentChange)}
+            size="sm"
+            title={
+              !autoPlayOnSegmentChange
+                ? "Auto-pause: Active (pauses after each sentence)"
+                : "Auto-pause: Inactive (continuous playback)"
+            }
+            type="button"
+            variant={!autoPlayOnSegmentChange ? "default" : "neutral"}
+          >
+            <Timer className="size-3.5" />
+            <span className="hidden sm:inline">Auto-pause</span>
+          </Button>
+        )}
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

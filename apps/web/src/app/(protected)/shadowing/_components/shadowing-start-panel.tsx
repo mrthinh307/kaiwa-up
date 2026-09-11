@@ -13,6 +13,7 @@ import {
   ListOrdered,
   LoaderCircle,
   PlayCircle,
+  Radio,
   RotateCcw,
   Tag,
   Video,
@@ -37,7 +38,7 @@ type ShadowingStartPanelProps = {
   lesson: ShadowingContentDetail;
   onRestore: () => void;
   onResume: () => void;
-  onStart: (mode: "segmented") => void;
+  onStart: () => void;
   restoreError?: string;
   startError?: string;
   totalAttempts: number;
@@ -65,6 +66,7 @@ export function ShadowingStartPanel({
     : undefined;
 
   const segmentCount = lesson.transcript?.length ?? 0;
+  const isContinuousAttempt = inProgressAttempt?.mode === "continuous";
 
   return (
     <>
@@ -215,7 +217,9 @@ export function ShadowingStartPanel({
               Shadowing Practice
             </h2>
             <p className="mt-1.5 text-xs leading-relaxed text-foreground/70 sm:text-sm">
-              Select your practice mode to train Japanese speech rhythm, pitch accent, and reflexes.
+              {inProgressAttempt
+                ? `Continue your saved ${isContinuousAttempt ? "continuous" : "segment-by-segment"} session.`
+                : "Practice one segment at a time with saved takes and transcript comparison."}
             </p>
           </div>
 
@@ -254,8 +258,14 @@ export function ShadowingStartPanel({
                 <div className="rounded-base border-2 border-border bg-background p-3.5 shadow-sm">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 font-heading text-sm text-foreground">
-                      <ListOrdered aria-hidden="true" className="size-4 text-foreground" />
-                      <span>Segment by Segment</span>
+                      {isContinuousAttempt ? (
+                        <Radio aria-hidden="true" className="size-4 text-foreground" />
+                      ) : (
+                        <ListOrdered aria-hidden="true" className="size-4 text-foreground" />
+                      )}
+                      <span>
+                        {isContinuousAttempt ? "Continuous Shadowing" : "Segment by Segment"}
+                      </span>
                     </div>
                     <Badge className="text-xs font-heading" variant="neutral">
                       Attempt #{inProgressAttempt.attempt_number}
@@ -266,11 +276,15 @@ export function ShadowingStartPanel({
                     <div className="flex items-center justify-between text-xs">
                       <span className="font-heading text-foreground/70">Saved progress:</span>
                       <span className="font-heading text-foreground">
-                        {`${inProgressAttempt.recorded_segments?.length ?? 0} of ${segmentCount} segments recorded`}
+                        {isContinuousAttempt
+                          ? inProgressAttempt.continuous_recording
+                            ? `${formatShadowingDuration(inProgressAttempt.continuous_recording.duration_seconds)} recorded`
+                            : "No recording saved yet"
+                          : `${inProgressAttempt.recorded_segments?.length ?? 0} of ${segmentCount} segments recorded`}
                       </span>
                     </div>
 
-                    {segmentCount > 0 && (
+                    {!isContinuousAttempt && segmentCount > 0 && (
                       <div className="mt-2 h-2 w-full overflow-hidden rounded-full border border-border/60 bg-secondary-background">
                         <div
                           className="h-full bg-foreground transition-all duration-300"
@@ -303,8 +317,8 @@ export function ShadowingStartPanel({
                     </Badge>
                   </div>
                   <p className="mt-1.5 text-xs text-foreground/75 leading-relaxed">
-                    Listen to each prompt, record your take, and compare. Enable auto-split
-                    recording in Settings if you prefer speaking continuously.
+                    Listen to each prompt, record your take, and compare. Auto-split can save each
+                    segment as you follow the full lesson.
                   </p>
                 </div>
               </div>
@@ -354,7 +368,7 @@ export function ShadowingStartPanel({
                 ) : (
                   <>
                     <RotateCcw aria-hidden="true" />
-                    Resume Attempt
+                    Resume {isContinuousAttempt ? "Continuous" : "Segment"} Attempt
                   </>
                 )}
               </Button>
@@ -362,7 +376,7 @@ export function ShadowingStartPanel({
               <Button
                 className="min-h-12 w-full font-heading text-base"
                 disabled={isRestoring || isStarting || segmentCount === 0}
-                onClick={() => onStart("segmented")}
+                onClick={onStart}
                 size="lg"
                 type="button"
               >
@@ -379,7 +393,7 @@ export function ShadowingStartPanel({
                 ) : (
                   <>
                     <PlayCircle aria-hidden="true" />
-                    Start Shadowing Practice
+                    Start Segment Practice
                   </>
                 )}
               </Button>

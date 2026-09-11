@@ -114,7 +114,11 @@ export function ShadowingResult({
         mode={review.mode}
         onPracticeAgain={onPracticeAgain}
         settings={
-          <ShadowingSettingsSheet onShowVideoChange={updateShowVideo} showVideo={showVideo} />
+          <ShadowingSettingsSheet
+            mode={review.mode ?? "segmented"}
+            onShowVideoChange={updateShowVideo}
+            showVideo={showVideo}
+          />
         }
       />
 
