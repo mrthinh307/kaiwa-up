@@ -16,6 +16,7 @@ interface UseShadowingVoiceTakeOptions {
     durationMs: number;
     segmentIndex?: number;
   }) => void;
+  isContinuous: boolean;
   player: AudioPlayerState;
   savedAudioUrl?: string;
   savedDurationSeconds?: number;
@@ -25,6 +26,7 @@ export function useShadowingVoiceTake({
   activeSegmentIndex,
   autoSplitRecording = false,
   isRecorded = false,
+  isContinuous,
   onRecordComplete,
   player,
   savedAudioUrl,
@@ -84,25 +86,27 @@ export function useShadowingVoiceTake({
     recordingSegmentIndexRef.current = activeSegmentIndex;
     setRecordedForSegmentIndex(activeSegmentIndex);
 
-    // Immediately mute video/lesson audio upon clicking record
-    if (wasMutedBeforeRecordingRef.current === null) {
-      wasMutedBeforeRecordingRef.current = player.isMuted;
-    }
-    if (!player.isMuted) {
-      player.setMuted(true);
+    if (!isContinuous) {
+      if (wasMutedBeforeRecordingRef.current === null) {
+        wasMutedBeforeRecordingRef.current = player.isMuted;
+      }
+      if (!player.isMuted) {
+        player.setMuted(true);
+      }
     }
 
     if (isPlayingSelf && selfAudioRef.current) {
       selfAudioRef.current.pause();
       setIsPlayingSelf(false);
     }
-    if (!autoSplitRecording && player.isPlaying) {
+    if (!autoSplitRecording && !isContinuous && player.isPlaying) {
       player.pause();
     }
     void startRecording();
   }, [
     activeSegmentIndex,
     autoSplitRecording,
+    isContinuous,
     isPlayingSelf,
     player,
     recorderStatus,

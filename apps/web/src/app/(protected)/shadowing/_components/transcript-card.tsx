@@ -37,6 +37,7 @@ function formatTimestamp(ms: number): string {
 export function TranscriptCard({
   currentTimeMs = 0,
   isPlayerPlaying = false,
+  mode = "segmented",
   onSelectSegment,
   recordedSegments = {},
   selectedSegmentIndex = 0,
@@ -81,7 +82,11 @@ export function TranscriptCard({
 
         {isSegmentArray && (
           <Badge className="font-heading text-xs" variant="neutral">
-            {recordedCount} / {transcript.length} Recorded
+            {mode === "continuous"
+              ? recordedCount > 0
+                ? "Continuous take saved"
+                : "No take saved"
+              : `${recordedCount} / ${transcript.length} Recorded`}
           </Badge>
         )}
       </div>

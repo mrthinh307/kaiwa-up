@@ -16,6 +16,7 @@ import { Switch } from "@/components/ui/switch";
 
 export interface ShadowingSettingsSheetProps {
   autoSplitRecording?: boolean;
+  mode: "continuous" | "segmented";
   onAutoSplitRecordingChange?: (value: boolean) => void;
   onShowVideoChange: (value: boolean) => void;
   showVideo: boolean;
@@ -23,8 +24,10 @@ export interface ShadowingSettingsSheetProps {
 
 const SHADOWING_SHORTCUTS = [
   { action: "Play or pause video", keyLabel: "Space" },
-  { action: "Replay segment from start", keyLabel: "Ctrl + Space" },
   { action: "Start or stop recording", keyLabel: "R" },
+] as const;
+
+const SEGMENT_SHORTCUTS = [
   { action: "Next segment", keyLabel: "→" },
   { action: "Previous segment", keyLabel: "←" },
   { action: "Next unrecorded segment", keyLabel: "Ctrl + →" },
@@ -33,11 +36,15 @@ const SHADOWING_SHORTCUTS = [
 
 export function ShadowingSettingsSheet({
   autoSplitRecording = false,
+  mode,
   onAutoSplitRecordingChange,
   onShowVideoChange,
   showVideo,
 }: ShadowingSettingsSheetProps) {
-  const shortcuts = SHADOWING_SHORTCUTS;
+  const isContinuous = mode === "continuous";
+  const shortcuts = isContinuous
+    ? SHADOWING_SHORTCUTS
+    : [...SHADOWING_SHORTCUTS, ...SEGMENT_SHORTCUTS];
 
   return (
     <Sheet>
@@ -74,24 +81,25 @@ export function ShadowingSettingsSheet({
             />
           </div>
 
-          {/* Auto-split recording per segment */}
-          <div className="flex items-start justify-between gap-4 rounded-base border-2 border-border bg-background p-4">
-            <div className="space-y-1">
-              <Label className="font-heading" htmlFor="shadowing-auto-split-recording">
-                Auto-split recording per segment
-              </Label>
-              <p className="text-xs leading-relaxed text-foreground/70">
-                Automatically stop and save recording when a segment ends, then start a new one for
-                the next segment. Record continuously while keeping per-segment AI evaluation.
-              </p>
+          {!isContinuous && (
+            <div className="flex items-start justify-between gap-4 rounded-base border-2 border-border bg-background p-4">
+              <div className="space-y-1">
+                <Label className="font-heading" htmlFor="shadowing-auto-split-recording">
+                  Auto-split recording per segment
+                </Label>
+                <p className="text-xs leading-relaxed text-foreground/70">
+                  Automatically stop and save recording when a segment ends, then start a new one
+                  for the next segment.
+                </p>
+              </div>
+              <Switch
+                checked={autoSplitRecording}
+                className="mt-0.5 shrink-0"
+                id="shadowing-auto-split-recording"
+                onCheckedChange={onAutoSplitRecordingChange}
+              />
             </div>
-            <Switch
-              checked={autoSplitRecording}
-              className="mt-0.5 shrink-0"
-              id="shadowing-auto-split-recording"
-              onCheckedChange={onAutoSplitRecordingChange}
-            />
-          </div>
+          )}
 
           {/* Keyboard Shortcuts Reference */}
           <div className="space-y-3 rounded-base border-2 border-border bg-background p-4">
@@ -114,7 +122,9 @@ export function ShadowingSettingsSheet({
           </div>
 
           <div className="rounded-base border-2 border-border bg-secondary-background p-4 text-xs leading-relaxed text-foreground/70">
-            Your preference is saved automatically on this device.
+            {isContinuous
+              ? "This continuous session keeps one full recording for replay and review."
+              : "Your preference is saved automatically on this device."}
           </div>
         </div>
       </SheetContent>

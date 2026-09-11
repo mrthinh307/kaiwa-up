@@ -1,10 +1,6 @@
 "use client";
 
-import type {
-  ShadowingContentDetail,
-  ShadowingMode,
-  ShadowingResumeResponse,
-} from "@kaiwa-app/api-client";
+import type { ShadowingContentDetail, ShadowingResumeResponse } from "@kaiwa-app/api-client";
 
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
@@ -76,39 +72,36 @@ export function ShadowingStartScreen({ lesson }: { lesson: ShadowingContentDetai
     void handleRestore();
   }, [handleRestore, inProgressAttempt, router]);
 
-  const handleStart = useCallback(
-    async (mode: ShadowingMode) => {
-      if (isRestoring || isStarting) return;
+  const handleStart = useCallback(async () => {
+    if (isRestoring || isStarting) return;
 
-      setIsStarting(true);
-      setStartError(undefined);
-      setRestoreError(undefined);
+    setIsStarting(true);
+    setStartError(undefined);
+    setRestoreError(undefined);
 
-      try {
-        const response = await protectedRequest(() =>
-          startShadowingAttempt({
-            body: { mode },
-            path: { content_id: lesson.id },
-          }),
-        );
-        if (!response.data) {
-          const failure = parseApiFailure(response);
-          setStartError(failure.message);
-          if (failure.code === "attempt_already_in_progress") {
-            await handleRestore();
-          }
-          return;
+    try {
+      const response = await protectedRequest(() =>
+        startShadowingAttempt({
+          body: { mode: "segmented" },
+          path: { content_id: lesson.id },
+        }),
+      );
+      if (!response.data) {
+        const failure = parseApiFailure(response);
+        setStartError(failure.message);
+        if (failure.code === "attempt_already_in_progress") {
+          await handleRestore();
         }
-
-        router.push(buildShadowingPracticeHref(response.data.attempt_id));
-      } catch {
-        setStartError("We could not start this attempt. Please try again.");
-      } finally {
-        setIsStarting(false);
+        return;
       }
-    },
-    [handleRestore, isRestoring, isStarting, lesson.id, protectedRequest, router],
-  );
+
+      router.push(buildShadowingPracticeHref(response.data.attempt_id));
+    } catch {
+      setStartError("We could not start this attempt. Please try again.");
+    } finally {
+      setIsStarting(false);
+    }
+  }, [handleRestore, isRestoring, isStarting, lesson.id, protectedRequest, router]);
 
   return (
     <ShadowingStartPanel
@@ -118,7 +111,7 @@ export function ShadowingStartScreen({ lesson }: { lesson: ShadowingContentDetai
       lesson={lesson}
       onRestore={() => void handleRestore()}
       onResume={handleResume}
-      onStart={(mode) => void handleStart(mode)}
+      onStart={() => void handleStart()}
       restoreError={restoreError}
       startError={startError}
       totalAttempts={totalAttempts}
