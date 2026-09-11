@@ -166,9 +166,14 @@ class RoutedAiGateway:
         self._stt = stt
 
     async def aclose(self) -> None:
-        for provider in {
-            id(provider): provider for provider in (self._stt, self._evaluate, self._tutor)
-        }.values():
+        providers = [
+            provider
+            for gateway in (self._stt, self._evaluate, self._tutor)
+            for provider in (
+                gateway._providers if isinstance(gateway, FallbackAiGateway) else [gateway]
+            )
+        ]
+        for provider in {id(provider): provider for provider in providers}.values():
             await provider.aclose()
 
     async def evaluate_shadowing_batch(
