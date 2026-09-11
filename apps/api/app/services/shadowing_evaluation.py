@@ -1,5 +1,6 @@
 """Opt-in AI review lifecycle; external inference is executed only by the worker."""
 
+import logging
 import uuid
 from datetime import datetime, timedelta
 from decimal import Decimal
@@ -52,6 +53,8 @@ from app.services.shadowing_feedback import (
     weighted_shadowing_score,
 )
 from app.utils.datetime_utils import utc_now
+
+logger = logging.getLogger(__name__)
 
 
 class _ReviewInput(BaseModel):
@@ -322,9 +325,17 @@ class ShadowingEvaluationService:
         active_id = payload.get("active_ai_review_id")
         active: AiEvaluation | None = None
         if isinstance(active_id, str):
-            active = await self.repository.get_evaluation(
-                attempt_id=attempt.id, evaluation_id=uuid.UUID(active_id)
-            )
+            try:
+                evaluation_id = uuid.UUID(active_id)
+            except ValueError:
+                logger.warning(
+                    "Ignoring invalid active Shadowing review ID",
+                    extra={"attempt_id": str(attempt.id)},
+                )
+            else:
+                active = await self.repository.get_evaluation(
+                    attempt_id=attempt.id, evaluation_id=evaluation_id
+                )
         displayed = (
             active
             if active and active.status == AiEvaluationStatus.COMPLETED

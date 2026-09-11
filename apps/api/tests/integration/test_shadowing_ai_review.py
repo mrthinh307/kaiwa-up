@@ -150,6 +150,34 @@ async def test_ai_is_only_created_on_request_and_cached_after_completion(
         )
 
 
+async def test_malformed_active_review_id_falls_back_to_completed_feedback(
+    review_sessions: async_sessionmaker[AsyncSession],
+) -> None:
+    example = await ready_example(review_sessions)
+    async with review_sessions() as session:
+        attempt = await session.get(ExerciseAttempt, example.attempt.id)
+        assert attempt is not None
+        payload = dict(attempt.answer_payload or {})
+        payload["active_ai_review_id"] = "not-a-uuid"
+        attempt.answer_payload = payload
+        session.add(
+            AiEvaluation(
+                attempt_id=attempt.id,
+                status=AiEvaluationStatus.COMPLETED,
+                similarity_score=88,
+                feedback="Saved feedback",
+                details={},
+            )
+        )
+        await session.commit()
+
+    async with submission_client(review_sessions, example) as client:
+        response = await client.get(f"/api/v1/shadowing/attempts/{example.attempt.id}/review")
+
+    assert response.status_code == 200
+    assert response.json()["ai_feedback"]["feedback"] == "Saved feedback"
+
+
 async def test_multiple_batches_are_summarized_once_after_every_batch_completes(
     review_sessions: async_sessionmaker[AsyncSession],
 ) -> None:
