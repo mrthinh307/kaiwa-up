@@ -2,6 +2,9 @@
 
 FastAPI backend managed with `uv` and organized using a layered architecture.
 
+The Docker image starts both the API and Shadowing worker. See
+[free hosting setup](../../docs/free-hosting.md) for the current Render Free configuration.
+
 ## Setup
 
 1. Copy `apps/api/.env.example` to `apps/api/.env`.
@@ -28,7 +31,7 @@ The API is available at `http://localhost:8000`, OpenAPI docs at
 `http://localhost:8000/docs`, health at `http://localhost:8000/api/v1/health`, and
 readiness at `http://localhost:8000/api/v1/ready`.
 
-### Shadowing worker (development only)
+### Shadowing worker (local development)
 
 Shadowing needs a separate worker process; starting the API does not start it. In a second
 terminal, from the repository root:
