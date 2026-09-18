@@ -43,5 +43,25 @@ services:
         value: groq
       - key: AI_STT_PROVIDER
         value: groq
+      - key: AI_TEMPERATURE
+        value: "0.2"
+      - key: AI_TOP_P
+        value: "1.0"
+      - key: AI_MAX_OUTPUT_TOKENS
+        value: "1000"
+      - key: AI_TIMEOUT_SECONDS
+        value: "30"
+      - key: AI_MAX_RETRIES
+        value: "2"
+      - key: AI_RETRY_BACKOFF_SECONDS
+        value: "0.5"
+      - key: AI_MAX_RETRY_BACKOFF_SECONDS
+        value: "8"
+      - key: AI_GROQ_BASE_URL
+        value: https://api.groq.com/openai/v1
+      - key: AI_GROQ_LLM_MODEL
+        value: qwen/qwen3.8-27b
+      - key: AI_GROQ_STT_MODEL
+        value: whisper-large-v3
       - key: AI_GROQ_API_KEY
         sync: false
