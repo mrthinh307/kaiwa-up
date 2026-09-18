@@ -4,6 +4,10 @@ COPY --from=ghcr.io/astral-sh/uv:0.11.29 /uv /uvx /bin/
 
 WORKDIR /app
 
+RUN apt-get update \
+    && apt-get install --yes --no-install-recommends ffmpeg tini \
+    && rm -rf /var/lib/apt/lists/*
+
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     UV_COMPILE_BYTECODE=1 \
@@ -12,7 +16,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev
 
-RUN groupadd --system app && useradd --system --gid app --home-dir /app app
+RUN groupadd --system app && useradd --system --gid app --home-dir /app app \
+    && install -d -o app -g app /app/storage
 
 COPY --chown=app:app app ./app
 COPY --chown=app:app alembic ./alembic
@@ -23,4 +28,5 @@ USER app
 
 EXPOSE 8000
 
-CMD ["sh", "-c", "exec .venv/bin/uvicorn app.main:app --host 0.0.0.0 --port \"${PORT:-8000}\""]
+ENTRYPOINT ["/usr/bin/tini", "--"]
+CMD ["bash", "scripts/start.sh"]
