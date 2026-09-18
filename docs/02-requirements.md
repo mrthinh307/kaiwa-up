@@ -652,7 +652,6 @@ Sau khi nộp bài, hệ thống phải:
 * Hệ thống phải có thể triển khai trên môi trường thực tế.
 * Cấu hình môi trường phải được tách khỏi mã nguồn.
 * Hệ thống cần có tài liệu hướng dẫn cài đặt và triển khai.
-* Quy trình triển khai chi tiết sẽ được mô tả trong `11-deployment.md`.
 
 ---
 

@@ -1,12 +1,11 @@
-# 12. Kế hoạch triển khai sau Phase 1 và backlog Phase 2
+# 12. Backlog Phase 2
 
 ## 1. Mục đích
 
-Tài liệu này mô tả kế hoạch chuyển tiếp của KaiwaUp sau khi hoàn thành Phase 1 và danh sách task triển khai Phase 2.
+Tài liệu này mô tả danh sách task phát triển Phase 2 của KaiwaUp.
 
 Mục tiêu:
 
-- Đưa phiên bản MVP của Phase 1 lên môi trường thật càng sớm càng tốt.
 - Chạy thử các chức năng cốt lõi trước khi phát triển thêm chức năng nâng cao.
 - Phát hiện sớm lỗi cấu hình, database, authentication, audio và trải nghiệm người dùng.
 - Triển khai Phase 2 theo từng module độc lập.
@@ -27,154 +26,9 @@ Phase 1 bao gồm các chức năng MVP:
 - Shadowing.
 - Dictation.
 
-Sau khi các chức năng trên hoạt động ổn định ở môi trường local, team chưa bắt đầu Phase 2 ngay mà thực hiện một vòng deploy và chạy thử MVP.
-
 ---
 
-## 3. Giai đoạn chuyển tiếp — Deploy và chạy thử MVP Phase 1
-
-### DEPLOY-01 — Chuẩn bị môi trường triển khai MVP
-
-**Thời gian dự kiến:** 1 ngày
-**Phụ thuộc:** Phase 1 đã hoàn thành và merge vào nhánh triển khai
-
-**Nội dung:**
-
-- Chốt nền tảng triển khai Frontend Next.js và Backend FastAPI.
-- Tạo database PostgreSQL trên Neon cho môi trường triển khai.
-- Cấu hình Cloudinary cho audio bài học.
-- Khai báo biến môi trường của frontend và backend.
-- Tách cấu hình development và production.
-- Cấu hình CORS giữa frontend và backend.
-- Kiểm tra không đưa secret, JWT secret hoặc database URL lên repository.
-- Chuẩn bị migration và dữ liệu seed tối thiểu.
-
-**Kết quả mong đợi:**
-
-- Có đầy đủ môi trường frontend, backend, database và media để deploy.
-- Biến môi trường được quản lý an toàn.
-- Migration và seed có thể chạy trên database mới.
-
----
-
-### DEPLOY-02 — Deploy Backend, Database và dữ liệu MVP
-
-**Thời gian dự kiến:** 1 ngày
-**Phụ thuộc:** DEPLOY-01
-
-**Nội dung:**
-
-- Deploy FastAPI backend.
-- Kết nối backend với Neon PostgreSQL.
-- Chạy database migration.
-- Seed dữ liệu Shadowing và Dictation tối thiểu.
-- Kiểm tra URL audio Cloudinary.
-- Kiểm tra health endpoint.
-- Kiểm tra Swagger/OpenAPI trên môi trường triển khai.
-- Kiểm tra log lỗi nhưng không log password, token hoặc secret.
-
-**Kết quả mong đợi:**
-
-- Backend truy cập được từ Internet qua HTTPS.
-- Database có schema và dữ liệu bài học cần thiết.
-- Các endpoint Phase 1 phản hồi đúng trên môi trường triển khai.
-
----
-
-### DEPLOY-03 — Deploy Frontend và kết nối Backend
-
-**Thời gian dự kiến:** 1 ngày
-**Phụ thuộc:** DEPLOY-02
-
-**Nội dung:**
-
-- Deploy Next.js frontend.
-- Cấu hình API base URL của môi trường triển khai.
-- Kết nối authentication với backend thật.
-- Kiểm tra cookie hoặc JWT trên HTTPS.
-- Kiểm tra route protection.
-- Kiểm tra tải audio từ Cloudinary.
-- Kiểm tra giao diện trên desktop và mobile cơ bản.
-
-**Kết quả mong đợi:**
-
-- Người dùng truy cập được KaiwaUp qua URL thật.
-- Frontend gọi được backend và phát được audio.
-- Luồng đăng nhập và route protection hoạt động chính xác.
-
----
-
-### DEPLOY-04 — Smoke test và chạy thử MVP Phase 1
-
-**Thời gian dự kiến:** 1 ngày
-**Phụ thuộc:** DEPLOY-03
-
-**Nội dung:**
-
-Chạy thử toàn bộ luồng chính:
-
-```text
-Đăng ký
-→ Đăng nhập
-→ Xem và cập nhật tài khoản
-→ Làm bài Shadowing
-→ Làm bài Dictation
-→ Kiểm tra EXP và Progress
-→ Kiểm tra Leaderboard
-→ Đăng xuất và đăng nhập lại
-```
-
-Kiểm tra thêm:
-
-- Email trùng và mật khẩu không hợp lệ.
-- Access token hết hạn hoặc không hợp lệ.
-- Người chưa đăng nhập truy cập route cần xác thực.
-- Audio bài học không tải được.
-- Microphone bị từ chối quyền truy cập.
-- Submit Shadowing hoặc Dictation nhiều lần.
-- EXP có bị cộng trùng hay không.
-- Progress có còn đúng sau khi refresh hoặc đăng nhập lại hay không.
-- Database có ghi nhận đúng attempt và EXP transaction hay không.
-- Giao diện có hiển thị lỗi dễ hiểu hay không.
-
-**Kết quả mong đợi:**
-
-- Có checklist kết quả smoke test.
-- Ghi lại lỗi phát hiện được, mức độ nghiêm trọng và cách tái hiện.
-- Xác định MVP đủ ổn định để cho người dùng thử hay chưa.
-
----
-
-### DEPLOY-05 — Sửa lỗi chặn và phát hành MVP thử nghiệm
-
-**Thời gian dự kiến:** 1 ngày cho mỗi nhóm lỗi
-**Phụ thuộc:** DEPLOY-04
-
-**Nội dung:**
-
-- Ưu tiên sửa lỗi theo mức độ:
-  - Blocker: không đăng nhập được, mất dữ liệu, sai EXP, không làm được bài.
-  - Critical: lỗi bảo mật, truy cập dữ liệu người khác, lỗi database nghiêm trọng.
-  - Major: chức năng hoạt động nhưng kết quả hoặc trải nghiệm sai đáng kể.
-  - Minor: lỗi hiển thị hoặc trải nghiệm nhỏ.
-- Deploy lại sau khi sửa lỗi.
-- Chạy lại smoke test cho luồng bị ảnh hưởng.
-- Gắn version hoặc release tag cho bản MVP thử nghiệm.
-
-**Điều kiện bắt đầu Phase 2:**
-
-- Không còn lỗi Blocker hoặc Critical.
-- Đăng ký và đăng nhập hoạt động ổn định.
-- Shadowing và Dictation có thể hoàn thành trên môi trường thật.
-- EXP, Progress và Leaderboard cập nhật đúng.
-- Database migration có thể chạy lại an toàn.
-- Frontend, backend và audio đều truy cập được qua HTTPS.
-
-Các lỗi Minor không nhất thiết phải chặn Phase 2 nhưng phải được ghi lại trong backlog.
-
----
-
-## 4. Phạm vi Phase 2 — Chức năng nâng cao
+## 3. Phạm vi Phase 2 — Chức năng nâng cao
 
 Phase 2 gồm:
 
@@ -182,7 +36,7 @@ Phase 2 gồm:
 2. AI Reflex và Spaced Repetition.
 3. AI Tutor dạng văn bản, có gợi ý trả lời.
 4. Listening & Translation bằng free-text, có AI đánh giá mức độ truyền tải đúng ý.
-5. Hoàn thiện dữ liệu, kiểm thử và deployment.
+5. Hoàn thiện dữ liệu và kiểm thử.
 
 ### Quyết định phạm vi
 
@@ -198,14 +52,14 @@ Phase 2 gồm:
 
 ---
 
-## 5. Module AI Gateway
+## 4. Module AI Gateway
 
 AI Gateway được triển khai trước vì Reflex, AI Tutor và Translation đều phụ thuộc vào module này.
 
 ### AI-01 — Backend: Xây dựng AI Gateway
 
 **Thời gian dự kiến:** 1 ngày
-**Phụ thuộc:** MVP Phase 1 đã deploy ổn định
+**Phụ thuộc:** Các chức năng MVP Phase 1 hoạt động ổn định ở môi trường local
 
 **Nội dung:**
 
@@ -270,7 +124,7 @@ AI Gateway được triển khai trước vì Reflex, AI Tutor và Translation �
 
 ---
 
-## 6. Module AI Reflex và Spaced Repetition
+## 5. Module AI Reflex và Spaced Repetition
 
 ### REFLEX-01 — Backend: Xây dựng API Reflex và lịch ôn tập
 
@@ -409,7 +263,7 @@ Chọn bài
 
 ---
 
-## 7. Module AI Tutor có gợi ý trả lời
+## 6. Module AI Tutor có gợi ý trả lời
 
 Phase 2 chỉ hỗ trợ hội thoại bằng văn bản. Voice input được để lại cho giai đoạn sau.
 
@@ -525,7 +379,7 @@ Nhập topic, chọn difficulty và nhập scenario tùy chọn
 
 ---
 
-## 8. Module Listening & Translation
+## 7. Module Listening & Translation
 
 Người dùng bắt buộc nhập bản dịch tiếng Việt dạng free-text. AI đánh giá mức độ truyền tải đúng ý dựa trên transcript và bản dịch tham khảo; không yêu cầu khớp từng từ và không có bước quiz trắc nghiệm.
 
@@ -621,7 +475,7 @@ POST /api/v1/listening-translation/lessons/{lesson_id}/submit
 
 ---
 
-## 9. Hoàn thiện Phase 2
+## 8. Hoàn thiện Phase 2
 
 ### PHASE2-01 — Chuẩn bị nội dung và seed data
 
@@ -650,59 +504,39 @@ POST /api/v1/listening-translation/lessons/{lesson_id}/submit
 
 ---
 
-### PHASE2-03 — Deploy và smoke test Phase 2
-
-**Thời gian dự kiến:** 1 ngày
-
-- Cấu hình AI API key trên môi trường triển khai.
-- Cấu hình timeout và rate limit cho AI endpoint.
-- Chạy migration và seed Phase 2.
-- Deploy frontend và backend.
-- Smoke test Reflex, AI Tutor và Translation.
-- Kiểm tra log và chi phí gọi AI.
-- Cập nhật OpenAPI, `.env.example` và hướng dẫn troubleshooting.
-
----
-
-## 10. Tổng hợp backlog
+## 9. Tổng hợp backlog
 
 | Giai đoạn | Backend / Hạ tầng | Frontend | Integration / Kiểm thử |
 |---|---|---|---|
-| Deploy MVP Phase 1 | DEPLOY-01, DEPLOY-02 | DEPLOY-03 | DEPLOY-04, DEPLOY-05 |
 | AI Gateway | AI-01 | AI-02 | AI-03 |
 | AI Reflex | REFLEX-01 | REFLEX-02 | REFLEX-03 |
 | AI Tutor | TUTOR-01 | TUTOR-02 | TUTOR-03 |
 | Translation | TRANSLATION-01 | TRANSLATION-02 | TRANSLATION-03 |
-| Hoàn thiện Phase 2 | PHASE2-01 | — | PHASE2-02, PHASE2-03 |
+| Hoàn thiện Phase 2 | PHASE2-01 | — | PHASE2-02 |
 
 Tổng số task:
 
-- Deploy và chạy thử Phase 1: 5 task.
-- Phát triển Phase 2: 15 task.
-- Tổng cộng: 20 task.
+- Phát triển Phase 2: 14 task.
+- Tổng cộng: 14 task.
 
 ---
 
-## 11. Thứ tự thực hiện
+## 10. Thứ tự thực hiện
 
 ```mermaid
 flowchart TD
-    A[Phase 1 hoàn thành] --> B[Deploy MVP]
-    B --> C[Smoke test và sửa lỗi chặn]
-    C --> D{MVP đủ ổn định?}
-    D -- Chưa --> C
-    D -- Có --> E[AI Gateway]
+    A[Phase 1 hoàn thành] --> E[AI Gateway]
     E --> F[AI Reflex]
     F --> G[AI Tutor]
     G --> H[Listening & Translation]
-    H --> I[Test và deploy Phase 2]
+    H --> I[Kiểm thử Phase 2]
 ```
 
 Backend và Frontend của cùng một module có thể được triển khai song song nếu API contract đã được chốt và frontend sử dụng mock data. Task Integration chỉ bắt đầu sau khi Backend và Frontend của module tương ứng đã sẵn sàng.
 
 ---
 
-## 12. Definition of Done chung cho mỗi task
+## 11. Definition of Done chung cho mỗi task
 
 Một task chỉ được xem là hoàn thành khi:
 
@@ -718,9 +552,8 @@ Một task chỉ được xem là hoàn thành khi:
 
 ---
 
-## 13. Nguyên tắc dành cho MVP
+## 12. Nguyên tắc dành cho MVP
 
-- Deploy sớm để kiểm tra hệ thống thật, không chờ toàn bộ chức năng nâng cao hoàn thành.
 - Ưu tiên luồng chính hoạt động ổn định hơn số lượng tính năng.
 - Chưa triển khai voice input cho AI Tutor trong Phase 2.
 - Không triển khai AI theo cách làm lộ API key ở frontend.

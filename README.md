@@ -19,7 +19,7 @@ See [`docs/00-getting-started.md`](docs/00-getting-started.md) for prerequisites
 - `apps/web/` — Next.js frontend application
 - `apps/api/` — FastAPI backend, Alembic configuration, and API tests
 - `packages/api-client/` — shared generated TypeScript API contracts and client
-- `docs/` — product, architecture, database, API, testing, and deployment documentation
+- `docs/` — product, architecture, database, API, and testing documentation
 - `scripts/` — repository automation scripts
 - `Makefile` — shortcuts for common development workflows
 - `compose.yml` — Docker containerized services
