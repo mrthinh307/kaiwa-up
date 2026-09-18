@@ -1,0 +1,47 @@
+services:
+  - type: web
+    name: kaiwa-api
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerContext: ./apps/api
+    dockerfilePath: ./apps/api/Dockerfile
+    healthCheckPath: /api/v1/ready
+    autoDeployTrigger: off
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: DEBUG
+        value: "false"
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: CORS_ORIGINS
+        sync: false
+      - key: REFRESH_COOKIE_SECURE
+        value: "true"
+      - key: REFRESH_COOKIE_SAMESITE
+        value: lax
+      - key: CLOUDINARY_URL
+        sync: false
+      - key: CLOUDINARY_FOLDER
+        value: kaiwa-up
+      - key: LEADERBOARD_REBUILD_ENABLED
+        value: "true"
+      - key: LEADERBOARD_REBUILD_INTERVAL_MINUTES
+        value: "5"
+      - key: SHADOWING_STT_CONCURRENCY
+        value: "1"
+      - key: SHADOWING_ATTEMPT_STT_CONCURRENCY
+        value: "1"
+      - key: SHADOWING_AI_CONCURRENCY
+        value: "1"
+      - key: AI_TUTOR_PROVIDER
+        value: groq
+      - key: AI_EVAL_PROVIDER
+        value: groq
+      - key: AI_STT_PROVIDER
+        value: groq
+      - key: AI_GROQ_API_KEY
+        sync: false
