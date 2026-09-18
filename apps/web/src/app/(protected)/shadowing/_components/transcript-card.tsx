@@ -44,6 +44,7 @@ export function TranscriptCard({
   transcript,
 }: TranscriptCardProps) {
   const activeSegmentRef = useRef<HTMLButtonElement | null>(null);
+  const transcriptViewportRef = useRef<HTMLDivElement | null>(null);
 
   const isSegmentArray = Array.isArray(transcript);
 
@@ -58,10 +59,20 @@ export function TranscriptCard({
   const activeIndex = activePlayingIndex >= 0 ? activePlayingIndex : selectedSegmentIndex;
 
   useEffect(() => {
-    if (isSegmentArray && activeSegmentRef.current) {
-      activeSegmentRef.current.scrollIntoView({
+    const activeSegment = activeSegmentRef.current;
+    const viewport = transcriptViewportRef.current;
+
+    if (isSegmentArray && activeSegment && viewport) {
+      const activeRect = activeSegment.getBoundingClientRect();
+      const viewportRect = viewport.getBoundingClientRect();
+
+      viewport.scrollTo({
         behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
-        block: "center",
+        top:
+          viewport.scrollTop +
+          activeRect.top -
+          viewportRect.top -
+          (viewport.clientHeight - activeRect.height) / 2,
       });
     }
   }, [activeIndex, isSegmentArray]);
@@ -93,7 +104,10 @@ export function TranscriptCard({
 
       <div className="flex-1 bg-secondary-background p-2 sm:p-3">
         {isSegmentArray ? (
-          <ScrollArea className="h-[480px] sm:h-[560px] lg:h-[calc(100vh-210px)] min-h-[380px] pr-2">
+          <ScrollArea
+            className="h-[480px] min-h-[380px] pr-2 sm:h-[560px] lg:h-[calc(100vh-210px)] [&_[data-radix-scroll-area-viewport]]:overscroll-y-contain"
+            viewportRef={transcriptViewportRef}
+          >
             <div className="space-y-2.5">
               {transcript.map((seg, idx) => {
                 const isCurrentPlaying =
