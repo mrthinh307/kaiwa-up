@@ -10,4 +10,3 @@
 | `08-coding-convention.md` | Thống nhất cách viết code                              | Quy tắc đặt tên, cấu trúc thư mục, format code, import, xử lý lỗi, logging, quy tắc code chung                  |
 | `09-git-workflow.md`      | Thống nhất cách làm việc với Git                       | Quy tắc branch, đặt tên branch, commit message, Pull Request, review, merge                                     |
 | `10-testing-plan.md`      | Xác định cách kiểm tra chất lượng project              | Unit test, integration test, E2E test, test case, tiêu chí pass/fail                                            |
-| `11-deployment.md`        | Hướng dẫn đưa project lên môi trường chạy thật         | Môi trường development/staging/production, Docker, biến môi trường, CI/CD, quy trình deploy và rollback         |

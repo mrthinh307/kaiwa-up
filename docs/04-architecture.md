@@ -941,7 +941,7 @@ Tính năng này cần bổ sung:
 | Shadowing nâng cao | Phân tích ngữ điệu, ngữ âm và nhấn nhá trong tương lai |
 | Phản xạ 3 giây     | AI chấm điểm và đưa nhận xét                           |
 | Lặp lại ngắt quãng | Xác định lịch ôn dựa trên điểm AI                      |
-| AI Tutor           | Phase 2 text-only; deploy bị block bởi issue #88       |
+| AI Tutor           | Phase 2 text-only       |
 | EXP                | Mỗi chức năng có cơ chế tính riêng                     |
 | Level              | Công thức tăng dần `50 × level hiện tại`, không có trần |
 | Leaderboard        | Dựa trên EXP theo tuần                                 |
