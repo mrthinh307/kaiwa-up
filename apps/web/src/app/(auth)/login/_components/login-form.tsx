@@ -36,6 +36,10 @@ export function LoginForm({ isRegistered, nextPath }: LoginFormProps) {
   });
 
   const handleLogin = async (values: LoginValues) => {
+    if (auth.status === "initializing") {
+      return;
+    }
+
     const result = await auth.login(values);
 
     if (result.kind === "error") {
@@ -127,7 +131,16 @@ export function LoginForm({ isRegistered, nextPath }: LoginFormProps) {
         </p>
       )}
 
-      <Button className="w-full" disabled={isSubmitting} type="submit">
+      {auth.status === "initializing" && (
+        <p className="text-sm text-foreground/70" role="status">
+          Checking your session. You can fill in the form while the service connects.
+        </p>
+      )}
+      <Button
+        className="w-full"
+        disabled={isSubmitting || auth.status === "initializing"}
+        type="submit"
+      >
         {isSubmitting ? "Logging in…" : "Log in"}
       </Button>
     </form>
