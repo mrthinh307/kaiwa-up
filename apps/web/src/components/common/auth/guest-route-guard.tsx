@@ -18,18 +18,10 @@ export function GuestRouteGuard({ children }: { children: ReactNode }) {
     }
   }, [router, status]);
 
-  if (status === "initializing" || status === "authenticated") {
-    const isRestoringSession = status === "initializing";
-
+  if (status === "authenticated") {
     return (
       <div className="landing-grid min-h-dvh bg-background text-foreground">
-        <ProtectedRouteContentSkeleton
-          statusMessage={
-            isRestoringSession
-              ? "Checking your session…"
-              : "Your session is ready. Redirecting to your dashboard…"
-          }
-        />
+        <ProtectedRouteContentSkeleton statusMessage="Your session is ready. Redirecting to your dashboard…" />
       </div>
     );
   }

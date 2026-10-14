@@ -10,12 +10,14 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useAuth } from "@/hooks/use-auth";
 import { register as registerRequest } from "@/lib/api-client";
 import { normalizeApiFieldName, parseApiFailure } from "@/lib/api-errors";
 
 import { registerSchema, type RegisterValues } from "../../_validations/auth-schemas";
 
 export function RegisterForm() {
+  const { status } = useAuth();
   const router = useRouter();
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [isConfirmPasswordVisible, setIsConfirmPasswordVisible] = useState(false);
@@ -35,6 +37,10 @@ export function RegisterForm() {
   });
 
   const handleRegister = async (values: RegisterValues) => {
+    if (status === "initializing") {
+      return;
+    }
+
     const result = await registerRequest({
       body: {
         email: values.email,
@@ -133,7 +139,12 @@ export function RegisterForm() {
         </p>
       )}
 
-      <Button className="w-full" disabled={isSubmitting} type="submit">
+      {status === "initializing" && (
+        <p className="text-sm text-foreground/70" role="status">
+          Checking your session. You can fill in the form while the service connects.
+        </p>
+      )}
+      <Button className="w-full" disabled={isSubmitting || status === "initializing"} type="submit">
         {isSubmitting ? "Creating account…" : "Create account"}
       </Button>
     </form>
