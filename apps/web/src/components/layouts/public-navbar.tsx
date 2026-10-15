@@ -59,7 +59,7 @@ export function PublicNavbar() {
           >
             <a
               aria-label="View KaiwaUp on GitHub"
-              href="https://github.com/thanhbt25/KaiwaUp"
+              href="https://github.com/mrthinh307/kaiwa-up"
               rel="noreferrer"
               target="_blank"
             >
