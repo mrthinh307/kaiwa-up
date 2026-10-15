@@ -74,7 +74,7 @@ export function PublicFooter() {
           </p>
           <a
             className="mt-6 inline-flex items-center gap-2 font-heading underline-offset-4 hover:text-main hover:underline"
-            href="https://github.com/thanhbt25/KaiwaUp"
+            href="https://github.com/mrthinh307/kaiwa-up"
             rel="noreferrer"
             target="_blank"
           >
